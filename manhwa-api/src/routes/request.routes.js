@@ -10,7 +10,7 @@ const requestController = require('../controllers/request.controller');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/authorize');
 const { requireApiKeyOrAuth } = require('../middleware/apiKey');
-const { paginationValidation, idParam } = require('../middleware/validators');
+const { paginationValidation, uuidParam } = require('../middleware/validators');
 
 // Validaciones
 const createRequestValidation = [
@@ -52,8 +52,8 @@ const updateStatusValidation = [
 
 // Rutas públicas (protegidas con API key)
 router.get('/', requireApiKeyOrAuth, optionalAuth, validate(paginationValidation), requestController.listRequests);
-router.get('/:id', requireApiKeyOrAuth, optionalAuth, validate(idParam()), requestController.getRequest);
-router.get('/:id/comments', requireApiKeyOrAuth, optionalAuth, validate([...idParam(), ...paginationValidation]), requestController.getRequestComments);
+router.get('/:id', requireApiKeyOrAuth, optionalAuth, validate(uuidParam()), requestController.getRequest);
+router.get('/:id/comments', requireApiKeyOrAuth, optionalAuth, validate([...uuidParam(), ...paginationValidation]), requestController.getRequestComments);
 
 // Obtener o crear request para capítulo (público, pero recomendado con auth para mejor seguimiento)
 router.post('/chapter', requireApiKeyOrAuth, optionalAuth, requestController.getOrCreateChapterRequest);
@@ -74,12 +74,12 @@ router.put('/:id', validate([
 ]), requestController.updateRequest);
 
 // Votar
-router.post('/:id/vote', validate(idParam()), requestController.voteRequest);
-router.delete('/:id/vote', validate(idParam()), requestController.unvoteRequest);
+router.post('/:id/vote', validate(uuidParam()), requestController.voteRequest);
+router.delete('/:id/vote', validate(uuidParam()), requestController.unvoteRequest);
 
 // Moderación (admin/mod)
-router.put('/:id/status', requirePermission('requests:manage'), validate([...idParam(), ...updateStatusValidation]), requestController.updateRequestStatus);
+router.put('/:id/status', requirePermission('requests:manage'), validate([...uuidParam(), ...updateStatusValidation]), requestController.updateRequestStatus);
 // Eliminar pedido: delegar verificación al controlador para permitir que el propietario o un admin borren.
-router.delete('/:id', validate(idParam()), requestController.deleteRequest);
+router.delete('/:id', validate(uuidParam()), requestController.deleteRequest);
 
 module.exports = router;

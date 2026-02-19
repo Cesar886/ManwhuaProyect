@@ -116,9 +116,13 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
       const lastItem = syncQueueRef.current[syncQueueRef.current.length - 1];
       syncQueueRef.current = [];
 
+      const parsedChapterNum = parseInt(lastItem.chapterNum);
+      if (!parsedChapterNum || parsedChapterNum < 1) {
+        return;
+      }
       await saveProgressAPI({
         slug: lastItem.slug,
-        chapterNum: parseInt(lastItem.chapterNum) || 0,
+        chapterNum: parsedChapterNum,
         scrollPosition: lastItem.position || 0,
         progress: lastItem.progress || 0,
         totalPages: lastItem.totalPages || 0,

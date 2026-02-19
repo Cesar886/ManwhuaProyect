@@ -60,6 +60,14 @@ const idParam = (paramName = 'id') => [
 
 const seriesIdParam = idParam('seriesId');
 
+const uuidParam = (paramName = 'id') => [
+    param(paramName)
+        .notEmpty()
+        .withMessage(`${paramName} requerido`)
+        .isUUID()
+        .withMessage(`${paramName} debe ser un UUID válido`),
+];
+
 // ============================================
 // BÚSQUEDA
 // ============================================
@@ -94,6 +102,7 @@ module.exports = {
     sortValidation,
     slugParam,
     idParam,
+    uuidParam,
     seriesIdParam,
     searchQueryValidation,
     chapterNumParam,

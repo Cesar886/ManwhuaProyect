@@ -62,7 +62,7 @@ export function getDeviceId() {
 export const saveProgress = withErrorHandler(
   async (data) => {
     // Validación de entrada
-    if (!data?.slug || !data?.chapterNum) {
+    if (!data?.slug || !(Number(data?.chapterNum) >= 1)) {
       logger.warn('Invalid progress data', { slug: data?.slug, chapterNum: data?.chapterNum });
       throw new Error('slug y chapterNum son requeridos');
     }
@@ -104,7 +104,7 @@ export const saveProgress = withErrorHandler(
 export const getProgress = withErrorHandler(
   async (slug, chapterNum) => {
     // Validación
-    if (!slug || !chapterNum) {
+    if (!slug || !(Number(chapterNum) >= 1)) {
       logger.warn('Invalid getProgress params', { slug, chapterNum });
       return null;
     }
