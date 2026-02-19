@@ -5,16 +5,19 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 
+import dynamic from 'next/dynamic';
 import { useChapterPages, useSeriesDetail } from '../../../../../hooks/useSpaces';
 import ChapterNavigation from '../../../../../components/ChapterNavigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { getOrCreateChapterRequest } from '../../../../../api/requests';
-import Comentarios from '../../../../../components/Comentarios';
-import LoginModal from '../../../../../components/LoginModal';
 import ReaderHeader from '../../../../../components/ReaderHeader';
 import { useReadingProgress } from '../../../../../hooks/useReadingProgress';
 import ReadingProgressBar from '../../../../../components/ReadingProgressBar';
 import ChapterRating from '../../../../../components/ChapterRating';
+
+// Carga dinámica para evitar que el CSS de Mantine sea preloaded innecesariamente
+const Comentarios = dynamic(() => import('../../../../../components/Comentarios'), { ssr: false });
+const LoginModal = dynamic(() => import('../../../../../components/LoginModal'), { ssr: false });
 // import ReadingRestoredNotice from '../../../../../components/ReadingRestoredNotice';
 // import chapterNavStyles from './ChapterReader.module.css'; 
 

@@ -10,10 +10,46 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconArrowLeft, IconMaximize, IconMinimize } from '@tabler/icons-react';
-import { Avatar } from '@mantine/core';
 import Image from 'next/image';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './ReaderHeader.module.css';
+
+// ===============================================
+// AVATAR DE INICIALES (sin dependencia de Mantine)
+// ===============================================
+const AVATAR_COLORS = ['#3b82f6', '#ef4444', '#06b6d4', '#6366f1', '#ec4899', '#8b5cf6'];
+
+function UserInitialsAvatar({ name }) {
+  const initials = name
+    .split(' ')
+    .map(n => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || '?';
+
+  const colorIndex = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
+
+  return (
+    <div style={{
+      width: 32,
+      height: 32,
+      borderRadius: '50%',
+      backgroundColor: AVATAR_COLORS[colorIndex],
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: 600,
+      border: '2px solid rgba(102, 126, 234, 0.3)',
+      cursor: 'pointer',
+      userSelect: 'none',
+      flexShrink: 0,
+    }}>
+      {initials}
+    </div>
+  );
+}
 
 // ===============================================
 // CONSTANTES DE CONFIGURACIÓN
@@ -274,17 +310,7 @@ export default function ReaderHeader({ slug, chapterNum }) {
         {/* Foto de perfil del usuario */}
         {user && (
           <div className={styles.userAvatar}>
-            <Avatar
-              name={user.displayName || user.username || 'Usuario'}
-              color="initials"
-              allowedInitialsColors={['blue', 'red', 'cyan', 'indigo', 'pink', 'violet']}
-              radius="xl"
-              size={32}
-              style={{
-                border: '2px solid rgba(102, 126, 234, 0.3)',
-                cursor: 'pointer',
-              }}
-            />
+            <UserInitialsAvatar name={user.displayName || user.username || 'U'} />
           </div>
         )}
 
