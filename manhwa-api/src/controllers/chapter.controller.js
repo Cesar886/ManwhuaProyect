@@ -541,126 +541,73 @@ const uploadPages = async (req, res, next) => {
 
 const rateChapter = async (req, res, next) => {
     try {
-        const { chapterId } = req.params;
+        const { seriesSlug, chapterNum } = req.params;
         const { rating, visitorId, timestamp } = req.body;
 
-        // 2. Reading Time Check (3 segundos mínimo de "lectura")
-        // Nota: Confiamos en que la diferencia de tiempo entre cliente y servidor no sea drástica,
-        // pero principalmente buscamos evitar scripts que ejecutan la petición en milisegundos.
-        if (!timestamp) {
-            return res.status(400).json({
-                success: false,
-                message: 'Datos de validación temporal faltantes.'
-            });
-        }
-
-        const clientTime = new Date(timestamp).getTime();
-        if (isNaN(clientTime)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Timestamp inválido.'
-            });
-        }
-
-        const serverTime = Date.now();
-        const timeDiff = serverTime - clientTime;
-
-        // Si la diferencia es menor a 3 segundos (demasiado rápido) o negativa (reloj adelantado/manipulado)
-        // Permitimos un margen de error pequeño para relojes desincronizados, pero un voto instantáneo es sospechoso.
-        // Usamos 3000ms como mínimo razonable para interpretar el contenido y votar.
-        if (timeDiff < 3000 && timeDiff > -60000) {
-            return res.status(429).json({
-                success: false,
-                message: 'Voto demasiado rápido. Tómate un momento para leer.'
-            });
+        // Anti-bot: mínimo 1 segundo desde que el componente se volvió interactivo
+        if (timestamp) {
+            const clientTime = new Date(timestamp).getTime();
+            if (!isNaN(clientTime)) {
+                const timeDiff = Date.now() - clientTime;
+                if (timeDiff < 1000 && timeDiff > -60000) {
+                    return res.status(429).json({
+                        success: false,
+                        message: 'Voto demasiado rápido. Tómate un momento para leer.'
+                    });
+                }
+            }
         }
 
         if (!visitorId || typeof visitorId !== 'string' || visitorId.length < 5) {
-            return res.status(400).json({
-                success: false,
-                message: 'visitorId requerido'
-            });
+            return res.status(400).json({ success: false, message: 'visitorId requerido' });
         }
 
-        if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Rating debe ser un entero entre 1 y 5'
-            });
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return res.status(400).json({ success: false, message: 'Rating debe ser un entero entre 1 y 5' });
         }
 
-        // Verificar que el capítulo existe
-        const chapterResult = await query(
-            'SELECT id FROM chapters WHERE id = $1',
-            [chapterId]
-        );
-
-        if (chapterResult.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Capítulo no encontrado'
-            });
-        }
+        const chapterNumParsed = parseFloat(chapterNum);
 
         // Upsert: insertar o actualizar voto
         await query(
-            `INSERT INTO chapter_ratings (chapter_id, visitor_id, rating)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (chapter_id, visitor_id)
-             DO UPDATE SET rating = $3, updated_at = NOW()`,
-            [chapterId, visitorId, rating]
+            `INSERT INTO chapter_votes (series_slug, chapter_number, visitor_id, rating)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (series_slug, chapter_number, visitor_id)
+             DO UPDATE SET rating = $4, updated_at = NOW()`,
+            [seriesSlug, chapterNumParsed, visitorId, rating]
         );
 
-        // 6. Sistema de Cuarentena (Detectar picos de votos)
-        // Verificar cuántos votos se han recibido en la última hora
+        // Sistema de cuarentena: detectar picos de votos
         const spikeCheck = await query(
-            `SELECT COUNT(*) as recent_votes 
-             FROM chapter_ratings 
-             WHERE chapter_id = $1 AND updated_at > NOW() - INTERVAL '1 hour'`,
-            [chapterId]
+            `SELECT COUNT(*) as recent_votes FROM chapter_votes
+             WHERE series_slug = $1 AND chapter_number = $2
+               AND updated_at > NOW() - INTERVAL '1 hour'`,
+            [seriesSlug, chapterNumParsed]
         );
 
-        const recentVotes = parseInt(spikeCheck.rows[0].recent_votes, 10) || 0;
-        const SPIKE_THRESHOLD = 50; // Ajustar según tráfico (ej. 50 votos/hora es sospechoso para sitios pequeños)
-
-        if (recentVotes > SPIKE_THRESHOLD) {
-            // Cuarentena activada: No actualizamos el promedio público
-            // El voto se guardó, pero no afecta la visualización inmediata
+        if (parseInt(spikeCheck.rows[0].recent_votes, 10) > 50) {
             return res.json({
                 success: true,
                 message: 'Calificación recibida (en revisión por alto tráfico)',
-                data: {
-                    // Devolvemos el promedio anterior sin recalcular
-                    rating: null,
-                    ratingCount: null
-                }
+                data: { rating: null, ratingCount: null }
             });
         }
 
-        // Recalcular promedio y count si no hay pico sospechoso
+        // Recalcular promedio
         const statsResult = await query(
             `SELECT AVG(rating)::DECIMAL(3,2) as avg_rating, COUNT(*) as total
-             FROM chapter_ratings
-             WHERE chapter_id = $1`,
-            [chapterId]
+             FROM chapter_votes
+             WHERE series_slug = $1 AND chapter_number = $2`,
+            [seriesSlug, chapterNumParsed]
         );
 
         const avgRating = parseFloat(statsResult.rows[0].avg_rating) || 0;
         const totalCount = parseInt(statsResult.rows[0].total, 10) || 0;
 
-        // Actualizar columnas en tabla de capítulos
-        await query(
-            'UPDATE chapters SET rating = $1, rating_count = $2 WHERE id = $3',
-            [avgRating, totalCount, chapterId]
-        );
-
         res.json({
             success: true,
             message: 'Calificación guardada',
-            data: {
-                rating: avgRating,
-                ratingCount: totalCount
-            }
+            data: { rating: avgRating, ratingCount: totalCount }
         });
     } catch (error) {
         next(error);
@@ -668,31 +615,26 @@ const rateChapter = async (req, res, next) => {
 };
 
 /**
- * Obtener calificación del usuario para un capítulo
- * GET /api/chapters/:chapterId/user-rating?visitorId=xxx
+ * Obtener voto previo del usuario para un capítulo
+ * GET /api/chapters/:seriesSlug/:chapterNum/user-rating?visitorId=xxx
  */
 const getChapterUserRating = async (req, res, next) => {
     try {
-        const { chapterId } = req.params;
+        const { seriesSlug, chapterNum } = req.params;
         const { visitorId } = req.query;
 
         if (!visitorId) {
-            return res.json({
-                success: true,
-                data: { userRating: null }
-            });
+            return res.json({ success: true, data: { userRating: null } });
         }
 
         const result = await query(
-            'SELECT rating FROM chapter_ratings WHERE chapter_id = $1 AND visitor_id = $2',
-            [chapterId, visitorId]
+            'SELECT rating FROM chapter_votes WHERE series_slug = $1 AND chapter_number = $2 AND visitor_id = $3',
+            [seriesSlug, parseFloat(chapterNum), visitorId]
         );
 
         res.json({
             success: true,
-            data: {
-                userRating: result.rows.length > 0 ? result.rows[0].rating : null
-            }
+            data: { userRating: result.rows.length > 0 ? result.rows[0].rating : null }
         });
     } catch (error) {
         next(error);
@@ -700,7 +642,7 @@ const getChapterUserRating = async (req, res, next) => {
 };
 
 /**
- * Obtener rating de un capítulo por slug de serie y número
+ * Obtener rating promedio de un capítulo
  * GET /api/chapters/:seriesSlug/:chapterNum/rating
  */
 const getChapterRating = async (req, res, next) => {
@@ -708,26 +650,17 @@ const getChapterRating = async (req, res, next) => {
         const { seriesSlug, chapterNum } = req.params;
 
         const result = await query(
-            `SELECT c.id, c.rating, c.rating_count
-             FROM chapters c
-             JOIN series s ON c.series_id = s.id
-             WHERE s.slug = $1 AND c.number = $2 AND s.deleted_at IS NULL`,
+            `SELECT AVG(rating)::DECIMAL(3,2) as avg_rating, COUNT(*) as total
+             FROM chapter_votes
+             WHERE series_slug = $1 AND chapter_number = $2`,
             [seriesSlug, parseFloat(chapterNum)]
         );
-
-        if (result.rows.length === 0) {
-            return res.json({
-                success: true,
-                data: { chapterId: null, rating: null, ratingCount: 0 }
-            });
-        }
 
         res.json({
             success: true,
             data: {
-                chapterId: result.rows[0].id,
-                rating: result.rows[0].rating ? parseFloat(result.rows[0].rating) : null,
-                ratingCount: parseInt(result.rows[0].rating_count, 10) || 0
+                rating: result.rows[0].avg_rating ? parseFloat(result.rows[0].avg_rating) : null,
+                ratingCount: parseInt(result.rows[0].total, 10) || 0
             }
         });
     } catch (error) {

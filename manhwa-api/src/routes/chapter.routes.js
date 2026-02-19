@@ -38,18 +38,20 @@ const createChapterValidation = [
 // Rating de capítulos (público, identificado por visitorId/FingerprintJS)
 // IMPORTANTE: Estas rutas deben ir ANTES de /:seriesSlug/:chapterSlug para evitar que
 // la ruta genérica con requireApiKeyOrAuth las eclipse.
-router.post('/:chapterId/rate',
+router.post('/:seriesSlug/:chapterNum/rate',
     voteLimiter,
     validate([
-        param('chapterId').isUUID().withMessage('ID de capítulo inválido'),
+        param('seriesSlug').trim().notEmpty().withMessage('Slug de serie requerido'),
+        param('chapterNum').isFloat({ min: 0 }).withMessage('Número de capítulo inválido'),
         body('rating').isInt({ min: 1, max: 5 }).withMessage('El voto debe ser un número entero entre 1 y 5'),
         body('visitorId').trim().notEmpty().withMessage('visitorId requerido'),
     ]),
     chapterController.rateChapter
 );
 
-router.get('/:chapterId/user-rating', validate([
-    param('chapterId').isUUID().withMessage('ID de capítulo inválido'),
+router.get('/:seriesSlug/:chapterNum/user-rating', validate([
+    param('seriesSlug').trim().notEmpty().withMessage('Slug de serie requerido'),
+    param('chapterNum').isFloat({ min: 0 }).withMessage('Número de capítulo inválido'),
 ]), chapterController.getChapterUserRating);
 
 router.get('/:seriesSlug/:chapterNum/rating', validate([

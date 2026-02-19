@@ -6,16 +6,12 @@ import { apiUrl } from '../config';
 
 /**
  * ChapterRating - Calificación por capítulo con estrellas (1-5)
- * 
+ *
  * Usa FingerprintJS visitorId + Time Check para seguridad.
  * Persiste votos en localStorage para que las estrellas se mantengan al recargar.
+ * No depende de la tabla chapters (vacía); usa series_slug + chapter_number directamente.
  */
-export default function ChapterRating({
-  slug,
-  chapterNum,
-  onRated,
-}) {
-  const [chapterId, setChapterId] = useState(null);
+export default function ChapterRating({ slug, chapterNum, onRated }) {
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,10 +19,11 @@ export default function ChapterRating({
   const [avgRating, setAvgRating] = useState(0);
   const [ratingCount, setRatingCount] = useState(0);
   const [visitorId, setVisitorId] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
 
-  const mountTimeRef = useRef(Date.now());
+  // El timer anti-bot arranca cuando visitorId está disponible (no al montar)
+  const mountTimeRef = useRef(null);
 
-  // Helper: localStorage key para persistencia de votos
   const getStorageKey = (s, ch) => `mi_chapter_rating_${s}_${ch}`;
 
   // Inicializar FingerprintJS y obtener visitorId
@@ -40,7 +37,6 @@ export default function ChapterRating({
         const result = await fp.get();
         if (mounted) setVisitorId(result.visitorId);
       } catch {
-        // Fallback: usar un ID del localStorage
         let fallbackId = localStorage.getItem('mi_visitor_id');
         if (!fallbackId) {
           fallbackId = 'fb_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -54,6 +50,13 @@ export default function ChapterRating({
     return () => { mounted = false; };
   }, []);
 
+  // Registrar cuándo el usuario puede empezar a votar (para anti-bot)
+  useEffect(() => {
+    if (visitorId && mountTimeRef.current === null) {
+      mountTimeRef.current = Date.now();
+    }
+  }, [visitorId]);
+
   // Check localStorage inmediatamente para mostrar estrellas al instante
   useEffect(() => {
     if (typeof window === 'undefined' || !slug || !chapterNum) return;
@@ -66,11 +69,11 @@ export default function ChapterRating({
           setUserRating(parsed.rating);
           setHasRated(true);
         }
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     }
   }, [slug, chapterNum]);
 
-  // Cargar rating del capítulo y resolver chapterId
+  // Cargar rating promedio del capítulo
   useEffect(() => {
     if (!slug || !chapterNum) return;
     let mounted = true;
@@ -80,13 +83,10 @@ export default function ChapterRating({
         const res = await fetch(apiUrl(`chapters/${slug}/${chapterNum}/rating`));
         const data = await res.json();
         if (mounted && data.success && data.data) {
-          setChapterId(data.data.chapterId);
           setAvgRating(parseFloat(data.data.rating) || 0);
           setRatingCount(parseInt(data.data.ratingCount, 10) || 0);
         }
-      } catch {
-        // Silently fail
-      }
+      } catch { /* Silently fail */ }
     };
 
     fetchRating();
@@ -95,44 +95,44 @@ export default function ChapterRating({
 
   // Cargar voto previo del usuario desde la API
   useEffect(() => {
-    if (!chapterId || !visitorId) return;
+    if (!visitorId || !slug || !chapterNum) return;
 
     const fetchUserRating = async () => {
       try {
-        const res = await fetch(apiUrl(`chapters/${chapterId}/user-rating?visitorId=${visitorId}`));
+        const res = await fetch(apiUrl(`chapters/${slug}/${chapterNum}/user-rating?visitorId=${visitorId}`));
         const data = await res.json();
         if (data.success && data.data?.userRating) {
           setUserRating(data.data.userRating);
           setHasRated(true);
-          // Sincronizar localStorage
-          if (typeof window !== 'undefined' && slug && chapterNum) {
+          if (typeof window !== 'undefined') {
             localStorage.setItem(
               getStorageKey(slug, chapterNum),
               JSON.stringify({ rating: data.data.userRating, visitorId })
             );
           }
         }
-      } catch {
-        // Silently fail — localStorage ya cubre este caso
-      }
+      } catch { /* Silently fail — localStorage ya cubre este caso */ }
     };
 
     fetchUserRating();
-  }, [chapterId, visitorId, slug, chapterNum]);
+  }, [visitorId, slug, chapterNum]);
 
   const handleRate = useCallback(async (value) => {
-    if (isSubmitting || !visitorId || !chapterId || hasRated) return;
+    if (isSubmitting || !visitorId || hasRated) return;
 
     setIsSubmitting(true);
+    setErrorMsg(null);
 
     try {
-      const res = await fetch(apiUrl(`chapters/${chapterId}/rate`), {
+      const res = await fetch(apiUrl(`chapters/${slug}/${chapterNum}/rate`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rating: value,
           visitorId,
-          timestamp: new Date(mountTimeRef.current).toISOString()
+          timestamp: mountTimeRef.current != null
+            ? new Date(mountTimeRef.current).toISOString()
+            : undefined,
         }),
       });
 
@@ -142,7 +142,6 @@ export default function ChapterRating({
         setUserRating(value);
         setHasRated(true);
 
-        // Guardar en localStorage para persistencia al recargar
         if (typeof window !== 'undefined' && slug && chapterNum) {
           localStorage.setItem(
             getStorageKey(slug, chapterNum),
@@ -150,24 +149,21 @@ export default function ChapterRating({
           );
         }
 
-        // Si entra en cuarentena (data.data.rating es null), mantenemos el promedio actual
         if (data.data && data.data.rating !== null && data.data.rating !== undefined) {
           setAvgRating(parseFloat(data.data.rating) || 0);
           setRatingCount(parseInt(data.data.ratingCount, 10) || 0);
-        } else if (data.message && data.message.includes('revisión')) {
-          console.info('Voto en revisión por alto tráfico.');
         }
 
         if (onRated) onRated(data.data);
       } else {
-        alert(data.message || 'Error al calificar');
+        setErrorMsg(data.message || 'Error al calificar');
       }
-    } catch (err) {
-      console.error('Error rating chapter:', err);
+    } catch {
+      setErrorMsg('Error de conexión. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [chapterId, visitorId, isSubmitting, hasRated, onRated, slug, chapterNum]);
+  }, [visitorId, isSubmitting, hasRated, onRated, slug, chapterNum]);
 
   const displayRating = avgRating > 0 ? avgRating.toFixed(1) : '0.0';
 
@@ -203,7 +199,7 @@ export default function ChapterRating({
             onClick={() => handleRate(star)}
             onMouseEnter={() => !hasRated && setHoverRating(star)}
             onMouseLeave={() => !hasRated && setHoverRating(0)}
-            disabled={isSubmitting || !visitorId || !chapterId || hasRated}
+            disabled={isSubmitting || !visitorId || hasRated}
             style={{
               background: 'none',
               border: 'none',
@@ -227,12 +223,14 @@ export default function ChapterRating({
 
       <p style={{
         fontSize: '12px',
-        color: 'var(--dimmed-text, #888)',
+        color: errorMsg ? 'var(--error-color, #ef4444)' : 'var(--dimmed-text, #888)',
         margin: 0,
       }}>
         {hasRated
           ? `Tu calificación: ${userRating} estrellas`
-          : (isSubmitting ? 'Enviando...' : 'Califica este capítulo')}
+          : errorMsg
+            ? errorMsg
+            : (isSubmitting ? 'Enviando...' : 'Califica este capítulo')}
       </p>
     </div>
   );
