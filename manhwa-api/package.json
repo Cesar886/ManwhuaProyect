@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "NODE_OPTIONS=--openssl-legacy-provider node src/server.js",
-    "dev": "NODE_OPTIONS=--openssl-legacy-provider nodemon src/server.js",
+    "dev": "NODE_OPTIONS=--openssl-legacy-provider nodemon --ignore 'data/' src/server.js",
     "test": "jest",
     "migrate": "node src/database/migrate.js",
     "seed": "node src/database/seed.js"

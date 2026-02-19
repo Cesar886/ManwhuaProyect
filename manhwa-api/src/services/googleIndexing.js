@@ -198,7 +198,7 @@ async function notifyUrlUpdated(url) {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             const client = await getAuthClient();
-            const headers = await client.getRequestHeaders();
+            const { token } = await client.getAccessToken();
 
             const response = await axios.post(
                 INDEXING_API_URL,
@@ -206,7 +206,7 @@ async function notifyUrlUpdated(url) {
                 {
                     headers: {
                         'Content-Type': 'application/json',
-                        ...headers
+                        'Authorization': `Bearer ${token}`
                     },
                     timeout: 10000
                 }

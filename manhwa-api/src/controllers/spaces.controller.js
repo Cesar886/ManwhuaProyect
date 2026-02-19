@@ -841,71 +841,40 @@ const getManhwaFromSpaces = async (req, res, next) => {
         let coverUrl = series.cover;
         let dbMetadata = {};
         try {
-            // Consulta principal con JOIN al autor
+            // Consulta unificada: serie + autor + géneros en una sola query
             const dbResult = await query(
                 `SELECT s.id, s.cover_url, s.title, s.original_title, s.synopsis, s.status,
                         s.rating_average, s.rating_count, s.release_year, s.view_count,
-                        a.name as author_name
+                        a.name as author_name,
+                        COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
                  FROM series s
                  LEFT JOIN authors a ON s.author_id = a.id
+                 LEFT JOIN LATERAL (
+                     SELECT array_agg(g.name ORDER BY g.name) as genres
+                     FROM series_genres sg
+                     JOIN genres g ON sg.genre_id = g.id
+                     WHERE sg.series_id = s.id
+                 ) g_agg ON true
                  WHERE s.slug = $1 AND s.deleted_at IS NULL`,
                 [slug]
             );
 
             if (dbResult.rows.length > 0) {
                 const dbSeries = dbResult.rows[0];
-                // Priorizar cover_url de la BD si existe
                 if (dbSeries.cover_url) {
                     coverUrl = dbSeries.cover_url;
                     logger.debug(`✅ Cover URL desde BD para ${slug}: ${coverUrl}`);
                 }
-                // Sobrescribir título y otros metadatos si existen en BD
-                if (dbSeries.title) {
-                    dbMetadata.title = dbSeries.title;
-                }
-                if (dbSeries.original_title) {
-                    dbMetadata.originalTitle = dbSeries.original_title;
-                }
-                if (dbSeries.synopsis) {
-                    dbMetadata.synopsis = dbSeries.synopsis;
-                }
-                if (dbSeries.status) {
-                    dbMetadata.status = dbSeries.status;
-                }
-                if (dbSeries.author_name) {
-                    dbMetadata.author = dbSeries.author_name;
-                }
-                // Rating data for SEO schemas
-                if (dbSeries.rating_average) {
-                    dbMetadata.rating = parseFloat(dbSeries.rating_average);
-                }
-                if (dbSeries.rating_count) {
-                    dbMetadata.ratingCount = parseInt(dbSeries.rating_count, 10);
-                }
-                if (dbSeries.release_year) {
-                    dbMetadata.releaseYear = dbSeries.release_year;
-                }
-                if (dbSeries.view_count) {
-                    dbMetadata.views = dbSeries.view_count;
-                }
-
-                // Consultar géneros si tenemos el ID de la serie
-                if (dbSeries.id) {
-                    try {
-                        const genresResult = await query(
-                            `SELECT g.name FROM genres g 
-                             JOIN series_genres sg ON g.id = sg.genre_id 
-                             WHERE sg.series_id = $1 
-                             ORDER BY g.name`,
-                            [dbSeries.id]
-                        );
-                        if (genresResult.rows.length > 0) {
-                            dbMetadata.genres = genresResult.rows.map(r => r.name);
-                        }
-                    } catch (genresError) {
-                        logger.warn(`⚠️ No se pudieron consultar géneros para ${slug}:`, genresError.message);
-                    }
-                }
+                if (dbSeries.title)          dbMetadata.title         = dbSeries.title;
+                if (dbSeries.original_title) dbMetadata.originalTitle = dbSeries.original_title;
+                if (dbSeries.synopsis)       dbMetadata.synopsis      = dbSeries.synopsis;
+                if (dbSeries.status)         dbMetadata.status        = dbSeries.status;
+                if (dbSeries.author_name)    dbMetadata.author        = dbSeries.author_name;
+                if (dbSeries.rating_average) dbMetadata.rating        = parseFloat(dbSeries.rating_average);
+                if (dbSeries.rating_count)   dbMetadata.ratingCount   = parseInt(dbSeries.rating_count, 10);
+                if (dbSeries.release_year)   dbMetadata.releaseYear   = dbSeries.release_year;
+                if (dbSeries.view_count)     dbMetadata.views         = dbSeries.view_count;
+                if (dbSeries.genres?.length) dbMetadata.genres        = dbSeries.genres;
             }
         } catch (dbError) {
             // No fallar si la consulta a BD falla, solo loguear
