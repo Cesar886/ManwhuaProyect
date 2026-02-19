@@ -132,10 +132,9 @@ export default function RootLayout({ children }) {
         }} />
         {/* End Google Tag Manager */}
       </head>
-      <body className={outfit.className}>
-        {/* Google Tag Manager (noscript) */}
-        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M3DPPM9K"
-          height="0" width="0" style={{display:'none',visibility:'hidden'}}></iframe></noscript>
+      <body className={outfit.className} suppressHydrationWarning>
+        {/* Google Tag Manager (noscript) - dangerouslySetInnerHTML evita hidratación incorrecta en React 19 */}
+        <noscript dangerouslySetInnerHTML={{ __html: '<iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M3DPPM9K" height="0" width="0" style="display:none;visibility:hidden"></iframe>' }} />
         {/* End Google Tag Manager (noscript) */}
         <NavigationProgress />
         <EzoicAds />
