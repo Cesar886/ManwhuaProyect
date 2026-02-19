@@ -1,0 +1,84 @@
+/* Layout principal */
+.appLayout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: var(--page-bg, #ffffff);
+  color: var(--text-color, #000000);
+}
+
+/* Fondo decorativo con gradiente */
+.backgroundGradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.03) 0%, rgba(80, 200, 120, 0.03) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Contenido principal */
+.mainContent {
+  flex: 1;
+  padding-top: var(--header-height, 110px);
+  min-height: calc(100vh - 200px);
+  position: relative;
+  z-index: 1;
+}
+
+/* Variantes del header */
+.transparentHeader .mainContent,
+.hiddenHeader .mainContent {
+  padding-top: 0;
+}
+
+.mainNoOffset {
+  padding-top: 0 !important;
+}
+
+/* Layout de ancho completo */
+.fullWidth .mainContent {
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Wrapper para páginas */
+.pageWrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.pageWrapper.noPadding {
+  padding: 0;
+}
+
+.pageWrapper.noMaxWidth {
+  max-width: none;
+}
+
+/* Página de pantalla completa */
+.fullscreenPage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background: var(--page-bg, #ffffff);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .mainContent {
+    padding-top: var(--header-height-mobile, 100px);
+  }
+
+  .pageWrapper {
+    padding: 0 16px;
+  }
+}

@@ -1,0 +1,112 @@
+.progressContainer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.progressContainer.top {
+  top: 0;
+}
+
+.progressContainer.bottom {
+  bottom: 0;
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.9) 0%,
+    rgba(147, 51, 234, 0.9) 50%,
+    rgba(236, 72, 153, 0.9) 100%
+  );
+  position: relative;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+.progressGlow {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 50px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.6)
+  );
+  animation: shimmer 2s infinite;
+}
+
+.completionIndicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
+  animation: fadeInScale 0.5s ease;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .progressContainer {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .progressBar {
+    background: linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 1) 0%,
+      rgba(147, 51, 234, 1) 50%,
+      rgba(236, 72, 153, 1) 100%
+    );
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .progressContainer {
+    height: 3px;
+  }
+
+  .completionIndicator {
+    font-size: 0.75rem;
+    padding: 0.75rem 1.5rem;
+  }
+}

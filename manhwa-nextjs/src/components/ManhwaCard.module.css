@@ -1,0 +1,265 @@
+/* ManhwaCard.module.css - Estilos para card con carga progresiva */
+
+.manhwaCard {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: cardAppear 0.4s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes cardAppear {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.manhwaCard:hover {
+  transform: translateY(-8px);
+}
+
+/* Cover wrapper */
+.coverWrapper {
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+/* Indicador temporal de estado (solo para debugging) */
+.cardStateIndicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  padding: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.manhwaCard:hover .cardStateIndicator {
+  opacity: 1;
+}
+
+.stateLabel {
+  font-size: 0.6rem;
+  color: var(--imperial-gold, #D4A528);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.coverImage {
+  width: 100%;
+  border-radius: 0.75rem;
+}
+
+/* Status badge */
+.statusBadge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 10;
+  text-transform: capitalize;
+}
+
+/* Stats overlay (rating/views) */
+.statsOverlay {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.75);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--imperial-gold, #D4A528);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(212, 165, 40, 0.2);
+  z-index: 10;
+}
+
+/* Hover overlay */
+.hoverOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    transparent 100%
+  );
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 1rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 5;
+}
+
+.manhwaCard:hover .hoverOverlay {
+  opacity: 1;
+}
+
+.hoverText {
+  background: var(--gradient-imperial, linear-gradient(135deg, #D4A528 0%, #8B5CC8 100%));
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  color: white;
+  transform: translateY(10px);
+  transition: transform 0.3s ease;
+  box-shadow: var(--shadow-imperial, 0 4px 15px rgba(212, 165, 40, 0.3));
+}
+
+.manhwaCard:hover .hoverText {
+  transform: translateY(0);
+}
+
+/* Info section */
+.infoSection {
+  padding: 0.5rem;
+}
+
+.title {
+  color: var(--text-primary, white);
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  transition: color 0.3s ease;
+}
+
+.manhwaCard:hover .title {
+  color: var(--imperial-gold, #D4A528);
+}
+
+.metaInfo {
+  opacity: 0.8;
+}
+
+.latestChapter {
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .title {
+    font-size: 0.75rem;
+  }
+  
+  .metaInfo {
+    display: none;
+  }
+}
+
+/* =============================================================================
+   LIGHT MODE STYLES - ManhwaCard
+   ============================================================================= */
+
+/* Card wrapper light mode */
+:global([data-theme="light"]) .manhwaCard {
+  background-color: transparent;
+}
+
+:global([data-theme="light"]) .manhwaCard:hover {
+  transform: translateY(-8px);
+}
+
+/* Cover wrapper en light mode - sombra más visible */
+:global([data-theme="light"]) .coverWrapper {
+  box-shadow: 0 2px 8px rgba(26, 26, 40, 0.08);
+  border: 1px solid rgba(26, 26, 40, 0.06);
+}
+
+:global([data-theme="light"]) .manhwaCard:hover .coverWrapper {
+  box-shadow: 0 8px 25px rgba(26, 26, 40, 0.12),
+              0 4px 10px rgba(184, 134, 11, 0.08);
+  border-color: rgba(184, 134, 11, 0.2);
+}
+
+/* State indicator light mode */
+:global([data-theme="light"]) .stateLabel {
+  color: #8B6914;
+}
+
+/* Stats overlay light mode */
+:global([data-theme="light"]) .statsOverlay {
+  background-color: rgba(255, 255, 255, 0.92);
+  color: #8B6914;
+  border: 1px solid rgba(184, 134, 11, 0.25);
+  box-shadow: 0 2px 8px rgba(26, 26, 40, 0.1);
+}
+
+/* Hover overlay gradient light mode */
+:global([data-theme="light"]) .hoverOverlay {
+  background: linear-gradient(
+    to top,
+    rgba(253, 252, 249, 0.95) 0%,
+    rgba(253, 252, 249, 0.6) 50%,
+    transparent 100%
+  );
+}
+
+/* Overlay con gradient exacto solicitado: to bottom
+   Stops:
+     0%   rgba(0,0,0,0)
+     50%  rgba(0,0,0,0)
+     70%  rgba(0,0,0,0.3)
+     85%  rgba(0,0,0,0.7)
+     100% rgba(0,0,0,0.9)
+*/
+.cardOverlay {
+  position: absolute;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end; /* permite colocar título en la parte baja */
+  justify-content: flex-start;
+  padding: 0.6rem 0.8rem;
+  pointer-events: none; /* deja pasar clicks */
+  z-index: 6;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.3) 70%,
+    rgba(0, 0, 0, 0.7) 85%,
+    rgba(0, 0, 0, 0.9) 100%
+  );
+}
+
+/* Hover text button light mode */
+:global([data-theme="light"]) .hoverText {
+  background: linear-gradient(135deg, #B8860B 0%, #6B4FA3 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(184, 134, 11, 0.35);
+}
+
+/* Title light mode */
+:global([data-theme="light"]) .title {
+  color: var(--text-primary, #1A1A28);
+}
+
+:global([data-theme="light"]) .manhwaCard:hover .title {
+  color: #8B6914;
+}
+
+/* Meta info light mode */
+:global([data-theme="light"]) .metaInfo {
+  color: var(--text-muted, #6B6B7B);
+}
+
+/* Badge status light mode */
+:global([data-theme="light"]) .statusBadge {
+  background-color: rgba(184, 134, 11, 0.1);
+  color: #8B6914;
+  border: 1px solid rgba(184, 134, 11, 0.2);
+}

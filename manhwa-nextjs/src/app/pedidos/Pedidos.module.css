@@ -1,0 +1,379 @@
+/* Requests.module.css - Estilos para la página de Pedidos */
+
+/* ============================================================================
+   REQUEST CARD
+   ============================================================================ */
+
+.requestCard {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.requestCard:hover {
+  background-color: var(--card-bg-hover);
+  border-color: var(--imperial-primary-alpha);
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-imperial-hover);
+  z-index: 10;
+}
+
+/* Request Title */
+.requestTitle {
+  color: var(--text-color);
+  font-weight: 700;
+  font-size: 1.125rem;
+  transition: color var(--transition-base);
+  margin-bottom: var(--spacing-xs);
+}
+
+.requestCard:hover .requestTitle {
+  color: var(--imperial-primary);
+}
+
+/* ============================================================================
+   BADGES (Status & Priority)
+   ============================================================================ */
+
+/* Status Badge */
+.statusBadge {
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 0.75rem;
+  transition: all var(--transition-base);
+  text-transform: uppercase;
+}
+
+.statusBadge.progress {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: #818CF8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.statusBadge.pending {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.statusBadge.completed {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Priority Badge */
+.priorityBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(8px);
+  z-index: 5;
+  box-shadow: var(--shadow-sm);
+}
+
+.priorityBadge.veryHigh {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.priorityBadge.high {
+  background-color: rgba(249, 115, 22, 0.2);
+  color: #FB923C;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+}
+
+.priorityBadge.medium {
+  background-color: rgba(234, 179, 8, 0.2);
+  color: #FACC15;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.priorityBadge.low {
+  background-color: rgba(107, 114, 128, 0.2);
+  color: #9CA3AF;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+/* ============================================================================
+   PROGRESS BAR
+   ============================================================================ */
+
+.progressContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: var(--spacing-md);
+}
+
+.progressLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--dimmed-text);
+}
+
+.progressValue {
+  color: var(--text-color);
+}
+
+/* ============================================================================
+   BUTTONS (Vote & Stats)
+   ============================================================================ */
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.statsGroup {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.statButton {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-md);
+  background-color: var(--subtle-bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.statButton:hover {
+  background-color: var(--subtle-bg-hover);
+  color: var(--text-color);
+  transform: translateY(-2px);
+}
+
+.statButton.voted {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.statButton:hover .icon {
+  transform: scale(1.1);
+}
+
+/* ============================================================================
+   FILTERS & INPUTS
+   ============================================================================ */
+
+.filterSection {
+  background: var(--subtle-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.searchInput {
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-color);
+  padding: 0.75rem 1rem;
+  width: 100%;
+  transition: all var(--transition-base);
+}
+
+.searchInput:focus {
+  outline: none;
+  background-color: var(--input-bg-focus);
+  border-color: var(--imperial-primary);
+  box-shadow: 0 0 0 3px var(--imperial-primary-alpha);
+}
+
+.searchInput::placeholder {
+  color: var(--dimmed-text);
+}
+
+/* ============================================================================
+   TABS
+   ============================================================================ */
+
+.tabsContainer {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+  overflow-x: auto;
+  padding-bottom: var(--spacing-xs);
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--text-color);
+  background: var(--subtle-bg);
+}
+
+.tab.active {
+  background: var(--imperial-primary-alpha);
+  color: var(--imperial-primary);
+  border-color: var(--imperial-primary-alpha);
+}
+
+/* ============================================================================
+   GENRES & CONTENT
+   ============================================================================ */
+
+.genreList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.genreBadge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--subtle-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-base);
+}
+
+.cardDescription {
+  font-size: 0.85rem;
+  color: var(--dimmed-text);
+  line-height: 1.5;
+  margin-bottom: var(--spacing-md);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  background-color: var(--subtle-bg);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-strong);
+  text-align: center;
+}
+
+.emptyState h3 {
+  color: var(--text-color);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.emptyState p {
+  color: var(--dimmed-text);
+  max-width: 400px;
+}
+
+/* ============================================================================
+   COVER IMAGE
+   ============================================================================ */
+
+.coverContainer {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: var(--subtle-bg);
+  overflow: hidden;
+}
+
+.coverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.requestCard:hover .coverImage {
+  transform: scale(1.05);
+}
+
+.coverOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 60%);
+}
+
+.coverTitle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--spacing-md);
+  z-index: 2;
+}
+
+.coverTitleText {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================================
+   MODALS
+   ============================================================================ */
+
+.modalContent {
+  background-color: var(--modal-bg);
+  color: var(--text-color);
+}
+
+.modalHeader {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.modalTitle {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: var(--text-color);
+}

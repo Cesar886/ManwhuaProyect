@@ -1,0 +1,1144 @@
+/* UserProfile.module.css - Estilos Premium para Perfil de Usuario */
+
+/* ============================================
+   VARIABLES CSS PREMIUM
+   ============================================ */
+.profileContainer {
+  --cyan-primary: rgb(6, 182, 212);
+  --cyan-light: rgb(34, 211, 238);
+  --cyan-dark: rgb(8, 145, 178);
+  --violet-primary: rgb(139, 92, 246);
+  --violet-light: rgb(167, 139, 250);
+  --pink-primary: rgb(236, 72, 153);
+  --orange-primary: rgb(249, 115, 22);
+  --orange-light: rgb(251, 146, 60);
+  --teal-primary: rgb(20, 184, 166);
+  --yellow-primary: rgb(234, 179, 8);
+
+  /* Dark Mode Colors */
+  --dark-bg-primary: rgb(15, 23, 42);
+  --dark-bg-secondary: rgb(30, 41, 59);
+  --dark-bg-tertiary: rgb(51, 65, 85);
+  --dark-text-primary: rgb(248, 250, 252);
+  --dark-text-secondary: rgb(203, 213, 225);
+  --dark-border: rgba(148, 163, 184, 0.15);
+
+  /* Light Mode Colors */
+  --light-bg-primary: rgb(255, 255, 255);
+  --light-bg-secondary: rgb(248, 250, 252);
+  --light-text-primary: rgb(15, 23, 42);
+  --light-text-secondary: rgb(71, 85, 105);
+
+  /* Glassmorphism */
+  --glass-bg-dark: rgba(15, 23, 42, 0.75);
+  --glass-bg-light: rgba(255, 255, 255, 0.8);
+  --glass-border-dark: rgba(148, 163, 184, 0.2);
+  --glass-border-light: rgba(0, 0, 0, 0.08);
+
+  /* Shadows */
+  --shadow-cyan: 0 0 30px rgba(6, 182, 212, 0.3);
+  --shadow-cyan-intense: 0 0 50px rgba(6, 182, 212, 0.5);
+  --shadow-orange: 0 0 30px rgba(249, 115, 22, 0.3);
+  --shadow-orange-intense: 0 0 50px rgba(249, 115, 22, 0.5);
+  --shadow-violet: 0 0 30px rgba(139, 92, 246, 0.3);
+}
+
+/* ============================================
+   ANIMACIONES PREMIUM
+   ============================================ */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes floatAnimation {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3),
+                0 0 40px rgba(6, 182, 212, 0.1);
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.5),
+                0 0 60px rgba(6, 182, 212, 0.2);
+  }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(6, 182, 212, 0.5); }
+  33% { border-color: rgba(139, 92, 246, 0.5); }
+  66% { border-color: rgba(236, 72, 153, 0.5); }
+}
+
+@keyframes scaleIn {
+  0% { 
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+  }
+}
+
+/* ============================================
+   PAGE CONTAINER & MODES
+   ============================================ */
+.pageContainer {
+  min-height: 100vh;
+  padding-bottom: 4rem;
+  transition: background 0.3s ease;
+}
+
+.darkMode {
+  background: 
+    radial-gradient(ellipse at top, rgba(6, 182, 212, 0.12) 0%, transparent 45%),
+    radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.08) 0%, transparent 45%),
+    linear-gradient(180deg, var(--dark-bg-primary) 0%, rgb(10, 15, 30) 100%);
+  color: var(--dark-text-primary);
+}
+
+.lightMode {
+  background: 
+    radial-gradient(ellipse at top, rgba(6, 182, 212, 0.15) 0%, transparent 45%),
+    radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.1) 0%, transparent 45%),
+    linear-gradient(180deg, var(--light-bg-secondary) 0%, var(--light-bg-primary) 100%);
+  color: var(--light-text-primary);
+}
+
+/* ============================================
+   HEADER CARD - PREMIUM
+   ============================================ */
+.headerCard {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.5s ease-out;
+}
+
+.darkMode .headerCard {
+  background: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.8) 0%,
+    rgba(30, 41, 59, 0.6) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.4),
+    0 0 40px rgba(6, 182, 212, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.lightMode .headerCard {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.8) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  box-shadow: 
+    0 20px 50px rgba(6, 182, 212, 0.12),
+    0 4px 20px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.headerDecoration1 {
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+.headerDecoration2 {
+  position: absolute;
+  bottom: -80px;
+  left: -80px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+/* ============================================
+   GRADIENT TEXT
+   ============================================ */
+.gradientText {
+  background: linear-gradient(
+    135deg,
+    var(--cyan-light) 0%,
+    var(--violet-light) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shimmerText {
+  background: linear-gradient(
+    90deg,
+    var(--cyan-primary) 0%,
+    var(--violet-primary) 25%,
+    var(--pink-primary) 50%,
+    var(--violet-primary) 75%,
+    var(--cyan-primary) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ============================================
+   STAT DIVIDER
+   ============================================ */
+.statDivider {
+  width: 1px;
+  height: 35px;
+}
+
+.darkMode .statDivider {
+  background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.3), transparent);
+}
+
+.lightMode .statDivider {
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.15), transparent);
+}
+
+/* ============================================
+   INLINE STAT
+   ============================================ */
+.inlineStat {
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.inlineStat:hover {
+  background: rgba(6, 182, 212, 0.1);
+}
+
+/* ============================================
+   STAT CARDS - MEJORADAS PARA MOBILE
+   ============================================ */
+.statsGrid {
+  margin-bottom: 1.5rem;
+}
+
+.statCard {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.5s ease-out;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+}
+
+.statCard:hover {
+  transform: translateY(-6px) scale(1.02);
+}
+
+.statCardGlow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: all 0.5s ease;
+  pointer-events: none;
+}
+
+.statValue {
+  line-height: 1.1;
+}
+
+.statIcon {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Stat Card - Cyan */
+.statCardCyan {
+  background: linear-gradient(
+    145deg,
+    rgba(6, 182, 212, 0.18) 0%,
+    rgba(6, 182, 212, 0.08) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+.darkMode .statCardCyan {
+  background: linear-gradient(
+    145deg,
+    rgba(6, 182, 212, 0.2) 0%,
+    rgba(6, 182, 212, 0.08) 100%
+  );
+  box-shadow: 
+    0 8px 32px rgba(6, 182, 212, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.lightMode .statCardCyan {
+  background: linear-gradient(
+    145deg,
+    rgba(6, 182, 212, 0.15) 0%,
+    rgba(6, 182, 212, 0.05) 100%
+  );
+  box-shadow: 0 8px 25px rgba(6, 182, 212, 0.12);
+}
+
+.statCardCyan:hover {
+  border-color: rgba(6, 182, 212, 0.6);
+  box-shadow: 0 15px 40px rgba(6, 182, 212, 0.25);
+}
+
+/* Stat Card - Pink */
+.statCardPink {
+  background: linear-gradient(
+    145deg,
+    rgba(236, 72, 153, 0.18) 0%,
+    rgba(236, 72, 153, 0.08) 100%
+  );
+  border: 1px solid rgba(236, 72, 153, 0.35);
+}
+
+.darkMode .statCardPink {
+  background: linear-gradient(
+    145deg,
+    rgba(236, 72, 153, 0.2) 0%,
+    rgba(236, 72, 153, 0.08) 100%
+  );
+  box-shadow: 
+    0 8px 32px rgba(236, 72, 153, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.lightMode .statCardPink {
+  background: linear-gradient(
+    145deg,
+    rgba(236, 72, 153, 0.15) 0%,
+    rgba(236, 72, 153, 0.05) 100%
+  );
+  box-shadow: 0 8px 25px rgba(236, 72, 153, 0.12);
+}
+
+.statCardPink:hover {
+  border-color: rgba(236, 72, 153, 0.6);
+  box-shadow: 0 15px 40px rgba(236, 72, 153, 0.25);
+}
+
+/* Stat Card - Violet */
+.statCardViolet {
+  background: linear-gradient(
+    145deg,
+    rgba(139, 92, 246, 0.18) 0%,
+    rgba(139, 92, 246, 0.08) 100%
+  );
+  border: 1px solid rgba(139, 92, 246, 0.35);
+}
+
+.darkMode .statCardViolet {
+  background: linear-gradient(
+    145deg,
+    rgba(139, 92, 246, 0.2) 0%,
+    rgba(139, 92, 246, 0.08) 100%
+  );
+  box-shadow: 
+    0 8px 32px rgba(139, 92, 246, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.lightMode .statCardViolet {
+  background: linear-gradient(
+    145deg,
+    rgba(139, 92, 246, 0.15) 0%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.12);
+}
+
+.statCardViolet:hover {
+  border-color: rgba(139, 92, 246, 0.6);
+  box-shadow: 0 15px 40px rgba(139, 92, 246, 0.25);
+}
+
+/* Stat Card - Yellow */
+.statCardYellow {
+  background: linear-gradient(
+    145deg,
+    rgba(234, 179, 8, 0.18) 0%,
+    rgba(234, 179, 8, 0.08) 100%
+  );
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+
+.darkMode .statCardYellow {
+  background: linear-gradient(
+    145deg,
+    rgba(234, 179, 8, 0.2) 0%,
+    rgba(234, 179, 8, 0.08) 100%
+  );
+  box-shadow: 
+    0 8px 32px rgba(234, 179, 8, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.lightMode .statCardYellow {
+  background: linear-gradient(
+    145deg,
+    rgba(234, 179, 8, 0.15) 0%,
+    rgba(234, 179, 8, 0.05) 100%
+  );
+  box-shadow: 0 8px 25px rgba(234, 179, 8, 0.12);
+}
+
+.statCardYellow:hover {
+  border-color: rgba(234, 179, 8, 0.6);
+  box-shadow: 0 15px 40px rgba(234, 179, 8, 0.25);
+}
+
+/* Stat Card - Orange */
+.statCardOrange {
+  background: linear-gradient(
+    145deg,
+    rgba(249, 115, 22, 0.18) 0%,
+    rgba(249, 115, 22, 0.08) 100%
+  );
+  border: 1px solid rgba(249, 115, 22, 0.35);
+}
+
+.darkMode .statCardOrange {
+  background: linear-gradient(
+    145deg,
+    rgba(249, 115, 22, 0.2) 0%,
+    rgba(249, 115, 22, 0.08) 100%
+  );
+  box-shadow: 
+    0 8px 32px rgba(249, 115, 22, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.statCardOrange:hover {
+  border-color: rgba(249, 115, 22, 0.6);
+  box-shadow: 0 15px 40px rgba(249, 115, 22, 0.25);
+}
+
+/* Stat Card - Teal */
+.statCardTeal {
+  background: linear-gradient(
+    145deg,
+    rgba(20, 184, 166, 0.18) 0%,
+    rgba(20, 184, 166, 0.08) 100%
+  );
+  border: 1px solid rgba(20, 184, 166, 0.35);
+}
+
+.darkMode .statCardTeal {
+  background: linear-gradient(
+    145deg,
+    rgba(20, 184, 166, 0.2) 0%,
+    rgba(20, 184, 166, 0.08) 100%
+  );
+  box-shadow: 
+    0 8px 32px rgba(20, 184, 166, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.statCardTeal:hover {
+  border-color: rgba(20, 184, 166, 0.6);
+  box-shadow: 0 15px 40px rgba(20, 184, 166, 0.25);
+}
+
+/* ============================================
+   COLLECTION CARD - PREMIUM
+   ============================================ */
+.collectionCard {
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.darkMode .collectionCard {
+  background: linear-gradient(
+    145deg,
+    rgba(30, 41, 59, 0.8) 0%,
+    rgba(15, 23, 42, 0.6) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.lightMode .collectionCard {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 250, 252, 0.9) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.collectionCard:hover {
+  transform: translateY(-10px) scale(1.02);
+  border-color: rgba(6, 182, 212, 0.5);
+}
+
+.darkMode .collectionCard:hover {
+  box-shadow: 
+    0 25px 50px rgba(6, 182, 212, 0.15),
+    0 15px 30px rgba(0, 0, 0, 0.4);
+}
+
+.lightMode .collectionCard:hover {
+  box-shadow: 0 20px 40px rgba(6, 182, 212, 0.15);
+}
+
+.collectionCardOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 70%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* ============================================
+   INFO CARDS - PREMIUM GLASS
+   ============================================ */
+.infoCard {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.5s ease-out;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.darkMode .infoCard {
+  background: linear-gradient(
+    145deg,
+    rgba(30, 41, 59, 0.7) 0%,
+    rgba(15, 23, 42, 0.5) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.lightMode .infoCard {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.8) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.infoCard:hover {
+  transform: translateY(-4px);
+}
+
+.darkMode .infoCard:hover {
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 
+    0 20px 50px rgba(6, 182, 212, 0.12),
+    0 15px 40px rgba(0, 0, 0, 0.35);
+}
+
+.lightMode .infoCard:hover {
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 0 15px 40px rgba(6, 182, 212, 0.12);
+}
+
+/* ============================================
+   PROGRESS BAR - PREMIUM
+   ============================================ */
+.progressBar {
+  overflow: hidden;
+}
+
+.darkMode .progressBar {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lightMode .progressBar {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================
+   AVATAR STYLES - PREMIUM
+   ============================================ */
+.avatarContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.avatarRing {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--cyan-primary) 0%,
+    var(--violet-primary) 50%,
+    var(--pink-primary) 100%
+  );
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+  z-index: 0;
+}
+
+.avatarRingInner {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.avatarNormal {
+  position: relative;
+  border: none !important;
+  z-index: 2;
+}
+
+.avatarBadge {
+  animation: floatAnimation 3s ease-in-out infinite;
+}
+
+.avatarCameraButton {
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+  transition: all 0.3s ease;
+}
+
+.avatarCameraButton:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.6);
+}
+
+/* ============================================
+   ROLE BADGE - PREMIUM
+   ============================================ */
+.roleBadge {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.roleBadge:hover {
+  transform: scale(1.05);
+}
+
+/* ============================================
+   BUTTONS - PREMIUM
+   ============================================ */
+.buttonPrimary {
+  position: relative;
+  overflow: hidden;
+  font-weight: 600;
+}
+
+.buttonPrimary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+  transition: left 0.5s ease;
+}
+
+.buttonPrimary:hover::before {
+  left: 100%;
+}
+
+.buttonOutline {
+  position: relative;
+  overflow: hidden;
+  font-weight: 600;
+}
+
+.buttonOutline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(6, 182, 212, 0.15) 50%,
+    transparent 100%
+  );
+  transition: left 0.5s ease;
+}
+
+.buttonOutline:hover::before {
+  left: 100%;
+}
+
+.settingsButton {
+  transition: all 0.3s ease;
+}
+
+.settingsButton:hover {
+  transform: rotate(90deg);
+}
+
+/* ============================================
+   TABS - PREMIUM
+   ============================================ */
+.tabsContainer {
+  gap: 0.5rem;
+  padding: 0.375rem;
+  border-radius: 1.25rem;
+  display: inline-flex;
+}
+
+.darkMode .tabsContainer {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.lightMode .tabsContainer {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.tab {
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border-radius: 1rem;
+}
+
+.tab[data-active] {
+  background: linear-gradient(135deg, var(--cyan-primary) 0%, var(--teal-primary) 100%) !important;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+}
+
+/* ============================================
+   EMPTY STATE - PREMIUM
+   ============================================ */
+.emptyState {
+  text-align: center;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  animation: fadeIn 0.5s ease-out;
+}
+
+.darkMode .emptyState {
+  background: linear-gradient(
+    145deg,
+    rgba(30, 41, 59, 0.5) 0%,
+    rgba(15, 23, 42, 0.3) 100%
+  );
+  border: 2px dashed rgba(6, 182, 212, 0.3);
+}
+
+.lightMode .emptyState {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(248, 250, 252, 0.6) 100%
+  );
+  border: 2px dashed rgba(6, 182, 212, 0.4);
+}
+
+.emptyStateIcon {
+  margin: 0 auto;
+}
+
+.emptyStateTitle {
+  color: inherit;
+}
+
+.darkMode .emptyStateTitle {
+  color: var(--dark-text-primary);
+}
+
+.lightMode .emptyStateTitle {
+  color: var(--light-text-primary);
+}
+
+.emptyStateText {
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ============================================
+   ACTIVITY CARD - PREMIUM
+   ============================================ */
+.activityCard {
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  animation: fadeIn 0.5s ease-out;
+}
+
+.darkMode .activityCard {
+  background: linear-gradient(
+    145deg,
+    rgba(30, 41, 59, 0.7) 0%,
+    rgba(15, 23, 42, 0.5) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.lightMode .activityCard {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.8) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+/* ============================================
+   TIMELINE - PREMIUM
+   ============================================ */
+.timelineBullet {
+  background: linear-gradient(135deg, var(--cyan-primary) 0%, var(--teal-primary) 100%) !important;
+  box-shadow: 0 2px 10px rgba(6, 182, 212, 0.3);
+}
+
+.timelineTitle {
+  color: inherit;
+}
+
+.darkMode .timelineTitle {
+  color: var(--dark-text-primary);
+}
+
+.lightMode .timelineTitle {
+  color: var(--light-text-primary);
+}
+
+.timelineDate {
+  opacity: 0.7;
+}
+
+/* ============================================
+   MODAL - PREMIUM
+   ============================================ */
+.modalContent {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.darkMode .modalContent {
+  background: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.95) 0%,
+    rgba(30, 41, 59, 0.9) 100%
+  ) !important;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.lightMode .modalContent {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(248, 250, 252, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+.modalHeader {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.avatarPickerItem {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.darkMode .avatarPickerItem {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lightMode .avatarPickerItem {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* ============================================
+   SKELETON - PREMIUM
+   ============================================ */
+.skeletonContainer {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.skeletonCard {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.darkMode .skeletonCard {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.lightMode .skeletonCard {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+/* ============================================
+   ERROR CARD - PREMIUM
+   ============================================ */
+.errorCard {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.darkMode .errorCard {
+  background: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.8) 0%,
+    rgba(30, 41, 59, 0.6) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+.lightMode .errorCard {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.8) 100%
+  );
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+/* ============================================
+   RESPONSIVE - MOBILE IMPROVEMENTS
+   ============================================ */
+@media (max-width: 768px) {
+  .statsGrid {
+    gap: 0.875rem !important;
+  }
+
+  .statCard {
+    min-height: 110px !important;
+    padding: 1rem !important;
+  }
+
+  .statValue {
+    font-size: 1.75rem !important;
+  }
+
+  .statIcon {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .headerCard {
+    padding: 1.25rem !important;
+  }
+
+  .infoCard {
+    padding: 1rem !important;
+  }
+
+  .tabsContainer {
+    padding: 0.25rem;
+    gap: 0.25rem;
+  }
+
+  .tab {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+  }
+
+  .emptyState {
+    padding: 2rem 1.25rem;
+  }
+
+  .emptyStateIcon {
+    width: 60px !important;
+    height: 60px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .statCard {
+    min-height: 105px !important;
+    padding: 0.875rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .statValue {
+    font-size: 1.5rem !important;
+  }
+
+  .statIcon {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .headerCard {
+    padding: 1rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  .infoCard {
+    padding: 0.875rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .tab {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR - PREMIUM (scoped)
+   ============================================ */
+.profileContainer::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.profileContainer::-webkit-scrollbar-track {
+  background: rgba(6, 182, 212, 0.05);
+  border-radius: 5px;
+}
+
+.profileContainer::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    var(--cyan-primary) 0%,
+    var(--teal-primary) 100%
+  );
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.profileContainer::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    var(--cyan-light) 0%,
+    var(--cyan-primary) 100%
+  );
+  background-clip: padding-box;
+}
+
+/* ============================================
+   ACCESSIBILITY - REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  .collectionCard:hover,
+  .statCard:hover,
+  .infoCard:hover,
+  .buttonPrimary:hover,
+  .buttonOutline:hover {
+    transform: none;
+  }
+}
+
+/* ============================================
+   FOCUS STYLES - ACCESSIBILITY
+   ============================================ */
+.profileContainer :global(button:focus-visible),
+.profileContainer :global(input:focus-visible),
+.profileContainer :global(select:focus-visible),
+.profileContainer :global(a:focus-visible) {
+  outline: 2px solid var(--cyan-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print {
+  .headerCard,
+  .buttonPrimary,
+  .buttonOutline,
+  .avatarCameraButton,
+  .settingsButton {
+    box-shadow: none !important;
+  }
+
+  .pageContainer {
+    background: white !important;
+  }
+
+  .collectionCard,
+  .infoCard,
+  .statCard {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}

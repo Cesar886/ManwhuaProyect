@@ -1,0 +1,34 @@
+.premiumSkeleton {
+    position: relative;
+    aspect-ratio: 2/3;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: var(--subtle-bg, rgba(255, 255, 255, 0.04));
+}
+
+.skeletonShimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        110deg,
+        transparent 25%,
+        var(--skeleton-shimmer, rgba(255, 255, 255, 0.06)) 50%,
+        transparent 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeletonShimmer {
+        animation: none;
+    }
+    .premiumSkeleton {
+        opacity: 0.6;
+    }
+}

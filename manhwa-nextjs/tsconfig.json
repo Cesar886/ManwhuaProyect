@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/home/page.jsx", "src/app/colecciones/page.jsx", "src/app/manhwa/[slug]/page.jsx", "src/app/manhwa/[slug]/capitulo/[numero]/page.jsx", "src/app/biblioteca/page.jsx", "src/app/perfil/page.jsx", "src/app/populares/page.jsx", "src/contexts/AuthContext.jsx", "src/components/ManhwaCard.jsx", "src/components/Header.jsx", "src/components/Footer.jsx", "src/components/AppLayout.jsx", "src/components/Toast.jsx", "src/components/ManhwaCardSkeleton.jsx", "src/components/LoginModal.jsx", "src/lib/api/manhwa.js", "src/lib/api/client.js", "src/app/page.jsx", "src/app/layout.jsx"],
+  "exclude": ["node_modules"]
+}

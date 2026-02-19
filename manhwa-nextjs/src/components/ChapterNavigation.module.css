@@ -1,0 +1,470 @@
+/* ============================================================================
+   CHAPTER NAVIGATION - IMPERIAL PREMIUM DESIGN
+   ============================================================================
+
+   Navegación de capítulos con diseño Imperial:
+   - Glassmorphism con tema imperial
+   - Animaciones fluidas
+   - Estados visuales claros
+   - Responsive optimizado
+
+   ============================================================================ */
+
+/* ============================================================================
+   CONTROLS FOOTER - Container Principal
+   ============================================================================ */
+.controlsFooter {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 40px 20px 32px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    position: relative;
+}
+
+/* Línea decorativa superior */
+.controlsFooter::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(90deg,
+        transparent,
+        #D4AF37 50%,
+        transparent);
+    border-radius: 2px;
+}
+
+.controlsFooter.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+}
+
+/* ============================================================================
+   CHAPTER NAV - Base Button Styles
+   ============================================================================ */
+.chapterNav {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 50px;
+    padding: 0 20px;
+    min-width: 50px;
+
+    /* Background - visible por defecto */
+    background: rgba(30, 30, 45, 0.85);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+
+    /* Borders & Shadows */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+    /* Typography - color visible */
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    color: #ffffff;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+
+    /* Interaction */
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+    overflow: hidden;
+
+    /* Transitions */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Shimmer effect on hover */
+.chapterNav::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent);
+    transition: left 0.5s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.chapterNav:hover::before {
+    left: 100%;
+}
+
+/* Hover State */
+.chapterNav:hover:not(:disabled) {
+    background: rgba(212, 175, 55, 0.15);
+    border-color: #D4AF37;
+    color: #D4AF37;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.2),
+        0 0 20px rgba(212, 175, 55, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Active State */
+.chapterNav:active {
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.1s;
+}
+
+/* Focus State */
+.chapterNav:focus-visible {
+    outline: none;
+    border-color: #D4AF37;
+    box-shadow:
+        0 0 0 3px rgba(212, 175, 55, 0.3),
+        0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Disabled State - Para enlaces deshabilitados (sin capítulo anterior/siguiente) */
+.chapterNav:disabled,
+.chapterNav.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.chapterNav:disabled:hover,
+.chapterNav.disabled:hover {
+    transform: none;
+    background: inherit;
+    border-color: rgba(255, 255, 255, 0.15);
+    color: inherit;
+    box-shadow: none;
+}
+
+.chapterNav:disabled::before,
+.chapterNav.disabled::before {
+    display: none;
+}
+
+/* ============================================================================
+   SECONDARY BUTTON - Anterior/Siguiente
+   ============================================================================ */
+.chapterNav.secondary {
+    flex: 1;
+    max-width: 160px;
+}
+
+/* Texto desktop vs mobile */
+.chapterNav.secondary span:first-of-type {
+    display: inline;
+}
+
+.chapterNav.secondary span:last-of-type {
+    display: none;
+}
+
+/* ============================================================================
+   PRIMARY BUTTON - Capítulos (Central)
+   ============================================================================ */
+.chapterNav.primary {
+    flex: 0 0 auto;
+    min-width: 140px;
+    background: linear-gradient(135deg, #D4AF37 0%, #B8962E 50%, #9A7B24 100%);
+    border: none;
+    color: #1a1a2e;
+    font-weight: 700;
+    box-shadow:
+        0 4px 20px rgba(212, 175, 55, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.chapterNav.primary::before {
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent);
+}
+
+.chapterNav.primary:hover {
+    background: linear-gradient(135deg, #e0bb40 0%, #c9a432 50%, #a8872a 100%);
+    color: #1a1a2e;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow:
+        0 8px 32px rgba(212, 175, 55, 0.5),
+        0 0 24px rgba(212, 175, 55, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.chapterNav.primary:active {
+    transform: translateY(-1px) scale(0.99);
+}
+
+/* ============================================================================
+   ICONS - Animaciones
+   ============================================================================ */
+.chapterNav svg {
+    flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Flecha izquierda - anterior */
+.chapterNav.secondary:first-child:hover:not(:disabled) svg {
+    transform: translateX(-3px);
+}
+
+/* Flecha derecha - siguiente */
+.chapterNav.secondary:last-child:hover:not(:disabled) svg {
+    transform: translateX(3px);
+}
+
+/* Icono central */
+.chapterNav.primary:hover svg {
+    transform: scale(1.1);
+}
+
+/* ============================================================================
+   LIGHT MODE
+   ============================================================================ */
+:global([data-mantine-color-scheme='light']) .controlsFooter::before,
+:global([data-theme='light']) .controlsFooter::before,
+:global(html[data-mantine-color-scheme='light']) .controlsFooter::before {
+    background: linear-gradient(90deg,
+        transparent,
+        #9A7B24 50%,
+        transparent);
+}
+
+:global([data-mantine-color-scheme='light']) .chapterNav,
+:global([data-theme='light']) .chapterNav,
+:global(html[data-mantine-color-scheme='light']) .chapterNav {
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+    color: #1a1a2e !important;
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+:global([data-mantine-color-scheme='light']) .chapterNav:hover:not(:disabled),
+:global([data-theme='light']) .chapterNav:hover:not(:disabled),
+:global(html[data-mantine-color-scheme='light']) .chapterNav:hover:not(:disabled) {
+    background: #faf5eb !important;
+    border-color: #D4AF37 !important;
+    color: #8B7024 !important;
+    box-shadow:
+        0 4px 16px rgba(212, 175, 55, 0.2),
+        0 2px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+:global([data-mantine-color-scheme='light']) .chapterNav.primary,
+:global([data-theme='light']) .chapterNav.primary,
+:global(html[data-mantine-color-scheme='light']) .chapterNav.primary {
+    background: linear-gradient(135deg, #D4AF37 0%, #B8962E 50%, #9A7B24 100%) !important;
+    border: none !important;
+    color: #1a1a2e !important;
+    box-shadow:
+        0 4px 16px rgba(212, 175, 55, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+:global([data-mantine-color-scheme='light']) .chapterNav.primary:hover,
+:global([data-theme='light']) .chapterNav.primary:hover,
+:global(html[data-mantine-color-scheme='light']) .chapterNav.primary:hover {
+    background: linear-gradient(135deg, #c9a432 0%, #a8872a 50%, #8a6b1f 100%) !important;
+    box-shadow:
+        0 6px 24px rgba(212, 175, 55, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+
+/* ============================================================================
+   DARK MODE
+   ============================================================================ */
+:global([data-mantine-color-scheme='dark']) .chapterNav,
+:global([data-theme='dark']) .chapterNav,
+:global(html[data-mantine-color-scheme='dark']) .chapterNav {
+    background: rgba(30, 30, 45, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+:global([data-mantine-color-scheme='dark']) .chapterNav:hover:not(:disabled),
+:global([data-theme='dark']) .chapterNav:hover:not(:disabled),
+:global(html[data-mantine-color-scheme='dark']) .chapterNav:hover:not(:disabled) {
+    background: rgba(212, 175, 55, 0.15) !important;
+    border-color: #D4AF37 !important;
+    color: #D4AF37 !important;
+    box-shadow:
+        0 4px 16px rgba(212, 175, 55, 0.2),
+        0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+:global([data-mantine-color-scheme='dark']) .chapterNav.primary,
+:global([data-theme='dark']) .chapterNav.primary,
+:global(html[data-mantine-color-scheme='dark']) .chapterNav.primary {
+    background: linear-gradient(135deg, #D4AF37 0%, #B8962E 50%, #9A7B24 100%) !important;
+    border: none !important;
+    color: #1a1a2e !important;
+    box-shadow:
+        0 4px 20px rgba(212, 175, 55, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+:global([data-mantine-color-scheme='dark']) .chapterNav.primary:hover,
+:global([data-theme='dark']) .chapterNav.primary:hover,
+:global(html[data-mantine-color-scheme='dark']) .chapterNav.primary:hover {
+    background: linear-gradient(135deg, #e0bb40 0%, #c9a432 50%, #a8872a 100%) !important;
+    box-shadow:
+        0 8px 32px rgba(212, 175, 55, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+/* ============================================================================
+   RESPONSIVE - Tablet (768px)
+   ============================================================================ */
+@media (max-width: 768px) {
+    .controlsFooter {
+        padding: 36px 16px 28px;
+        gap: 10px;
+    }
+
+    .chapterNav {
+        height: 48px;
+        padding: 0 16px;
+        font-size: 13px;
+        border-radius: 10px;
+    }
+
+    .chapterNav.secondary {
+        max-width: 140px;
+    }
+
+    .chapterNav.primary {
+        min-width: 120px;
+    }
+}
+
+/* ============================================================================
+   RESPONSIVE - Mobile (640px)
+   ============================================================================ */
+@media (max-width: 640px) {
+    .controlsFooter {
+        padding: 32px 12px 24px;
+        gap: 8px;
+    }
+
+    .controlsFooter::before {
+        width: 80px;
+    }
+
+    .chapterNav {
+        height: 46px;
+        padding: 0 14px;
+        font-size: 12px;
+        gap: 6px;
+    }
+
+    .chapterNav.secondary {
+        flex: 1;
+        max-width: none;
+    }
+
+    /* Cambiar texto largo por corto en mobile */
+    .chapterNav.secondary span:first-of-type {
+        display: none;
+    }
+
+    .chapterNav.secondary span:last-of-type {
+        display: inline;
+    }
+
+    .chapterNav.primary {
+        min-width: auto;
+        padding: 0 16px;
+    }
+
+    .chapterNav.primary span {
+        display: none;
+    }
+
+    .chapterNav svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+/* ============================================================================
+   RESPONSIVE - Mobile Pequeño (400px)
+   ============================================================================ */
+@media (max-width: 400px) {
+    .controlsFooter {
+        padding: 28px 10px 20px;
+        gap: 6px;
+    }
+
+    .controlsFooter::before {
+        width: 60px;
+    }
+
+    .chapterNav {
+        height: 44px;
+        padding: 0 12px;
+        border-radius: 8px;
+    }
+
+    .chapterNav svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+/* ============================================================================
+   ACCESSIBILITY - Reduced Motion
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+    .controlsFooter,
+    .chapterNav,
+    .chapterNav::before,
+    .chapterNav svg {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .chapterNav:hover::before {
+        left: -100%;
+    }
+
+    .chapterNav:hover svg {
+        transform: none;
+    }
+}
+
+/* ============================================================================
+   PRINT - Ocultar en impresión
+   ============================================================================ */
+@media print {
+    .controlsFooter {
+        display: none;
+    }
+}

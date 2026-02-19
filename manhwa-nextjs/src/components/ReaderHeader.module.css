@@ -1,0 +1,353 @@
+/**
+ * =====================================================
+ * READER HEADER - Estilos del Header Flotante
+ * =====================================================
+ * Header personalizado exclusivo para la página de lectura de manhwa
+ * con comportamiento auto-hide inteligente según especificaciones
+ */
+
+/* ===============================================
+   CONTENEDOR PRINCIPAL DEL HEADER
+   - Posición fixed flotante
+   - Fondo: rgba(0, 0, 0, 0.85) con backdrop-filter blur(10px)
+   - Border-radius: 12px
+   - Box-shadow suave para elevación
+   - Margen: 10px desde todos los bordes
+   - Altura máxima: 50px
+   - Z-index: 1000
+   =============================================== */
+.readerHeader {
+  /* espacio lateral reservado para controles (izq+der). Se reduce en desktop */
+  --side-space: 100px;
+  /* Defaults used when JS measurement isn't available */
+  --left-width: 60px;
+  --right-width: 60px;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 1000;
+
+  /* Fondo: usar variable de tema para soportar light/dark (glassmorphism) */
+  background: var(--nav-bg, rgba(0, 0, 0, 0.85));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  /* Bordes redondeados y sombra suave */
+  border-radius: 12px;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+
+  /* Dimensiones y espaciado */
+  max-height: 50px;
+  padding: 8px 15px;
+
+  /* Layout interno con flexbox */
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+
+  /* Forzar visibilidad siempre */
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+
+  /* Transición suave para auto-hide (0.25s ease para respuesta más rápida) */
+  transition: transform 0.25s ease, opacity 0.25s ease;
+
+  /* Asegurar que no interfiera con el scroll */
+  will-change: transform;
+}
+
+/* ===============================================
+   ESTADO OCULTO DEL HEADER - DESHABILITADO
+   - Header ahora siempre visible
+   - Estos estilos ya no se aplican
+   =============================================== */
+.readerHeader.hidden {
+  /* Forzar que siempre sea visible */
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* ===============================================
+   LADO IZQUIERDO - Navegación, Logo y Nombre
+   - Botón back con flecha ← para volver
+   - Separador visual
+   - Logo + Nombre de la página
+   =============================================== */
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Botón de volver atrás con flecha ← */
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+
+  /* Fondo: usar variable sutil del tema para buen contraste en light/dark */
+  background: var(--subtle-bg, rgba(255, 255, 255, 0.08));
+  border: none;
+  border-radius: 8px;
+
+  color: var(--text-color, #ffffff);
+  cursor: pointer;
+
+  /* Transiciones suaves */
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+/* Hover effect en el botón */
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+/* Active effect al hacer click */
+.backButton:active {
+  transform: scale(0.95);
+}
+
+/* Separador visual entre botón y número de capítulo */
+.separator {
+  width: 1px;
+  height: 24px;
+  background: linear-gradient(to bottom,
+      transparent,
+      var(--border-subtle, rgba(255, 255, 255, 0.2)),
+      transparent);
+}
+
+/* Logo y Nombre de la Página */
+.logoContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.logoImg {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.siteName {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-color, #ffffff);
+  white-space: nowrap;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.userAvatar {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+/* Botón de pantalla completa (usar consistente con look del backButton) */
+.fullscreenButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: var(--subtle-bg, rgba(255, 255, 255, 0.06));
+  border: none;
+  border-radius: 8px;
+  color: var(--text-color, #ffffff);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.12s ease;
+}
+
+.fullscreenButton:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(1.05);
+}
+
+.fullscreenButton:active {
+  transform: scale(0.95);
+}
+
+/* ===============================================
+   RESPONSIVE - Mobile (< 768px)
+   - Header más compacto: padding 6px 12px
+   - Logo: 24x24px, font-size 14px
+   - Texto del sitio: 12px
+   - Título del capítulo: 12px
+   - Márgenes: 5px desde los bordes
+   =============================================== */
+@media (max-width: 768px) {
+  .readerHeader {
+    /* Márgenes reducidos: 5px desde los bordes */
+    top: 5px;
+    left: 5px;
+    right: 5px;
+
+    /* Padding compacto: 6px 12px */
+    padding: 6px 12px;
+    max-height: 46px;
+  }
+
+  .leftSection {
+    gap: 8px;
+  }
+
+  .backButton {
+    width: 30px;
+    height: 30px;
+  }
+
+  .backButton svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .separator {
+    height: 20px;
+  }
+
+  /* Logo y nombre más pequeños en mobile */
+  .logoImg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .siteName {
+    font-size: 14px;
+  }
+
+  .userAvatar {
+    margin-right: 6px;
+  }
+
+  .rightSection {
+    gap: 8px;
+  }
+
+  /* En tablet mantenemos el posicionamiento absoluto pero con menos espacio reservado */
+  .readerHeader {
+    --side-space: 90px;
+  }
+}
+
+/* Desktop: mejor espaciado y tamaños */
+@media (min-width: 1024px) {
+  .readerHeader {
+    --side-space: 60px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .logoImg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .siteName {
+    font-size: 17px;
+  }
+}
+
+/* Asegurar que la sección derecha se mantenga fija y no crezca */
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+/* ===============================================
+   RESPONSIVE - Mobile pequeño (< 480px)
+   - Ocultar nombre del sitio para ahorrar espacio
+   =============================================== */
+@media (max-width: 480px) {
+  .readerHeader {
+    padding: 5px 10px;
+  }
+
+  .leftSection {
+    gap: 6px;
+  }
+
+  .logoImg {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* En mobile, evitar posicionamiento absoluto para que no interfiera con botones */
+  .mahwaInfo {
+    /* En móviles evitar posicionamiento absoluto para que no interfiera con botones */
+    position: static;
+    left: auto;
+    top: auto;
+    transform: none;
+    margin: 0 5px;
+  }
+}
+
+/* ===============================================
+   RESPONSIVE - Desktop (> 768px)
+   - Header: padding 8px 15px (ya definido arriba)
+   - Logo: 28x28px, font-size 16px (ya definido arriba)
+   - Texto del sitio: 14px (ya definido arriba)
+   - Título del capítulo: 14px (ya definido arriba)
+   - Márgenes: 10px desde los bordes (ya definido arriba)
+   =============================================== */
+
+/* ===============================================
+   ANIMACIÓN DE ENTRADA INICIAL
+   =============================================== */
+@keyframes slideIn {
+  from {
+    transform: translateY(calc(-100% - 20px));
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.readerHeader.initial {
+  animation: slideIn 0.4s ease forwards;
+}
+
+/* ===============================================
+   ESTILOS ADICIONALES PARA ACCESIBILIDAD
+   =============================================== */
+.backButton:focus-visible {
+  outline: 2px solid #ff6b35;
+  outline-offset: 2px;
+}
+
+/* Reduce motion para usuarios que lo prefieren */
+@media (prefers-reduced-motion: reduce) {
+  .readerHeader {
+    transition: opacity 0.15s ease;
+  }
+
+  .readerHeader.hidden {
+    transform: none;
+  }
+
+  .backButton {
+    transition: none;
+  }
+}

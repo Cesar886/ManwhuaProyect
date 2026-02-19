@@ -1,0 +1,862 @@
+/* ============================================================================
+   MANHWA IMPERIAL - VARIABLES CSS PREMIUM
+   ============================================================================
+   
+   Sistema de diseño premium con dos modos: Dark (Imperial Night) y Light (Ivory Day)
+   
+   IMPORTANTE: Este archivo define todas las variables CSS que controlan
+   la apariencia visual de la aplicación. Los componentes deben usar estas
+   variables en lugar de valores hardcodeados.
+   
+   ============================================================================ */
+
+/* ============================================================================
+   GOOGLE FONTS - TIPOGRAFÍA PREMIUM
+   ============================================================================
+   
+   Importar en index.html:
+   
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+   
+   - Outfit: Cuerpo, UI, elementos generales (moderna, geométrica, legible)
+   - Playfair Display: Títulos, headings (serif elegante, premium)
+   
+   ============================================================================ */
+
+/* ============================================================================
+   ROOT - VARIABLES BASE (Valores por defecto - Dark Mode)
+   ============================================================================ */
+:root {
+  /* ─────────────────────────────────────────────────────────────────────────
+     COLORES IMPERIALES - RGB para poder usar con rgba()
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Azul Imperial - Primario (Vibrante y Elegante) */
+  --imperial-blue-rgb: 99, 102, 241;
+  --imperial-blue: rgb(var(--imperial-blue-rgb));
+  --imperial-blue-light: #C7D2FE;
+  --imperial-blue-dark: #4338CA;
+
+  /* Violeta Imperial - Dorado */
+  --imperial-gold-rgb: 167, 139, 250;
+  --imperial-gold: rgb(var(--imperial-gold-rgb));
+  --imperial-gold-light: #C4B5FD;
+  --imperial-gold-dark: #9333EA;
+
+  /* Púrpura Profundo - Secundario */
+  --imperial-purple-rgb: 139, 92, 246;
+  --imperial-purple: rgb(var(--imperial-purple-rgb));
+  --imperial-purple-light: #A78BFA;
+  --imperial-purple-dark: #7C3AED;
+
+  /* Cyan - Acento (Contraste fresco) */
+  --imperial-emerald-rgb: 34, 211, 238;
+  --imperial-emerald: rgb(var(--imperial-emerald-rgb));
+  --imperial-emerald-light: #67E8F9;
+  --imperial-emerald-dark: #06B6D4;
+
+  /* Cyan - Alias para compatibilidad */
+  --imperial-cyan-rgb: 34, 211, 238;
+  --imperial-cyan: rgb(var(--imperial-cyan-rgb));
+  --imperial-cyan-light: #67E8F9;
+  --imperial-cyan-dark: #06B6D4;
+
+  /* Rubí - Error/Danger */
+  --imperial-ruby-rgb: 239, 68, 68;
+  --imperial-ruby: rgb(var(--imperial-ruby-rgb));
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     ALIAS SEMÁNTICOS - Para uso consistente
+     ───────────────────────────────────────────────────────────────────────── */
+  --imperial-primary: var(--imperial-blue);
+  --imperial-primary-rgb: var(--imperial-blue-rgb);
+  --imperial-primary-alpha: rgba(var(--imperial-blue-rgb), 0.15);
+  --imperial-primary-alpha-strong: rgba(var(--imperial-blue-rgb), 0.3);
+
+  --imperial-secondary: var(--imperial-cyan);
+  --imperial-secondary-rgb: var(--imperial-cyan-rgb);
+  --imperial-secondary-alpha: rgba(var(--imperial-cyan-rgb), 0.15);
+
+  --imperial-accent: var(--imperial-emerald);
+  --imperial-accent-rgb: var(--imperial-emerald-rgb);
+  --imperial-accent-alpha: rgba(var(--imperial-emerald-rgb), 0.15);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     FONDOS - Dark Mode (Gris Oscuro Elegante)
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Fondo principal de página */
+  --page-bg: #0F0F14;
+  --page-bg-rgb: 15, 15, 20;
+
+  /* Fondos de tarjetas y superficies elevadas */
+  --card-bg: rgba(24, 24, 32, 0.85);
+  --card-bg-solid: #181820;
+  --card-bg-hover: rgba(32, 32, 42, 0.95);
+
+  /* Fondos sutiles para secciones */
+  --subtle-bg: rgba(255, 255, 255, 0.04);
+  --subtle-bg-hover: rgba(255, 255, 255, 0.07);
+
+  /* Navegación con glassmorphism */
+  --nav-bg: rgba(15, 15, 20, 0.85);
+  --nav-bg-solid: #0F0F14;
+
+  /* Inputs y formularios */
+  --input-bg: rgba(24, 24, 32, 0.6);
+  --input-bg-focus: rgba(32, 32, 42, 0.8);
+
+  /* Dropdowns y modales */
+  --dropdown-bg: rgba(20, 20, 28, 0.95);
+  --modal-bg: rgba(15, 15, 20, 0.98);
+
+  /* Hover states */
+  --hover-bg: rgba(var(--imperial-blue-rgb), 0.08);
+  --hover-bg-subtle: rgba(255, 255, 255, 0.04);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     TEXTOS
+     ───────────────────────────────────────────────────────────────────────── */
+  --text-primary: #FFFFFF;
+  --text-secondary: #D1D1DB;
+  --text-muted: #9CA3AF;
+  --text-inverse: #0F0F14;
+
+  /* Alias para compatibilidad */
+  --text-color: var(--text-primary);
+  --dimmed-text: var(--text-muted);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     BORDES
+     ───────────────────────────────────────────────────────────────────────── */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --border-hover: rgba(var(--imperial-blue-rgb), 0.4);
+  --border-active: var(--imperial-blue);
+
+  /* Alias para compatibilidad */
+  --border-color-subtle: var(--border-subtle);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SOMBRAS PREMIUM
+     ───────────────────────────────────────────────────────────────────────── */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.4), 0 8px 16px rgba(0, 0, 0, 0.25);
+
+  /* Sombras con color imperial */
+  --shadow-imperial: 0 4px 20px rgba(var(--imperial-blue-rgb), 0.2),
+    0 2px 8px rgba(var(--imperial-blue-rgb), 0.12);
+  --shadow-imperial-hover: 0 8px 32px rgba(var(--imperial-blue-rgb), 0.3),
+    0 4px 12px rgba(var(--imperial-blue-rgb), 0.18);
+  --shadow-cyan: 0 4px 20px rgba(var(--imperial-cyan-rgb), 0.18),
+    0 2px 8px rgba(var(--imperial-cyan-rgb), 0.12);
+
+  /* Glow effects */
+  --glow-blue: 0 0 20px rgba(var(--imperial-blue-rgb), 0.4);
+  --glow-cyan: 0 0 20px rgba(var(--imperial-cyan-rgb), 0.4);
+  --glow-emerald: 0 0 20px rgba(var(--imperial-emerald-rgb), 0.4);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     GRADIENTES PREMIUM
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Gradiente Imperial principal */
+  --gradient-imperial: linear-gradient(135deg, var(--imperial-blue) 0%, var(--imperial-cyan) 100%);
+  --gradient-imperial-soft: linear-gradient(135deg, rgba(var(--imperial-blue-rgb), 0.8) 0%, rgba(var(--imperial-cyan-rgb), 0.8) 100%);
+
+  /* Gradiente para fondos */
+  --gradient-bg: radial-gradient(ellipse at top, rgba(var(--imperial-cyan-rgb), 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(var(--imperial-blue-rgb), 0.08) 0%, transparent 50%);
+
+  /* Gradiente para cards destacadas */
+  --gradient-card-border: linear-gradient(135deg, rgba(var(--imperial-blue-rgb), 0.3) 0%, rgba(var(--imperial-cyan-rgb), 0.3) 100%);
+
+  /* Gradiente para texto */
+  --gradient-text-imperial: linear-gradient(135deg, var(--imperial-blue-light) 0%, var(--imperial-blue) 50%, var(--imperial-cyan) 100%);
+
+  /* Overlays para imágenes */
+  --gradient-overlay-bottom: linear-gradient(to top, rgba(10, 25, 41, 0.95) 0%, rgba(10, 25, 41, 0.6) 40%, transparent 100%);
+  --gradient-overlay-full: linear-gradient(to top, rgba(10, 25, 41, 0.9) 0%, rgba(10, 25, 41, 0.4) 50%, rgba(10, 25, 41, 0.2) 100%);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SKELETON & LOADING
+     ───────────────────────────────────────────────────────────────────────── */
+  --skeleton-bg: rgba(255, 255, 255, 0.05);
+  --skeleton-shimmer: rgba(255, 255, 255, 0.08);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     TOOLTIPS
+     ───────────────────────────────────────────────────────────────────────── */
+  --tooltip-bg: rgba(26, 26, 46, 0.95);
+  --tooltip-text: var(--text-primary);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SCROLLBAR
+     ───────────────────────────────────────────────────────────────────────── */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(var(--imperial-blue-rgb), 0.35);
+  --scrollbar-thumb-hover: rgba(var(--imperial-blue-rgb), 0.55);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     ESTADOS DE BADGES
+     ───────────────────────────────────────────────────────────────────────── */
+  --badge-new-bg: rgba(var(--imperial-blue-rgb), 0.15);
+  --badge-new-text: var(--imperial-blue-light);
+  --badge-new-border: rgba(var(--imperial-blue-rgb), 0.3);
+
+  --badge-hot-bg: rgba(var(--imperial-ruby-rgb), 0.15);
+  --badge-hot-text: #F87171;
+  --badge-hot-border: rgba(var(--imperial-ruby-rgb), 0.3);
+
+  --badge-vip-bg: rgba(var(--imperial-cyan-rgb), 0.15);
+  --badge-vip-text: var(--imperial-cyan-light);
+  --badge-vip-border: rgba(var(--imperial-cyan-rgb), 0.3);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     TIPOGRAFÍA
+     ───────────────────────────────────────────────────────────────────────── */
+  --font-body: "Outfit", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Playfair Display", "Outfit", Georgia, serif;
+  --font-mono: "JetBrains Mono", "Fira Code", Monaco, Consolas, monospace;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     TRANSICIONES
+     ───────────────────────────────────────────────────────────────────────── */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     ESPACIADO Y LAYOUT
+     ───────────────────────────────────────────────────────────────────────── */
+  --header-height: 120px;
+  --header-height-mobile: 110px;
+  --footer-height: auto;
+  /* Footer dinámico por defecto */
+  --content-max-width: 1400px;
+  --content-max-width-narrow: 900px;
+  --content-max-width-wide: 1600px;
+
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     BORDES REDONDEADOS
+     ───────────────────────────────────────────────────────────────────────── */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Z-INDEX
+     ───────────────────────────────────────────────────────────────────────── */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     VARIABLES LEGACY (compatibilidad con código existente)
+     ───────────────────────────────────────────────────────────────────────── */
+  --accent-cyan: var(--imperial-blue-rgb);
+  --accent-cyan-0-1: rgba(var(--imperial-blue-rgb), 0.1);
+  --accent-cyan-0-15: rgba(var(--imperial-blue-rgb), 0.15);
+  --accent-cyan-0-2: rgba(var(--imperial-blue-rgb), 0.2);
+  --accent-cyan-0-3: rgba(var(--imperial-blue-rgb), 0.3);
+  --accent-cyan-0-4: rgba(var(--imperial-blue-rgb), 0.4);
+  --accent-cyan-0-5: rgba(var(--imperial-blue-rgb), 0.5);
+  --accent-cyan-0-6: rgba(var(--imperial-blue-rgb), 0.6);
+  --accent-cyan-0-8: rgba(var(--imperial-blue-rgb), 0.8);
+
+  --accent-amber: var(--imperial-blue-rgb);
+  --accent-amber-0-2: rgba(var(--imperial-blue-rgb), 0.2);
+  --accent-amber-0-3: rgba(var(--imperial-blue-rgb), 0.3);
+
+  --accent-indigo: var(--imperial-cyan-rgb);
+  --accent-indigo-0-1: rgba(var(--imperial-cyan-rgb), 0.1);
+  --accent-indigo-0-3: rgba(var(--imperial-cyan-rgb), 0.3);
+
+  --accent-blue: var(--imperial-cyan-rgb);
+  --accent-blue-0-2: rgba(var(--imperial-cyan-rgb), 0.2);
+
+  --accent-green: var(--imperial-emerald-rgb);
+  --accent-green-0-2: rgba(var(--imperial-emerald-rgb), 0.2);
+
+  --accent-red: var(--imperial-ruby-rgb);
+  --accent-red-0-2: rgba(var(--imperial-ruby-rgb), 0.2);
+}
+
+/* ============================================================================
+   LIGHT MODE - Ivory Day Theme (PREMIUM)
+   ============================================================================
+   
+   El modo claro usa tonos cálidos de marfil y crema con acentos dorados
+   más oscuros para mejor contraste. El púrpura imperial se intensifica
+   para mantener la elegancia premium.
+   
+   ============================================================================ */
+[data-theme="light"],
+[data-mantine-color-scheme="light"] {
+  /* ─────────────────────────────────────────────────────────────────────────
+     COLORES IMPERIALES AJUSTADOS PARA LIGHT MODE
+     Más oscuros para mejor contraste sobre fondos claros
+     ───────────────────────────────────────────────────────────────────────── */
+  --imperial-blue: #4A61A8;
+  /* Azul más oscuro para contraste */
+  --imperial-blue-light: #6382DC;
+  --imperial-blue-dark: #2A4080;
+  --imperial-blue-rgb: 74, 97, 168;
+
+  --imperial-gold: #4A61A8;
+  /* Azul más oscuro para contraste */
+  --imperial-gold-light: #6382DC;
+  --imperial-gold-dark: #2A4080;
+  --imperial-gold-rgb: 74, 97, 168;
+
+  --imperial-purple: #2A4080;
+  /* Azul Navy */
+  --imperial-purple-light: #4A61A8;
+  --imperial-purple-dark: #1A2850;
+  --imperial-purple-rgb: 42, 64, 128;
+
+  --imperial-cyan-rgb: 74, 97, 168;
+  --imperial-cyan: rgb(var(--imperial-cyan-rgb));
+  --imperial-cyan-light: #6382DC;
+  --imperial-cyan-dark: #2A4080;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     FONDOS LIGHT MODE - Elegancia Cálida
+     ───────────────────────────────────────────────────────────────────────── */
+  --page-bg: #FDFCF9;
+  --page-bg-rgb: 253, 252, 249;
+
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --card-bg-solid: #FFFFFF;
+  --card-bg-hover: rgba(255, 255, 255, 1);
+
+  --subtle-bg: rgba(74, 97, 168, 0.03);
+  --subtle-bg-hover: rgba(74, 97, 168, 0.06);
+
+  --nav-bg: rgba(253, 252, 249, 0.94);
+  --nav-bg-solid: #FDFCF9;
+
+  --input-bg: rgba(255, 255, 255, 0.95);
+  --input-bg-focus: rgba(255, 255, 255, 1);
+
+  --dropdown-bg: rgba(255, 255, 255, 0.98);
+  --modal-bg: rgba(255, 255, 255, 0.99);
+
+  --hover-bg: rgba(74, 97, 168, 0.08);
+  --hover-bg-subtle: rgba(74, 97, 168, 0.04);
+
+  /* Textos Light Mode - Alto Contraste */
+  --text-primary: #1A1A28;
+  --text-secondary: #3D3D4D;
+  --text-muted: #6B6B7B;
+  --text-inverse: #FDFCF9;
+
+  /* Alias */
+  --text-color: var(--text-primary);
+  --dimmed-text: var(--text-muted);
+
+  /* Bordes Light Mode - Sutiles pero Visibles */
+  --border-subtle: rgba(26, 26, 40, 0.08);
+  --border-medium: rgba(26, 26, 40, 0.12);
+  --border-strong: rgba(26, 26, 40, 0.18);
+  --border-hover: rgba(74, 97, 168, 0.5);
+  --border-active: var(--imperial-gold);
+  --border-color-subtle: var(--border-subtle);
+
+  /* Sombras Light Mode - Elegantes y Suaves */
+  --shadow-sm: 0 1px 3px rgba(26, 26, 40, 0.04), 0 1px 2px rgba(26, 26, 40, 0.02);
+  --shadow-md: 0 4px 12px rgba(26, 26, 40, 0.06), 0 2px 4px rgba(26, 26, 40, 0.04);
+  --shadow-lg: 0 10px 30px rgba(26, 26, 40, 0.08), 0 4px 10px rgba(26, 26, 40, 0.04);
+  --shadow-xl: 0 20px 50px rgba(26, 26, 40, 0.1), 0 8px 20px rgba(26, 26, 40, 0.05);
+
+  /* Sombras imperiales con tono azul */
+  --shadow-imperial: 0 4px 20px rgba(74, 97, 168, 0.12),
+    0 2px 8px rgba(74, 97, 168, 0.08);
+  --shadow-imperial-hover: 0 8px 35px rgba(74, 97, 168, 0.18),
+    0 4px 12px rgba(74, 97, 168, 0.1);
+  --shadow-purple: 0 4px 20px rgba(42, 64, 128, 0.1),
+    0 2px 8px rgba(42, 64, 128, 0.06);
+
+  /* Glow effects - más sutiles en light mode */
+  --glow-gold: 0 0 25px rgba(74, 97, 168, 0.25);
+  --glow-purple: 0 0 25px rgba(42, 64, 128, 0.2);
+  --glow-emerald: 0 0 25px rgba(14, 165, 233, 0.2);
+
+  /* Gradientes Light Mode - Premium Elegante */
+  --gradient-imperial: linear-gradient(135deg, #4A61A8 0%, #2A4080 100%);
+  --gradient-imperial-soft: linear-gradient(135deg, rgba(74, 97, 168, 0.9) 0%, rgba(42, 64, 128, 0.9) 100%);
+
+  --gradient-bg: radial-gradient(ellipse at top, rgba(42, 64, 128, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(74, 97, 168, 0.04) 0%, transparent 50%);
+
+  --gradient-text-imperial: linear-gradient(135deg, #4A61A8 0%, #2A4080 50%, #6382DC 100%);
+
+  --gradient-overlay-bottom: linear-gradient(to top, rgba(253, 252, 249, 0.98) 0%, rgba(253, 252, 249, 0.7) 40%, transparent 100%);
+  --gradient-overlay-full: linear-gradient(to top, rgba(253, 252, 249, 0.95) 0%, rgba(253, 252, 249, 0.5) 50%, rgba(253, 252, 249, 0.25) 100%);
+
+  /* Skeleton Light Mode */
+  --skeleton-bg: rgba(26, 26, 40, 0.04);
+  --skeleton-shimmer: rgba(26, 26, 40, 0.08);
+
+  /* Tooltips Light Mode */
+  --tooltip-bg: rgba(26, 26, 40, 0.95);
+  --tooltip-text: #FDFCF9;
+
+  /* Scrollbar Light Mode */
+  --scrollbar-track: rgba(26, 26, 40, 0.03);
+  --scrollbar-thumb: rgba(74, 97, 168, 0.35);
+  --scrollbar-thumb-hover: rgba(74, 97, 168, 0.55);
+
+  /* Badges Light Mode */
+  --badge-new-bg: rgba(74, 97, 168, 0.12);
+  --badge-new-text: #2A4080;
+  --badge-new-border: rgba(74, 97, 168, 0.25);
+
+  --badge-hot-bg: rgba(220, 38, 38, 0.1);
+  --badge-hot-text: #B91C1C;
+  --badge-hot-border: rgba(220, 38, 38, 0.2);
+
+  --badge-vip-bg: rgba(42, 64, 128, 0.1);
+  --badge-vip-text: #1A2850;
+  --badge-vip-border: rgba(42, 64, 128, 0.2);
+
+  /* Legacy Variables Light Override */
+  --accent-cyan: 74, 97, 168;
+  --accent-cyan-0-1: rgba(74, 97, 168, 0.1);
+  --accent-cyan-0-15: rgba(74, 97, 168, 0.15);
+  --accent-cyan-0-2: rgba(74, 97, 168, 0.2);
+  --accent-cyan-0-3: rgba(74, 97, 168, 0.3);
+  --accent-cyan-0-4: rgba(74, 97, 168, 0.4);
+  --accent-cyan-0-5: rgba(74, 97, 168, 0.5);
+  --accent-cyan-0-6: rgba(74, 97, 168, 0.6);
+  --accent-cyan-0-8: rgba(74, 97, 168, 0.8);
+}
+
+/* ============================================================================
+   TIPOGRAFÍA GLOBAL
+   ============================================================================ */
+body {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.heading {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================================================
+   SCROLLBAR IMPERIAL
+   ============================================================================ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* ============================================================================
+   SELECCIÓN DE TEXTO IMPERIAL
+   ============================================================================ */
+::selection {
+  background: rgba(var(--imperial-gold-rgb), 0.3);
+  color: var(--text-primary);
+}
+
+::-moz-selection {
+  background: rgba(var(--imperial-gold-rgb), 0.3);
+  color: var(--text-primary);
+}
+
+/* ============================================================================
+   FOCUS STYLES ACCESIBLES
+   ============================================================================ */
+:focus-visible {
+  outline: 2px solid var(--imperial-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   ANIMACIONES PREMIUM
+   ============================================================================ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes glow {
+
+  0%,
+  100% {
+    box-shadow: var(--shadow-imperial);
+  }
+
+  50% {
+    box-shadow: var(--shadow-imperial-hover);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* ============================================================================
+   CLASES DE UTILIDAD IMPERIAL
+   ============================================================================ */
+
+/* Texto con gradiente imperial */
+.text-gradient-imperial {
+  background: var(--gradient-text-imperial);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Borde con gradiente */
+.border-gradient-imperial {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+    var(--gradient-imperial) border-box;
+}
+
+/* Sombra dorada al hover */
+.hover-glow-gold:hover {
+  box-shadow: var(--shadow-imperial-hover);
+}
+
+/* Glassmorphism */
+.glass {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-strong {
+  background: var(--dropdown-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-medium);
+}
+
+/* Animación de entrada */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease forwards;
+}
+
+/* Transiciones suaves */
+.transition-all {
+  transition: all var(--transition-slow);
+}
+
+.transition-colors {
+  transition: color var(--transition-base),
+    background-color var(--transition-base),
+    border-color var(--transition-base);
+}
+
+/* ============================================================================
+   ESTILOS PARA COMPONENTES ESPECÍFICOS
+   ============================================================================ */
+
+/* Botón primario imperial */
+.btn-imperial {
+  background: var(--gradient-imperial);
+  color: #FFFFFF;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all var(--transition-slow);
+  box-shadow: var(--shadow-imperial);
+}
+
+.btn-imperial:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-imperial-hover);
+}
+
+.btn-imperial:active {
+  transform: translateY(0);
+}
+
+/* Botón outline imperial */
+.btn-imperial-outline {
+  background: transparent;
+  color: var(--imperial-primary);
+  border: 2px solid var(--imperial-primary);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all var(--transition-slow);
+}
+
+.btn-imperial-outline:hover {
+  background: var(--imperial-primary);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-imperial);
+}
+
+/* Card premium */
+.card-imperial {
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  transition: all var(--transition-slow);
+}
+
+.card-imperial:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+}
+
+/* Card destacada con borde gradiente */
+.card-featured {
+  position: relative;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.card-featured::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  padding: 1px;
+  background: var(--gradient-imperial);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Badge premium */
+.badge-imperial {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--badge-new-bg);
+  color: var(--badge-new-text);
+  border: 1px solid var(--badge-new-border);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-vip {
+  background: var(--badge-vip-bg);
+  color: var(--badge-vip-text);
+  border-color: var(--badge-vip-border);
+}
+
+.badge-hot {
+  background: var(--badge-hot-bg);
+  color: var(--badge-hot-text);
+  border-color: var(--badge-hot-border);
+}
+
+/* Divider elegante */
+.divider-imperial {
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      var(--border-medium) 20%,
+      var(--border-medium) 80%,
+      transparent 100%);
+  border: none;
+}
+
+/* Input premium */
+.input-imperial {
+  background: var(--input-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  transition: all var(--transition-base);
+}
+
+.input-imperial:focus {
+  outline: none;
+  background: var(--input-bg-focus);
+  border-color: var(--imperial-primary);
+  box-shadow: 0 0 0 3px var(--imperial-primary-alpha);
+}
+
+.input-imperial::placeholder {
+  color: var(--text-muted);
+}
+
+/* ============================================================================
+   RESPONSIVE - AJUSTES DE VARIABLES POR BREAKPOINT
+   ============================================================================ */
+
+/* Tablet */
+@media (max-width: 992px) {
+  :root {
+    --content-max-width: 100%;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  :root {
+    --header-height: var(--header-height-mobile, 60px);
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --spacing-2xl: 2rem;
+  }
+}
+
+/* Mobile pequeño */
+@media (max-width: 480px) {
+  :root {
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+  }
+}

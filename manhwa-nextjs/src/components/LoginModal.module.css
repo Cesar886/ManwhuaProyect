@@ -1,0 +1,421 @@
+/* ============================================================================
+   LOGIN MODAL - ESTILOS PREMIUM IMPERIAL
+   ============================================================================ */
+
+/* Mobile: drawer anclado abajo */
+.drawerInner {
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 0 !important;
+}
+
+.drawerContent {
+  background: transparent !important;
+  box-shadow: none !important;
+  max-height: 90vh !important;
+  max-height: 90dvh !important;
+  width: 100% !important;
+  max-width: 480px !important;
+}
+
+/* Desktop: drawer centrado */
+@media (min-width: 640px) {
+  .drawerInner {
+    align-items: center !important;
+    padding: 2rem !important;
+  }
+
+  .drawerContent {
+    max-height: 85vh !important;
+  }
+}
+
+/* Contenedor principal con glassmorphism */
+.sheet {
+  background: var(--modal-bg, rgba(15, 15, 20, 0.98));
+  color: var(--text-color, #e6eef5);
+  border-radius: 1.5rem 1.5rem 0 0;
+  padding: 0;
+  width: 100%;
+  box-shadow:
+    0 -20px 60px rgba(0, 0, 0, 0.5),
+    0 -8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+  border-bottom: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  /* GPU acceleration hints */
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Desktop: modal centrado con bordes redondeados completos */
+@media (min-width: 640px) {
+  .sheet {
+    border-radius: 1.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+    box-shadow:
+      0 25px 50px -12px rgba(0, 0, 0, 0.5),
+      0 0 0 1px var(--border-subtle);
+    margin-bottom: 2rem;
+  }
+}
+
+/* Header con gradiente sutil */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--imperial-gold-rgb, 99, 102, 241), 0.08) 0%,
+    transparent 100%
+  );
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Título premium con gradiente */
+.title {
+  font-family: var(--font-heading, 'Playfair Display', Georgia, serif);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  background: var(--gradient-text-imperial, linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #22D3EE 100%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Botón de cerrar elegante */
+.closeBtn {
+  color: var(--text-muted, #9CA3AF) !important;
+  width: 36px;
+  height: 36px;
+  border-radius: 50% !important;
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease !important;
+  background: var(--subtle-bg) !important;
+  will-change: transform;
+}
+
+.closeBtn:hover {
+  background: var(--subtle-bg-hover) !important;
+  color: var(--text-primary) !important;
+  transform: rotate(90deg);
+}
+
+.closeBtn:active {
+  transform: rotate(90deg) scale(0.95);
+}
+
+/* Wrapper de inputs con padding elegante */
+.inputsWrapper {
+  padding: 20px 24px 24px;
+  display: grid;
+  gap: 16px;
+}
+
+/* Estilo base para labels */
+.inputLabel {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.875rem;
+  margin-bottom: 6px;
+}
+
+/* Row de recuérdame */
+.rememberRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+/* Botón primario premium */
+.primaryBtn {
+  background: var(--gradient-imperial, linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)) !important;
+  color: #FFFFFF !important;
+  border-radius: 12px !important;
+  height: 46px !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  border: none !important;
+  box-shadow: var(--shadow-imperial, 0 4px 20px rgba(99, 102, 241, 0.3)) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.primaryBtn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    transparent 50%
+  );
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  transform: translateY(-2px) translateZ(0) !important;
+  box-shadow: var(--shadow-imperial-hover, 0 8px 32px rgba(99, 102, 241, 0.4)) !important;
+}
+
+.primaryBtn:hover::before {
+  opacity: 1;
+}
+
+.primaryBtn:active:not(:disabled) {
+  transform: translateY(0) translateZ(0) !important;
+}
+
+/* Botones sociales premium */
+.socialBtn {
+  border-radius: 10px !important;
+  height: 44px !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-medium) !important;
+  background: var(--subtle-bg) !important;
+  display: flex !important;
+  gap: 10px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease !important;
+  position: relative;
+  overflow: hidden;
+  will-change: transform;
+}
+
+.socialBtn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-imperial);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.socialBtn:hover {
+  border-color: var(--border-hover) !important;
+  background: var(--subtle-bg-hover) !important;
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: var(--shadow-md);
+}
+
+.socialBtn:hover::before {
+  opacity: 0.06;
+}
+
+/* Icono de Google */
+.socialBtn.google:hover {
+  border-color: rgba(234, 67, 53, 0.4) !important;
+}
+
+/* Icono de Discord */
+.socialBtn.discord:hover {
+  border-color: rgba(88, 101, 242, 0.4) !important;
+}
+
+/* Texto muted */
+.mutedText {
+  color: var(--text-muted, rgba(255, 255, 255, 0.6)) !important;
+  font-size: 0.875rem;
+}
+
+/* Espacio del divider */
+.dividerSpace {
+  margin: 4px 0 8px 0;
+  gap: 6px;
+}
+
+/* Divider elegante con gradiente */
+.divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--border-medium) 20%,
+    var(--border-medium) 80%,
+    transparent 100%
+  );
+  margin: 20px 0;
+  border: none;
+}
+
+/* Texto del divider */
+.dividerText {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 0 16px;
+  background: var(--modal-bg);
+  position: relative;
+}
+
+/* Link de registro/contraseña */
+.linkBtn {
+  color: var(--imperial-gold, rgb(99, 102, 241)) !important;
+  font-weight: 500 !important;
+  transition: background-color 0.12s ease, color 0.12s ease !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  text-decoration: none !important;
+}
+
+.linkBtn:hover {
+  background: var(--subtle-bg, rgba(255, 255, 255, 0.04)) !important;
+  color: var(--imperial-blue-light, #C7D2FE) !important;
+  text-decoration: none !important;
+}
+
+.linkBtn:active {
+  opacity: 0.8;
+}
+
+/* Mensaje de error */
+.errorMessage {
+  background: rgba(var(--imperial-ruby-rgb, 239, 68, 68), 0.1);
+  border: 1px solid rgba(var(--imperial-ruby-rgb, 239, 68, 68), 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--imperial-ruby, #EF4444);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Sección de social login */
+.socialSection {
+  display: grid;
+  gap: 10px;
+}
+
+/* Contenedor del divider con texto */
+.dividerWithText {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.dividerWithText::before,
+.dividerWithText::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--border-medium) 100%
+  );
+}
+
+.dividerWithText::after {
+  background: linear-gradient(
+    90deg,
+    var(--border-medium) 0%,
+    transparent 100%
+  );
+}
+
+.dividerWithText span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* Estilos responsivos */
+@media (max-width: 480px) {
+  .sheet {
+    border-radius: 1.25rem 1.25rem 0 0;
+  }
+
+  .header {
+    padding: 16px 20px 12px;
+  }
+
+  .title {
+    font-size: 1.35rem;
+  }
+
+  .inputsWrapper {
+    padding: 16px 20px 20px;
+    gap: 14px;
+  }
+
+  .primaryBtn,
+  .socialBtn {
+    height: 44px !important;
+    border-radius: 10px !important;
+  }
+}
+
+/* Safe area para dispositivos con notch */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .inputsWrapper {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ============================================================================
+   BOTONES DE LOGIN SOCIAL - GOOGLE Y DISCORD
+   ============================================================================ */
+
+/* Estilos base para botones sociales */
+.googleBtn,
+.discordBtn {
+  width: 100%;
+  height: 46px !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: var(--text-primary, #ffffff) !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.googleBtn:hover,
+.discordBtn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  transform: translateY(-2px) translateZ(0);
+}
+
+.googleBtn:active,
+.discordBtn:active {
+  transform: translateY(0) translateZ(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Iconos con colores de marca */
+.googleBtn svg {
+  color: #4285f4 !important;
+}
+
+.discordBtn svg {
+  color: #5865F2 !important;
+}

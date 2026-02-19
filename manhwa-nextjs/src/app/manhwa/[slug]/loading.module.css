@@ -1,0 +1,45 @@
+.pageWrapper {
+  min-height: 100vh;
+  background: var(--page-bg);
+  padding-top: var(--header-height, 70px);
+}
+
+.heroSection {
+  padding: 2rem 0;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.coverContainer {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chapterSkeleton {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  transition: transform 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .heroSection > div {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .coverContainer {
+    width: 100%;
+    max-width: 220px;
+  }
+}

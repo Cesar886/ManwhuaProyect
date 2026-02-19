@@ -1,0 +1,854 @@
+/* ============================================================================
+   HOME PAGE STYLES - MANHWA IMPERIAL PREMIUM
+   ============================================================================ */
+
+/* Contenedor principal de la página */
+.pageWrapper {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--page-bg);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Subtle background gradient - single gradient for performance */
+.pageWrapper::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(var(--imperial-gold-rgb), 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+  will-change: auto;
+}
+
+/* Contenido central */
+.content {
+  max-width: var(--content-max-width, 1400px);
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-md);
+  padding-top: calc(var(--header-height, 80px) + var(--spacing-lg));
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 768px) {
+  .content {
+    padding: var(--spacing-2xl) var(--spacing-xl);
+    padding-top: calc(var(--header-height, 80px) + var(--spacing-xl));
+    gap: 4rem;
+  }
+}
+
+/* ============================================================================
+   HERO SECTION - Bienvenida Premium
+   ============================================================================ */
+
+.heroSection {
+  text-align: center;
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  position: relative;
+}
+
+.heroTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 700;
+  background: var(--gradient-text-imperial);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--spacing-md);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.heroSubtitle {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   HEADERS DE SECCIONES - Premium Style
+   ============================================================================ */
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md);
+  position: relative;
+}
+
+.sectionHeader::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    var(--imperial-gold) 0%,
+    rgba(var(--imperial-gold-rgb), 0.3) 50%,
+    transparent 100%
+  );
+}
+
+.sectionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-imperial);
+  color: white;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-imperial);
+  position: relative;
+}
+
+.sectionIcon::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  background: var(--gradient-imperial);
+  opacity: 0.3;
+  filter: blur(8px);
+  z-index: -1;
+}
+
+.sectionTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+/* ============================================================================
+   BOTONES INLINE - Premium
+   ============================================================================ */
+
+.inlineBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--gradient-imperial);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-slow);
+  margin-left: auto;
+  cursor: pointer;
+  box-shadow: var(--shadow-imperial);
+  position: relative;
+  overflow: hidden;
+}
+
+.inlineBtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.inlineBtn:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-imperial-hover);
+}
+
+.inlineBtn:hover::before {
+  left: 100%;
+}
+
+.hideOnMobile {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .hideOnMobile {
+    display: none !important;
+  }
+}
+
+/* ============================================================================
+   GRID DE TARJETAS PRINCIPALES - Premium Cards
+   ============================================================================ */
+
+.cardsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .cardsRow {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cardsRow {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .cardsRow {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Items populares - Premium Card */
+.popularItem {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.popularItem:hover {
+  transform: translateY(-6px) scale(1.02);
+  z-index: 10;
+}
+
+.popularItem:hover .popularCard {
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 2px #D4AF37;
+}
+
+.popularCard {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: box-shadow 0.3s ease;
+}
+
+.popularImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.popularItem:hover .popularImg {
+  transform: scale(1.05);
+}
+
+/* Overlay removido - el título tiene su propio gradiente */
+
+.statusBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 5;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.chapterBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  color: #ffffff;
+  font-weight: 600;
+  z-index: 5;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.titleLink {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 40px 12px 12px;
+  text-decoration: none;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 60%, transparent 100%);
+  z-index: 5;
+  transition: all 0.3s ease;
+}
+
+.popularItem:hover .titleLink {
+  color: #D4AF37;
+  padding-bottom: 16px;
+}
+
+/* ============================================================================
+   GRID DE RELEASES/ACTUALIZACIONES - Premium
+   ============================================================================ */
+
+.gridReleases {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
+@media (min-width: 640px) {
+  .gridReleases {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .gridReleases {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.releaseCard {
+  display: flex;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: var(--card-bg-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.releaseCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-imperial);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+
+.releaseCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-imperial-hover);
+  border-color: rgba(var(--imperial-gold-rgb), 0.3);
+}
+
+.releaseCard:hover::before {
+  transform: scaleX(1);
+}
+
+.releaseCoverWrapper {
+  flex-shrink: 0;
+  width: 85px;
+  height: 120px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.releaseCoverWrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.releaseInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.releaseTitle {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.2s ease;
+}
+
+.releaseTitle:hover {
+  color: var(--imperial-gold);
+}
+
+.chaptersList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: auto;
+}
+
+.chapterLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-decoration: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--subtle-bg);
+  transition: all 0.2s ease;
+}
+
+.chapterLink:hover {
+  background: rgba(var(--imperial-gold-rgb), 0.15);
+  color: var(--imperial-gold);
+  transform: translateX(4px);
+}
+
+.chapterTime {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* ============================================================================
+   TOP SERIES / RANKING - Premium
+   ============================================================================ */
+
+.topSeriesGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-xl);
+}
+
+@media (min-width: 1024px) {
+  .topSeriesGrid {
+    grid-template-columns: 1fr 320px;
+    gap: var(--spacing-2xl);
+  }
+}
+
+.topSeriesContainer {
+  display: flex;
+  gap: var(--spacing-md);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: var(--spacing-sm);
+}
+
+.topSeriesContainer::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .topSeriesContainer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-lg);
+    overflow-x: visible;
+  }
+}
+
+.topSeriesItem {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-lg);
+  background: var(--card-bg-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+/* Efecto de brillo para el top 1 */
+.topSeriesItem:first-child {
+  background: linear-gradient(135deg,
+    rgba(var(--imperial-gold-rgb), 0.1) 0%,
+    var(--card-bg) 50%
+  );
+  border-color: rgba(var(--imperial-gold-rgb), 0.3);
+}
+
+.topSeriesItem:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-imperial-hover);
+  border-color: var(--imperial-gold);
+}
+
+.topSeriesCover {
+  width: 100%;
+  aspect-ratio: 3/4;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+  margin-bottom: var(--spacing-md);
+}
+
+.topSeriesCover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.topSeriesItem:hover .topSeriesCover img {
+  transform: scale(1.05);
+}
+
+.topSeriesBadge {
+  position: absolute;
+  top: var(--spacing-sm);
+  left: var(--spacing-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 1rem;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.topSeriesInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.topSeriesTitle {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.topSeriesMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-imperial);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition-slow);
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  margin-top: auto;
+}
+
+.btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-imperial-hover);
+}
+
+/* ============================================================================
+   PANEL LATERAL DE LISTA - Premium
+   ============================================================================ */
+
+.listPanel {
+  background: var(--card-bg-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  height: fit-content;
+  position: relative;
+  overflow: hidden;
+}
+
+.listPanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-imperial);
+}
+
+.listPanelTitle {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.listItem:last-child {
+  border-bottom: none;
+}
+
+.listItem:hover {
+  background: var(--hover-bg);
+  margin: 0 calc(var(--spacing-sm) * -1);
+  padding-left: var(--spacing-sm);
+  padding-right: var(--spacing-sm);
+  border-radius: var(--radius-md);
+}
+
+.listItemRank {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.listItemCover {
+  width: 45px;
+  height: 60px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.listItemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.listItemTitle {
+  font-weight: 600;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  margin: 0;
+  transition: color 0.2s ease;
+}
+
+.listItem:hover .listItemTitle {
+  color: var(--imperial-gold);
+}
+
+.listItemChapters {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ============================================================================
+   CARDS GENERALES
+   ============================================================================ */
+
+.card {
+  background: var(--card-bg-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: rgba(var(--imperial-gold-rgb), 0.3);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================================================
+   ANIMACIONES
+   ============================================================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+   ESTADOS ESPECIALES
+   ============================================================================ */
+
+.errorMessage {
+  padding: var(--spacing-lg);
+  background: rgba(var(--imperial-ruby-rgb), 0.1);
+  border: 1px solid rgba(var(--imperial-ruby-rgb), 0.3);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.errorMessage p {
+  color: var(--imperial-ruby);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.cacheNotice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--subtle-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ============================================================================
+   SEO CONTENT STYLES
+   Estilos para contenido SEO visible que mejora el posicionamiento
+   ============================================================================ */
+
+/* H1 Principal - SEO optimizado para "Leer Manhwa en Español" */
+.seoH1 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+/* Párrafo introductorio con keywords naturales */
+.seoIntro {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-width: 900px;
+  margin-bottom: var(--spacing-xl);
+}
+
+/* Sección SEO (¿Qué es un Manhwa?, etc.) */
+.seoSection {
+  margin-top: var(--spacing-2xl);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Contenido SEO visible */
+.seoContent {
+  background: var(--subtle-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border: 1px solid var(--border-subtle);
+}
+
+.seoContent p {
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .seoH1 {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  
+  .seoIntro {
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  
+  .seoContent {
+    padding: var(--spacing-md);
+  }
+  
+  .seoContent p {
+    font-size: 0.875rem;
+  }
+}

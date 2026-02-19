@@ -1,0 +1,83 @@
+/* ManhwaCardSkeleton.module.css - Skeletons con shimmer effect */
+
+.skeletonCard {
+  background-color: var(--subtle-bg);
+  border: 1px solid var(--border-color-subtle);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.coverSkeleton {
+  position: relative;
+  aspect-ratio: 3/4;
+  background: linear-gradient(
+    135deg,
+    rgba(30, 41, 59, 0.95) 0%,
+    rgba(51, 65, 85, 0.85) 50%,
+    rgba(30, 41, 59, 0.95) 100%
+  );
+  overflow: hidden;
+}
+
+/* Label de estado */
+.stateLabel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  opacity: 0.6;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Shimmer animation effect */
+.shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(6, 182, 212, 0.15) 20%,
+    rgba(6, 182, 212, 0.25) 50%,
+    rgba(6, 182, 212, 0.15) 80%,
+    transparent 100%
+  );
+  animation: shimmer 1.8s infinite ease-in-out;
+  transform: translateX(-100%);
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.badgeSkeleton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background-color: rgba(100, 116, 139, 0.5);
+}
+
+.ratingSkeleton {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background-color: rgba(100, 116, 139, 0.5);
+}

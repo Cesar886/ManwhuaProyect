@@ -1,0 +1,131 @@
+/* ============================================
+   GENRE PAGE STYLES - SEO Optimized
+   ============================================ */
+
+.pageWrapper {
+  min-height: 100vh;
+  background: var(--page-bg);
+  padding-top: calc(var(--header-height, 80px) + var(--spacing-xl));
+}
+
+.content {
+  max-width: var(--content-max-width, 1200px);
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+/* H1 Principal - SEO */
+.pageTitle {
+  font-family: var(--font-heading);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Párrafo introductorio */
+.introText {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-width: 900px;
+}
+
+/* Secciones */
+.infoSection,
+.manhwaSection,
+.relatedSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.infoText {
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  background: var(--subtle-bg);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--imperial-gold);
+}
+
+/* Grid de manhwas */
+.manhwaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+/* Estado vacío */
+.emptyState {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--spacing-2xl);
+  background: var(--subtle-bg);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+}
+
+.link {
+  color: var(--imperial-gold);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* Grid de géneros relacionados */
+.genreGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.genreLink {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--subtle-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+}
+
+.genreLink:hover {
+  background: var(--imperial-gold);
+  color: var(--page-bg);
+  border-color: var(--imperial-gold);
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: var(--spacing-md);
+  }
+  
+  .pageTitle {
+    font-size: 1.5rem;
+  }
+  
+  .introText,
+  .infoText {
+    font-size: 0.9rem;
+  }
+  
+  .infoText {
+    padding: var(--spacing-md);
+  }
+}

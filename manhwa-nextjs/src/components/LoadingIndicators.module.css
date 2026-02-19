@@ -1,0 +1,322 @@
+/* LoadingIndicators.module.css */
+
+/* Progress Bar */
+.progressBar {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 20, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 0.75rem 1rem;
+  z-index: 999;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.2);
+}
+
+.progressInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: rgb(156, 163, 175);
+}
+
+.bytes {
+  margin-left: auto;
+  color: rgb(34, 211, 238);
+  font-weight: 500;
+}
+
+.progressTrack {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, rgb(34, 211, 238), rgb(59, 130, 246));
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+/* Connection Badge */
+.connectionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: rgba(10, 10, 20, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid;
+}
+
+.connectionBadge.low {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: rgb(239, 68, 68);
+}
+
+.connectionBadge.medium {
+  border-color: rgba(251, 191, 36, 0.5);
+  color: rgb(251, 191, 36);
+}
+
+.connectionBadge.high {
+  border-color: rgba(34, 197, 94, 0.5);
+  color: rgb(34, 197, 94);
+}
+
+.iconSlow {
+  color: rgb(239, 68, 68);
+}
+
+.iconFast {
+  color: rgb(34, 197, 94);
+}
+
+.iconSaver {
+  color: rgb(251, 191, 36);
+}
+
+.connectionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.connectionType {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.connectionQuality {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.connectionDetails {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+/* Banner */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 8px;
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  color: rgb(34, 211, 238);
+}
+
+.banner.warning {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: rgb(251, 191, 36);
+}
+
+.bannerContent {
+  flex: 1;
+}
+
+.bannerContent strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.95rem;
+}
+
+.bannerContent p {
+  font-size: 0.875rem;
+  opacity: 0.8;
+  margin: 0;
+}
+
+.bannerButton {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bannerButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Skeleton */
+.skeleton {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skeletonShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeletonIcon {
+  color: rgba(255, 255, 255, 0.1);
+  z-index: 1;
+}
+
+/* Preload Badge */
+.preloadBadge {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(34, 211, 238, 0.9);
+  color: rgb(10, 10, 20);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 100;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Settings Panel */
+.settings {
+  background: rgba(10, 10, 20, 0.8);
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settingsTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem 0;
+  color: rgb(34, 211, 238);
+}
+
+.settingItem {
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.settingItem:last-child {
+  border-bottom: none;
+}
+
+.settingLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.settingLabel strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: white;
+}
+
+.settingDescription {
+  font-size: 0.875rem;
+  color: rgb(156, 163, 175);
+  margin: 0;
+}
+
+.checkbox {
+  margin-top: 0.25rem;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: rgb(34, 211, 238);
+}
+
+.select {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: white;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cacheInfo {
+  color: rgb(156, 163, 175);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .progressBar {
+    padding: 0.5rem;
+  }
+
+  .progressInfo {
+    font-size: 0.75rem;
+  }
+
+  .connectionBadge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.5rem;
+  }
+
+  .banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .preloadBadge {
+    bottom: 70px;
+    right: 10px;
+    font-size: 0.7rem;
+    padding: 0.375rem 0.5rem;
+  }
+}

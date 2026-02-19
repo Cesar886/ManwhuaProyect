@@ -1,0 +1,145 @@
+.footer {
+  margin-top: 120px;
+  padding-top: calc(var(--mantine-spacing-xl) * 2);
+  padding-bottom: calc(var(--mantine-spacing-xl) * 2);
+  background-color: var(--page-bg);
+  border-top: 1px solid var(--border-subtle, var(--border-color-subtle));
+  position: relative;
+}
+
+/* Gradiente sutil en el footer */
+.footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(to bottom, 
+    rgba(var(--imperial-purple-rgb, 139, 92, 200), 0.03) 0%, 
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.logo {
+  max-width: 200px;
+}
+
+.description {
+  margin-top: 5px;
+  /* small screens adjustments moved to responsive media queries */
+}
+
+.inner {
+  display: flex;
+  justify-content: space-between;
+}
+
+.groups {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.wrapper {
+  width: 160px;
+}
+
+.link {
+  display: block;
+  color: var(--dimmed-text);
+  font-size: var(--mantine-font-size-sm);
+  padding-top: 3px;
+  padding-bottom: 3px;
+  transition: color 0.2s ease;
+}
+
+.link:hover {
+  text-decoration: none;
+  color: var(--imperial-gold, #D4A528);
+}
+
+.title {
+  font-size: var(--mantine-font-size-lg);
+  font-weight: 600;
+  font-family: var(--font-heading, "Playfair Display", Outfit, var(--mantine-font-family));
+  margin-bottom: calc(var(--mantine-spacing-xs) / 2);
+  color: var(--text-color);
+}
+
+.afterFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--mantine-spacing-xl);
+  padding-top: var(--mantine-spacing-xl);
+  padding-bottom: var(--mantine-spacing-xl);
+  border-top: 1px solid var(--border-subtle, var(--border-color-subtle));
+}
+
+/* Responsive rules (converted from nested SCSS) */
+@media (max-width: 768px) {
+  .logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .description {
+    margin-top: var(--mantine-spacing-xs);
+    text-align: center;
+  }
+
+  .inner {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .groups {
+    display: none;
+  }
+
+  .afterFooter {
+    flex-direction: column;
+  }
+
+  .social {
+    margin-top: var(--mantine-spacing-xs);
+  }
+}
+
+/* =============================================================================
+   LIGHT MODE STYLES - Footer
+   ============================================================================= */
+
+:global([data-theme="light"]) .footer {
+  background-color: var(--page-bg, #FDFCF9);
+  border-top: 1px solid var(--border-subtle, rgba(26, 26, 40, 0.08));
+}
+
+:global([data-theme="light"]) .footer::before {
+  background: linear-gradient(to bottom, 
+    rgba(107, 79, 163, 0.03) 0%, 
+    transparent 100%
+  );
+}
+
+:global([data-theme="light"]) .title {
+  color: var(--text-primary, #1A1A28);
+}
+
+:global([data-theme="light"]) .link {
+  color: var(--text-muted, #6B6B7B);
+}
+
+:global([data-theme="light"]) .link:hover {
+  color: #8B6914;
+}
+
+:global([data-theme="light"]) .description {
+  color: var(--text-secondary, #3D3D4D);
+}
+
+:global([data-theme="light"]) .afterFooter {
+  border-top: 1px solid var(--border-subtle, rgba(26, 26, 40, 0.08));
+}

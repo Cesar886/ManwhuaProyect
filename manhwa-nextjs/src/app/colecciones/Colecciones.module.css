@@ -1,0 +1,227 @@
+/* Colecciones.module.css */
+
+.pageRoot {
+  background-color: var(--page-bg);
+  color: var(--text-color);
+  min-height: 100vh;
+}
+
+/* Base Card Style */
+.collectionCard {
+  background-color: var(--mantine-color-body);
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 1.25rem; /* More rounded */
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Softer shadow */
+}
+
+/* New Card specific styles */
+.userCollectionCard {
+  background: white;
+}
+
+/* Dark mode adjustment */
+:global([data-mantine-color-scheme="dark"]) .userCollectionCard {
+  background: var(--mantine-color-dark-7);
+  border-color: var(--mantine-color-dark-5);
+}
+
+.userCollectionCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Image Section */
+.cardImageSection {
+  height: 140px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cardImageSection img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.userCollectionCard:hover .cardImageSection img {
+  transform: scale(1.05);
+}
+
+/* Content Section */
+.cardContent {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  background-color: white;
+  z-index: 1;
+}
+
+:global([data-mantine-color-scheme="dark"]) .cardContent {
+  background-color: var(--mantine-color-dark-7);
+}
+
+/* New Collection Card */
+.createCard {
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(6, 182, 212, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+  border: 2px dashed rgba(6, 182, 212, 0.4);
+}
+
+:global([data-mantine-color-scheme="dark"]) .createCard {
+  background: linear-gradient(180deg, rgba(6, 182, 212, 0.15) 0%, rgba(30, 30, 30, 0) 100%);
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.createCard:hover {
+  border-color: var(--mantine-color-cyan-filled);
+  background: linear-gradient(180deg, rgba(6, 182, 212, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+}
+
+.createCardImage {
+    height: 140px;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.createCardIconBox {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mantine-color-cyan-6);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+}
+
+/* Typography */
+.textTitle {
+  font-weight: 700;
+  color: var(--mantine-color-text);
+  line-height: 1.25;
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+}
+
+.textDescription {
+  font-size: 0.825rem;
+  color: var(--mantine-color-dimmed);
+  line-height: 1.4;
+  margin-bottom: auto; /* Pushes footer down */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Badges and Icons */
+.statusBadge {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-top-left-radius: 0.25rem;
+  border-bottom-right-radius: 0.25rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.5px;
+  padding: 0.25rem 0.5rem;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  border-radius: 4px;
+}
+
+.menuButton {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  transition: all 0.2s;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.menuButton:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.countBadge {
+  color: var(--mantine-color-cyan-6);
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.countIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background-color: rgba(6, 182, 212, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mantine-color-cyan-6);
+}
+
+:global([data-mantine-color-scheme="dark"]) .countIcon {
+  background-color: rgba(6, 182, 212, 0.2);
+}
+
+.dateText {
+    font-size: 0.75rem;
+    color: var(--mantine-color-dimmed);
+}
+
+/* Community Card */
+.communitCard {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border: 1px solid rgba(6, 182, 212, 0.25);
+    border-radius: 0.875rem;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.communitCard:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
+    border-color: rgba(6, 182, 212, 0.5);
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 12px 24px rgba(6, 182, 212, 0.15),
+                0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 992px) {
+  .collectionCard {
+    border-radius: 1rem;
+  }
+}

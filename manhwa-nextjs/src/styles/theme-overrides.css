@@ -1,0 +1,588 @@
+/* ============================================================================
+   MANHWA IMPERIAL - CSS OVERRIDES
+   ============================================================================
+   
+   Este archivo contiene sobreescrituras globales para transformar
+   referencias de colores legacy (cyan, blue) a los colores imperiales.
+   
+   IMPORTANTE: Este archivo se importa después de imperial-variables.css
+   en App.jsx para asegurar que las sobreescrituras tengan efecto.
+   
+   ============================================================================ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Base overrides
+   ───────────────────────────────────────────────────────────────────────── */
+
+html,
+body,
+#root {
+  background: var(--page-bg) !important;
+  color: var(--text-color) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Tipografía Imperial
+   ───────────────────────────────────────────────────────────────────────── */
+
+body {
+  font-family: var(--font-body) !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading) !important;
+  color: var(--text-color) !important;
+  font-weight: 600;
+}
+
+p,
+span,
+li,
+label {
+  color: var(--text-color);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Links con color imperial
+   ───────────────────────────────────────────────────────────────────────── */
+
+a {
+  color: var(--imperial-gold, #D4A528) !important;
+  text-decoration: none;
+  transition: color var(--transition-base);
+}
+
+a:hover {
+  color: var(--imperial-gold-light, #F0C14E) !important;
+}
+
+a:visited {
+  color: var(--imperial-purple, #8B5CC8) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Inputs y formularios
+   ───────────────────────────────────────────────────────────────────────── */
+
+input,
+textarea,
+select {
+  background: var(--input-bg) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-body) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--imperial-gold, #D4A528) !important;
+  box-shadow: 0 0 0 3px var(--imperial-primary-alpha, rgba(212, 165, 40, 0.15)) !important;
+  outline: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Botones imperiales
+   ───────────────────────────────────────────────────────────────────────── */
+
+button {
+  font-family: var(--font-body) !important;
+  transition: all var(--transition-base);
+}
+
+/* Botones con estados activos */
+.actionActive,
+.favoriteActive,
+[class*="Active"] {
+  color: var(--imperial-gold, #D4A528) !important;
+  background: var(--imperial-primary-alpha, rgba(212, 165, 40, 0.15)) !important;
+  border-color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Cards y paneles
+   ───────────────────────────────────────────────────────────────────────── */
+
+.card,
+.panel,
+[class*="Card"],
+[class*="Panel"] {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Transformar colores cyan legacy a imperial gold
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Clases de texto cyan */
+.text-cyan-400,
+.text-cyan-500,
+[class*="text-cyan"] {
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* Clases de fondo cyan */
+.bg-cyan-500,
+[class*="bg-cyan"] {
+  background-color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Clases utilitarias imperiales
+   ───────────────────────────────────────────────────────────────────────── */
+
+.text-imperial {
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+.text-imperial-purple {
+  color: var(--imperial-purple, #8B5CC8) !important;
+}
+
+.text-emerald {
+  color: var(--imperial-emerald, #10B981) !important;
+}
+
+.bg-imperial {
+  background-color: rgba(var(--imperial-gold-rgb, 212, 165, 40), 0.1) !important;
+}
+
+.bg-imperial-purple {
+  background-color: rgba(var(--imperial-purple-rgb, 139, 92, 200), 0.1) !important;
+}
+
+.border-imperial {
+  border-color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* Gradiente imperial para fondos */
+.gradient-imperial-bg {
+  background: linear-gradient(135deg,
+      rgba(var(--imperial-gold-rgb, 212, 165, 40), 0.1) 0%,
+      rgba(var(--imperial-purple-rgb, 139, 92, 200), 0.1) 100%) !important;
+}
+
+/* Gradiente imperial para texto */
+.gradient-imperial-text {
+  background: var(--gradient-text-imperial, linear-gradient(135deg, #F0C14E 0%, #D4A528 50%, #A67BD4 100%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Mantine Component Overrides
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Botones Mantine con color cyan -> imperial */
+.mantine-Button-root[data-variant="filled"][data-color="cyan"] {
+  background-color: var(--imperial-gold, #D4A528) !important;
+}
+
+.mantine-Button-root[data-variant="light"][data-color="cyan"] {
+  background-color: rgba(var(--imperial-gold-rgb, 212, 165, 40), 0.15) !important;
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+.mantine-Button-root[data-variant="outline"][data-color="cyan"] {
+  border-color: var(--imperial-gold, #D4A528) !important;
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* Progress bars Mantine */
+.mantine-Progress-section[data-color="cyan"] {
+  background-color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* Badges Mantine */
+.mantine-Badge-root[data-color="cyan"] {
+  background-color: rgba(var(--imperial-gold-rgb, 212, 165, 40), 0.15) !important;
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+.mantine-Badge-root[data-variant="light"][data-color="cyan"] {
+  background-color: rgba(var(--imperial-gold-rgb, 212, 165, 40), 0.15) !important;
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* Loaders Mantine */
+.mantine-Loader-root[data-color="cyan"] {
+  --loader-color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* RingProgress Mantine */
+.mantine-RingProgress-curve[data-color="cyan"] {
+  stroke: var(--imperial-gold, #D4A528) !important;
+}
+
+/* Tabs Mantine */
+.mantine-Tabs-tab[data-active] {
+  border-color: var(--imperial-gold, #D4A528) !important;
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* ActionIcon Mantine */
+.mantine-ActionIcon-root:hover {
+  background-color: var(--hover-bg) !important;
+}
+
+/* Text con color cyan */
+.mantine-Text-root[data-c="cyan"] {
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+/* Select/Combobox Options (Global/Dark Mode) */
+.mantine-Select-option[data-selected],
+.mantine-Combobox-option[data-selected] {
+  background-color: var(--imperial-primary-alpha, rgba(212, 165, 40, 0.15)) !important;
+  color: var(--imperial-gold, #D4A528) !important;
+}
+
+.mantine-Select-option:hover,
+.mantine-Combobox-option:hover,
+.mantine-Select-option[data-hovered],
+.mantine-Combobox-option[data-hovered] {
+  background-color: var(--hover-bg) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Estilos de App wrapper
+   ───────────────────────────────────────────────────────────────────────── */
+
+.imperial-app {
+  font-family: var(--font-body);
+  color: var(--text-color);
+}
+
+.imperial-app h1,
+.imperial-app h2,
+.imperial-app h3,
+.imperial-app h4,
+.imperial-app h5,
+.imperial-app h6 {
+  font-family: var(--font-heading);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Focus states imperiales (accesibilidad)
+   ───────────────────────────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--imperial-gold, #D4A528) !important;
+  outline-offset: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Reducir motion para accesibilidad
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SVG icons heredan color
+   ───────────────────────────────────────────────────────────────────────── */
+
+svg {
+  color: inherit;
+  fill: currentColor;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Modales y overlays
+   ───────────────────────────────────────────────────────────────────────── */
+
+.modalOverlay,
+[class*="Overlay"] {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+[class*="Modal"] {
+  background: var(--modal-bg) !important;
+  border: 1px solid var(--border-subtle);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Tooltips
+   ───────────────────────────────────────────────────────────────────────── */
+
+[class*="Tooltip"],
+.tooltip {
+  background: var(--tooltip-bg) !important;
+  color: var(--tooltip-text) !important;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+/* =============================================================================
+   LIGHT MODE SPECIFIC OVERRIDES
+   ============================================================================= */
+
+[data-theme="light"],
+[data-mantine-color-scheme="light"] {
+
+  /* Links más oscuros para contraste */
+  a {
+    color: var(--imperial-gold, #B8860B) !important;
+  }
+
+  a:hover {
+    color: #8B6914 !important;
+  }
+
+  a:visited {
+    color: var(--imperial-purple, #6B4FA3) !important;
+  }
+}
+
+/* Cards en Light Mode - más definidas */
+[data-theme="light"] .mantine-Card-root,
+[data-theme="light"] [class*="Card"] {
+  background: var(--card-bg-solid, #FFFFFF) !important;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="light"] .mantine-Card-root:hover,
+[data-theme="light"] [class*="Card"]:hover {
+  box-shadow: var(--shadow-md) !important;
+  border-color: var(--border-hover) !important;
+}
+
+/* Inputs en Light Mode */
+[data-theme="light"] .mantine-Input-input,
+[data-theme="light"] .mantine-TextInput-input,
+[data-theme="light"] .mantine-Textarea-input,
+[data-theme="light"] .mantine-Select-input {
+  background: var(--input-bg, #FFFFFF) !important;
+  border: 1px solid var(--border-medium) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .mantine-Input-input:focus,
+[data-theme="light"] .mantine-TextInput-input:focus,
+[data-theme="light"] .mantine-Textarea-input:focus,
+[data-theme="light"] .mantine-Select-input:focus {
+  border-color: var(--imperial-gold, #B8860B) !important;
+  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.12) !important;
+}
+
+/* Navegación Light Mode */
+[data-theme="light"] header,
+[data-theme="light"] [class*="Header"],
+[data-theme="light"] nav {
+  background: var(--nav-bg, rgba(253, 252, 249, 0.94)) !important;
+}
+
+/* Dropdowns y Menus Light Mode */
+[data-theme="light"] .mantine-Menu-dropdown,
+[data-theme="light"] .mantine-Popover-dropdown,
+[data-theme="light"] [class*="Dropdown"] {
+  background: var(--dropdown-bg, #FFFFFF) !important;
+  border: 1px solid var(--border-medium) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Menu items hover */
+[data-theme="light"] .mantine-Menu-item:hover {
+  background: var(--hover-bg) !important;
+}
+
+/* Badges Light Mode - más vibrantes */
+[data-theme="light"] .mantine-Badge-root {
+  border: 1px solid var(--border-subtle);
+}
+
+[data-theme="light"] .mantine-Badge-root[data-color="cyan"] {
+  background: rgba(184, 134, 11, 0.12) !important;
+  color: #8B6914 !important;
+  border-color: rgba(184, 134, 11, 0.25) !important;
+}
+
+/* Botones Light Mode */
+[data-theme="light"] .mantine-Button-root[data-variant="filled"] {
+  box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="light"] .mantine-Button-root[data-variant="filled"]:hover {
+  box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="light"] .mantine-Button-root[data-variant="light"] {
+  background: rgba(184, 134, 11, 0.08) !important;
+  color: #8B6914 !important;
+}
+
+[data-theme="light"] .mantine-Button-root[data-variant="light"]:hover {
+  background: rgba(184, 134, 11, 0.15) !important;
+}
+
+/* Tabs Light Mode */
+[data-theme="light"] .mantine-Tabs-tab {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .mantine-Tabs-tab:hover {
+  background: var(--hover-bg) !important;
+}
+
+[data-theme="light"] .mantine-Tabs-tab[data-active] {
+  color: var(--imperial-gold, #B8860B) !important;
+  border-color: var(--imperial-gold, #B8860B) !important;
+}
+
+/* Skeletons Light Mode */
+[data-theme="light"] .mantine-Skeleton-root {
+  background: var(--skeleton-bg, rgba(26, 26, 40, 0.04)) !important;
+}
+
+[data-theme="light"] .mantine-Skeleton-root::after {
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(26, 26, 40, 0.06) 50%,
+      transparent 100%) !important;
+}
+
+/* Progress bars Light Mode */
+[data-theme="light"] .mantine-Progress-root {
+  background: rgba(26, 26, 40, 0.06) !important;
+}
+
+/* Text dimmed en Light Mode */
+[data-theme="light"] .mantine-Text-root[data-c="dimmed"],
+[data-theme="light"] [class*="dimmed"] {
+  color: var(--text-muted, #6B6B7B) !important;
+}
+
+/* Paper/Surface Light Mode */
+[data-theme="light"] .mantine-Paper-root {
+  background: var(--card-bg-solid, #FFFFFF) !important;
+  border: 1px solid var(--border-subtle);
+}
+
+/* ActionIcons Light Mode */
+[data-theme="light"] .mantine-ActionIcon-root {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .mantine-ActionIcon-root:hover {
+  background: var(--hover-bg) !important;
+  color: var(--imperial-gold, #B8860B) !important;
+}
+
+/* Dividers Light Mode */
+[data-theme="light"] .mantine-Divider-root {
+  border-color: var(--border-subtle) !important;
+}
+
+/* Modal/Drawer Light Mode */
+[data-theme="light"] .mantine-Modal-content,
+[data-theme="light"] .mantine-Drawer-content {
+  background: var(--modal-bg, #FFFFFF) !important;
+}
+
+[data-theme="light"] .mantine-Modal-header,
+[data-theme="light"] .mantine-Drawer-header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Switch Light Mode */
+[data-theme="light"] .mantine-Switch-track {
+  background: rgba(26, 26, 40, 0.1) !important;
+  border: 1px solid var(--border-medium) !important;
+}
+
+[data-theme="light"] .mantine-Switch-track[data-checked] {
+  background: var(--imperial-gold, #B8860B) !important;
+  border-color: var(--imperial-gold, #B8860B) !important;
+}
+
+/* Checkbox/Radio Light Mode */
+[data-theme="light"] .mantine-Checkbox-input:checked,
+[data-theme="light"] .mantine-Radio-radio:checked {
+  background: var(--imperial-gold, #B8860B) !important;
+  border-color: var(--imperial-gold, #B8860B) !important;
+}
+
+/* Avatar Light Mode */
+[data-theme="light"] .mantine-Avatar-root {
+  border: 2px solid var(--border-subtle) !important;
+}
+
+/* Tooltip Light Mode - mantener oscuro para contraste */
+[data-theme="light"] .mantine-Tooltip-tooltip {
+  background: rgba(26, 26, 40, 0.95) !important;
+  color: #FDFCF9 !important;
+}
+
+/* Notification Light Mode */
+[data-theme="light"] .mantine-Notification-root {
+  background: var(--card-bg-solid, #FFFFFF) !important;
+  border: 1px solid var(--border-medium) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Select dropdown Light Mode */
+[data-theme="light"] .mantine-Select-dropdown,
+[data-theme="light"] .mantine-Combobox-dropdown {
+  background: var(--dropdown-bg, #FFFFFF) !important;
+  border: 1px solid var(--border-medium) !important;
+}
+
+[data-theme="light"] .mantine-Select-option:hover,
+[data-theme="light"] .mantine-Combobox-option:hover {
+  background: var(--hover-bg) !important;
+}
+
+[data-theme="light"] .mantine-Select-option[data-selected],
+[data-theme="light"] .mantine-Combobox-option[data-selected] {
+  background: rgba(184, 134, 11, 0.12) !important;
+  color: #8B6914 !important;
+}
+
+/* Accordion Light Mode */
+[data-theme="light"] .mantine-Accordion-control:hover {
+  background: var(--hover-bg) !important;
+}
+
+[data-theme="light"] .mantine-Accordion-item {
+  border-color: var(--border-subtle) !important;
+}
+
+/* Scrollbar específico para Light Mode */
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: var(--scrollbar-track, rgba(26, 26, 40, 0.03)) !important;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, rgba(184, 134, 11, 0.35)) !important;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, rgba(184, 134, 11, 0.55)) !important;
+}

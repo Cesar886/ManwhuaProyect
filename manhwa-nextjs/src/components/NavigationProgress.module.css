@@ -1,0 +1,60 @@
+.progressContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 99999;
+  pointer-events: none;
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(34, 211, 238, 0.8) 0%,
+    rgba(59, 130, 246, 0.9) 50%,
+    rgba(147, 51, 234, 0.8) 100%
+  );
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5),
+              0 0 20px rgba(59, 130, 246, 0.3);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
+}
+
+/* Animación de pulso en el extremo */
+.progressBar::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 100px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4)
+  );
+  animation: shimmer 1s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Modo dark */
+@media (prefers-color-scheme: dark) {
+  .progressBar {
+    background: linear-gradient(
+      90deg,
+      rgba(34, 211, 238, 1) 0%,
+      rgba(59, 130, 246, 1) 50%,
+      rgba(147, 51, 234, 1) 100%
+    );
+  }
+}

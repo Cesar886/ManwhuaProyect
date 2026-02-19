@@ -1,0 +1,314 @@
+/* ============================================================================
+   REGISTER PAGE - ESTILOS PREMIUM IMPERIAL
+   ============================================================================ */
+
+.pageWrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--page-bg);
+  position: relative;
+  overflow: hidden;
+  padding-top: var(--header-height, 80px);
+}
+
+/* Fondo decorativo con gradiente */
+.pageWrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150%;
+  height: 60%;
+  background: radial-gradient(
+    ellipse at top,
+    rgba(var(--imperial-gold-rgb, 99, 102, 241), 0.15) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+.contentWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Card principal */
+.card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.5rem;
+  padding: 40px 36px;
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header del formulario */
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.avatarWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--gradient-imperial);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: var(--shadow-imperial);
+}
+
+.title {
+  font-family: var(--font-heading, 'Playfair Display', Georgia, serif);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: var(--gradient-text-imperial);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--border-medium) 20%,
+    var(--border-medium) 80%,
+    transparent 100%
+  );
+  margin: 24px 0;
+}
+
+/* Formulario */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Input wrapper */
+.inputWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inputLabel {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Mensajes de validación */
+.validationMessage {
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.validationMessage.checking {
+  color: var(--text-muted);
+  background: var(--subtle-bg);
+}
+
+.validationMessage.error {
+  color: var(--imperial-ruby);
+  background: rgba(var(--imperial-ruby-rgb), 0.1);
+}
+
+.validationMessage.success {
+  color: var(--imperial-emerald);
+  background: rgba(var(--imperial-emerald-rgb), 0.1);
+}
+
+/* Botón principal */
+.submitBtn {
+  background: var(--gradient-imperial) !important;
+  color: #FFFFFF !important;
+  border-radius: 12px !important;
+  height: 50px !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  border: none !important;
+  box-shadow: var(--shadow-imperial) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  margin-top: 8px;
+}
+
+.submitBtn:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-imperial-hover) !important;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+/* Footer del formulario */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.footerText {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.linkBtn {
+  color: var(--imperial-gold) !important;
+  font-weight: 500 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+}
+
+.linkBtn:hover {
+  background: var(--subtle-bg) !important;
+}
+
+/* Error message */
+.errorBox {
+  background: rgba(var(--imperial-ruby-rgb), 0.1);
+  border: 1px solid rgba(var(--imperial-ruby-rgb), 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--imperial-ruby);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Password strength */
+.strengthWrapper {
+  margin-top: 8px;
+}
+
+.strengthBar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--subtle-bg);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.strengthFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.strengthFill.weak {
+  background: var(--imperial-ruby);
+}
+
+.strengthFill.medium {
+  background: #EAB308;
+}
+
+.strengthFill.strong {
+  background: var(--imperial-emerald);
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.requirement.met {
+  color: var(--imperial-emerald);
+}
+
+.requirement.unmet {
+  color: var(--text-muted);
+}
+
+/* Popover para password */
+.popoverDropdown {
+  background: var(--dropdown-bg) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+  .card {
+    padding: 32px 24px;
+    border-radius: 1.25rem;
+    margin: 0 8px;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 1.5rem;
+  }
+
+  .form {
+    gap: 16px;
+  }
+
+  .submitBtn {
+    height: 46px !important;
+  }
+}

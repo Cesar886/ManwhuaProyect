@@ -1,0 +1,33 @@
+/* VirtualScroll.module.css */
+
+.container {
+  width: 100%;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.virtualContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
+.item {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+/* Optimización de scroll */
+.container {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* GPU acceleration */
+.virtualContent {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}

@@ -1,0 +1,118 @@
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: __dirname,
+  // Reducir logs innecesarios
+  logging: {
+    fetches: {
+      fullUrl: false,
+    },
+  },
+  // Reducir warnings de HMR
+  onDemandEntries: {
+    // Period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 25 * 1000,
+    // Number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 2,
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.digitaloceanspaces.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'manhwaimperial.site',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'dashboard.olympusbiblioteca.com',
+        pathname: '/storage/**',
+      },
+    ],
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Desactivar optimización de imágenes externas en desarrollo
+    unoptimized: process.env.NODE_ENV === 'development',
+  },
+  // No modificar webpack devtool - Next.js lo maneja automáticamente
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+          { key: 'X-DNS-Prefetch-Control', value: 'on' },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://accounts.google.com https://apis.google.com https://www.ezojs.com https://cmp.gatekeeperconsent.com https://the.gatekeeperconsent.com https://static.cloudflareinsights.com https://challenges.cloudflare.com",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https://*.digitaloceanspaces.com https://manhwaimperial.site https://lh3.googleusercontent.com https://cdn.discordapp.com https://dashboard.olympusbiblioteca.com",
+              "font-src 'self' data:",
+              "connect-src 'self' http://localhost:3000 http://localhost:3001 https://*.digitaloceanspaces.com https://www.googletagmanager.com https://accounts.google.com https://apis.google.com https://www.google-analytics.com https://cmp.gatekeeperconsent.com https://manhwaimperial.site https://privacy.gatekeeperconsent.com https://cloudflareinsights.com",
+                "frame-src 'self' https://accounts.google.com https://cmp.gatekeeperconsent.com https://challenges.cloudflare.com",
+              "frame-ancestors 'none'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+            ].join('; '),
+          },
+        ],
+      },
+      {
+        // Cache static assets aggressively (fonts, images, JS/CSS bundles)
+        source: '/(.*)\\.(js|css|woff|woff2|ttf|eot|ico|png|jpg|jpeg|webp|avif|svg)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+    ]
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/sitemap-chapters-:page.xml',
+        destination: '/sitemap-chapters/:page',
+      },
+      {
+        source: '/manhwa',
+        destination: '/404',
+      },
+      {
+        source: '/discord',
+        destination: '/404',
+      },
+      {
+        source: '/contacto',
+        destination: '/404',
+      },
+    ]
+  },
+  experimental: {
+    optimizePackageImports: [
+      '@mantine/core',
+      '@mantine/hooks',
+      '@mantine/notifications',
+      '@tabler/icons-react',
+      'lucide-react',
+      'recharts',
+      'dayjs',
+    ],
+    webpackBuildWorker: true,
+  },
+}
+
+export default nextConfig

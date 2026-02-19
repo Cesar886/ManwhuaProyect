@@ -1,0 +1,132 @@
+.container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 400px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  color: white;
+  font-size: 0.9rem;
+  pointer-events: auto;
+  animation: slideIn 0.3s ease-out;
+  backdrop-filter: blur(10px);
+}
+
+.toast.exiting {
+  animation: slideOut 0.3s ease-in forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Tipos de toast */
+.success {
+  border-left: 4px solid rgb(34, 197, 94);
+}
+
+.success .icon {
+  color: rgb(34, 197, 94);
+}
+
+.error {
+  border-left: 4px solid rgb(239, 68, 68);
+}
+
+.error .icon {
+  color: rgb(239, 68, 68);
+}
+
+.warning {
+  border-left: 4px solid rgb(234, 179, 8);
+}
+
+.warning .icon {
+  color: rgb(234, 179, 8);
+}
+
+.info {
+  border-left: 4px solid rgb(59, 130, 246);
+}
+
+.info .icon {
+  color: rgb(59, 130, 246);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .container {
+    top: auto;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    max-width: 100%;
+  }
+
+  .toast {
+    width: 100%;
+  }
+}

@@ -1,0 +1,97 @@
+/* ============================================================================
+   POPULARES PAGE STYLES - MANHWA IMPERIAL
+   ============================================================================ */
+
+.pageWrapper {
+  padding-top: var(--header-height, 80px);
+}
+
+/* Card de estadísticas */
+.statsCard {
+  background: var(--card-bg) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle) !important;
+  transition: all var(--transition-smooth);
+}
+
+.statsCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-imperial-hover) !important;
+  border-color: var(--imperial-primary) !important;
+}
+
+/* Card de filtros */
+.filterCard {
+  background: var(--card-bg) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  transition: all var(--transition-smooth);
+}
+
+.filterCard:hover {
+  border-color: var(--imperial-primary) !important;
+  box-shadow: var(--shadow-subtle) !important;
+}
+
+/* Tabs customizadas */
+.tabs {
+  --tabs-color: var(--text-body);
+  --tabs-default-border-color: var(--border-subtle);
+  --tabs-outline-color: var(--imperial-primary);
+}
+
+.tabs [data-active="true"] {
+  background: var(--gradient-imperial) !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+.tabs button:not([data-active="true"]):hover {
+  background: var(--subtle-bg-hover) !important;
+  color: var(--imperial-primary) !important;
+}
+
+/* Cards de ranking */
+.rankingCard {
+  background: var(--card-bg) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle) !important;
+  transition: all var(--transition-smooth);
+  cursor: pointer;
+}
+
+.rankingCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-imperial-hover) !important;
+  border-color: var(--imperial-primary) !important;
+}
+
+/* Título del ranking */
+.rankingTitle {
+  color: var(--text-title) !important;
+  font-family: var(--font-heading, 'Playfair Display', serif) !important;
+  line-height: 1.3;
+  transition: color var(--transition-base);
+}
+
+.rankingCard:hover .rankingTitle {
+  color: var(--imperial-primary) !important;
+}
+
+/* Items de lista de ranking */
+.rankingListItem {
+  padding: var(--spacing-md) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+.rankingListItem:hover {
+  background: var(--subtle-bg-hover) !important;
+  transform: translateX(4px);
+}
+
+.rankingListItem:last-child {
+  border-bottom: none !important;
+}

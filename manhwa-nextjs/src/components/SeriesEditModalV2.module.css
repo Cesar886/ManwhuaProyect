@@ -1,0 +1,933 @@
+/* ==========================================
+   SeriesEditModal V2 - Estilos Mejorados
+   ========================================== */
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  overflow-y: auto;
+  backdrop-filter: blur(4px);
+}
+
+/* Modal Principal */
+.modal {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 1rem;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: modalEnter 0.3s ease-out;
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  z-index: 10;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.unsavedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: 9999px;
+  color: rgb(234, 179, 8);
+  font-size: 0.75rem;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.iconButton {
+  background: transparent;
+  border: none;
+  color: rgb(156, 163, 175);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconButton:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: rgb(156, 163, 175);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: rgb(239, 68, 68);
+}
+
+/* Mensajes de error */
+.error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 1.5rem;
+  padding: 1rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 0.75rem;
+  color: rgb(252, 165, 165);
+  font-size: 0.875rem;
+}
+
+/* Formulario */
+.form {
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+/* Secciones colapsables */
+.section {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.section:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.sectionOpen {
+  border-color: rgba(34, 211, 238, 0.2);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sectionHeader:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sectionTitle svg {
+  color: rgb(34, 211, 238);
+}
+
+.sectionBadge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: rgb(34, 211, 238);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+.sectionContent {
+  padding: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Zona de Drop para imágenes */
+.dropZone {
+  position: relative;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.3s ease;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropZone:focus {
+  outline: none;
+  border-color: rgb(34, 211, 238);
+}
+
+.dropZoneDragging {
+  border-color: rgb(34, 211, 238);
+  background: rgba(34, 211, 238, 0.05);
+}
+
+.dropZoneHasFile {
+  border-style: solid;
+  border-color: rgba(34, 211, 238, 0.3);
+}
+
+.dropZonePlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  cursor: pointer;
+  text-align: center;
+  color: rgb(156, 163, 175);
+}
+
+.dropZonePlaceholder svg {
+  color: rgba(34, 211, 238, 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.dropZonePlaceholder p {
+  color: white;
+  font-weight: 600;
+  margin: 0;
+}
+
+.dropZonePlaceholder span {
+  font-size: 0.875rem;
+}
+
+.dropZoneFormats {
+  font-size: 0.75rem !important;
+  color: rgb(107, 114, 128) !important;
+  margin-top: 0.5rem;
+}
+
+.dropZoneError {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  font-size: 0.875rem;
+  border-radius: 0 0 0.65rem 0.65rem;
+}
+
+.previewContainer {
+  position: relative;
+  padding: 1.5rem;
+}
+
+.coverPreview {
+  width: 150px;
+  height: 225px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 2px solid rgba(34, 211, 238, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.newBadge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: linear-gradient(135deg, rgb(34, 197, 94), rgb(22, 163, 74));
+  border-radius: 9999px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.previewActions {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.previewButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.previewButton:hover {
+  background: rgba(34, 211, 238, 0.3);
+  border-color: rgb(34, 211, 238);
+}
+
+.previewButtonDanger:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgb(239, 68, 68);
+}
+
+/* Progreso de subida */
+.uploadProgress {
+  position: absolute;
+  bottom: 4rem;
+  left: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progressBar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, rgb(34, 211, 238), rgb(59, 130, 246));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 0.75rem;
+  color: rgb(34, 211, 238);
+  font-weight: 600;
+  min-width: 35px;
+  text-align: right;
+}
+
+.saveImageButton {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.2));
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  border-radius: 0.5rem;
+  color: rgb(34, 197, 94);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.saveImageButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3));
+}
+
+.saveImageButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Grid del formulario */
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formGroupFull {
+  grid-column: 1 / -1;
+}
+
+/* Campo modificado */
+.fieldModified .label::after {
+  content: '•';
+  color: rgb(34, 211, 238);
+  margin-left: 0.35rem;
+}
+
+/* Labels */
+.label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(209, 213, 219);
+}
+
+.required {
+  color: rgb(239, 68, 68);
+}
+
+/* Inputs */
+.inputWrapper {
+  position: relative;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  color: white;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: rgb(34, 211, 238);
+  background-color: rgba(34, 211, 238, 0.05);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+}
+
+.inputModified {
+  border-color: rgba(34, 211, 238, 0.5);
+  background-color: rgba(34, 211, 238, 0.03);
+}
+
+.inputError {
+  border-color: rgb(239, 68, 68) !important;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: rgb(107, 114, 128);
+}
+
+.select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.5rem;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
+/* Contador de caracteres */
+.charCounter {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.75rem;
+  font-size: 0.7rem;
+  color: rgb(107, 114, 128);
+  pointer-events: none;
+}
+
+.charWarning {
+  color: rgb(234, 179, 8);
+}
+
+.charError {
+  color: rgb(239, 68, 68);
+  font-weight: 600;
+}
+
+/* Error de campo */
+.fieldError {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: rgb(252, 165, 165);
+}
+
+/* Checkboxes */
+.checkboxGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.checkbox:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.checkboxModified {
+  background: rgba(34, 211, 238, 0.05);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+}
+
+.checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: rgb(34, 211, 238);
+  cursor: pointer;
+}
+
+.checkboxLabel {
+  font-size: 0.875rem;
+  color: rgb(209, 213, 219);
+}
+
+/* Sección de géneros */
+.genreSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.genreLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: rgb(156, 163, 175);
+}
+
+.genreGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.genreTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.875rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  color: rgb(209, 213, 219);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.genreTag:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.genreSelected {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(59, 130, 246, 0.2));
+  border-color: rgba(34, 211, 238, 0.5);
+  color: rgb(34, 211, 238);
+}
+
+.genreModified {
+  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.3);
+}
+
+/* Hints */
+.hint {
+  font-size: 0.75rem;
+  color: rgb(107, 114, 128);
+  margin: 0;
+}
+
+/* Resumen de cambios */
+.changesSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(34, 211, 238, 0.05);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 0.75rem;
+  margin-top: 1rem;
+}
+
+.changesSummaryTitle {
+  font-size: 0.875rem;
+  color: rgb(34, 211, 238);
+  font-weight: 600;
+}
+
+.changesTags {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.changeTag {
+  padding: 0.25rem 0.625rem;
+  background: rgba(34, 211, 238, 0.15);
+  border-radius: 9999px;
+  color: rgb(34, 211, 238);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Botones de acción */
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cancelButton,
+.saveButton,
+.secondaryButton,
+.dangerButton {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+}
+
+.cancelButton {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgb(156, 163, 175);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.secondaryButton {
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  color: rgb(34, 211, 238);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: rgba(34, 211, 238, 0.2);
+}
+
+.saveButton {
+  background: linear-gradient(135deg, rgb(34, 211, 238), rgb(59, 130, 246));
+  color: white;
+}
+
+.saveButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(34, 211, 238, 0.4);
+}
+
+.saveButton:disabled,
+.cancelButton:disabled,
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.dangerButton {
+  background: linear-gradient(135deg, rgb(239, 68, 68), rgb(220, 38, 38));
+  color: white;
+}
+
+.dangerButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Spinner */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.inlineSpinner {
+  display: inline-block;
+  margin-left: 0.5rem;
+}
+
+/* Shortcut hint */
+.shortcutHint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: rgb(107, 114, 128);
+  margin-top: 1rem;
+}
+
+.shortcutHint kbd {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.7rem;
+}
+
+/* Modal de confirmación de salida */
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirmModal {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 1rem;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: scaleIn 0.2s ease;
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.confirmModal h3 {
+  color: white;
+  font-size: 1.25rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.confirmModal p {
+  color: rgb(156, 163, 175);
+  font-size: 0.95rem;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+/* Input de archivo oculto */
+.fileInput {
+  display: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .modal {
+    max-height: 95vh;
+    margin: 0.5rem;
+    border-radius: 0.75rem;
+  }
+
+  .header {
+    padding: 1rem;
+  }
+
+  .header h2 {
+    font-size: 1.25rem;
+  }
+
+  .unsavedBadge {
+    display: none;
+  }
+
+  .form {
+    padding: 0.75rem 1rem 1rem;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .sectionContent {
+    padding: 1rem;
+  }
+
+  .checkboxGrid {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+  }
+
+  .cancelButton,
+  .saveButton,
+  .secondaryButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .confirmModal {
+    padding: 1.5rem;
+  }
+
+  .confirmActions {
+    flex-direction: column-reverse;
+  }
+
+  .confirmActions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Scrollbar personalizado */
+.modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.modal::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.modal::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Cover section específica */
+.coverSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}

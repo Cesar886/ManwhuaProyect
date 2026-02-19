@@ -1,0 +1,991 @@
+/* Series.module.css - Estilos para la página de Series */
+
+.pageWrapper {
+  padding-top: var(--header-height, 80px);
+}
+
+.filterCard {
+  background-color: var(--subtle-bg);
+  border: none;
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.filterCard:hover {
+  background-color: var(--subtle-bg-hover);
+  border-color: transparent;
+}
+
+/* Search Input */
+.searchInput {
+  background-color: var(--subtle-bg);
+  border: none;
+  border-radius: 0.75rem;
+  color: var(--text-color);
+  transition: all 0.3s ease;
+}
+
+.searchInput:focus {
+  background-color: var(--subtle-bg-hover);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.searchInput::placeholder {
+  color: var(--dimmed-text);
+}
+
+/* Multi Select */
+.multiSelect {
+  background-color: var(--subtle-bg);
+  border: none;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.multiSelect:hover {
+  border-color: transparent;
+}
+
+/* Select Dropdown */
+.select {
+  background-color: var(--subtle-bg);
+  border: none;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.select:hover {
+  border-color: transparent;
+}
+
+/* Series Card */
+.seriesCard {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.seriesCard:hover {
+  transform: translateY(-8px);
+}
+
+.seriesCard:hover .cardOverlay {
+  opacity: 1;
+}
+
+/* Card Cover */
+.cardCover {
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  aspect-ratio: 3/4;
+  background-color: var(--subtle-bg);
+}
+
+.cardCover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.seriesCard:hover .cardCover img {
+  transform: scale(1.05);
+}
+
+/* Card Overlay */
+.cardOverlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+.cardOverlay button {
+  transform: scale(0.95);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.seriesCard:hover .cardOverlay button {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Status Badge */
+.statusBadge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 10;
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+}
+
+.statusBadge.active {
+  background-color: rgba(16, 185, 129, 0.9);
+  color: var(--text-color);
+}
+
+.statusBadge.hiatus {
+  background-color: rgba(234, 179, 8, 0.9);
+  color: black;
+}
+
+.statusBadge.finished {
+  background-color: rgba(59, 130, 246, 0.9);
+  color: var(--text-color);
+}
+
+.statusBadge.cancelled {
+  background-color: rgba(239, 68, 68, 0.9);
+  color: var(--text-color);
+}
+
+/* Rating Display */
+.ratingDisplay {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(var(--accent-amber));
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--accent-amber-0-3);
+}
+
+/* Favorite Button */
+.favoriteButton {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 20;
+  transition: all 0.3s ease;
+}
+
+.favoriteButton:hover {
+  transform: scale(1.1);
+}
+
+.favoriteButton.favorited {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* Series Info */
+.seriesTitle {
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: -webkit-box;
+  line-clamp: 2;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+  transition: color 0.3s ease;
+}
+
+.seriesCard:hover .seriesTitle {
+  color: rgb(34, 211, 238);
+}
+
+/* Genre Badges */
+.genreBadge {
+  background-color: rgba(6, 182, 212, 0.2);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: rgb(34, 211, 238);
+  font-size: 0.625rem;
+  font-weight: 500;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.3s ease;
+}
+
+.genreBadge:hover {
+  background-color: rgba(6, 182, 212, 0.3);
+  border-color: rgba(6, 182, 212, 0.6);
+}
+
+/* Stats */
+.stats {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: rgb(156, 163, 175);
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statIcon {
+  width: 14px;
+  height: 14px;
+  color: rgb(6, 182, 212);
+}
+
+/* Filter Tags */
+.filterTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(6, 182, 212, 0.2);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: rgb(34, 211, 238);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.filterTag:hover {
+  background-color: rgba(6, 182, 212, 0.3);
+  border-color: rgba(6, 182, 212, 0.6);
+}
+
+.filterTag button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.filterTag button:hover {
+  opacity: 1;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+.paginationButton {
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  background-color: transparent;
+  color: rgb(156, 163, 175);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.paginationButton:hover {
+  background-color: rgba(6, 182, 212, 0.2);
+  border-color: rgb(6, 182, 212);
+  color: rgb(34, 211, 238);
+}
+
+.paginationButton.active {
+  background-color: rgb(6, 182, 212);
+  border-color: rgb(6, 182, 212);
+  color: black;
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  background-color: var(--subtle-bg);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  border-radius: 1rem;
+  text-align: center;
+  min-height: 300px;
+}
+
+.emptyState h3 {
+  color: var(--text-color);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.emptyState p {
+  color: var(--dimmed-text);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+/* Responsive Grid */
+@media (max-width: 1200px) {
+  /* Grid will automatically adjust from 6 columns to 4 */
+}
+
+@media (max-width: 992px) {
+  /* Grid will automatically adjust from 4 columns to 3 */
+}
+
+@media (max-width: 768px) {
+  /* Grid will automatically adjust from 3 columns to 2 */
+
+  .filterCard {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  /* Grid will automatically adjust to 2 columns */
+
+  .searchInput {
+    font-size: 16px;
+    /* Previene zoom en iOS */
+  }
+
+  .seriesTitle {
+    font-size: 0.75rem;
+  }
+
+  .stats {
+    font-size: 0.7rem;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.seriesCard {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Página Biblioteca: forzar título blanco sólo en esta página (sobrepone temas claros) */
+.pageWrapper .releaseTitle {
+  color: white !important;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loadingCard {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Dark Mode Adjustments - global styles moved to globals.css */
+
+/* Scrollbar Styling */
+.seriesGrid::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.seriesGrid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.seriesGrid::-webkit-scrollbar-thumb {
+  background: rgba(6, 182, 212, 0.5);
+  border-radius: 4px;
+}
+
+.seriesGrid::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.8);
+}
+
+/* ============================================
+   ARQUITECTURA HÍBRIDA - CARGA PROGRESIVA
+   ============================================ */
+
+/* Pulse animation for loading indicator */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+/* Progress Card Animation */
+.progressCard {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Skeleton Grid Container */
+.skeletonGrid {
+  display: contents;
+}
+
+/* Staggered Card Entrance Animation */
+.staggeredCard {
+  animation: cardSlideUp 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes cardSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Status Info Bar */
+.statusBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background-color: rgba(6, 182, 212, 0.05);
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Cache Badge Animation */
+.cacheBadge {
+  animation: badgePop 0.3s ease-out;
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Loading Shimmer Effect */
+.shimmerEffect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmerEffect::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 20%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0.08) 80%,
+      transparent 100%);
+  animation: shimmer 2s infinite ease-in-out;
+  transform: translateX(-100%);
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Fade In Animation for Images */
+.fadeInImage {
+  animation: fadeInBlur 0.5s ease-out forwards;
+}
+
+@keyframes fadeInBlur {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/* Grid Transition */
+.seriesGridAnimated>* {
+  transition: all 0.3s ease-out;
+}
+
+/* Empty State Animation */
+.emptyState {
+  animation: fadeInScale 0.5s ease-out;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* =============================================================================
+   LIGHT MODE STYLES - Biblioteca
+   ============================================================================= */
+
+/* Filter card light mode */
+:global([data-theme="light"]) .filterCard {
+  background-color: var(--card-bg, rgba(255, 255, 255, 0.95));
+  border: 1px solid var(--border-subtle, rgba(26, 26, 40, 0.08));
+  box-shadow: 0 2px 8px rgba(26, 26, 40, 0.04);
+}
+
+:global([data-theme="light"]) .filterCard:hover {
+  background-color: var(--card-bg-solid, #FFFFFF);
+  border-color: rgba(184, 134, 11, 0.25);
+}
+
+/* Search input light mode */
+:global([data-theme="light"]) .searchInput {
+  background-color: var(--input-bg, rgba(255, 255, 255, 0.95));
+  border: 2px solid rgba(184, 134, 11, 0.2);
+  color: var(--text-primary, #1A1A28);
+}
+
+:global([data-theme="light"]) .searchInput:focus {
+  background-color: var(--input-bg-focus, #FFFFFF);
+  border-color: #B8860B;
+  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.1);
+}
+
+:global([data-theme="light"]) .searchInput::placeholder {
+  color: var(--text-muted, #6B6B7B);
+}
+
+/* Multi Select light mode */
+:global([data-theme="light"]) .multiSelect {
+  background-color: var(--input-bg, rgba(255, 255, 255, 0.95));
+  border: 1px solid rgba(184, 134, 11, 0.2);
+}
+
+:global([data-theme="light"]) .multiSelect:hover {
+  border-color: rgba(184, 134, 11, 0.4);
+}
+
+/* Select light mode */
+:global([data-theme="light"]) .select {
+  background-color: var(--input-bg, rgba(255, 255, 255, 0.95));
+  border: 1px solid rgba(184, 134, 11, 0.2);
+}
+
+:global([data-theme="light"]) .select:hover {
+  border-color: rgba(184, 134, 11, 0.4);
+}
+
+/* Series card light mode */
+:global([data-theme="light"]) .cardCover {
+  background-color: var(--skeleton-bg, rgba(26, 26, 40, 0.04));
+  border: 1px solid var(--border-subtle, rgba(26, 26, 40, 0.08));
+}
+
+:global([data-theme="light"]) .seriesCard:hover .cardCover {
+  box-shadow: 0 8px 25px rgba(26, 26, 40, 0.1),
+    0 4px 10px rgba(184, 134, 11, 0.06);
+  border-color: rgba(184, 134, 11, 0.25);
+}
+
+/* Card overlay light mode */
+:global([data-theme="light"]) .cardOverlay {
+  background: linear-gradient(to top,
+      rgba(253, 252, 249, 0.95) 0%,
+      rgba(253, 252, 249, 0.7) 40%,
+      transparent 100%);
+}
+
+/* Card title light mode */
+:global([data-theme="light"]) .cardTitle {
+  color: var(--text-primary, #1A1A28);
+}
+
+:global([data-theme="light"]) .seriesCard:hover .cardTitle {
+  color: #8B6914;
+}
+
+/* Card meta light mode */
+:global([data-theme="light"]) .cardMeta {
+  color: var(--text-muted, #6B6B7B);
+}
+
+/* Status badge light mode */
+:global([data-theme="light"]) .statusBadge {
+  background-color: rgba(184, 134, 11, 0.1);
+  color: #8B6914;
+  border: 1px solid rgba(184, 134, 11, 0.2);
+}
+
+/* Shimmer effect light mode */
+:global([data-theme="light"]) .shimmerEffect::after {
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(26, 26, 40, 0.04) 20%,
+      rgba(26, 26, 40, 0.06) 50%,
+      rgba(26, 26, 40, 0.04) 80%,
+      transparent 100%);
+}
+
+/* Pagination light mode */
+:global([data-theme="light"]) .pagination button {
+  background: var(--card-bg, rgba(255, 255, 255, 0.95));
+  border: 1px solid var(--border-subtle, rgba(26, 26, 40, 0.08));
+  color: var(--text-secondary, #3D3D4D);
+}
+
+:global([data-theme="light"]) .pagination button:hover {
+  background: rgba(184, 134, 11, 0.08);
+  border-color: rgba(184, 134, 11, 0.2);
+  color: #8B6914;
+}
+
+:global([data-theme="light"]) .pagination button.active {
+  background: linear-gradient(135deg, #B8860B 0%, #6B4FA3 100%);
+  border-color: transparent;
+  color: white;
+}
+
+/* ============================================================================
+   ADDED STYLES FOR RELEASE LIST LAYOUT (COMPATIBILITY WITH HOME STYLES)
+   ============================================================================ */
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.sectionIcon {
+  /* Sin fondo - icono más compacto y sin tocar el borde inferior */
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  color: rgb(6, 182, 212);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.15rem;
+}
+
+.sectionIcon svg {
+  display: block;
+  /* evita espacio inferior causado por inline SVG */
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
+}
+
+.gridReleases {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+  .gridReleases {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .gridReleases {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .gridReleases {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+.releaseCard {
+  display: flex;
+  flex-direction: column;
+  /* Vertical stack */
+  background: var(--subtle-bg);
+  border: 1px solid var(--border-color-subtle);
+  border-radius: 1rem;
+  overflow: hidden;
+  /* Ensure content stays inside border radius */
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.releaseCard:hover {
+  background: var(--subtle-bg-hover);
+  border-color: rgba(6, 182, 212, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.releaseCoverContainer {
+  display: block;
+  width: 100%;
+  position: relative;
+}
+
+.releaseCoverWrapper {
+  width: 100%;
+  aspect-ratio: 3/4;
+  /* Vertical cover aspect ratio */
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.releaseCover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+  display: block;
+  max-height: 100%;
+}
+
+.releaseCard:hover .releaseCover {
+  transform: scale(1.1);
+}
+
+/* New Gradient Overlay */
+.releaseOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  /* Moved down slightly and made gradient almost invisible */
+  /* Top padding reduced so overlay is lower; bottom padding removed so title sits near edge */
+  padding: 0.6rem 1rem 0rem 1rem;
+  /* Gradiente: transparente arriba (0) → oscuro abajo (100%), desvanecido */
+  background: linear-gradient(to bottom,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.06) 30%,
+      rgba(0, 0, 0, 0.18) 60%,
+      rgba(0, 0, 0, 0.46) 100%);
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+  /* Let clicks pass through to link */
+}
+
+.releaseTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  /* Always white on dark overlay */
+  text-decoration: none;
+  margin: 0;
+  line-height: 1.2;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.releaseInfo {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.chaptersList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chapterLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.25rem;
+  color: var(--dimmed-text);
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.chapterLink:hover {
+  background: rgba(6, 182, 212, 0.1);
+  color: rgb(6, 182, 212);
+}
+
+.chapterTime {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.inlineBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: rgb(6, 182, 212);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.inlineBtn:hover {
+  background: rgba(6, 182, 212, 0.1);
+  color: rgb(34, 211, 238);
+}
+
+/* Regla .card-overlay: cubre la imagen y aplica el gradient solicitado */
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  /* top:0; right:0; bottom:0; left:0; */
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* deja pasar clicks al enlace/elementos bajo el overlay */
+  display: flex;
+  align-items: flex-end;
+  /* permite posicionar contenido en la parte baja */
+  justify-content: flex-start;
+  padding: 0.6rem 1rem;
+  /* espacio interno para texto/etiquetas cerca del borde */
+  z-index: 2;
+  background: linear-gradient(to bottom,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0) 50%,
+      rgba(0, 0, 0, 0.3) 70%,
+      rgba(0, 0, 0, 0.7) 85%,
+      rgba(0, 0, 0, 0.9) 100%);
+  /* pequeña optimización visual */
+  backdrop-filter: none;
+}
+
+/* ============================================ */
+/* Chapter Count Badge (posición izquierda)     */
+/* ============================================ */
+.chapterBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  color: #ffffff;
+  font-weight: 600;
+  z-index: 5;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================ */
+/* Status Badge (posición derecha)              */
+/* ============================================ */
+.statusBadgeOverlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%);
+  backdrop-filter: blur(8px);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  font-weight: 600;
+  z-index: 5;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}

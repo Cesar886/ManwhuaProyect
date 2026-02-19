@@ -1,0 +1,143 @@
+/* OptimizedImage.module.css */
+
+.container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background-color: #0a0a14;
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* Imagen de baja calidad con blur */
+.lowQuality {
+  filter: blur(10px);
+  transform: scale(1.05);
+  opacity: 0.8;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Imagen de alta calidad con fade-in suave */
+.highQuality {
+  filter: blur(0);
+  transform: scale(1);
+  opacity: 1;
+  animation: fadeInSharp 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+
+@keyframes fadeInSharp {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a0505 0%, #0a0a14 100%);
+  gap: 0.5rem;
+}
+
+.errorIcon {
+  font-size: 2.5rem;
+  opacity: 0.3;
+}
+
+.errorText {
+  font-size: 0.875rem;
+  color: #ef4444;
+  opacity: 0.7;
+}
+
+.loadingIndicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 20, 0.5);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(34, 211, 238, 0.2);
+  border-top-color: rgb(34, 211, 238);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Optimizaciones de rendimiento */
+.container,
+.image {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Responsive: reducir blur en móviles para mejor rendimiento */
+@media (max-width: 640px) {
+  .lowQuality {
+    filter: blur(5px);
+  }
+}

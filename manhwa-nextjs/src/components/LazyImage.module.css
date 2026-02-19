@@ -1,0 +1,122 @@
+/* LazyImage.module.css - Estilos para carga progresiva de imágenes */
+
+.lazyImageContainer {
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Placeholder con gradiente */
+.placeholder {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.5s ease-out;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholderText {
+  opacity: 0.3;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.placeholder.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Imagen real */
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: fadeInImage 0.8s ease-out forwards;
+  z-index: 2;
+}
+
+@keyframes fadeInImage {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: scale(1.05);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
+/* Estado de error */
+.errorState {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, 
+    rgba(30, 41, 59, 0.9) 0%,
+    rgba(51, 65, 85, 0.8) 100%
+  );
+  z-index: 3;
+}
+
+.errorIcon {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+
+/* Shimmer mientras carga */
+.loadingShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 20%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.08) 80%,
+    transparent 100%
+  );
+  animation: shimmerMove 1.5s infinite ease-in-out;
+  z-index: 2;
+}
+
+@keyframes shimmerMove {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Blur-up effect (para cuando tengamos tiny thumbnails) */
+.blurPlaceholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(20px);
+  transform: scale(1.1);
+  transition: opacity 0.5s ease-out;
+  z-index: 1;
+}
+
+.blurPlaceholder.hidden {
+  opacity: 0;
+}
