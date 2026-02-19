@@ -1,10 +1,9 @@
-import { SITE_URL } from '@/config'
-import { fetchAllSeriesForSitemap } from '@/lib/seo/fetchSeries'
-import { fetchAllChaptersFromSpaces } from '@/lib/seo/fetchChaptersFromSpaces'
+import { endpoint, SITE_URL } from '@/config'
 
 const INDEXNOW_KEY = 'f2cdd862b4624457846d2d3e59f308a8'
 const INDEXNOW_API = 'https://api.indexnow.org/IndexNow'
 const BATCH_SIZE = 10000
+const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
 const STATIC_PAGES = [
   '/',
@@ -14,6 +13,27 @@ const STATIC_PAGES = [
   '/biblioteca',
   '/pedidos',
 ]
+
+// Siempre obtiene datos frescos (sin caché de Next.js)
+async function fetchFreshSeries() {
+  const url = endpoint('spaces', 'manhwas')
+  const res = await fetch(url, {
+    cache: 'no-store',
+    headers: {
+      'Accept': 'application/json',
+      'Origin': SITE_URL,
+      ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+    },
+  })
+
+  if (!res.ok) {
+    throw new Error(`Error al obtener series: HTTP ${res.status}`)
+  }
+
+  const result = await res.json()
+  const series = result.data?.series || result.series || result.data || []
+  return Array.isArray(series) ? series.filter(s => s.slug) : []
+}
 
 async function submitBatch(urls) {
   const res = await fetch(INDEXNOW_API, {
@@ -30,7 +50,6 @@ async function submitBatch(urls) {
 }
 
 export async function POST(request) {
-  // Protección: requiere INDEXNOW_SECRET en variables de entorno
   const { searchParams } = new URL(request.url)
   const secret = searchParams.get('secret')
 
@@ -38,32 +57,49 @@ export async function POST(request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const mode = searchParams.get('mode') || 'all' // 'all' | 'recent' | 'static'
+  const mode = searchParams.get('mode') || 'all'
+  const RECENT_DAYS = 14
+  const recentCutoff = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000
 
-  // Páginas estáticas
   const staticUrls = STATIC_PAGES.map(p => `${SITE_URL}${p}`)
-
   let seriesUrls = []
   let chapterUrls = []
 
-  if (mode !== 'static') {
-    // Páginas de series
-    const series = await fetchAllSeriesForSitemap()
-    seriesUrls = series.map(s => `${SITE_URL}/manhwa/${s.slug}`)
+  try {
+    if (mode !== 'static') {
+      const series = await fetchFreshSeries()
 
-    if (mode !== 'series') {
-      // Páginas de capítulos
-      const { allChapters } = await fetchAllChaptersFromSpaces()
+      seriesUrls = series.map(s => `${SITE_URL}/manhwa/${s.slug}`)
 
-      const chaptersToSubmit = mode === 'recent'
-        // Solo capítulos de series actualizadas recientemente (isLatest o isRecent)
-        ? allChapters.filter(ch => ch.isLatest || ch.isRecent)
-        : allChapters
+      if (mode !== 'series') {
+        const sorted = series
+          .filter(s => (s.chapterCount || 0) > 0)
+          .sort((a, b) => {
+            const aTime = new Date(a.lastUpdated || a.updatedAt || 0).getTime()
+            const bTime = new Date(b.lastUpdated || b.updatedAt || 0).getTime()
+            return bTime - aTime
+          })
 
-      chapterUrls = chaptersToSubmit.map(
-        ch => `${SITE_URL}/manhwa/${ch.seriesSlug}/capitulo/${ch.chapterNumber}`
-      )
+        for (const serie of sorted) {
+          const count = serie.chapterCount
+          const lastMod = serie.lastUpdated || serie.updatedAt || null
+          const isRecent = new Date(lastMod || 0).getTime() >= recentCutoff
+
+          if (mode === 'recent' && !isRecent) continue
+
+          for (let n = count; n >= 1; n--) {
+            // En modo 'recent' solo enviamos el último capítulo de cada serie
+            if (mode === 'recent' && n !== count) continue
+            chapterUrls.push(`${SITE_URL}/manhwa/${serie.slug}/capitulo/${n}`)
+          }
+        }
+      }
     }
+  } catch (err) {
+    return Response.json(
+      { error: `Error obteniendo datos: ${err.message}` },
+      { status: 502 }
+    )
   }
 
   const allUrls = [...staticUrls, ...seriesUrls, ...chapterUrls]
@@ -72,7 +108,6 @@ export async function POST(request) {
     return Response.json({ error: 'No se encontraron URLs para enviar' }, { status: 400 })
   }
 
-  // Enviar en lotes de máximo 10.000 URLs (límite de IndexNow)
   const results = []
   for (let i = 0; i < allUrls.length; i += BATCH_SIZE) {
     const batch = allUrls.slice(i, i + BATCH_SIZE)
@@ -85,12 +120,13 @@ export async function POST(request) {
     })
   }
 
-  const totalOk = results.filter(r => r.ok).reduce((sum, r) => sum + r.urls, 0)
+  const totalIndexadas = results.filter(r => r.ok).reduce((sum, r) => sum + r.urls, 0)
 
   return Response.json({
     success: results.every(r => r.ok),
+    mode,
     totalUrls: allUrls.length,
-    totalIndexadas: totalOk,
+    totalIndexadas,
     desglose: {
       estaticas: staticUrls.length,
       series: seriesUrls.length,
@@ -100,19 +136,22 @@ export async function POST(request) {
   })
 }
 
-// GET: información sobre el estado del setup
 export async function GET() {
+  const secret = process.env.INDEXNOW_SECRET
   return Response.json({
     keyFile: `${SITE_URL}/${INDEXNOW_KEY}.txt`,
-    endpoint: `POST /api/indexnow?secret=TU_SECRET`,
-    modos: {
-      all: 'Envía todas las páginas (estáticas + series + capítulos)',
-      recent: 'Envía solo capítulos de series actualizadas recientemente',
-      series: 'Envía solo páginas estáticas y de series (sin capítulos)',
-      static: 'Envía solo páginas estáticas',
+    secretConfigurado: !!secret && secret !== 'cambia_esto_por_un_secreto_seguro',
+    uso: {
+      all:    `POST /api/indexnow?secret=${secret}&mode=all`,
+      recent: `POST /api/indexnow?secret=${secret}&mode=recent`,
+      series: `POST /api/indexnow?secret=${secret}&mode=series`,
+      static: `POST /api/indexnow?secret=${secret}&mode=static`,
     },
-    configuracion: {
-      INDEXNOW_SECRET: process.env.INDEXNOW_SECRET ? 'configurado' : 'FALTA - añadir al .env',
+    descripcion: {
+      all:    'Estáticas + todas las series + todos los capítulos',
+      recent: 'Solo el último capítulo de series actualizadas en 14 días',
+      series: 'Estáticas + páginas de series (sin capítulos)',
+      static: 'Solo las 6 páginas estáticas',
     },
   })
 }

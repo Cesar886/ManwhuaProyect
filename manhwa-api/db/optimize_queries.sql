@@ -44,8 +44,14 @@ ON series(view_count DESC)
 WHERE status = 'ongoing';
 
 -- Series por fecha de actualización
-CREATE INDEX IF NOT EXISTS idx_series_last_chapter 
+CREATE INDEX IF NOT EXISTS idx_series_last_chapter
 ON series(last_chapter_at DESC NULLS LAST);
+
+-- Fallback query: ORDER BY updated_at DESC WHERE deleted_at IS NULL
+-- Elimina full table scan + sort en listManhwasFromDatabase y getSeriesFromDatabase
+CREATE INDEX IF NOT EXISTS idx_series_updated_at
+ON series(updated_at DESC)
+WHERE deleted_at IS NULL;
 
 -- Búsqueda por título (full-text search preparado)
 CREATE INDEX IF NOT EXISTS idx_series_title_trgm 

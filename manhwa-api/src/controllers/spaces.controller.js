@@ -186,15 +186,15 @@ const seriesToArray = async (seriesMap) => {
                 `SELECT s.slug, s.cover_url, s.title, s.original_title, s.status,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
-                        COALESCE(
-                            (SELECT array_agg(g.name ORDER BY g.name)
-                             FROM series_genres sg
-                             JOIN genres g ON sg.genre_id = g.id
-                             WHERE sg.series_id = s.id),
-                            ARRAY[]::text[]
-                        ) as genres
+                        COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
                  FROM series s
                  LEFT JOIN authors a ON s.author_id = a.id
+                 LEFT JOIN LATERAL (
+                     SELECT array_agg(g.name ORDER BY g.name) as genres
+                     FROM series_genres sg
+                     JOIN genres g ON sg.genre_id = g.id
+                     WHERE sg.series_id = s.id
+                 ) g_agg ON true
                  WHERE s.slug = ANY($1::text[]) AND s.deleted_at IS NULL`,
                 [slugs]
             );
