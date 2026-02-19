@@ -21,6 +21,7 @@ const notFound = require('./middleware/notFound');
 const { requireValidOrigin } = require('./middleware/security');
 const logger = require('./utils/logger');
 const { startIndexingDaemon, stopIndexingDaemon } = require('./services/googleIndexing');
+const { startIndexNowDaemon, stopIndexNowDaemon } = require('./services/indexNowDaemon');
 
 // Importar rutas
 const authRoutes = require('./routes/auth.routes');
@@ -394,8 +395,9 @@ const startServer = async () => {
             spacesController.preloadCache();
             spacesController.startAutoPreload();
 
-            // Iniciar daemon de Google Indexing
+            // Iniciar daemons de indexación
             startIndexingDaemon();
+            startIndexNowDaemon();
 
             // Limpieza periódica de clientes SSE zombie
             const SSE_CLIENT_TIMEOUT = 15 * 60 * 1000;
@@ -460,6 +462,7 @@ startServer();
 const shutdown = (signal) => {
     logger.info(`${signal} recibido. Cerrando servidor...`);
     stopIndexingDaemon();
+    stopIndexNowDaemon();
     process.exit(0);
 };
 

@@ -39,3 +39,4 @@ temp/
 # Google Indexing
 google-indexing-credentials.json
 data/indexing-history.json
+data/indexnow-history.json
