@@ -88,6 +88,7 @@ app.use((req, res, next) => {
 // Configuración CORS
 const allowedOrigins = [
     'https://manhwaimperial.site',
+    'https://www.manhwaimperial.site',
     'http://localhost:5173',
     'http://localhost:3000'
 ];

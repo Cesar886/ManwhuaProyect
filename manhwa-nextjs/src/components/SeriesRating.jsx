@@ -32,6 +32,7 @@ export default function SeriesRating({
   const [visitorId, setVisitorId] = useState(null);
 
   const mountTimeRef = useRef(Date.now());
+  const isSubmittingRef = useRef(false);
 
   // Helper: localStorage key para guardar votos localmente
   const getStorageKey = (s) => `mi_series_rating_${s}`;
@@ -118,8 +119,9 @@ export default function SeriesRating({
   }, [averageRating, totalRatings]);
 
   const handleRate = useCallback(async (value) => {
-    if (isSubmitting || hasRated || !visitorId) return;
+    if (isSubmittingRef.current || hasRated || !visitorId) return;
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     const score = value * 2; // Convertir 1-5 estrellas a 2-10 score
@@ -172,9 +174,10 @@ export default function SeriesRating({
     } catch (error) {
       console.error('Error rating series:', error);
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
-  }, [slug, visitorId, isSubmitting, hasRated, onRate]);
+  }, [slug, visitorId, hasRated, onRate]);
 
   const displayAverage = currentAverage > 0 ? (currentAverage / 2).toFixed(1) : '0.0';
 
