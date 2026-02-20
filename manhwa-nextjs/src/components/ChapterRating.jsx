@@ -187,7 +187,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
           color: 'var(--imperial-gold, #f4c542)',
           margin: 0,
         }}>
-          {displayRating} de 5 estrellas basado en {ratingCount} {ratingCount === 1 ? 'voto' : 'votos'}
+          {displayRating} ({ratingCount} {ratingCount === 1 ? 'voto' : 'votos'})
         </p>
       )}
 

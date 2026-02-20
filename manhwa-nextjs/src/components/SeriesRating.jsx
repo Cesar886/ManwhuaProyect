@@ -189,7 +189,7 @@ export default function SeriesRating({
         gap: '8px',
       }}
       role="region"
-      aria-label={`Calificación: ${displayAverage} de 5 estrellas basado en ${currentCount} votos`}
+      aria-label={`Calificación: ${displayAverage} de 5 estrellas basaddo en ${currentCount} votos`}
     >
       {!compact && (
         <h3 style={{
@@ -210,7 +210,7 @@ export default function SeriesRating({
           color: 'var(--imperial-gold, #f4c542)',
           margin: 0,
         }}>
-          {displayAverage} de 5 con {currentCount} {currentCount === 1 ? 'voto' : 'votos'}
+          {displayAverage} ({currentCount} {currentCount === 1 ? 'voto' : 'votos'})
         </p>
       )}
 

@@ -96,6 +96,19 @@ export const PAGE_KEYWORDS = {
     'manhwa español populares',
     'top webtoon español',
   ],
+
+  blog: [
+    'blog manhwa',
+    'sitios para leer manhwa en español',
+    'tapas webtoon en español',
+    'real manga manhwa en español',
+    'diferencias manga manhwa',
+    'mejores plataformas manhwa',
+    'guía manhwa principiantes',
+    'manhwa recomendados en español',
+    'donde leer manhwa gratis',
+    'webtoon español comparativa',
+  ],
 }
 
 // ============================================================================

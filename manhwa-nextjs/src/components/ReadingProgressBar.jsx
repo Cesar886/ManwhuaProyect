@@ -37,11 +37,6 @@ export default function ReadingProgressBar({ progress = 0, position = 'top' }) {
       >
         <div className={styles.progressGlow} />
       </div>
-      {progress >= 95 && (
-        <div className={styles.completionIndicator}>
-          ✓ Capítulo completado
-        </div>
-      )}
     </div>
   );
 }

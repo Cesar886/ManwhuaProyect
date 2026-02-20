@@ -11,7 +11,7 @@ import ChapterNavigation from '../../../../../components/ChapterNavigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { getOrCreateChapterRequest } from '../../../../../api/requests';
 import ReaderHeader from '../../../../../components/ReaderHeader';
-import { useReadingProgress } from '../../../../../hooks/useReadingProgress';
+import { useReadingProgress } from '../../../../../hooks/useReadingProgress'; ``
 import ReadingProgressBar from '../../../../../components/ReadingProgressBar';
 import ChapterRating from '../../../../../components/ChapterRating';
 
@@ -137,7 +137,7 @@ export default function ChapterReader() {
     try {
       // Forzar salida de fullscreen si está activo
       if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
+        document.exitFullscreen().catch(() => { });
       }
 
       // Resetear estilos del body que pueden quedar colgados
@@ -231,7 +231,7 @@ export default function ChapterReader() {
   useEffect(() => {
     // Limpiar cualquier estado de pantalla completa residual al montar
     cleanupFullscreenState();
-    
+
     return () => {
       // Limpiar al desmontar el componente
       cleanupFullscreenState();
@@ -294,26 +294,97 @@ export default function ChapterReader() {
               fontFamily: 'var(--font-playfair, Georgia, serif)',
             }}>
               {series?.title || slug.replace(/-/g, ' ')}
-              {/* Texto oculto para consolidar Keyword en H1 */}
               <span style={{ position: 'absolute', width: '1px', height: '1px', padding: '0', margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: '0' }}>
-                 Capítulo {chapterNum}
+                Capítulo {chapterNum}
               </span>
             </h1>
 
-            {/* Número de Capítulo - Visual solamente (div en lugar de H2 para no diluir H1) */}
+            {/* Número de Capítulo con botones de navegación a los lados */}
             <div style={{
-              fontSize: '14px',
-              fontWeight: '700',
-              letterSpacing: '2px',
-              textTransform: 'uppercase',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              opacity: 0.95,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
               marginTop: '5px',
             }}>
-              Capítulo {chapterNum}
+              {/* Botón Capítulo Anterior */}
+              {parseInt(chapterNum) > 1 ? (
+                <button
+                  onClick={() => router.push(`/manhwa/${slug}/capitulo/${parseInt(chapterNum) - 1}`)}
+                  title={`Capítulo ${parseInt(chapterNum) - 1}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'none',
+                    border: 'none',
+                    color: '#667eea',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease, opacity 0.2s ease',
+                    fontSize: '22px',
+                    lineHeight: '1',
+                    padding: '0',
+                    opacity: 0.8,
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'scale(1.2)';
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.opacity = '0.8';
+                  }}
+                >
+                  ‹
+                </button>
+              ) : (
+                <div style={{ width: '28px' }} />
+              )}
+
+              {/* Texto "Capítulo N" */}
+              <div style={{
+                fontSize: '14px',
+                fontWeight: '700',
+                letterSpacing: '2px',
+                textTransform: 'uppercase',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                opacity: 0.95,
+              }}>
+                Capítulo {chapterNum}
+              </div>
+
+              {/* Botón Capítulo Siguiente */}
+              <button
+                onClick={() => router.push(`/manhwa/${slug}/capitulo/${parseInt(chapterNum) + 1}`)}
+                title={`Capítulo ${parseInt(chapterNum) + 1}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'none',
+                  border: 'none',
+                  color: '#667eea',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s ease, opacity 0.2s ease',
+                  fontSize: '22px',
+                  lineHeight: '1',
+                  padding: '0',
+                  opacity: 0.8,
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'scale(1.2)';
+                  e.currentTarget.style.opacity = '1';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.opacity = '0.8';
+                }}
+              >
+                ›
+              </button>
             </div>
 
             {/* Línea decorativa */}
@@ -414,9 +485,9 @@ export default function ChapterReader() {
         padding: '0 1rem',
         paddingBottom: '100px'
       }}>
-        <h2 style={{ 
-          fontSize: '1.5rem', 
-          fontWeight: 'bold', 
+        <h2 style={{
+          fontSize: '1.5rem',
+          fontWeight: 'bold',
           marginBottom: '1.5rem',
           color: 'var(--text-color)',
           borderLeft: '4px solid #667eea',

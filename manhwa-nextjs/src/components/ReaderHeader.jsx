@@ -300,6 +300,23 @@ export default function ReaderHeader({ slug, chapterNum }) {
           <span className={styles.siteName}>Manhwa Imperial</span>
         </div>
       </div>
+
+      {/* =========================================
+          LADO DERECHO: Botón pantalla completa
+          ========================================= */}
+      <div className={styles.rightSection} ref={rightRef}>
+        <button
+          className={styles.fullscreenButton}
+          onClick={toggleFullscreenLocal}
+          aria-label={isFullscreenLocal ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          title={isFullscreenLocal ? 'Salir de pantalla completa' : 'Pantalla completa'}
+        >
+          {isFullscreenLocal
+            ? <IconMinimize size={18} />
+            : <IconMaximize size={18} />
+          }
+        </button>
+      </div>
     </header>
   );
 }

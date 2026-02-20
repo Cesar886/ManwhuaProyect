@@ -1,21 +1,25 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   Container, Center, Card, Text, Badge, Group,
   Stack, Button, Box, Transition, ActionIcon
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight } from '@tabler/icons-react';
 import { IconX, IconBook, IconRefresh, IconSparkles } from '@tabler/icons-react';
 import Header from '@/components/Header';
 
 // Componente de Paginación personalizado para evitar conflictos con Next.js 15
 function CustomPagination({ value, onChange, total, color = "cyan" }) {
+  const isMobile = useMediaQuery('(max-width: 600px)');
+  const btnSize = isMobile ? 30 : 36;
+  const showPages = isMobile ? 3 : 5;
+
   const getVisiblePages = () => {
     const pages = [];
-    const showPages = 5;
     let start = Math.max(1, value - Math.floor(showPages / 2));
     let end = Math.min(total, start + showPages - 1);
 
@@ -30,20 +34,21 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
   };
 
   const buttonStyle = (isActive) => ({
-    minWidth: 36,
-    height: 36,
+    minWidth: btnSize,
+    height: btnSize,
     borderRadius: '50%',
     border: 'none',
     cursor: 'pointer',
     fontWeight: isActive ? 600 : 400,
+    fontSize: isMobile ? '0.8rem' : '0.875rem',
     backgroundColor: isActive ? `var(--mantine-color-${color}-6)` : 'transparent',
     color: isActive ? 'white' : 'var(--mantine-color-dimmed)',
     transition: 'all 0.2s ease',
   });
 
   const navButtonStyle = (disabled) => ({
-    minWidth: 36,
-    height: 36,
+    minWidth: btnSize,
+    height: btnSize,
     borderRadius: '50%',
     border: 'none',
     cursor: disabled ? 'not-allowed' : 'pointer',
@@ -56,15 +61,17 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
     transition: 'all 0.2s ease',
   });
 
+  const iconSize = isMobile ? 15 : 18;
+
   return (
-    <Group gap={4}>
+    <Group gap={isMobile ? 2 : 4} wrap="nowrap">
       <button
         style={navButtonStyle(value === 1)}
         onClick={() => value > 1 && onChange(1)}
         disabled={value === 1}
         aria-label="Primera página"
       >
-        <IconChevronsLeft size={18} />
+        <IconChevronsLeft size={iconSize} />
       </button>
       <button
         style={navButtonStyle(value === 1)}
@@ -72,7 +79,7 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
         disabled={value === 1}
         aria-label="Página anterior"
       >
-        <IconChevronLeft size={18} />
+        <IconChevronLeft size={iconSize} />
       </button>
 
       {getVisiblePages().map((page) => (
@@ -93,7 +100,7 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
         disabled={value === total}
         aria-label="Página siguiente"
       >
-        <IconChevronRight size={18} />
+        <IconChevronRight size={iconSize} />
       </button>
       <button
         style={navButtonStyle(value === total)}
@@ -101,7 +108,7 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
         disabled={value === total}
         aria-label="Última página"
       >
-        <IconChevronsRight size={18} />
+        <IconChevronsRight size={iconSize} />
       </button>
     </Group>
   );
@@ -119,6 +126,7 @@ export default function Series() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const itemsPerPage = 32;
+  const gridTopRef = useRef(null);
 
   // 1. Hooks de Datos e IA
   const { buscarConIA, cargando: iaLoading, error: iaError, resultados, limpiar: limpiarIA } = useIA();
@@ -179,6 +187,13 @@ export default function Series() {
     setCurrentPage(1);
     limpiarIA();
   }, [limpiarIA]);
+
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page);
+    if (gridTopRef.current) {
+      gridTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
 
   const isLoading = isInitialLoad;
   const hasError = spacesError && seriesData.length === 0;
@@ -260,7 +275,7 @@ export default function Series() {
             {/* Manhwa Grid */}
             {paginatedSeries.length > 0 ? (
               <Stack gap="sm">
-                <Group justify="space-between">
+                <Group ref={gridTopRef} justify="space-between">
                   <Group gap="xs">
                     <IconBook size={22} className={classes.sectionIcon} />
                     <Text size="lg" fw={700}>
@@ -306,10 +321,10 @@ export default function Series() {
                 </div>
 
                 {totalPages > 1 && (
-                  <Center mt="xl">
+                  <Center mt="xl" mb="xl">
                     <CustomPagination
                       value={currentPage}
-                      onChange={setCurrentPage}
+                      onChange={handlePageChange}
                       total={totalPages}
                       color="cyan"
                     />

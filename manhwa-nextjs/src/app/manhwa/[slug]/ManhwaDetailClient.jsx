@@ -1151,16 +1151,14 @@ export default function ManhwaDetail({ initialSeries }) {
               </div>
             </>
           )}
-          {series.rating > 0 && series.ratingCount > 0 && (
-            <>
-              <div className={styles.metaDivider} />
-              <div className={styles.metaItem}>
-                <IconStar size={16} className={styles.starIcon} />
-                <span>{(parseFloat(series.rating) / 2).toFixed(1)} de 5</span>
-                <span className={styles.ratingCountMeta}>({series.ratingCount} {series.ratingCount === 1 ? 'voto' : 'votos'})</span>
-              </div>
-            </>
-          )}
+          <>
+            <div className={styles.metaDivider} />
+            <div className={styles.metaItem}>
+              <IconStar size={16} className={styles.starIcon} />
+              <span>{(parseFloat(series.rating || 0) / 2).toFixed(1)}</span>
+              <span className={styles.ratingCountMeta}>({series.ratingCount || 0} {series.ratingCount === 1 ? 'voto' : 'votos'})</span>
+            </div>
+          </>
           {badges.length > 0 && (
             <>
               <div className={styles.metaDivider} />

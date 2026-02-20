@@ -1,11 +1,15 @@
 import Link from 'next/link'
 import { getAllPosts, CATEGORY_LABELS } from '@/lib/blog/posts'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import styles from './Blog.module.css'
 
 export default function BlogPage() {
   const posts = getAllPosts()
 
   return (
+    <>
+    <Header />
     <main className={styles.pageWrapper}>
       <div className={styles.content}>
         {/* SEO Header */}
@@ -74,5 +78,7 @@ export default function BlogPage() {
         </section>
       </div>
     </main>
+    <Footer />
+    </>
   )
 }

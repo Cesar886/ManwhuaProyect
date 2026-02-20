@@ -25,6 +25,14 @@ const data = [
     ],
   },
   {
+    title: 'Blog',
+    links: [
+      { label: 'Blog de Manhwa', link: '/blog' },
+      { label: 'Guías para Principiantes', link: '/blog' },
+      { label: 'Comparativas de Plataformas', link: '/blog' },
+    ],
+  },
+  {
     title: 'Comunidad',
     links: [
       { label: 'Discord', link: '/discord' },

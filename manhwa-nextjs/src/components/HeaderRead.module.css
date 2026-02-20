@@ -632,19 +632,6 @@
   }
 }
 
-/* Dark mode specific styles */
-/* Remove forced dark mode; use CSS variables set by App.jsx */
-body {
-  background-color: var(--page-bg);
-  color: var(--text-color);
-}
-
-/* Smooth transitions */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
-}
 
 /* Accessibility */
 .user:focus-visible,

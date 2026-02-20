@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getPostBySlug, getAllSlugs, getRecentPosts, CATEGORY_LABELS } from '@/lib/blog/posts'
 import { SITE_URL, SITE_NAME } from '@/config'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import styles from './BlogPost.module.css'
 
 export async function generateStaticParams() {
@@ -55,6 +57,7 @@ export default async function BlogPostPage({ params }) {
 
   return (
     <>
+      <Header />
       {/* JSON-LD */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       {faqJsonLd && (
@@ -168,6 +171,7 @@ export default async function BlogPostPage({ params }) {
           </aside>
         </div>
       </main>
+      <Footer />
     </>
   )
 }
