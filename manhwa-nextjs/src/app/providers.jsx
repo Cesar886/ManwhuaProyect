@@ -4,8 +4,9 @@ import dynamic from 'next/dynamic'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/contexts/ToastContext'
 import { ImageOptimizationProvider } from '@/contexts/ImageOptimizationContext'
-import { GoogleOAuthProvider } from '@react-oauth/google'
 
+// LoginModal carga lazy: GoogleOAuthProvider (y el script de Google ~90 KiB)
+// solo se descarga cuando el usuario abre el modal de login
 const LoginModal = dynamic(() => import('@/components/LoginModal'), {
   ssr: false,
   loading: () => null
@@ -26,15 +27,13 @@ function AuthModals() {
 
 export function Providers({ children }) {
   return (
-    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
-      <AuthProvider>
-        <ToastProvider>
-          <ImageOptimizationProvider>
-            {children}
-            <AuthModals />
-          </ImageOptimizationProvider>
-        </ToastProvider>
-      </AuthProvider>
-    </GoogleOAuthProvider>
+    <AuthProvider>
+      <ToastProvider>
+        <ImageOptimizationProvider>
+          {children}
+          <AuthModals />
+        </ImageOptimizationProvider>
+      </ToastProvider>
+    </AuthProvider>
   )
 }

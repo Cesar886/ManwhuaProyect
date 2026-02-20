@@ -14,7 +14,7 @@ import { IconX, IconBrandGoogle, IconBrandDiscord, IconAlertCircle } from '@tabl
 import { useAuth } from '../contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import styles from './LoginModal.module.css'
-import { useGoogleLogin } from '@react-oauth/google';
+import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 
 // Estilos de input movidos fuera del componente (evita recreación en cada render)
 const INPUT_STYLES = {
@@ -61,7 +61,7 @@ const CHECKBOX_STYLES = {
   },
 };
 
-export default function LoginModal({ opened, onClose }) {
+function LoginModalInner({ opened, onClose }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -279,4 +279,14 @@ export default function LoginModal({ opened, onClose }) {
       </form>
     </Drawer>
   );
+}
+
+// GoogleOAuthProvider se monta aquí para que el script de Google (~90 KiB)
+// solo se descargue cuando el modal de login está abierto (lazy via dynamic import)
+export default function LoginModal({ opened, onClose }) {
+  return (
+    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
+      <LoginModalInner opened={opened} onClose={onClose} />
+    </GoogleOAuthProvider>
+  )
 }

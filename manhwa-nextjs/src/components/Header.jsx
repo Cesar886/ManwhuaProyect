@@ -184,6 +184,7 @@ function Header({ colorScheme, toggleColorScheme }) {
                 onClick={() => {
                   if (typeof activeToggle === 'function') activeToggle();
                 }}
+                aria-label={mounted && activeColorScheme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
               >
                 {/* Renderizar icono solo después del montaje para evitar hydration mismatch */}
                 {mounted ? (

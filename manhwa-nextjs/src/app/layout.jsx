@@ -1,13 +1,13 @@
 import { Outfit, Playfair_Display } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
-import '@mantine/core/styles.css'
-import '@mantine/notifications/styles.css'
+import '@mantine/core/styles.layer.css'
+import '@mantine/notifications/styles.layer.css'
 import { MantineProvider, ColorSchemeScript } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { imperialTheme } from '@/styles/imperial-theme.js'
 import { Providers } from './providers'
 import { generateWebSiteJsonLd } from '@/lib/seo/jsonld'
-import EzoicAds from '@/components/EzoicAds'
 import NavigationProgress from '@/components/NavigationProgress'
 import MainLayout from '@/components/MainLayout'
 
@@ -112,32 +112,31 @@ export default function RootLayout({ children }) {
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
         <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
-        {/* Preconnect to image CDN (critical for LCP) */}
-        <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
-        {/* DNS prefetch for external resources */}
+        {/* DNS prefetch for image CDN (chapter reader) — no preconnect: home usa /_next/image proxy */}
+        <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />
+        {/* DNS prefetch para analytics (GTM carga afterInteractive, no es crítico) */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-        <link rel="dns-prefetch" href="https://www.ezojs.com" />
-
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateWebSiteJsonLd()) }}
         />
-        {/* Google Tag Manager */}
-        <script dangerouslySetInnerHTML={{
-          __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-M3DPPM9K');`
-        }} />
-        {/* End Google Tag Manager */}
       </head>
       <body className={outfit.className} suppressHydrationWarning>
-        {/* Google Tag Manager (noscript) - dangerouslySetInnerHTML evita hidratación incorrecta en React 19 */}
+        {/* Google Tag Manager (noscript) */}
         <noscript dangerouslySetInnerHTML={{ __html: '<iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M3DPPM9K" height="0" width="0" style="display:none;visibility:hidden"></iframe>' }} />
-        {/* End Google Tag Manager (noscript) */}
+        {/* Google Tag Manager - lazyOnload: carga en idle tras el evento load, sin competir con nada */}
+        <Script
+          id="gtm"
+          strategy="lazyOnload"
+          dangerouslySetInnerHTML={{
+            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+              new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+              j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+              'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+              })(window,document,'script','dataLayer','GTM-M3DPPM9K');`
+          }}
+        />
         <NavigationProgress />
-        <EzoicAds />
         <MantineProvider theme={imperialTheme} defaultColorScheme="dark">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>

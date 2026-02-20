@@ -2,7 +2,7 @@
 
 import React, { createContext } from 'react';
 import { Notifications } from '@mantine/notifications';
-import '@mantine/notifications/styles.css';
+import '@mantine/notifications/styles.layer.css';
 
 /**
  * Contexto para el sistema de Toast Notifications
