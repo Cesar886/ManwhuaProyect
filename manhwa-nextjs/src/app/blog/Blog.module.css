@@ -1,0 +1,195 @@
+/* ============================================================================
+   BLOG PAGE STYLES - MANHWA IMPERIAL
+   ============================================================================ */
+
+.pageWrapper {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--page-bg);
+  overflow-x: hidden;
+}
+
+.content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-md);
+  padding-top: calc(var(--header-height, 80px) + var(--spacing-xl));
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+
+.hero {
+  text-align: center;
+  padding: var(--spacing-2xl) 0 var(--spacing-lg);
+}
+
+.heroTitle {
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 700;
+  background: var(--gradient-text-imperial);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.2;
+}
+
+.heroSubtitle {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ── Posts Grid ───────────────────────────────────────────────────────────── */
+
+.postsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
+@media (min-width: 640px) {
+  .postsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.postCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.postCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border-color: var(--border-medium);
+}
+
+.postLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg);
+  text-decoration: none;
+  color: inherit;
+  height: 100%;
+}
+
+.categoryBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.postTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin: 0;
+  transition: color 0.15s ease;
+}
+
+.postCard:hover .postTitle {
+  color: var(--imperial-gold);
+}
+
+.postExcerpt {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.postMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.postDate {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.readingTime {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.readMore {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--imperial-gold);
+  transition: gap 0.15s ease;
+}
+
+/* ── SEO Section ──────────────────────────────────────────────────────────── */
+
+.seoSection {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--spacing-xl);
+}
+
+.seoTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.seoText {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: var(--spacing-md);
+}
+
+.seoLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.seoLink {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-medium);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.seoLink:hover {
+  border-color: var(--imperial-gold);
+  color: var(--imperial-gold);
+}
