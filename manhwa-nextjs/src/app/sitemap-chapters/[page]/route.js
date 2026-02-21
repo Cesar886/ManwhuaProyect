@@ -2,7 +2,8 @@ import { SITE_URL, CHAPTERS_PER_SITEMAP } from '@/config'
 import { fetchAllChaptersFromSpaces } from '@/lib/seo/fetchChaptersFromSpaces'
 import { buildUrlset, urlEntry, xmlResponse } from '@/lib/seo/xml'
 
-export const revalidate = 1800
+// force-dynamic: los chapter sitemaps siempre se generan en runtime con datos frescos
+export const dynamic = 'force-dynamic'
 
 export async function GET(request, { params }) {
   const { page } = await params

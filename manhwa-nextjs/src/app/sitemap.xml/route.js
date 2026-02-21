@@ -2,20 +2,20 @@ import { SITE_URL } from '@/config'
 import { fetchAllSeriesForSitemap } from '@/lib/seo/fetchSeries'
 import { buildUrlset, urlEntry, xmlResponse } from '@/lib/seo/xml'
 
-export const revalidate = 3600
+// force-dynamic: el sitemap siempre se genera en runtime con datos frescos
+// Evita que el build pre-renderice con datos vacíos (API no disponible en build local)
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const series = await fetchAllSeriesForSitemap()
   const now = new Date().toISOString()
 
   const staticPages = [
-    { path: '/',            priority: '1.0', freq: 'daily'   },
+    // / se excluye del sitemap porque redirige a /home (evitar señales duplicadas)
     { path: '/home',        priority: '1.0', freq: 'daily'   },
     { path: '/populares',   priority: '0.9', freq: 'daily'   },
+    { path: '/biblioteca',  priority: '0.8', freq: 'daily'   },
     { path: '/colecciones', priority: '0.7', freq: 'weekly'  },
-    { path: '/biblioteca',  priority: '0.6', freq: 'weekly'  },
-    { path: '/pedidos',     priority: '0.5', freq: 'monthly' },
-    { path: '/register',    priority: '0.3', freq: 'monthly' },
   ]
 
   const urls = [

@@ -3,6 +3,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { SITE_URL, SITE_NAME } from '@/config'
 import styles from '@/styles/legal.module.css'
+import { generateAboutPageFAQJsonLd } from '@/lib/seo/jsonld'
 
 const jsonLd = {
     '@context': 'https://schema.org',
@@ -65,6 +66,12 @@ export default function AcercaDePage() {
                 <script
                     type="application/ld+json"
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+                />
+                {/* GEO: FAQ de legalidad y seguridad — responde cuando la IA es preguntada
+                    si manhwaimperial.site es confiable, legal o seguro */}
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(generateAboutPageFAQJsonLd()) }}
                 />
 
                 <div className={styles.content}>

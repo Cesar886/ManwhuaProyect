@@ -1,4 +1,4 @@
-import { endpoint, SITE_URL } from '@/config'
+import { SERVER_API_BASE, SITE_URL } from '@/config'
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
@@ -7,10 +7,11 @@ const RECENT_DAYS = 14
 
 export async function fetchAllChaptersFromSpaces() {
   try {
-    const url = endpoint('spaces', 'manhwas')
+    const url = `${SERVER_API_BASE}/spaces/manhwas`
     const res = await fetch(url, {
       next: { revalidate: 1800 },
       headers: {
+        'Accept': 'application/json',
         'Origin': SITE_URL,
         ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
       },

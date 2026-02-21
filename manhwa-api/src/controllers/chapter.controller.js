@@ -72,10 +72,21 @@ const getChapter = async (req, res, next) => {
 
         const navigation = navigationResult.rows[0];
 
-        // Incrementar vistas
+        // Incrementar vistas del capítulo
         await query(
             'UPDATE chapters SET view_count = view_count + 1 WHERE id = $1',
             [chapter.id]
+        );
+
+        // Incrementar vistas de la serie (total, diarias, semanales, mensuales)
+        await query(
+            `UPDATE series SET
+                view_count   = view_count   + 1,
+                daily_views  = daily_views  + 1,
+                weekly_views = weekly_views + 1,
+                monthly_views= monthly_views+ 1
+             WHERE id = $1`,
+            [chapter.series_id]
         );
 
         // Registrar vista

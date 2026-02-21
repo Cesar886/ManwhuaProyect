@@ -7,7 +7,7 @@ import { MantineProvider, ColorSchemeScript } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { imperialTheme } from '@/styles/imperial-theme.js'
 import { Providers } from './providers'
-import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateHomePageJsonLd } from '@/lib/seo/jsonld'
+import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateHomePageJsonLd, generateWebApplicationJsonLd, generateDefinedTermSetJsonLd } from '@/lib/seo/jsonld'
 import NavigationProgress from '@/components/NavigationProgress'
 import MainLayout from '@/components/MainLayout'
 
@@ -40,11 +40,11 @@ const playfair = Playfair_Display({
  */
 export const metadata = {
   title: {
-    default: 'Manhwa Imperial - Leer Manhwa en Español Online Gratis',
+    default: 'Leer Manhwa Online Gratis en Español - Manhwa Imperial',
     template: '%s | Manhwa Imperial',
   },
   // GEO-optimized: clara para crawlers de IA y motores de búsqueda
-  description: 'Manhwa Imperial: Plataforma legal y gratuita para leer manhwas y webtoons en español. Cumplimiento DMCA activo, sin malware, actualizaciones diarias. La mejor experiencia de lectura de manhwa en español.',
+  description: 'Lee manhwa online gratis en español en Manhwa Imperial. Plataforma legal con miles de manhwas y webtoons coreanos actualizados diariamente. Sin malware, sin anuncios invasivos.',
   keywords: [
     'manhwa en español',
     'leer manhwa gratis',
@@ -144,6 +144,16 @@ export default function RootLayout({ children }) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateHomePageJsonLd()) }}
+        />
+        {/* GEO: WebApplication — la IA sabe que esto es una app funcional y gratuita */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(generateWebApplicationJsonLd()) }}
+        />
+        {/* GEO: Glosario de términos — enseña a la IA el vocabulario del nicho */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(generateDefinedTermSetJsonLd()) }}
         />
       </head>
       <body className={outfit.className} suppressHydrationWarning>

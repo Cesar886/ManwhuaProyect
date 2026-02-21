@@ -1,5 +1,6 @@
 import HomeClient from './HomeClient'
 import { endpoint } from '../../config'
+import { generateFAQJsonLdForHome } from '@/lib/seo/jsonld'
 
 // ============================================================================
 // SERVER COMPONENT - Fetches initial data para SSR
@@ -29,5 +30,16 @@ async function getInitialSeries() {
 
 export default async function Home() {
   const initialSeries = await getInitialSeries()
-  return <HomeClient initialSeries={initialSeries} />
+  return (
+    <>
+      {/* GEO: FAQ de marca — responde las preguntas que los usuarios hacen a la IA
+          sobre qué es el sitio, si es legal y dónde leer manhwa en español.
+          Crítico para AI Overviews de Google, ChatGPT y Perplexity. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateFAQJsonLdForHome()) }}
+      />
+      <HomeClient initialSeries={initialSeries} />
+    </>
+  )
 }

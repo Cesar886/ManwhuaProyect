@@ -4,6 +4,10 @@ import { generateChapterKeywords } from '@/lib/seo/keywords'
 import { META_TEMPLATES, getImageAlt } from '@/lib/seo/constants'
 import ChapterReader from './ChapterReaderClient'
 
+// ISR: reconstruye cada 24h (imágenes de capítulos son estáticas, no cambian)
+// Sin esto, Next.js devuelve cache-control: private, no-cache, no-store
+export const revalidate = 86400
+
 // ============================================================================
 // SSR: Pre-fetch de imágenes desde DigitalOcean Spaces
 // Garantiza que crawlers sin JS (OpenAI, Perplexity) vean las imágenes
@@ -58,7 +62,7 @@ export async function generateMetadata({ params }) {
   const metaData = META_TEMPLATES.chapter(series, numero)
 
   return {
-    title: metaData.title,
+    title: { absolute: metaData.title },
     description: metaData.description,
     keywords: generateChapterKeywords(series, numero),
     alternates: {

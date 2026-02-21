@@ -5,6 +5,10 @@ import { META_TEMPLATES, getImageAlt } from '@/lib/seo/constants'
 import ManhwaDetail from './ManhwaDetailClient'
 import { notFound } from 'next/navigation'
 
+// ISR: reconstruye la página cada hora para que Google pueda indexarla
+// Sin esto, Next.js devuelve cache-control: private, no-cache, no-store
+export const revalidate = 3600
+
 const SITE_NAME = 'Manhwa Imperial'
 
 /**
@@ -31,7 +35,7 @@ export async function generateMetadata({ params }) {
   const coverUrl = series.coverUrl || series.cover || null
 
   return {
-    title: metaData.title,
+    title: { absolute: metaData.title },
     description: metaData.description,
     keywords: generateSeriesKeywords(series),
     alternates: {

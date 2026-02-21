@@ -1,17 +1,20 @@
-import { endpoint, SITE_URL } from '@/config'
+import { SERVER_API_BASE, SITE_URL } from '@/config'
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
+/** Headers comunes para todos los fetches SSR internos */
+const sseHeaders = () => ({
+  'Accept': 'application/json',
+  'Origin': SITE_URL,
+  ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+})
+
 export async function fetchSeriesForSEO(slug) {
   try {
-    const url = endpoint('spaces', `manhwas/${slug}`)
+    const url = `${SERVER_API_BASE}/spaces/manhwas/${slug}`
     const res = await fetch(url, {
       next: { revalidate: 300 },
-      headers: {
-        'Accept': 'application/json',
-        'Origin': SITE_URL,
-        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-      },
+      headers: sseHeaders(),
     })
 
     if (!res.ok) return null
@@ -28,14 +31,10 @@ export async function fetchSeriesForSEO(slug) {
  */
 export async function fetchChapterRatingForSEO(slug, chapterNum) {
   try {
-    const url = endpoint('chapters', `${slug}/${chapterNum}/rating`)
+    const url = `${SERVER_API_BASE}/chapters/${slug}/${chapterNum}/rating`
     const res = await fetch(url, {
-      next: { revalidate: 600 }, // Revalidar cada 10 min (ratings cambian más frecuente)
-      headers: {
-        'Accept': 'application/json',
-        'Origin': SITE_URL,
-        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-      },
+      next: { revalidate: 600 },
+      headers: sseHeaders(),
     })
 
     if (!res.ok) return null
@@ -54,14 +53,10 @@ export async function fetchChapterRatingForSEO(slug, chapterNum) {
 
 export async function fetchAllSeriesForSitemap() {
   try {
-    const url = endpoint('spaces', 'manhwas')
+    const url = `${SERVER_API_BASE}/spaces/manhwas`
     const res = await fetch(url, {
       next: { revalidate: 3600 },
-      headers: {
-        'Accept': 'application/json',
-        'Origin': SITE_URL,
-        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-      },
+      headers: sseHeaders(),
     })
 
     if (!res.ok) {

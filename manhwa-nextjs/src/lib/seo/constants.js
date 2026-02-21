@@ -274,8 +274,8 @@ export const SEO_CONTENT = {
 // ============================================================================
 export const META_TEMPLATES = {
   home: {
-    title: `${SITE_NAME} - Leer Manhwa en Español Online Gratis | La Mejor Biblioteca de Manhwas`,
-    description: 'Lee los mejores manhwas en español gratis. Miles de manhwas, webtoons y comics coreanos traducidos. Actualizaciones diarias. Tu biblioteca de manhwas #1.',
+    title: `Leer Manhwa Online Gratis en Español - ${SITE_NAME}`,
+    description: 'Lee manhwa online gratis en español. Miles de manhwas y webtoons coreanos actualizados a diario. Tu biblioteca de manhwas en español favorita.',
     keywords: PAGE_KEYWORDS.home,
   },
   
@@ -323,6 +323,12 @@ export const META_TEMPLATES = {
     }
   },
   
+  biblioteca: {
+    title: `Biblioteca Manhwa Imperial | Lee Manhwas en Español Gratis`,
+    description: 'Explora la biblioteca completa de manhwas en español. Filtra por género, busca tus series favoritas y lee manhwa online gratis. ¡Miles de títulos actualizados!',
+    keywords: PAGE_KEYWORDS.biblioteca,
+  },
+
   genre: (genre) => {
     const genreLower = genre.toLowerCase()
     const genreData = GENRE_SEO[genreLower] || {}

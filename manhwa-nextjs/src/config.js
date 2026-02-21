@@ -4,6 +4,18 @@ const MODE = process.env.NODE_ENV
 
 export const API_BASE = MODE === 'production' ? (PROD || LOCAL) : (LOCAL || PROD)
 
+/**
+ * URL interna para fetches SSR en el servidor.
+ * En producción apunta a localhost:3000 (Express directo, sin pasar por Cloudflare).
+ * En el browser siempre se usa API_BASE (la URL pública).
+ * Se configura con la variable de entorno INTERNAL_API_URL (sin prefijo NEXT_PUBLIC_
+ * para que sea exclusiva del servidor y leída en runtime, sin necesidad de rebuild).
+ */
+export const SERVER_API_BASE =
+  typeof window === 'undefined' && process.env.INTERNAL_API_URL
+    ? process.env.INTERNAL_API_URL.replace(/\/$/, '')
+    : (API_BASE || '').replace(/\/$/, '')
+
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://manhwaimperial.site'
 
 export const SITE_NAME = 'Manhwa Imperial'
