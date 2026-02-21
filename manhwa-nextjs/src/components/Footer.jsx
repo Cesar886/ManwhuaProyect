@@ -39,8 +39,9 @@ const navColumns = [
   {
     title: 'Comunidad',
     links: [
-      { label: 'Discord', link: '/discord' },
-      { label: 'Contacto', link: '/contacto' },
+      { label : 'x/ Twitter', link: 'https://x.com/manhwaimperial' },
+      { label: 'Instagram', link: 'https://instagram.com/manhwaimperial' },
+      { label: 'Facebook', link: 'https://www.facebook.com/share/1DeCq4G8B4/' },
     ],
   },
   {
