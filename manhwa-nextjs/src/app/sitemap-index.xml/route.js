@@ -12,7 +12,7 @@ export async function GET() {
 
   const sitemaps = [`${SITE_URL}/sitemap.xml`]
   for (let i = 1; i <= totalPages; i++) {
-    sitemaps.push(`${SITE_URL}/sitemap-chapters/${i}`)
+    sitemaps.push(`${SITE_URL}/sitemap-chapters-${i}.xml`)
   }
 
   return xmlResponse(buildSitemapIndex(sitemaps, now))
