@@ -195,7 +195,7 @@ const CollectionCardPreview = ({ collection, isDark }) => {
       <Box style={{ position: 'relative', overflow: 'hidden' }}>
         <Image
           src={collection.image}
-          alt={collection.name}
+          alt={`Vista previa de la colección de manhwas "${collection.name}" del usuario en Manhwa Imperial`}
           height={130}
           style={{
             objectFit: 'cover',

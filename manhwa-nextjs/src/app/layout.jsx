@@ -7,7 +7,7 @@ import { MantineProvider, ColorSchemeScript } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { imperialTheme } from '@/styles/imperial-theme.js'
 import { Providers } from './providers'
-import { generateWebSiteJsonLd } from '@/lib/seo/jsonld'
+import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateHomePageJsonLd } from '@/lib/seo/jsonld'
 import NavigationProgress from '@/components/NavigationProgress'
 import MainLayout from '@/components/MainLayout'
 
@@ -43,34 +43,44 @@ export const metadata = {
     default: 'Manhwa Imperial - Leer Manhwa en Español Online Gratis',
     template: '%s | Manhwa Imperial',
   },
-  description: 'Lee los mejores manhwas en español gratis. Miles de manhwas, webtoons y comics coreanos traducidos. Actualizaciones diarias. Tu biblioteca de manhwas #1 para leer manhwa online.',
+  // GEO-optimized: clara para crawlers de IA y motores de búsqueda
+  description: 'Manhwa Imperial: Plataforma legal y gratuita para leer manhwas y webtoons en español. Cumplimiento DMCA activo, sin malware, actualizaciones diarias. La mejor experiencia de lectura de manhwa en español.',
   keywords: [
+    'manhwa en español',
+    'leer manhwa gratis',
+    'webtoon español',
+    'manhwa legal',
+    'plataforma legal manhwa',
+    'manhwa online gratis',
+    'leer webtoon español',
     'manhwa',
     'leer manhwa',
-    'manhwa en español',
     'manhwa online',
-    'manhwa gratis',
     'mejores manhwas',
     'manhwa de romance',
     'manhwa de acción',
-    'manhwa web',
-    'webtoon español',
-    'leer manhwa online',
-    'biblioteca de manhwas',
     'comics coreanos',
     'manhwa traducido',
+    'biblioteca de manhwas',
   ],
   authors: [{ name: 'Manhwa Imperial' }],
   creator: 'Manhwa Imperial',
   publisher: 'Manhwa Imperial',
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  alternates: {
+    canonical: '/',
+  },
+  // GEO meta tags adicionales (next.js 'other' se renderiza como <meta name="...")
+  other: {
+    rating: 'general',
+  },
   openGraph: {
     type: 'website',
     locale: 'es_ES',
     url: '/',
     siteName: 'Manhwa Imperial',
-    title: 'Manhwa Imperial - Leer Manhwa en Español Online Gratis',
-    description: 'Lee los mejores manhwas en español gratis. Miles de títulos disponibles, actualizaciones diarias. La mejor biblioteca para leer manhwa online.',
+    title: 'Manhwa Imperial - Lee Manhwas y Webtoons en Español | Legal y Gratuito',
+    description: 'La plataforma líder para leer manhwas en español. Legal, gratuita, segura y con actualizaciones diarias. Cumplimiento DMCA activo.',
     images: [
       {
         url: '/og-image.png',
@@ -82,13 +92,16 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Manhwa Imperial - Leer Manhwa Online Gratis',
-    description: 'Lee los mejores manhwas en español gratis. Tu biblioteca de manhwas #1.',
+    title: 'Manhwa Imperial - Manhwas en Español | Legal y Gratuito',
+    description: 'Lee manhwas y webtoons en español gratis. Plataforma legal con cumplimiento DMCA activo.',
     images: ['/og-image.png'],
   },
   robots: {
     index: true,
     follow: true,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+    'max-video-preview': -1,
     googleBot: {
       index: true,
       follow: true,
@@ -116,9 +129,21 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />
         {/* DNS prefetch para analytics (GTM carga afterInteractive, no es crítico) */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        {/* === GEO: señales legales para crawlers de IA — Next.js metadata API no genera estos === */}
+        {/* rating: ya se inyecta vía metadata.other, este es el fallback explícito */}
+        <link rel="terms-of-service" href="https://manhwaimperial.site/terminos-de-servicio" />
+        <link rel="privacy-policy" href="https://manhwaimperial.site/politica-de-privacidad" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateWebSiteJsonLd()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(generateOrganizationJsonLd()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(generateHomePageJsonLd()) }}
         />
       </head>
       <body className={outfit.className} suppressHydrationWarning>

@@ -20,6 +20,7 @@ export function generateOrganizationJsonLd() {
     '@type': 'Organization',
     '@id': `${SITE_URL}/#organization`,
     name: SITE_NAME,
+    alternateName: 'ManhwaImperial',
     url: SITE_URL,
     logo: {
       '@type': 'ImageObject',
@@ -29,9 +30,25 @@ export function generateOrganizationJsonLd() {
       height: 512,
       caption: SITE_NAME,
     },
-    description: META_TEMPLATES.home.description,
+    description: 'Plataforma de lectura de manhwa en español que opera con cumplimiento DMCA activo, políticas legales transparentes y un compromiso con la seguridad del usuario.',
     foundingDate: '2024',
     slogan: 'Tu biblioteca de manhwas #1 en español',
+    contactPoint: [
+      {
+        '@type': 'ContactPoint',
+        contactType: 'customer service',
+        email: 'contacto@manhwaimperial.site',
+        availableLanguage: ['Spanish', 'English'],
+      },
+      {
+        '@type': 'ContactPoint',
+        contactType: 'legal',
+        email: 'dmca@manhwaimperial.site',
+        description: 'Agente DMCA designado para solicitudes de eliminación de contenido por derechos de autor',
+      },
+    ],
+    publishingPrinciples: `${SITE_URL}/terminos-de-servicio`,
+    ethicsPolicy: `${SITE_URL}/dmca`,
     sameAs: [],
   }
 }
@@ -46,9 +63,12 @@ export function generateWebSiteJsonLd() {
     '@type': 'WebSite',
     '@id': `${SITE_URL}/#website`,
     name: SITE_NAME,
+    alternateName: 'ManhwaImperial',
     url: SITE_URL,
-    description: META_TEMPLATES.home.description,
+    description: 'Plataforma líder para leer manhwas y webtoons en español. Lectura gratuita, legal y segura con actualizaciones diarias.',
     inLanguage: 'es',
+    isAccessibleForFree: true,
+    isFamilyFriendly: false,
     publisher: {
       '@id': `${SITE_URL}/#organization`,
     },
@@ -56,10 +76,34 @@ export function generateWebSiteJsonLd() {
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
-        urlTemplate: `${SITE_URL}/biblioteca?search={search_term_string}`,
+        urlTemplate: `${SITE_URL}/buscar?q={search_term_string}`,
       },
       'query-input': 'required name=search_term_string',
     },
+  }
+}
+
+// ============================================================================
+// HOMEPAGE WEBPAGE SCHEMA
+// Schema específico para la página principal con significantLinks legales
+// ============================================================================
+export function generateHomePageJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${SITE_URL}/#webpage`,
+    url: SITE_URL,
+    name: `${SITE_NAME} - Lee Manhwas y Webtoons en Español Gratis`,
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    about: { '@id': `${SITE_URL}/#organization` },
+    description: 'Lee manhwas, webtoons y manhua en español gratis. Plataforma legal con cumplimiento DMCA, actualizaciones diarias y miles de títulos.',
+    inLanguage: 'es',
+    significantLink: [
+      `${SITE_URL}/terminos-de-servicio`,
+      `${SITE_URL}/politica-de-privacidad`,
+      `${SITE_URL}/dmca`,
+      `${SITE_URL}/aviso-legal`,
+    ],
   }
 }
 
@@ -362,6 +406,56 @@ export function generateItemListJsonLd(title, items = [], listType = 'ranking') 
         ...(item.coverUrl || item.cover ? { image: item.coverUrl || item.cover } : {}),
       },
     })),
+  }
+}
+
+// ============================================================================
+// SPEAKABLE ARTICLE SCHEMA PARA BÚSQUEDA POR VOZ
+// Optimizado para Google Assistant, Gemini y Perplexity Voice Search
+// Los selectores CSS deben coincidir con los IDs del HTML de la página
+// ============================================================================
+/**
+ * Genera un schema Article con SpeakableSpecification para SEO conversacional.
+ * Los asistentes de voz (Google Assistant, Gemini, Perplexity) leerán en voz alta
+ * únicamente el texto contenido en los elementos con los IDs referenciados.
+ *
+ * Reglas de oro para el texto dentro de esos IDs:
+ * 1. Lenguaje natural — como si le hablaras al usuario directamente
+ * 2. Máximo 20-30 segundos de lectura (~2-3 oraciones cortas)
+ * 3. Los elementos deben ser VISIBLES en la página (no display:none)
+ *
+ * @param {Object} series - Datos de la serie
+ * @returns {Object} JSON-LD para el schema Article con Speakable
+ */
+export function generateSpeakableArticleJsonLd(series) {
+  if (!series) return null
+
+  const title = series.title || 'Manhwa'
+  const status = series.status === 'completed'
+    ? 'completada'
+    : series.status === 'paused'
+      ? 'pausada'
+      : 'en emisión activa'
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    '@id': `${SITE_URL}/manhwa/${series.slug}#article`,
+    headline: `Sinopsis y estado actual de ${title}`,
+    description: `Resumen de la trama y detalles del último capítulo publicado de ${title}.`,
+    inLanguage: 'es',
+    isPartOf: {
+      '@id': `${SITE_URL}/#website`,
+    },
+    publisher: {
+      '@id': `${SITE_URL}/#organization`,
+    },
+    speakable: {
+      '@type': 'SpeakableSpecification',
+      // Estos IDs coinciden exactamente con los elementos HTML de la página de detalle.
+      // El texto dentro de ellos está redactado para sonar natural en voz alta.
+      cssSelector: ['#sinopsis-manhwa', '#estado-publicacion'],
+    },
   }
 }
 

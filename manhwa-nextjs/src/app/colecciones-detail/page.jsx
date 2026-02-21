@@ -80,27 +80,27 @@ const mockCollectionDetail = {
   isVerified: true,
   category: 'Acción',
   tags: ['Acción', 'Top', 'Recomendado', 'Epic', 'Battles'],
-  
+
   cover: 'https://picsum.photos/seed/collection1/1200/400',
   coverGradient: 'linear-gradient(135deg, rgba(6, 182, 212, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)',
-  
+
   createdAt: '2024-10-15',
   updatedAt: '2024-12-17',
-  
+
   followers: 2340,
   likes: 5120,
   commentsCount: 234,
   views: 15600,
   saves: 1240,
   shares: 450,
-  
+
   userLiked: false,
   userFollowing: false,
   userSaved: false,
-  
+
   trend: 'up',
   trendValue: 12.5,
-  
+
   manhwas: [
     {
       id: 1,
@@ -151,7 +151,7 @@ export default function ColeccionesDetail() {
   const router = useRouter();
   const params = useParams();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  
+
   const [collection] = useState(mockCollectionDetail);
   const [activeTab, setActiveTab] = useState('manhwas');
   const [viewMode, setViewMode] = useState('grid');
@@ -416,7 +416,7 @@ export default function ColeccionesDetail() {
                   <Card.Section>
                     <Image
                       src={manhwa.cover}
-                      alt={manhwa.title}
+                      alt={`Portada del manhwa ${manhwa.title} - ${manhwa.status || 'disponible'} con ${manhwa.chapters} capítulos en español`}
                       height={240}
                       fit="cover"
                     />
@@ -448,7 +448,7 @@ export default function ColeccionesDetail() {
                   <Group>
                     <Image
                       src={manhwa.cover}
-                      alt={manhwa.title}
+                      alt={`Portada del manhwa ${manhwa.title} de ${manhwa.author || 'autor desconocido'}, ${manhwa.chapters} capítulos - Leer en Manhwa Imperial`}
                       width={60}
                       height={80}
                       fit="cover"

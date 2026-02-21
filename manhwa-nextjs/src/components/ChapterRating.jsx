@@ -23,31 +23,33 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
 
   // El timer anti-bot arranca cuando visitorId está disponible (no al montar)
   const mountTimeRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const fpInitRef = useRef(false);
+
+  useEffect(() => {
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   const getStorageKey = (s, ch) => `mi_chapter_rating_${s}_${ch}`;
 
-  // Inicializar FingerprintJS y obtener visitorId
-  useEffect(() => {
-    let mounted = true;
+  // Inicializar FingerprintJS solo cuando el usuario interactúa con las estrellas
+  const initFingerprintOnDemand = useCallback(async () => {
+    if (fpInitRef.current) return;
+    fpInitRef.current = true;
 
-    const initFingerprint = async () => {
-      try {
-        const FingerprintJS = (await import('@fingerprintjs/fingerprintjs')).default;
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        if (mounted) setVisitorId(result.visitorId);
-      } catch {
-        let fallbackId = localStorage.getItem('mi_visitor_id');
-        if (!fallbackId) {
-          fallbackId = 'fb_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-          localStorage.setItem('mi_visitor_id', fallbackId);
-        }
-        if (mounted) setVisitorId(fallbackId);
+    try {
+      const FingerprintJS = (await import('@fingerprintjs/fingerprintjs')).default;
+      const fp = await FingerprintJS.load();
+      const result = await fp.get();
+      if (isMountedRef.current) setVisitorId(result.visitorId);
+    } catch {
+      let fallbackId = localStorage.getItem('mi_visitor_id');
+      if (!fallbackId) {
+        fallbackId = 'fb_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+        localStorage.setItem('mi_visitor_id', fallbackId);
       }
-    };
-
-    initFingerprint();
-    return () => { mounted = false; };
+      if (isMountedRef.current) setVisitorId(fallbackId);
+    }
   }, []);
 
   // Registrar cuándo el usuario puede empezar a votar (para anti-bot)
@@ -192,7 +194,11 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
       )}
 
       {/* Estrellas interactivas */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+        onMouseEnter={initFingerprintOnDemand}
+        onFocus={initFingerprintOnDemand}
+      >
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}

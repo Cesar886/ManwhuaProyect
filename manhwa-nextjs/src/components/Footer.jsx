@@ -39,6 +39,16 @@ const data = [
       { label: 'Contacto', link: '/contacto' },
     ],
   },
+  {
+    title: 'Legal',
+    links: [
+      { label: 'Acerca de', link: '/acerca-de' },
+      { label: 'Términos de Servicio', link: '/terminos-de-servicio' },
+      { label: 'Política de Privacidad', link: '/politica-de-privacidad' },
+      { label: 'Política DMCA', link: '/dmca' },
+      { label: 'Aviso Legal', link: '/aviso-legal' },
+    ],
+  },
 ];
 
 function Footer() {
@@ -72,11 +82,32 @@ function Footer() {
             height={30}
           />
           <Text size="xs" c="dimmed" className={classes.description}>
-            Manhwa Imperial: tu biblioteca para leer manhwa en español gratis. 
+            Manhwa Imperial: tu biblioteca para leer manhwa en español gratis.
             Encuentra los mejores manhwas online, manhwa de romance, acción y más webtoons en español.
           </Text>
         </div>
         <div className={classes.groups}>{groups}</div>
+      </Container>
+      {/* === DISCLAIMER LEGAL — señal DMCA visible para crawlers y usuarios === */}
+      <Container className={classes.disclaimer}>
+        <nav aria-label="Enlaces legales" className={classes.disclaimerLinks}>
+          <Link href="/terminos-de-servicio" className={classes.disclaimerLink}>Términos de Servicio</Link>
+          <span className={classes.disclaimerSep} aria-hidden="true">·</span>
+          <Link href="/politica-de-privacidad" className={classes.disclaimerLink}>Política de Privacidad</Link>
+          <span className={classes.disclaimerSep} aria-hidden="true">·</span>
+          <Link href="/dmca" className={classes.disclaimerLink}>Política DMCA</Link>
+          <span className={classes.disclaimerSep} aria-hidden="true">·</span>
+          <Link href="/aviso-legal" className={classes.disclaimerLink}>Aviso Legal</Link>
+        </nav>
+        <p className={classes.disclaimerText}>
+          © {new Date().getFullYear()} Manhwa Imperial. Todos los manhwas, webtoons y manhua son
+          propiedad de sus respectivos autores y editores. Esta plataforma opera como un servicio
+          de agregación de contenido con{' '}
+          <Link href="/dmca" className={classes.disclaimerHighlight}>cumplimiento DMCA activo</Link>.{' '}
+          Plataforma estrictamente moderada, <strong>libre de malware</strong>, sin anuncios
+          pop-under ni publicidad intrusiva. Apoyamos a los creadores originales — compra las
+          obras oficiales cuando estén disponibles.
+        </p>
       </Container>
       <Container className={classes.afterFooter}>
         <Text c="dimmed" size="sm">

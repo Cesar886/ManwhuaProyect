@@ -296,7 +296,8 @@
   position: relative;
   z-index: 2;
   width: 220px;
-  height: 330px; /* 220 * 1.5 = 330 (aspect ratio 2:3) */
+  height: 330px;
+  /* 220 * 1.5 = 330 (aspect ratio 2:3) */
   flex-shrink: 0;
   animation: floatUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -304,14 +305,16 @@
 @media (max-width: 992px) {
   .coverContainer {
     width: 170px;
-    height: 255px; /* 170 * 1.5 = 255 */
+    height: 255px;
+    /* 170 * 1.5 = 255 */
   }
 }
 
 @media (max-width: 600px) {
   .coverContainer {
     width: 180px;
-    height: 270px; /* 180 * 1.5 = 270 */
+    height: 270px;
+    /* 180 * 1.5 = 270 */
   }
 }
 
@@ -436,8 +439,15 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .title {
@@ -450,11 +460,20 @@
 }
 
 @media (max-width: 992px) {
-  .title { font-size: 2rem; }
+  .title {
+    font-size: 2rem;
+  }
 }
+
 @media (max-width: 600px) {
-  .title { font-size: 1.75rem; }
-  .heroInfo { align-items: center; text-align: center; }
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .heroInfo {
+    align-items: center;
+    text-align: center;
+  }
 }
 
 .heroAuthor {
@@ -476,7 +495,9 @@
 }
 
 @media (max-width: 600px) {
-  .heroAuthor { justify-content: center; }
+  .heroAuthor {
+    justify-content: center;
+  }
 }
 
 /* Hero Synopsis */
@@ -510,7 +531,9 @@
 }
 
 @media (max-width: 600px) {
-  .heroActions { justify-content: center; }
+  .heroActions {
+    justify-content: center;
+  }
 }
 
 .heroReadButton {
@@ -1760,12 +1783,197 @@
     font-size: 0.85rem;
     padding: var(--spacing-sm) var(--spacing-md);
   }
-  
+
   .faqSection {
     padding: var(--spacing-md);
   }
-  
+
   .faqTitle {
     font-size: 1.1rem;
+  }
+}
+
+/* ============================================
+   SPEAKABLE STATUS
+   Texto visible para el schema Speakable (#estado-publicacion)
+   Visible en pantalla, con texto redactado para voz natural.
+   Google requiere que el texto speakable NO esté oculto.
+   ============================================ */
+.speakableStatus {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  margin: 0 auto;
+  max-width: var(--content-width, 900px);
+  border-left: 3px solid var(--imperial-primary);
+  background: rgba(var(--imperial-blue-rgb, 102, 126, 234), 0.06);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+@media (max-width: 768px) {
+  .speakableStatus {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.82rem;
+  }
+}
+
+/* ============================================
+   UPDATE STATUS TABLE
+   Tabla de "Estado de Actualización" para SEO/IA
+   ============================================ */
+.updateStatusSection {
+  max-width: var(--content-width, 900px);
+  margin: var(--spacing-lg) auto 0;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  animation: fadeIn 0.5s ease-out 0.1s backwards;
+}
+
+@media (max-width: 768px) {
+  .updateStatusSection {
+    padding: var(--spacing-md);
+    margin: var(--spacing-md) var(--spacing-md) 0;
+  }
+}
+
+.updateStatusTitle {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 0 0 var(--spacing-sm) 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.updateStatusTitle svg {
+  color: var(--imperial-primary);
+  flex-shrink: 0;
+}
+
+.updateStatusIntro {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-md) 0;
+  line-height: 1.6;
+}
+
+.updateStatusTableWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.updateStatusTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.updateStatusTable thead tr {
+  background: var(--subtle-bg);
+}
+
+.updateStatusTable th {
+  padding: 0.6rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.updateStatusTable td {
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.updateStatusTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.updateStatusTable tbody tr:hover {
+  background: var(--subtle-bg);
+  transition: background var(--transition-base);
+}
+
+.updateStatusChapterLink {
+  color: var(--imperial-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--transition-base);
+}
+
+.updateStatusChapterLink:hover {
+  color: var(--imperial-primary-dark, var(--imperial-primary));
+  text-decoration: underline;
+}
+
+/* Status Badges */
+.updateStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.updateStatusOngoing {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34D399;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+.updateStatusOngoing::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34D399;
+  animation: pulse 2s infinite;
+}
+
+.updateStatusPaused {
+  background: rgba(251, 191, 36, 0.12);
+  color: #FBBF24;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.updateStatusCompleted {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60A5FA;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+
+.updateStatusNote {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: var(--spacing-sm) 0 0 0;
+  line-height: 1.5;
+}
+
+.updateStatusNote strong {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 600px) {
+
+  .updateStatusTable th,
+  .updateStatusTable td {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.82rem;
   }
 }

@@ -32,8 +32,9 @@ const KEYWORDS_MAP = [
  * @param {Object} props
  * @param {string} props.text - Texto de la sinopsis
  * @param {string} props.className - Clase CSS
+ * @param {string} [props.id] - ID del elemento para schema Speakable y anclas SEO
  */
-export default function LinkedSynopsis({ text, className }) {
+export default function LinkedSynopsis({ text, className, id }) {
   if (!text) return null;
 
   // Rastrear qué hrefs ya se usaron (solo enlazar primera aparición por destino)
@@ -91,5 +92,5 @@ export default function LinkedSynopsis({ text, className }) {
     remaining = remaining.slice(earliestMatch.index + earliestMatch[0].length);
   }
 
-  return <p className={className}>{parts}</p>;
+  return <p id={id} className={className}>{parts}</p>;
 }

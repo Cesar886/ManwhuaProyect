@@ -57,8 +57,8 @@ export default function ManhwaCard({
 
   const statusLabel = manhwa.status === 'ongoing' ? 'Activo' : manhwa.status;
 
-  // SEO: Generar alt text con keyword "manhwa"
-  const coverAlt = `${manhwa.title} manhwa - Leer en español`;
+  // SEO: Generar alt text narrativo con keywords y contexto para Visión de IA
+  const coverAlt = `Portada oficial del manhwa ${manhwa.title} - Serie de acción en español, ${manhwa.status === 'ongoing' ? 'en emisión' : manhwa.status || 'disponible'} en Manhwa Imperial`;
 
   return (
     <Card
@@ -132,7 +132,7 @@ export default function ManhwaCard({
 
       {/* Info Section */}
       <Stack gap={4} p="xs" className={classes.infoSection}>
-        <Text 
+        <Text
           className={classes.title}
           lineClamp={2}
         >
@@ -148,7 +148,7 @@ export default function ManhwaCard({
               </Text>
             </Group>
           )}
-          
+
           {manhwa.viewCount > 0 && (
             <Group gap={4}>
               <IconEye size={12} stroke={1.5} />

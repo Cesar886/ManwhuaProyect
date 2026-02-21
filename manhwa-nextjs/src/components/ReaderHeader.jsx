@@ -224,7 +224,7 @@ export default function ReaderHeader({ slug, chapterNum }) {
     window.addEventListener('resize', updateWidths);
 
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(updateWidths).catch(() => {});
+      document.fonts.ready.then(updateWidths).catch(() => { });
     }
 
     return () => {
@@ -233,7 +233,7 @@ export default function ReaderHeader({ slug, chapterNum }) {
         if (leftRef.current) ro.unobserve(leftRef.current);
         if (rightRef.current) ro.unobserve(rightRef.current);
         ro.disconnect();
-      } catch (e) {}
+      } catch (e) { }
     };
   }, []);
 
@@ -291,7 +291,7 @@ export default function ReaderHeader({ slug, chapterNum }) {
         <div className={styles.logoContainer}>
           <Image
             src="/logo.png"
-            alt="Manhwa Imperial Logo"
+            alt="Logo de Manhwa Imperial - Lector de manhwas en español"
             width={32}
             height={32}
             className={styles.logoImg}

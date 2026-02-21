@@ -26,8 +26,8 @@ const BLUR_PLACEHOLDER =
 export default function ManhwaCover({ src, alt, className, priority = false, sizes }) {
     const [imageError, setImageError] = useState(false);
 
-    // SEO: Asegurar que el alt siempre incluya información útil
-    const seoAlt = alt || 'Portada de manhwa';
+    // SEO: Asegurar que el alt siempre incluya información útil y narrativa para Visión de IA
+    const seoAlt = alt || 'Portada de manhwa - Leer manga coreano en español online en Manhwa Imperial';
 
     if (imageError || !src) {
         return (

@@ -204,11 +204,11 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
     const showPages = 5;
     let start = Math.max(1, value - Math.floor(showPages / 2));
     let end = Math.min(total, start + showPages - 1);
-    
+
     if (end - start + 1 < showPages) {
       start = Math.max(1, end - showPages + 1);
     }
-    
+
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
@@ -260,7 +260,7 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
       >
         <IconChevronLeft size={18} />
       </button>
-      
+
       {getVisiblePages().map((page) => (
         <button
           key={page}
@@ -272,7 +272,7 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
           {page}
         </button>
       ))}
-      
+
       <button
         style={navButtonStyle(value === total)}
         onClick={() => value < total && onChange(value + 1)}
@@ -321,7 +321,7 @@ function UserCollectionCard({ collection, onEdit, onDelete }) {
       <div className={classes.cardImageSection}>
         <Image
           src={normalizeImageUrl(collection.cover || collection.coverUrl || collection.cover_url)}
-          alt={collection.name}
+          alt={`Portada de la colección de manhwas "${collection.name}" - ${collection.isPublic ? 'Colección pública' : 'Colección privada'} con ${collection.manhwas} series`}
           h="100%"
           w="100%"
           style={{ objectFit: 'cover' }}
@@ -329,14 +329,14 @@ function UserCollectionCard({ collection, onEdit, onDelete }) {
         <div className={classes.statusBadge}>
           {collection.isPublic ? 'PÚBLICA' : 'PRIVADA'}
         </div>
-        
-        <Box 
+
+        <Box
           onClick={(e) => e.stopPropagation()}
           className={classes.menuButton}
         >
           <Popover position="bottom-end" shadow="md">
             <Popover.Target>
-               <IconDots size={16} />
+              <IconDots size={16} />
             </Popover.Target>
             <Popover.Dropdown p={4}>
               <Stack gap={4}>
@@ -399,19 +399,19 @@ const NewCollectionCard = ({ onCreate }) => (
     onClick={onCreate}
   >
     <div className={classes.createCardImage}>
-        <Stack gap={0} align="center">
-            <div className={classes.createCardIconBox}>
-                <IconPlus size={32} style={{ strokeWidth: 2.5 }} />
-            </div>
-            <Text fw={700} c="cyan.4" size="sm" mt="xs">Crear Nueva</Text>
-        </Stack>
+      <Stack gap={0} align="center">
+        <div className={classes.createCardIconBox}>
+          <IconPlus size={32} style={{ strokeWidth: 2.5 }} />
+        </div>
+        <Text fw={700} c="cyan.4" size="sm" mt="xs">Crear Nueva</Text>
+      </Stack>
     </div>
 
     <div className={classes.cardContent} style={{ justifyContent: 'center', alignItems: 'center' }}>
       <Stack gap="xs" align="center">
-         <Text className={classes.textDescription} ta="center">
-            Organiza tus manhwas favoritos en colecciones personalizadas...
-         </Text>
+        <Text className={classes.textDescription} ta="center">
+          Organiza tus manhwas favoritos en colecciones personalizadas...
+        </Text>
       </Stack>
     </div>
   </Card>
@@ -470,7 +470,7 @@ function CommunityCollectionCard({ collection, onLike, onFollow }) {
         <Box style={{ position: 'relative', height: 100 }}>
           <Image
             src={normalizeImageUrl(collection.cover || collection.coverUrl || collection.cover_url)}
-            alt={collection.name}
+            alt={`Imagen de la colección comunitaria "${collection.name}" de ${collection.creator || 'un curador'} - ${collection.manhwas} manhwas seleccionados`}
             height={100}
             style={{ objectFit: 'cover' }}
           />
@@ -568,7 +568,7 @@ const FavoriteManhwaCard = ({ manhwa, onRemove }) => (
     <Box style={{ position: 'relative', height: 180 }}>
       <Image
         src={normalizeImageUrl(manhwa.cover || manhwa.coverUrl || manhwa.cover_url)}
-        alt={manhwa.title}
+        alt={`Portada del manhwa favorito ${manhwa.title} - ${manhwa.status || 'disponible'}, año ${manhwa.year || 'desconocido'} - Guardado en Manhwa Imperial`}
         height={180}
         style={{ objectFit: 'cover' }}
       />
@@ -613,13 +613,13 @@ export default function Colecciones() {
   const searchParams = useSearchParams();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const isSmallMobile = useMediaQuery('(max-width: 480px)');
-  
+
   const initialTab = searchParams.get('tab') || 'mis-colecciones';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [userCollections, setUserCollections] = useState(mockUserCollections);
   const [communityCollections, setCommunityCollections] = useState(mockCommunityCollections);
   const [favoriteManhwas, setFavoriteManhwas] = useState(mockFavoriteManhwas);
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
   const [showFiltersDrawer, setShowFiltersDrawer] = useState(false);
@@ -661,7 +661,7 @@ export default function Colecciones() {
     if (tab && tab !== activeTab) {
       setActiveTab(tab);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.toString()]);
 
   const handleFollow = (id) => {
@@ -821,8 +821,8 @@ export default function Colecciones() {
                 }
               />
 
-              <SimpleGrid 
-                cols={{ base: 2, sm: 2, md: 3, lg: 4 }} 
+              <SimpleGrid
+                cols={{ base: 2, sm: 2, md: 3, lg: 4 }}
                 spacing={isSmallMobile ? 'xs' : isMobile ? 'sm' : 'lg'}
               >
                 <NewCollectionCard
@@ -848,8 +848,8 @@ export default function Colecciones() {
           <Tabs.Panel value="favoritos" pt="xl">
             <Stack gap="md">
               {favoriteManhwas.length > 0 ? (
-                <SimpleGrid 
-                  cols={{ base: isSmallMobile ? 2 : 3, sm: 3, md: 4, lg: 5 }} 
+                <SimpleGrid
+                  cols={{ base: isSmallMobile ? 2 : 3, sm: 3, md: 4, lg: 5 }}
                   spacing={isSmallMobile ? 'xs' : isMobile ? 'sm' : 'md'}
                 >
                   {favoriteManhwas.map((manhwa) => (
@@ -940,8 +940,8 @@ export default function Colecciones() {
 
               {paginatedCommunity.length > 0 ? (
                 <>
-                  <SimpleGrid 
-                    cols={{ base: isSmallMobile ? 2 : 3, sm: 3, md: 4, lg: 6 }} 
+                  <SimpleGrid
+                    cols={{ base: isSmallMobile ? 2 : 3, sm: 3, md: 4, lg: 6 }}
                     spacing={isSmallMobile ? 'xs' : isMobile ? 'sm' : 'md'}
                   >
                     {paginatedCommunity.map((collection) => (

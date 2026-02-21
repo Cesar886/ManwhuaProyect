@@ -19,32 +19,83 @@ export default async function BlogPostPage({ params }) {
   const category = CATEGORY_LABELS[post.category] || { label: post.category, color: '#6B7280' }
 
   // JSON-LD schemas
+  // ── BlogPosting (más específico que Article — preferido por Google y crawlers de IA)
   const articleJsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': 'BlogPosting',
+    '@id': `${SITE_URL}/blog/${post.slug}#article`,
     headline: post.title,
     description: post.meta_description,
-    keywords: [post.target_keyword, ...post.secondary_keywords].join(', '),
+    keywords: [post.target_keyword, ...post.secondary_keywords, ...post.tags].join(', '),
     datePublished: post.publishedAt,
-    dateModified: post.updatedAt,
-    author: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
-    publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
+    dateModified: post.updatedAt || post.publishedAt,
+    inLanguage: 'es-ES',
+    wordCount: post.word_count,
+    timeRequired: `PT${post.reading_time_minutes}M`,
+    // articleSection: categoría del post para clasificación semántica
+    articleSection: post.category,
+    // author y publisher enlazados al grafo global
+    author: {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    publisher: {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${SITE_URL}/logo.png`,
+      },
+    },
     url: `${SITE_URL}/blog/${post.slug}`,
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_URL}/blog/${post.slug}` },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${SITE_URL}/blog/${post.slug}`,
+    },
+    image: {
+      '@type': 'ImageObject',
+      url: `${SITE_URL}/og-image.png`,
+      width: 1200,
+      height: 630,
+    },
+    isPartOf: {
+      '@type': 'Blog',
+      '@id': `${SITE_URL}/blog#blog`,
+      name: `Blog de ${SITE_NAME}`,
+      url: `${SITE_URL}/blog`,
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+    // speakable: indica a asistentes de voz e IA qué fragmentos leer/resumir
+    speakable: {
+      '@type': 'SpeakableSpecification',
+      cssSelector: ['h1', 'h2', '.articleExcerpt'],
+    },
   }
 
+  // ── FAQPage: señal directa para que IAs extraigan respuestas
   const faqJsonLd = post.faq_schema?.length
     ? {
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
-        mainEntity: post.faq_schema.map((item) => ({
-          '@type': 'Question',
-          name: item.question,
-          acceptedAnswer: { '@type': 'Answer', text: item.answer },
-        })),
-      }
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      '@id': `${SITE_URL}/blog/${post.slug}#faq`,
+      mainEntity: post.faq_schema.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.answer,
+          // upvoteCount: señal de calidad para IAs (valor simbólico positivo)
+          upvoteCount: 1,
+        },
+      })),
+    }
     : null
 
+  // ── BreadcrumbList: señal de jerarquía del sitio
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -55,6 +106,28 @@ export default async function BlogPostPage({ params }) {
     ],
   }
 
+  // ── ItemList: para posts tipo "Top N" — Google lo muestra como lista numerada
+  // Los crawlers de IA usan este schema para extraer recomendaciones directamente
+  const itemListJsonLd = post.list_schema?.length
+    ? {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      '@id': `${SITE_URL}/blog/${post.slug}#itemlist`,
+      name: post.title,
+      description: post.meta_description,
+      url: `${SITE_URL}/blog/${post.slug}`,
+      numberOfItems: post.list_schema.length,
+      itemListOrder: 'https://schema.org/ItemListOrderDescending',
+      itemListElement: post.list_schema.map((item, idx) => ({
+        '@type': 'ListItem',
+        position: idx + 1,
+        name: item.name,
+        description: item.description,
+        url: item.url || `${SITE_URL}/blog/${post.slug}`,
+      })),
+    }
+    : null
+
   return (
     <>
       <Header />
@@ -62,6 +135,9 @@ export default async function BlogPostPage({ params }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       {faqJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      )}
+      {itemListJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
       )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 

@@ -15,10 +15,9 @@
   left: 0;
   right: 0;
   height: 200px;
-  background: linear-gradient(to bottom, 
-    rgba(var(--imperial-purple-rgb, 139, 92, 200), 0.03) 0%, 
-    transparent 100%
-  );
+  background: linear-gradient(to bottom,
+      rgba(var(--imperial-purple-rgb, 139, 92, 200), 0.03) 0%,
+      transparent 100%);
   pointer-events: none;
 }
 
@@ -77,6 +76,64 @@
   border-top: 1px solid var(--border-subtle, var(--border-color-subtle));
 }
 
+/* ── Disclaimer Legal ─────────────────────────────────────────────────────── */
+
+.disclaimer {
+  margin-top: calc(var(--mantine-spacing-xl) * 1.5);
+  padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+  border-top: 1px solid var(--border-subtle, var(--border-color-subtle));
+  border-bottom: 1px solid var(--border-subtle, var(--border-color-subtle));
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-sm);
+}
+
+.disclaimerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.disclaimerLink {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--dimmed-text);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.disclaimerLink:hover {
+  color: var(--imperial-gold, #D4A528);
+  text-decoration: none;
+}
+
+.disclaimerSep {
+  color: var(--border-medium, #444);
+  font-size: 0.75rem;
+  user-select: none;
+}
+
+.disclaimerText {
+  font-size: 0.78rem;
+  color: var(--dimmed-text);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 760px;
+}
+
+.disclaimerHighlight {
+  color: var(--imperial-gold, #D4A528);
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.disclaimerHighlight:hover {
+  opacity: 0.75;
+  text-decoration: none;
+}
+
 /* Responsive rules (converted from nested SCSS) */
 @media (max-width: 768px) {
   .logo {
@@ -118,10 +175,9 @@
 }
 
 :global([data-theme="light"]) .footer::before {
-  background: linear-gradient(to bottom, 
-    rgba(107, 79, 163, 0.03) 0%, 
-    transparent 100%
-  );
+  background: linear-gradient(to bottom,
+      rgba(107, 79, 163, 0.03) 0%,
+      transparent 100%);
 }
 
 :global([data-theme="light"]) .title {

@@ -4,6 +4,28 @@ import { generateChapterKeywords } from '@/lib/seo/keywords'
 import { META_TEMPLATES, getImageAlt } from '@/lib/seo/constants'
 import ChapterReader from './ChapterReaderClient'
 
+// ============================================================================
+// SSR: Pre-fetch de imágenes desde DigitalOcean Spaces
+// Garantiza que crawlers sin JS (OpenAI, Perplexity) vean las imágenes
+// ============================================================================
+async function fetchChapterPages(slug, numero) {
+  try {
+    const spacesUrl = process.env.NEXT_PUBLIC_DO_SPACES_URL
+    if (!spacesUrl) return []
+    const paddedChapter = String(numero).padStart(4, '0')
+    const imagesJsonUrl = `${spacesUrl}/${slug}/cap-${paddedChapter}/images.json`
+    const res = await fetch(imagesJsonUrl, {
+      next: { revalidate: 3600 }, // Las imágenes de capítulo son estáticas
+    })
+    if (!res.ok) return []
+    const imagesList = await res.json()
+    if (!Array.isArray(imagesList)) return []
+    return imagesList.map((url, idx) => ({ url, number: idx + 1 }))
+  } catch {
+    return []
+  }
+}
+
 const SITE_NAME = 'Manhwa Imperial'
 
 /**
@@ -80,10 +102,11 @@ export async function generateMetadata({ params }) {
 export default async function ChapterReaderPage({ params }) {
   const { slug, numero } = await params
 
-  // Fetch series y rating del capítulo en paralelo
-  const [series, chapterRating] = await Promise.all([
+  // Fetch paralelo: series, rating del capítulo e imágenes (SSR)
+  const [series, chapterRating, initialPages] = await Promise.all([
     fetchSeriesForSEO(slug),
     fetchChapterRatingForSEO(slug, numero),
+    fetchChapterPages(slug, numero),
   ])
 
   const title = series?.title || slug.replace(/-/g, ' ')
@@ -110,7 +133,12 @@ export default async function ChapterReaderPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      <ChapterReader />
+      {/*
+        initialPages: imágenes pre-cargadas en el servidor para SSR.
+        initialSeries: datos de la serie pre-cargados para el h1 y título.
+        Los crawlers sin JS verán el contenido completo del capítulo en el HTML inicial.
+      */}
+      <ChapterReader initialPages={initialPages} initialSeries={series} />
     </>
   )
 }

@@ -1,0 +1,46 @@
+# Manhwa Imperial
+
+> Plataforma legal de lectura de manhwa (comics coreanos webtoon) en español, con miles de títulos disponibles de forma gratuita. Actualizaciones diarias, sistema de biblioteca personal, calificaciones y comunidad activa.
+
+## ¿Qué es Manhwa Imperial?
+
+Manhwa Imperial es la biblioteca de manhwa en español #1 de habla hispana. Ofrece acceso gratuito a miles de manhwas (webtoons coreanos) traducidos al español, con nuevos capítulos actualizados diariamente. Los usuarios pueden leer en línea, guardar series en su biblioteca personal, calificar capítulos y series, y hacer solicitudes de nuevos títulos.
+
+## Seguridad y Confianza
+
+Manhwa Imperial es una plataforma **estrictamente moderada, libre de malware, sin anuncios pop-under y sin publicidad intrusiva o engañosa**. A diferencia de la mayoría de sitios de lectura de manhwa, garantiza:
+
+- ✅ Conexión HTTPS cifrada en todas las páginas
+- ✅ Sin descargas de software, ejecutables ni extensiones de navegador
+- ✅ Sin anuncios pop-up, pop-under ni redireccionamientos maliciosos
+- ✅ Sin rastreo invasivo ni venta de datos de usuario
+- ✅ Content Security Policy (CSP) activo — bloquea scripts no autorizados
+- ✅ HSTS (Strict-Transport-Security) con preload — protege contra ataques MITM
+- ✅ Headers de seguridad verificables: X-Frame-Options, X-Content-Type-Options, CORP, COOP
+- ✅ Cumplimiento DMCA activo con agente designado (dmca@manhwaimperial.site)
+
+## Secciones principales
+
+- [Inicio](https://manhwaimperial.site/) — Portada con manhwas destacados, nuevos capítulos y tendencias
+- [Biblioteca](https://manhwaimperial.site/biblioteca) — Catálogo completo de todos los manhwas disponibles con filtros por género, estado y popularidad
+- [Populares](https://manhwaimperial.site/populares) — Ranking de manhwas más leídos (diario, semanal, mensual)
+- [Colecciones](https://manhwaimperial.site/colecciones) — Colecciones temáticas curadas por género y tipo de historia
+- [Blog](https://manhwaimperial.site/blog) — Artículos, noticias y recomendaciones sobre el mundo del manhwa
+- [Solicitudes](https://manhwaimperial.site/pedidos) — Sistema para que los usuarios soliciten nuevos títulos
+
+## Géneros disponibles
+
+Acción, Romance, Fantasía, Isekai, Sistema, Regresión, Murim, Slice of Life, Drama, Aventura, Comedia, Terror, Sobrenatural, Escolar, Manhwa de Oro (clásicos), BL (Boys Love), GL (Girls Love), entre otros.
+
+## Información técnica
+
+- **Idioma**: Español (es-ES, es-419)
+- **URL base**: https://manhwaimperial.site
+- **Sitemap**: https://manhwaimperial.site/sitemap-index.xml
+- **Formato de URL de serie**: https://manhwaimperial.site/manhwa/[slug]
+- **Formato de URL de capítulo**: https://manhwaimperial.site/manhwa/[slug]/capitulo/[numero]
+- **Tecnología**: Next.js (React), PostgreSQL, DigitalOcean Spaces (CDN de imágenes)
+
+## Política de contenido
+
+Todo el contenido está legalmente licenciado y traducido. La plataforma no aloja contenido pirata. Los títulos son manhwas (origen coreano) y webtoons en formato vertical (scroll), distintos del manga japonés tradicional.

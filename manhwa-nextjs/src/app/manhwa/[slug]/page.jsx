@@ -1,5 +1,5 @@
 import { fetchSeriesForSEO } from '@/lib/seo/fetchSeries'
-import { generateComicSeriesJsonLd, generateBreadcrumbJsonLd, generateFAQJsonLd } from '@/lib/seo/jsonld'
+import { generateComicSeriesJsonLd, generateBreadcrumbJsonLd, generateFAQJsonLd, generateSpeakableArticleJsonLd } from '@/lib/seo/jsonld'
 import { generateSeriesKeywords } from '@/lib/seo/keywords'
 import { META_TEMPLATES, getImageAlt } from '@/lib/seo/constants'
 import ManhwaDetail from './ManhwaDetailClient'
@@ -90,6 +90,8 @@ export default async function ManhwaDetailPage({ params }) {
   ])
   // FAQPage schema para preguntas frecuentes en Google
   const faqJsonLd = generateFAQJsonLd(series)
+  // Speakable Article schema para búsqueda por voz (Gemini, Google Assistant, Perplexity)
+  const speakableJsonLd = generateSpeakableArticleJsonLd(series)
 
   return (
     <>
@@ -110,6 +112,13 @@ export default async function ManhwaDetailPage({ params }) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
+      {/* Schema.org: Speakable Article - Para SEO conversacional y búsqueda por voz */}
+      {speakableJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(speakableJsonLd) }}
         />
       )}
       <ManhwaDetail initialSeries={series} />

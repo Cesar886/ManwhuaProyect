@@ -52,7 +52,34 @@ const nextConfig: NextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+          // Bloquear acceso desde dominios externos a recursos (CORP)
+          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+          // Evitar ataques Spectre entre ventanas (COOP)
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+          // Bloquear carga de recursos Flash/PDF de dominios externos
+          { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
+          // Permissions-Policy ampliado: bloquear APIs invasivas y FLoC/Topics
+          {
+            key: 'Permissions-Policy',
+            value: [
+              'camera=()',
+              'microphone=()',
+              'geolocation=()',
+              'payment=()',
+              'usb=()',
+              'bluetooth=()',
+              'interest-cohort=()',
+              'browsing-topics=()',
+              'display-capture=()',
+              'document-domain=()',
+              'encrypted-media=()',
+              'execution-while-not-rendered=()',
+              'execution-while-out-of-viewport=()',
+              'fullscreen=(self)',
+              'screen-wake-lock=()',
+              'web-share=()',
+            ].join(', '),
+          },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           {
             key: 'Content-Security-Policy',
@@ -68,6 +95,10 @@ const nextConfig: NextConfig = {
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
+              // Bloquear mixed content (HTTP dentro de HTTPS)
+              'upgrade-insecure-requests',
+              // Reportar violaciones CSP (opcional: apunta a tu endpoint)
+              // "report-uri /api/csp-report",
             ].join('; '),
           },
         ],

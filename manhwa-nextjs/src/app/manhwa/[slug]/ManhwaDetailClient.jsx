@@ -339,7 +339,7 @@ const ChapterCard = ({ chapter, slug, isRead, isNew }) => {
       className={`${styles.chapterCard} ${isRead ? styles.chapterRead : ''} ${isActive ? styles.chapterActive : ''}`}
     >
       {chapter.thumbnail && (
-        <img src={chapter.thumbnail} alt="" className={styles.chapterThumbnail} loading="lazy" />
+        <img src={chapter.thumbnail} alt={`Miniatura del Capítulo ${chapter.number} - Vista previa de página del manhwa`} className={styles.chapterThumbnail} loading="lazy" />
       )}
       <div className={styles.chapterLeft}>
         <span className={styles.chapterNumber}>{chapter.number}</span>
@@ -389,7 +389,7 @@ const RelatedSeriesCard = ({ series }) => (
   <Link href={`/manhwa/${series.slug}`} className={styles.relatedCard}>
     <img
       src={normalizeImageUrl(series.cover)}
-      alt={series.title}
+      alt={`Portada del manhwa ${series.title} - Serie relacionada recomendada en Manhwa Imperial`}
       className={styles.relatedCover}
       loading="lazy"
       crossOrigin="anonymous"
@@ -965,7 +965,9 @@ export default function ManhwaDetail({ initialSeries }) {
                 <h2 className={styles.srOnly}>
                   {SEO_CONTENT.manhwaDetail.getSynopsisTitle(effectiveSeries?.title || series?.title)}
                 </h2>
+                {/* id="sinopsis-manhwa": Apuntado por el schema Speakable para búsqueda por voz */}
                 <LinkedSynopsis
+                  id="sinopsis-manhwa"
                   text={effectiveSeries?.synopsis || series?.synopsis}
                   className={styles.heroSynopsis}
                 />
@@ -1169,6 +1171,204 @@ export default function ManhwaDetail({ initialSeries }) {
           )}
         </div>
       </div>
+
+      {/*
+        #estado-publicacion: Fragmento speakable para búsqueda por voz.
+        Texto redactado para sonar natural en voz alta (~20-30 segundos de lectura).
+        VISIBLE en la página para cumplir las directrices de Google sobre Speakable.
+      */}
+      <p id="estado-publicacion" className={styles.speakableStatus}>
+        {series.status === 'completed'
+          ? `La obra ${effectiveSeries?.title || series?.title} está completada. Puedes leer todos los capítulos disponibles sin esperas.`
+          : series.status === 'paused'
+            ? `La obra ${effectiveSeries?.title || series?.title} está actualmente pausada. Actualmente cuenta con ${series.chapters?.length || 0} capítulos disponibles para leer.`
+            : `La obra ${effectiveSeries?.title || series?.title} se encuentra en emisión activa. El último capítulo publicado es el capítulo ${series.chapters?.reduce((max, c) => Math.max(max, Number(c.number)), 0) || '?'} y se actualiza regularmente.`
+        }
+      </p>
+
+      {/* ================================================================== */}
+      {/* SEO: TABLA DE ESTADO DE ACTUALIZACIÓN                              */}
+      {/* Responde directamente: "¿Hasta qué capítulo está traducida?"       */}
+      {/* Esta tabla es visible para rastreadores IA y buscadores.           */}
+      {/* ================================================================== */}
+      {(() => {
+        if (!series?.chapters?.length) return null;
+
+        // --- Cálculos basados en los datos reales de la serie ---
+
+        // Capítulo más reciente (número más alto)
+        const latestChapter = series.chapters.reduce((max, c) => {
+          const n = parseFloat(c.number);
+          return n > parseFloat(max.number) ? c : max;
+        }, series.chapters[0]);
+
+        const latestNum = parseFloat(latestChapter.number);
+
+        // Fecha del último capítulo (usar publishedAt o time como fallback)
+        const rawDate = latestChapter.publishedAt || latestChapter.date || latestChapter.time;
+        let latestDateLabel = 'Fecha no disponible';
+        let latestDateISO = null;
+        if (rawDate) {
+          try {
+            const d = new Date(rawDate);
+            if (!isNaN(d.getTime())) {
+              latestDateISO = d.toISOString();
+              const diffMs = Date.now() - d.getTime();
+              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+              if (diffDays === 0) latestDateLabel = 'Hoy';
+              else if (diffDays === 1) latestDateLabel = 'Hace 1 día';
+              else if (diffDays < 7) latestDateLabel = `Hace ${diffDays} días`;
+              else if (diffDays < 30) latestDateLabel = `Hace ${Math.floor(diffDays / 7)} semana${Math.floor(diffDays / 7) > 1 ? 's' : ''}`;
+              else latestDateLabel = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+            }
+          } catch (_) { /* sin fecha */ }
+        }
+
+        // Frecuencia estimada (diferencia promedio entre los últimos 5 capítulos con fecha)
+        const chaptersWithDate = series.chapters
+          .filter(c => c.publishedAt || c.date)
+          .sort((a, b) => new Date(b.publishedAt || b.date) - new Date(a.publishedAt || a.date))
+          .slice(0, 6);
+
+        let frequencyLabel = 'Irregular';
+        let estimatedFrequencyDays = null;
+        if (chaptersWithDate.length >= 2) {
+          const diffs = [];
+          for (let i = 0; i < chaptersWithDate.length - 1; i++) {
+            const d1 = new Date(chaptersWithDate[i].publishedAt || chaptersWithDate[i].date);
+            const d2 = new Date(chaptersWithDate[i + 1].publishedAt || chaptersWithDate[i + 1].date);
+            const diff = Math.abs(d1 - d2) / (1000 * 60 * 60 * 24);
+            if (!isNaN(diff)) diffs.push(diff);
+          }
+          if (diffs.length) {
+            const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+            estimatedFrequencyDays = Math.round(avg);
+            if (avg <= 3) frequencyLabel = 'Varios por semana';
+            else if (avg <= 8) frequencyLabel = 'Semanal';
+            else if (avg <= 18) frequencyLabel = 'Quincenal';
+            else if (avg <= 35) frequencyLabel = 'Mensual';
+            else frequencyLabel = 'Irregular';
+          }
+        }
+
+        // Próximo capítulo estimado
+        let nextChapterLabel = '—';
+        let nextChapterNum = null;
+        if (series.status !== 'completed' && latestDateISO && estimatedFrequencyDays) {
+          const nextDate = new Date(latestDateISO);
+          nextDate.setDate(nextDate.getDate() + estimatedFrequencyDays);
+          nextChapterNum = latestNum + 1;
+          const diffToNext = Math.round((nextDate - Date.now()) / (1000 * 60 * 60 * 24));
+          if (diffToNext <= 0) {
+            nextChapterLabel = `Cap. ${nextChapterNum} — Pronto`;
+          } else if (diffToNext === 1) {
+            nextChapterLabel = `Cap. ${nextChapterNum} — Mañana`;
+          } else {
+            nextChapterLabel = `Cap. ${nextChapterNum} — En ${diffToNext} días`;
+          }
+        } else if (series.status === 'completed') {
+          nextChapterLabel = 'Obra completada';
+        }
+
+        // Estado de publicación legible
+        const statusLabel = series.status === 'completed'
+          ? 'Completada'
+          : series.status === 'paused'
+            ? 'Pausada'
+            : 'En emisión activa';
+
+        // JSON-LD ItemList para la IA (inyectado como script)
+        const jsonLd = {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: `Historial de capítulos de ${effectiveSeries?.title || series?.title}`,
+          description: `Lista de capítulos disponibles en Manhwa Imperial. Último capítulo: ${latestNum}. Estado: ${statusLabel}. Frecuencia de actualización: ${frequencyLabel}.`,
+          numberOfItems: series.chapters.length,
+          itemListElement: series.chapters
+            .sort((a, b) => parseFloat(b.number) - parseFloat(a.number))
+            .slice(0, 10)
+            .map((ch, idx) => ({
+              '@type': 'ListItem',
+              position: idx + 1,
+              name: `Capítulo ${ch.number}`,
+              url: `https://manhwaimperial.com/manhwa/${slug}/capitulo/${ch.number}`,
+            })),
+        };
+
+        return (
+          <>
+            {/* JSON-LD Structured Data — ItemList */}
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+
+            {/* Tabla visual para IA y usuarios */}
+            <section
+              className={styles.updateStatusSection}
+              aria-label="Estado de actualización de la obra"
+            >
+              <h3 className={styles.updateStatusTitle}>
+                <IconCalendar size={18} aria-hidden="true" />
+                Estado Actual de Publicación
+              </h3>
+
+              <p className={styles.updateStatusIntro}>
+                Consulta el estado actualizado de <strong>{effectiveSeries?.title || series?.title}</strong> basado en el historial real de capítulos de nuestra base de datos.
+              </p>
+
+              <div className={styles.updateStatusTableWrapper}>
+                <table className={styles.updateStatusTable}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Último Capítulo</th>
+                      <th scope="col">Fecha de Publicación</th>
+                      <th scope="col">Estado</th>
+                      <th scope="col">Frecuencia</th>
+                      {series.status !== 'completed' && <th scope="col">Próximo Estimado</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <Link
+                          href={`/manhwa/${slug}/capitulo/${latestNum}`}
+                          className={styles.updateStatusChapterLink}
+                        >
+                          Capítulo {latestNum}
+                        </Link>
+                      </td>
+                      <td>
+                        {latestDateISO
+                          ? <time dateTime={latestDateISO}>{latestDateLabel}</time>
+                          : latestDateLabel
+                        }
+                      </td>
+                      <td>
+                        <span className={`${styles.updateStatusBadge} ${series.status === 'completed'
+                            ? styles.updateStatusCompleted
+                            : series.status === 'paused'
+                              ? styles.updateStatusPaused
+                              : styles.updateStatusOngoing
+                          }`}>
+                          {statusLabel}
+                        </span>
+                      </td>
+                      <td>{frequencyLabel}</td>
+                      {series.status !== 'completed' && <td>{nextChapterLabel}</td>}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p className={styles.updateStatusNote}>
+                Total: <strong>{series.chapters.length} capítulos</strong> disponibles en Manhwa Imperial.
+                {series.status !== 'completed' && ' Datos actualizados automáticamente con cada nueva traducción.'}
+              </p>
+            </section>
+          </>
+        );
+      })()}
 
       {/* Tabs de navegación */}
       <div className={styles.tabsContainer} ref={tabsRef}>

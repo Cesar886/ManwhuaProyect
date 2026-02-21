@@ -46,15 +46,25 @@ function ComentariosWrapper({ chapterRequest, slug, chapterNum, openLogin, user 
 
 /**
  * Lector de capítulos desde DigitalOcean Spaces
+ *
+ * Props:
+ *   initialPages    - imágenes pre-cargadas en el servidor (SSR), para que
+ *                     crawlers sin JS vean el capítulo completo en el HTML inicial.
+ *   initialSeries   - datos de la serie pre-cargados en el servidor (SSR).
  */
-export default function ChapterReader() {
+export default function ChapterReader({ initialPages = [], initialSeries = null }) {
   const params = useParams();
   const slug = params?.slug;
   const chapterNum = params?.numero;
   const router = useRouter();
-  const { pages } = useChapterPages(slug, chapterNum);
-  const { series } = useSeriesDetail(slug);
+  // Usar initialPages como estado inicial → disponible en el primer render (SSR)
+  const { pages: hookPages } = useChapterPages(slug, chapterNum);
+  const { series: hookSeries } = useSeriesDetail(slug);
   const { user } = useAuth();
+
+  // Combinar datos SSR con datos del hook (hook puede actualizar tras hidratación)
+  const pages = hookPages.length > 0 ? hookPages : initialPages;
+  const series = hookSeries || initialSeries;
 
   const [currentPage, setCurrentPage] = useState(0);
   const [showControls, setShowControls] = useState(true);
@@ -408,7 +418,7 @@ export default function ChapterReader() {
             <div key={page.number || index} style={{ position: 'relative', width: '100%', minHeight: '100px' }}>
               <Image
                 src={page.url}
-                alt={`${series?.title || slug} - Capítulo ${chapterNum} - Página ${page.number || index + 1}`}
+                alt={`Página ${page.number || index + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Imagen del webtoon coreano en español`}
                 width={0}
                 height={0}
                 sizes="100vw"
@@ -437,7 +447,7 @@ export default function ChapterReader() {
         }}>
           <Image
             src={pages[currentPage]?.url}
-            alt={`${series?.title || slug} - Capítulo ${chapterNum} - Página ${currentPage + 1}`}
+            alt={`Página ${currentPage + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Leer manhwa en español en Manhwa Imperial`}
             width={0}
             height={0}
             sizes="100vh"

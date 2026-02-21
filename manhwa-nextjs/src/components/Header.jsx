@@ -103,8 +103,8 @@ function Header({ colorScheme, toggleColorScheme }) {
   const path = pathname.toLowerCase();
   const activeTab = path.startsWith('/biblioteca') ? 'Biblioteca'
     : path.startsWith('/populares') ? 'Populares'
-    : path.startsWith('/perfil') ? 'Perfil'
-    : 'home';
+      : path.startsWith('/perfil') ? 'Perfil'
+        : 'home';
 
   // Usuario provisto por el contexto (no duplicamos el estado local)
   const { user: authUser, openLogin, doLogout } = useAuth()
@@ -151,7 +151,7 @@ function Header({ colorScheme, toggleColorScheme }) {
               <Group gap="sm" className={styles.logoGroup} style={{ minWidth: 0, flex: '0 1 auto' }}>
                 <Image
                   src="/logo.png"
-                  alt="Manhwa Imperial Logo"
+                  alt="Logo de Manhwa Imperial - Plataforma para leer manhwa en español online gratis"
                   width={40}
                   height={40}
                   className={styles.logoImage}

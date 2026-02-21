@@ -1,16 +1,21 @@
 import { SITE_NAME, SITE_URL } from '@/config'
 
 export const metadata = {
-  title: 'Blog de Manhwa - Guías, Comparativas y Recomendaciones',
-  description: 'Blog sobre manhwa en español: guías para principiantes, comparativas de plataformas, recomendaciones por género y noticias del mundo manhwa y webtoon.',
+  title: 'Blog de Manhwa - Guías, Comparativas y Recomendaciones 2026',
+  description: 'Blog sobre manhwa en español: guías para principiantes, comparativas de plataformas, los 20 mejores manhwas 2026, ranking mensual y todo sobre k-dramas adaptados.',
   keywords: [
     'blog manhwa',
     'guías manhwa español',
+    'mejores manhwas 2026',
+    'qué es un manhwa',
+    'manhwa vs webtoon',
     'sitios para leer manhwa en español',
-    'tapas webtoon en español',
-    'manga vs manhwa',
+    'manhwas adaptados k-dramas',
+    'ranking manhwa febrero 2026',
+    'mejores manhwas acción',
+    'cómo empezar a leer manhwa',
+    'manga vs manhwa manhua',
     'manhwas recomendados',
-    'mejores manhwas',
     'leer manhwa online gratis',
     'webtoon español',
     'manhwa para principiantes',

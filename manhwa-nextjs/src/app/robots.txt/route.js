@@ -72,6 +72,8 @@ Allow: /
 # OpenAI
 User-agent: GPTBot
 Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
 
 User-agent: ChatGPT-User
 Allow: /
@@ -79,6 +81,8 @@ Allow: /
 # Anthropic Claude
 User-agent: ClaudeBot
 Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
 
 User-agent: Claude-Web
 Allow: /
@@ -100,6 +104,8 @@ Allow: /
 # Perplexity AI
 User-agent: PerplexityBot
 Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
 
 # Cohere AI
 User-agent: cohere-ai
@@ -236,6 +242,12 @@ Disallow: /
 
 User-agent: penthesilea
 Disallow: /
+
+# ===================================
+# ARCHIVOS DE CONTEXTO PARA IA
+# ===================================
+# https://manhwaimperial.site/llms.txt
+# https://manhwaimperial.site/llms-full.txt
 
 # ===================================
 # SITEMAP
