@@ -35,6 +35,7 @@ export default function SeriesRating({
   const isSubmittingRef = useRef(false);
   const isMountedRef = useRef(true);
   const fpInitRef = useRef(false);
+  const localVoteSetRef = useRef(false); // true tras votar: impide que props sobreescriban el estado local
 
   useEffect(() => {
     return () => { isMountedRef.current = false; };
@@ -43,7 +44,7 @@ export default function SeriesRating({
   // Helper: localStorage key para guardar votos localmente
   const getStorageKey = (s) => `mi_series_rating_${s}`;
 
-  // Inicializar FingerprintJS solo cuando el usuario interactúa con las estrellas
+  // Inicializar FingerprintJS (lazy pero garantizado al montar)
   const initFingerprintOnDemand = useCallback(async () => {
     if (fpInitRef.current) return;
     fpInitRef.current = true;
@@ -52,31 +53,23 @@ export default function SeriesRating({
       const FingerprintJS = (await import('@fingerprintjs/fingerprintjs')).default;
       const fp = await FingerprintJS.load();
       const result = await fp.get();
-      if (isMountedRef.current) setVisitorId(result.visitorId);
-    } catch {
       if (isMountedRef.current) {
-        let fid = localStorage.getItem('mi_visitor_id');
-        if (!fid) {
-          fid = 'anon_' + Math.random().toString(36).substr(2, 9);
-          localStorage.setItem('mi_visitor_id', fid);
-        }
-        setVisitorId(fid);
+        // Guardar en localStorage para que sea el mismo ID en próximas recargas
+        localStorage.setItem('mi_visitor_id', result.visitorId);
+        setVisitorId(result.visitorId);
       }
+    } catch {
+      // El ID de localStorage ya fue establecido en el useEffect de montaje
     }
   }, []);
 
-  // Verificar si ya votó: Primero localStorage, luego API
+  // Verificar voto previo al montar: initialRating del servidor o localStorage
   useEffect(() => {
-    let mounted = true;
-
-    // 1. Si viene initialRating del servidor (usuario logueado con voto previo)
     if (initialRating > 0) {
       setRating(Math.round(initialRating / 2));
       setHasRated(true);
       return;
     }
-
-    // 2. Check localStorage para respuesta instantánea
     if (typeof window !== 'undefined' && slug) {
       const stored = localStorage.getItem(getStorageKey(slug));
       if (stored) {
@@ -85,37 +78,77 @@ export default function SeriesRating({
           if (parsed.rating && parsed.rating >= 1 && parsed.rating <= 5) {
             setRating(parsed.rating);
             setHasRated(true);
-            // No retornamos — aún así verificamos con la API por si fue borrado
           }
         } catch (e) { /* ignore */ }
       }
     }
+  // Solo corre al montar (slug e initialRating no cambian)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    // 3. Verificar con la API usando visitorId
-    if (slug && visitorId) {
-      const url = apiUrl(`series/${slug}/user-rating?visitorId=${visitorId}`);
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          if (mounted && data.success && data.rating) {
-            const stars = Math.round(data.rating / 2);
-            setRating(stars);
-            setHasRated(true);
-            // Sincronizar localStorage
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(getStorageKey(slug), JSON.stringify({ rating: stars, visitorId }));
-            }
+  // Verificar con la API una vez que visitorId esté disponible (solo la primera vez)
+  const apiCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!visitorId || !slug || apiCheckedRef.current) return;
+    apiCheckedRef.current = true;
+    let mounted = true;
+    fetch(apiUrl(`series/${slug}/user-rating?visitorId=${visitorId}`))
+      .then(res => res.json())
+      .then(data => {
+        if (mounted && data.success && data.rating) {
+          const stars = Math.round(data.rating / 2);
+          setRating(stars);
+          setHasRated(true);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(getStorageKey(slug), JSON.stringify({ rating: stars, visitorId }));
           }
-        })
-        .catch(err => console.error("Error fetching user rating:", err));
-    }
-
+        }
+      })
+      .catch(() => {});
     return () => { mounted = false; };
-  }, [slug, initialRating, visitorId]);
+  }, [visitorId, slug]);
+
+  // Inicializar visitorId al montar: inmediato desde localStorage, mejorar con FingerprintJS
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // 1. Establecer ID de forma síncrona para que los botones estén habilitados de inmediato
+    let fid = localStorage.getItem('mi_visitor_id');
+    if (!fid) {
+      fid = 'anon_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+      localStorage.setItem('mi_visitor_id', fid);
+    }
+    setVisitorId(fid);
+    // 2. Intentar mejorar con FingerprintJS en background (no bloquea la UI)
+    initFingerprintOnDemand();
+  }, [initFingerprintOnDemand]);
+
+  // Fetch fresh rating from API on mount (bypasses SSR cache)
+  useEffect(() => {
+    if (!slug) return;
+    let mounted = true;
+
+    const fetchRating = async () => {
+      try {
+        const res = await fetch(apiUrl(`series/${slug}/rating`));
+        const data = await res.json();
+        if (mounted && data.success && data.data && !localVoteSetRef.current) {
+          if (data.data.rating !== null && data.data.rating !== undefined) {
+            setCurrentAverage(parseFloat(data.data.rating) || 0);
+          }
+          setCurrentCount(parseInt(data.data.ratingCount, 10) || 0);
+        }
+      } catch { /* Silently fail */ }
+    };
+
+    fetchRating();
+    return () => { mounted = false; };
+  }, [slug]);
 
   useEffect(() => {
-    setCurrentAverage(averageRating);
-    setCurrentCount(totalRatings);
+    if (!localVoteSetRef.current) {
+      setCurrentAverage(averageRating);
+      setCurrentCount(totalRatings);
+    }
   }, [averageRating, totalRatings]);
 
   const handleRate = useCallback(async (value) => {
@@ -149,6 +182,7 @@ export default function SeriesRating({
       if (data.success) {
         setRating(value);
         setHasRated(true);
+        localVoteSetRef.current = true;
         if (data.rating) setCurrentAverage(parseFloat(data.rating));
         if (data.ratingCount) setCurrentCount(parseInt(data.ratingCount, 10));
 
@@ -221,6 +255,7 @@ export default function SeriesRating({
         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         onMouseEnter={initFingerprintOnDemand}
         onFocus={initFingerprintOnDemand}
+        onTouchStart={initFingerprintOnDemand}
       >
         {[1, 2, 3, 4, 5].map((star) => (
           <button

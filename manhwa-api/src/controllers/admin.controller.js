@@ -795,8 +795,26 @@ const recalculateStats = async (req, res, next) => {
                     bookmark_count = (SELECT COUNT(*) FROM bookmarks WHERE series_id = s.id),
                     likes_count = (SELECT COUNT(*) FROM series_likes WHERE series_id = s.id),
                     comment_count = (SELECT COUNT(*) FROM comments WHERE target_type = 'series' AND target_id = s.id AND status = 'visible'),
-                    rating_count = (SELECT COUNT(*) FROM ratings WHERE series_id = s.id),
-                    rating_average = COALESCE((SELECT AVG(score)::DECIMAL(3,2) FROM ratings WHERE series_id = s.id), 0)
+                    rating_count = (
+                        (SELECT COUNT(*) FROM ratings WHERE series_id = s.id) +
+                        (SELECT COUNT(*) FROM series_ratings WHERE series_id = s.id)
+                    ),
+                    rating_average = CASE
+                        WHEN (
+                            (SELECT COUNT(*) FROM ratings WHERE series_id = s.id) +
+                            (SELECT COUNT(*) FROM series_ratings WHERE series_id = s.id)
+                        ) > 0 THEN CAST(
+                            (
+                                COALESCE((SELECT SUM(score) FROM ratings WHERE series_id = s.id), 0) +
+                                COALESCE((SELECT SUM(rating * 2) FROM series_ratings WHERE series_id = s.id), 0)
+                            )::float /
+                            (
+                                (SELECT COUNT(*) FROM ratings WHERE series_id = s.id) +
+                                (SELECT COUNT(*) FROM series_ratings WHERE series_id = s.id)
+                            )
+                        AS DECIMAL(4,2))
+                        ELSE 0
+                    END
             `);
             
             // Recalcular contadores de usuarios

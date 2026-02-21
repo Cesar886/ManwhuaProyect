@@ -1,27 +1,31 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { IconBrandInstagram, IconBrandTwitter, IconBrandDiscord } from '@tabler/icons-react';
-import { ActionIcon, Container, Group, Text } from '@mantine/core';
+import {
+  IconBrandInstagram,
+  IconBrandTwitter,
+  IconBrandDiscord,
+  IconChevronDown,
+} from '@tabler/icons-react';
 import classes from './Footer.module.css';
 
-const data = [
+const navColumns = [
   {
     title: 'Leer Manhwa',
     links: [
-      { label: 'Biblioteca de Manhwas', link: '/biblioteca' },
-      { label: 'Manhwas Populares', link: '/populares' },
-      { label: 'Colecciones de Manhwa', link: '/colecciones' },
+      { label: 'Biblioteca', link: '/biblioteca' },
+      { label: 'Populares', link: '/populares' },
+      { label: 'Colecciones', link: '/colecciones' },
     ],
   },
   {
-    title: 'Géneros de Manhwa',
+    title: 'Géneros',
     links: [
-      { label: 'Manhwa de Romance', link: '/genero/romance' },
-      { label: 'Manhwa de Acción', link: '/genero/accion' },
-      { label: 'Manhwa de Fantasía', link: '/genero/fantasia' },
+      { label: 'Romance', link: '/genero/romance' },
+      { label: 'Acción', link: '/genero/accion' },
+      { label: 'Fantasía', link: '/genero/fantasia' },
     ],
   },
   {
@@ -29,7 +33,7 @@ const data = [
     links: [
       { label: 'Blog de Manhwa', link: '/blog' },
       { label: 'Guías para Principiantes', link: '/blog' },
-      { label: 'Comparativas de Plataformas', link: '/blog' },
+      { label: 'Comparativas', link: '/blog' },
     ],
   },
   {
@@ -44,88 +48,177 @@ const data = [
     links: [
       { label: 'Acerca de', link: '/acerca-de' },
       { label: 'Términos de Servicio', link: '/terminos-de-servicio' },
-      { label: 'Política de Privacidad', link: '/politica-de-privacidad' },
-      { label: 'Política DMCA', link: '/dmca' },
+      { label: 'Privacidad', link: '/politica-de-privacidad' },
+      { label: 'DMCA', link: '/dmca' },
       { label: 'Aviso Legal', link: '/aviso-legal' },
     ],
   },
 ];
 
-function Footer() {
-  const groups = data.map((group) => {
-    const links = group.links.map((link, index) => (
-      <Link
-        key={index}
-        className={classes.link}
-        href={link.link}
-      >
-        {link.label}
-      </Link>
-    ));
+const socialLinks = [
+  { icon: IconBrandTwitter, label: 'Twitter', href: '#' },
+  { icon: IconBrandDiscord, label: 'Discord', href: '#' },
+  { icon: IconBrandInstagram, label: 'Instagram', href: '#' },
+];
 
-    return (
-      <div className={classes.wrapper} key={group.title}>
-        <Text className={classes.title}>{group.title}</Text>
-        {links}
+// Columna colapsable para mobile
+function FooterColumn({ title, links }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className={classes.wrapper}>
+      <button
+        className={classes.colTitle}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        type="button"
+      >
+        <span>{title}</span>
+        <IconChevronDown
+          size={14}
+          className={`${classes.chevron} ${open ? classes.chevronOpen : ''}`}
+        />
+      </button>
+      <div className={`${classes.linksContainer} ${open ? classes.linksOpen : ''}`}>
+        <div className={classes.linksInner}>
+          {links.map((link, i) => (
+            <Link key={i} href={link.link} className={classes.link}>
+              {link.label}
+            </Link>
+          ))}
+        </div>
       </div>
-    );
-  });
+    </div>
+  );
+}
+
+function Footer() {
+  const year = new Date().getFullYear();
 
   return (
     <footer className={classes.footer}>
-      <Container className={classes.inner}>
-        <div className={classes.logo}>
-          <Image
-            src="/logo.png"
-            alt="Manhwa Imperial - Leer Manhwa en Español Online Gratis"
-            width={30}
-            height={30}
-          />
-          <Text size="xs" c="dimmed" className={classes.description}>
-            Manhwa Imperial: tu biblioteca para leer manhwa en español gratis.
-            Encuentra los mejores manhwas online, manhwa de romance, acción y más webtoons en español.
-          </Text>
-        </div>
-        <div className={classes.groups}>{groups}</div>
-      </Container>
-      {/* === DISCLAIMER LEGAL — señal DMCA visible para crawlers y usuarios === */}
-      <Container className={classes.disclaimer}>
-        <nav aria-label="Enlaces legales" className={classes.disclaimerLinks}>
-          <Link href="/terminos-de-servicio" className={classes.disclaimerLink}>Términos de Servicio</Link>
-          <span className={classes.disclaimerSep} aria-hidden="true">·</span>
-          <Link href="/politica-de-privacidad" className={classes.disclaimerLink}>Política de Privacidad</Link>
-          <span className={classes.disclaimerSep} aria-hidden="true">·</span>
-          <Link href="/dmca" className={classes.disclaimerLink}>Política DMCA</Link>
-          <span className={classes.disclaimerSep} aria-hidden="true">·</span>
-          <Link href="/aviso-legal" className={classes.disclaimerLink}>Aviso Legal</Link>
-        </nav>
-        <p className={classes.disclaimerText}>
-          © {new Date().getFullYear()} Manhwa Imperial. Todos los manhwas, webtoons y manhua son
-          propiedad de sus respectivos autores y editores. Esta plataforma opera como un servicio
-          de agregación de contenido con{' '}
-          <Link href="/dmca" className={classes.disclaimerHighlight}>cumplimiento DMCA activo</Link>.{' '}
-          Plataforma estrictamente moderada, <strong>libre de malware</strong>, sin anuncios
-          pop-under ni publicidad intrusiva. Apoyamos a los creadores originales — compra las
-          obras oficiales cuando estén disponibles.
-        </p>
-      </Container>
-      <Container className={classes.afterFooter}>
-        <Text c="dimmed" size="sm">
-          &copy; {new Date().getFullYear()} Manhwa Imperial
-        </Text>
+      {/* Línea decorativa superior */}
+      <div className={classes.topLine} aria-hidden="true" />
 
-        <Group gap={0} className={classes.social} justify="flex-end" wrap="nowrap">
-          <ActionIcon size="lg" color="gray" variant="subtle" aria-label="Twitter">
-            <IconBrandTwitter size={18} stroke={1.5} />
-          </ActionIcon>
-          <ActionIcon size="lg" color="gray" variant="subtle" aria-label="Discord">
-            <IconBrandDiscord size={18} stroke={1.5} />
-          </ActionIcon>
-          <ActionIcon size="lg" color="gray" variant="subtle" aria-label="Instagram">
-            <IconBrandInstagram size={18} stroke={1.5} />
-          </ActionIcon>
-        </Group>
-      </Container>
+      {/* ── Sección superior ── */}
+      <section className={classes.topSection}>
+        <div className={classes.container}>
+          <div className={classes.inner}>
+
+            {/* Branding */}
+            <div className={classes.logoWrapper}>
+              <Link href="/" className={classes.logoLink} aria-label="Manhwa Imperial - Inicio">
+                <Image
+                  src="/logo.png"
+                  alt="Logo Manhwa Imperial"
+                  width={36}
+                  height={36}
+                  className={classes.logoImg}
+                />
+                <span className={classes.logoName}>Manhwa Imperial</span>
+              </Link>
+
+              <p className={classes.description}>
+                Tu biblioteca para leer manhwa y webtoons en español, gratis y de forma legal.
+              </p>
+
+              {/* Stats rápidas */}
+              <div className={classes.stats}>
+                <div className={classes.stat}>
+                  <span className={classes.statNum}>500+</span>
+                  <span className={classes.statLabel}>Manhwas</span>
+                </div>
+                <div className={classes.statDivider} aria-hidden="true" />
+                <div className={classes.stat}>
+                  <span className={classes.statNum}>Gratis</span>
+                  <span className={classes.statLabel}>Siempre</span>
+                </div>
+                <div className={classes.statDivider} aria-hidden="true" />
+                <div className={classes.stat}>
+                  <span className={classes.statNum}>Legal</span>
+                  <span className={classes.statLabel}>DMCA OK</span>
+                </div>
+              </div>
+
+              {/* Redes sociales - visible en desktop junto al logo */}
+              <div className={classes.socialDesktop}>
+                {socialLinks.map(({ icon: Icon, label, href }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    aria-label={label}
+                    className={classes.socialBtn}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Icon size={16} stroke={1.5} />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Columnas de navegación — desktop: grid, mobile: acordeón */}
+            <nav className={classes.groups} aria-label="Navegación del footer">
+              {navColumns.map((col) => (
+                <FooterColumn key={col.title} title={col.title} links={col.links} />
+              ))}
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Divisor ── */}
+      <div className={classes.divider} role="separator" />
+
+      {/* ── Disclaimer Legal ── */}
+      <div className={classes.disclaimer}>
+        <div className={classes.container}>
+          <nav aria-label="Política del sitio" className={classes.disclaimerLinks}>
+            <Link href="/terminos-de-servicio" className={classes.disclaimerLink}>Términos</Link>
+            <span className={classes.disclaimerSep} aria-hidden="true">·</span>
+            <Link href="/politica-de-privacidad" className={classes.disclaimerLink}>Privacidad</Link>
+            <span className={classes.disclaimerSep} aria-hidden="true">·</span>
+            <Link href="/dmca" className={classes.disclaimerLink}>DMCA</Link>
+            <span className={classes.disclaimerSep} aria-hidden="true">·</span>
+            <Link href="/aviso-legal" className={classes.disclaimerLink}>Aviso Legal</Link>
+          </nav>
+          <p className={classes.disclaimerText}>
+            © {year} Manhwa Imperial. Todos los manhwas, webtoons y manhua son propiedad de
+            sus respectivos autores y editores. Plataforma de agregación con{' '}
+            <Link href="/dmca" className={classes.disclaimerHighlight}>cumplimiento DMCA activo</Link>.
+            {' '}Libre de malware, sin anuncios intrusivos.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Fila final: copyright + social mobile ── */}
+      <div className={classes.afterFooter}>
+        <div className={classes.container}>
+          <div className={classes.afterFooterInner}>
+            <p className={classes.copyright}>
+              © {year} Manhwa Imperial — Hecho con{' '}
+              <span className={classes.heart} aria-label="amor">♥</span>
+              {' '}para lectores
+            </p>
+
+            {/* Social visible solo en mobile (en desktop está arriba) */}
+            <div className={classes.socialMobile}>
+              {socialLinks.map(({ icon: Icon, label, href }) => (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  className={classes.socialBtn}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Icon size={16} stroke={1.5} />
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </footer>
   );
 }

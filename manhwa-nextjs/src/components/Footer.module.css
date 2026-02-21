@@ -1,129 +1,306 @@
+/* ============================================================================
+   FOOTER IMPERIAL - PREMIUM v2 (Mobile-first)
+   ============================================================================ */
+
+/* ── Wrapper principal ─────────────────────────────────────────────────────── */
 .footer {
-  margin-top: 120px;
-  padding-top: calc(var(--mantine-spacing-xl) * 2);
-  padding-bottom: calc(var(--mantine-spacing-xl) * 2);
-  background-color: var(--page-bg);
-  border-top: 1px solid var(--border-subtle, var(--border-color-subtle));
   position: relative;
+  /* overflow: clip recorta visualmente sin crear scroll-container (a diferencia de hidden) */
+  overflow: clip;
+  /* Espacio extra para la barra inferior de iOS/Android */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background-color: var(--page-bg);
+  /* Fondo con gradiente sutil imperial */
+  background-image:
+    radial-gradient(ellipse 80% 300px at 50% 0%, rgba(var(--imperial-purple-rgb), 0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 50% 200px at 0% 100%, rgba(var(--imperial-blue-rgb), 0.04) 0%, transparent 100%),
+    radial-gradient(ellipse 50% 200px at 100% 100%, rgba(var(--imperial-gold-rgb), 0.03) 0%, transparent 100%);
 }
 
-/* Gradiente sutil en el footer */
-.footer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 200px;
-  background: linear-gradient(to bottom,
-      rgba(var(--imperial-purple-rgb, 139, 92, 200), 0.03) 0%,
+/* ── Línea superior con gradiente imperial ─────────────────────────────────── */
+.topLine {
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(var(--imperial-blue-rgb), 0.35) 15%,
+      rgba(var(--imperial-gold-rgb), 0.9) 50%,
+      rgba(var(--imperial-blue-rgb), 0.35) 85%,
       transparent 100%);
-  pointer-events: none;
 }
 
-.logo {
-  max-width: 200px;
+/* ── Container global ──────────────────────────────────────────────────────── */
+.container {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+  width: 100%;
+}
+
+/* ── Sección Top ───────────────────────────────────────────────────────────── */
+.topSection {
+  padding: 2.5rem 0 2rem;
+}
+
+/* ── Layout inner: branding + nav ──────────────────────────────────────────── */
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ── Logo / Branding ───────────────────────────────────────────────────────── */
+.logoWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  text-align: center;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  text-decoration: none;
+}
+
+.logoImg {
+  border-radius: 8px;
+  filter: drop-shadow(0 0 8px rgba(var(--imperial-gold-rgb), 0.45));
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.logoLink:hover .logoImg {
+  filter: drop-shadow(0 0 14px rgba(var(--imperial-gold-rgb), 0.75));
+  transform: scale(1.05);
+}
+
+.logoName {
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  background: var(--gradient-text-imperial);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.015em;
 }
 
 .description {
-  margin-top: 5px;
-  /* small screens adjustments moved to responsive media queries */
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+  max-width: 280px;
 }
 
-.inner {
+/* ── Stats rápidas ─────────────────────────────────────────────────────────── */
+.stats {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  background: rgba(var(--imperial-blue-rgb), 0.06);
+  border: 1px solid rgba(var(--imperial-blue-rgb), 0.14);
+  border-radius: var(--radius-full);
+  width: fit-content;
 }
 
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.statNum {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--imperial-gold, #A78BFA);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  flex-shrink: 0;
+}
+
+/* ── Social en desktop (junto al logo) ────────────────────────────────────── */
+.socialDesktop {
+  display: none;
+  /* oculto en mobile, visible en desktop */
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* ── Grupos de navegación ──────────────────────────────────────────────────── */
 .groups {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0;
+  /* sin gap: los acordeones tienen sus propios bordes */
+  border-top: 1px solid var(--border-subtle);
 }
 
+/* ── Columna / Acordeón ────────────────────────────────────────────────────── */
 .wrapper {
-  width: 160px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-.link {
-  display: block;
-  color: var(--dimmed-text);
-  font-size: var(--mantine-font-size-sm);
-  padding-top: 3px;
-  padding-bottom: 3px;
-  transition: color 0.2s ease;
-}
-
-.link:hover {
-  text-decoration: none;
-  color: var(--imperial-gold, #D4A528);
-}
-
-.title {
-  font-size: var(--mantine-font-size-lg);
-  font-weight: 600;
-  font-family: var(--font-heading, "Playfair Display", Outfit, var(--mantine-font-family));
-  margin-bottom: calc(var(--mantine-spacing-xs) / 2);
-  color: var(--text-color);
-}
-
-.afterFooter {
+/* Botón título (funciona como acordeón en mobile) */
+.colTitle {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--mantine-spacing-xl);
-  padding-top: var(--mantine-spacing-xl);
-  padding-bottom: var(--mantine-spacing-xl);
-  border-top: 1px solid var(--border-subtle, var(--border-color-subtle));
+  width: 100%;
+  padding: 0.9rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--imperial-gold, #A78BFA);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-body);
+  text-align: left;
+  transition: color var(--transition-base);
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Disclaimer Legal ─────────────────────────────────────────────────────── */
+.colTitle:hover {
+  color: var(--imperial-gold-light, #C4B5FD);
+}
 
-.disclaimer {
-  margin-top: calc(var(--mantine-spacing-xl) * 1.5);
-  padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
-  border-top: 1px solid var(--border-subtle, var(--border-color-subtle));
-  border-bottom: 1px solid var(--border-subtle, var(--border-color-subtle));
+.chevron {
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+/* Contenedor colapsable */
+.linksContainer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.linksOpen {
+  max-height: 300px;
+}
+
+.linksInner {
   display: flex;
   flex-direction: column;
-  gap: var(--mantine-spacing-sm);
+  gap: 0;
+  padding-bottom: 0.75rem;
+}
+
+/* ── Link individual ───────────────────────────────────────────────────────── */
+.link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-decoration: none;
+  padding: 0.45rem 0;
+  transition: color var(--transition-base), transform var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.link::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(var(--imperial-blue-rgb), 0.35);
+  flex-shrink: 0;
+  transition: background var(--transition-base), transform 0.2s ease;
+}
+
+.link:hover {
+  color: var(--imperial-gold, #A78BFA);
+  transform: translateX(4px);
+  text-decoration: none;
+}
+
+.link:hover::before {
+  background: var(--imperial-gold, #A78BFA);
+  transform: scale(1.6);
+}
+
+/* ── Divisor ───────────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      var(--border-subtle) 15%,
+      var(--border-medium) 50%,
+      var(--border-subtle) 85%,
+      transparent 100%);
+}
+
+/* ── Disclaimer Legal ──────────────────────────────────────────────────────── */
+.disclaimer {
+  padding: 1.25rem 0;
 }
 
 .disclaimerLinks {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
+  margin-bottom: 0.625rem;
 }
 
 .disclaimerLink {
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 500;
-  color: var(--dimmed-text);
+  color: var(--text-muted);
   text-decoration: none;
-  transition: color 0.15s ease;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  transition: color 0.15s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .disclaimerLink:hover {
-  color: var(--imperial-gold, #D4A528);
+  color: var(--imperial-gold, #A78BFA);
+  background: rgba(var(--imperial-blue-rgb), 0.08);
   text-decoration: none;
 }
 
 .disclaimerSep {
-  color: var(--border-medium, #444);
-  font-size: 0.75rem;
+  color: var(--border-medium);
+  font-size: 0.7rem;
   user-select: none;
 }
 
 .disclaimerText {
-  font-size: 0.78rem;
-  color: var(--dimmed-text);
-  line-height: 1.6;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.7;
   margin: 0;
-  max-width: 760px;
+  opacity: 0.7;
 }
 
 .disclaimerHighlight {
-  color: var(--imperial-gold, #D4A528);
+  color: var(--imperial-gold, #A78BFA);
   font-weight: 600;
   text-decoration: none;
   transition: opacity 0.15s ease;
@@ -131,71 +308,268 @@
 
 .disclaimerHighlight:hover {
   opacity: 0.75;
-  text-decoration: none;
+  text-decoration: underline;
 }
 
-/* Responsive rules (converted from nested SCSS) */
-@media (max-width: 768px) {
-  .logo {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+/* ── Copyright row ─────────────────────────────────────────────────────────── */
+.afterFooter {
+  border-top: 1px solid var(--border-subtle);
+  padding: 1.125rem 0 1.5rem;
+}
+
+.afterFooterInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  text-align: center;
+}
+
+.copyright {
+  font-size: 0.775rem;
+  color: var(--text-muted);
+  opacity: 0.75;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.heart {
+  color: #f87171;
+  display: inline;
+}
+
+/* Social en mobile (en la fila de copyright) */
+.socialMobile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Botón social compartido ───────────────────────────────────────────────── */
+.socialBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: rgba(var(--imperial-blue-rgb), 0.06);
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all var(--transition-slow);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.socialBtn:hover {
+  background: rgba(var(--imperial-blue-rgb), 0.15);
+  border-color: rgba(var(--imperial-blue-rgb), 0.35);
+  color: var(--imperial-gold, #A78BFA);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(var(--imperial-blue-rgb), 0.2);
+}
+
+/* ============================================================================
+   TABLET (≥ 640px) - Layout 2 columnas para stats
+   ============================================================================ */
+@media (min-width: 640px) {
+  .container {
+    padding: 0 1.75rem;
+  }
+
+  .topSection {
+    padding: 3rem 0 2.5rem;
   }
 
   .description {
-    margin-top: var(--mantine-spacing-xs);
-    text-align: center;
+    max-width: 320px;
+  }
+}
+
+/* ============================================================================
+   DESKTOP INTERMEDIO (≥ 768px) - Grid de 2 columnas
+   ============================================================================ */
+@media (min-width: 768px) {
+  .container {
+    padding: 0 2rem;
+  }
+
+  .topSection {
+    padding: 3.5rem 0 3rem;
   }
 
   .inner {
-    flex-direction: column;
-    align-items: center;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 3rem;
   }
 
-  .groups {
+  .logoWrapper {
+    align-items: flex-start;
+    text-align: left;
+    min-width: 200px;
+    max-width: 220px;
+    flex-shrink: 0;
+  }
+
+  .description {
+    max-width: 200px;
+  }
+
+  /* En desktop, mostrar social junto al logo */
+  .socialDesktop {
+    display: flex;
+  }
+
+  /* En desktop, ocultar social en la fila de copyright */
+  .socialMobile {
     display: none;
   }
 
-  .afterFooter {
-    flex-direction: column;
+  /* Grid de columnas — sin acordeón en desktop */
+  .groups {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1.5rem 1rem;
+    border-top: none;
+    flex: 1;
   }
 
-  .social {
-    margin-top: var(--mantine-spacing-xs);
+  .wrapper {
+    border-bottom: none;
+    min-width: 110px;
+    flex: 1;
+  }
+
+  /* On desktop, título como texto fijo (sin botón de acordeón) */
+  .colTitle {
+    cursor: default;
+    padding: 0 0 0.75rem 0;
+    pointer-events: none;
+  }
+
+  /* Ocultar el chevron en desktop */
+  .chevron {
+    display: none;
+  }
+
+  /* Forzar links visibles en desktop (sin acordeón) */
+  .linksContainer {
+    max-height: none !important;
+    overflow: visible;
+  }
+
+  .linksInner {
+    padding-bottom: 0;
+    gap: 0;
+  }
+
+  .link {
+    font-size: 0.8125rem;
+    padding: 0.2rem 0;
+  }
+
+  .afterFooterInner {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+
+  .copyright {
+    opacity: 0.65;
   }
 }
 
-/* =============================================================================
-   LIGHT MODE STYLES - Footer
-   ============================================================================= */
+/* ============================================================================
+   DESKTOP GRANDE (≥ 1024px)
+   ============================================================================ */
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 2.5rem;
+  }
 
+  .topSection {
+    padding: 4rem 0 3rem;
+  }
+
+  .inner {
+    gap: 4rem;
+  }
+
+  .logoWrapper {
+    min-width: 230px;
+    max-width: 240px;
+  }
+
+  .description {
+    max-width: 210px;
+  }
+
+  .groups {
+    gap: 1.5rem 0.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .wrapper {
+    min-width: 0;
+  }
+
+  .link {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ============================================================================
+   LIGHT MODE
+   ============================================================================ */
 :global([data-theme="light"]) .footer {
   background-color: var(--page-bg, #FDFCF9);
-  border-top: 1px solid var(--border-subtle, rgba(26, 26, 40, 0.08));
+  background-image:
+    radial-gradient(ellipse 80% 300px at 50% 0%, rgba(var(--imperial-blue-rgb), 0.03) 0%, transparent 100%),
+    radial-gradient(ellipse 50% 200px at 0% 100%, rgba(var(--imperial-blue-rgb), 0.02) 0%, transparent 100%);
 }
 
-:global([data-theme="light"]) .footer::before {
-  background: linear-gradient(to bottom,
-      rgba(107, 79, 163, 0.03) 0%,
+:global([data-theme="light"]) .topLine {
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(var(--imperial-blue-rgb), 0.25) 15%,
+      rgba(var(--imperial-blue-rgb), 0.7) 50%,
+      rgba(var(--imperial-blue-rgb), 0.25) 85%,
       transparent 100%);
 }
 
-:global([data-theme="light"]) .title {
-  color: var(--text-primary, #1A1A28);
+:global([data-theme="light"]) .colTitle {
+  color: var(--imperial-blue, #4A61A8);
 }
 
-:global([data-theme="light"]) .link {
-  color: var(--text-muted, #6B6B7B);
+:global([data-theme="light"]) .statNum {
+  color: var(--imperial-blue-dark, #2A4080);
+}
+
+:global([data-theme="light"]) .stats {
+  background: rgba(var(--imperial-blue-rgb), 0.05);
+  border-color: rgba(var(--imperial-blue-rgb), 0.12);
 }
 
 :global([data-theme="light"]) .link:hover {
-  color: #8B6914;
+  color: var(--imperial-blue-dark, #2A4080);
 }
 
-:global([data-theme="light"]) .description {
-  color: var(--text-secondary, #3D3D4D);
+:global([data-theme="light"]) .link:hover::before {
+  background: var(--imperial-blue-dark, #2A4080);
 }
 
-:global([data-theme="light"]) .afterFooter {
-  border-top: 1px solid var(--border-subtle, rgba(26, 26, 40, 0.08));
+:global([data-theme="light"]) .disclaimerLink:hover {
+  color: var(--imperial-blue-dark, #2A4080);
+}
+
+:global([data-theme="light"]) .disclaimerHighlight {
+  color: var(--imperial-blue, #4A61A8);
+}
+
+:global([data-theme="light"]) .socialBtn:hover {
+  background: rgba(var(--imperial-blue-rgb), 0.1);
+  border-color: rgba(var(--imperial-blue-rgb), 0.3);
+  color: var(--imperial-blue-dark, #2A4080);
 }

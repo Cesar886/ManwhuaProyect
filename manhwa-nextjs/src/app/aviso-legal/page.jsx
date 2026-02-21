@@ -93,7 +93,7 @@ export default function AvisoLegalPage() {
                                 <h2 className={styles.sectionTitle}>Descargo de Responsabilidad</h2>
                             </div>
                             <p className={styles.sectionText}>
-                                El contenido se proporciona "tal cual" sin garantías de ningún tipo. Manhwa Imperial
+                                El contenido se proporciona &quot;tal cual&quot; sin garantías de ningún tipo. Manhwa Imperial
                                 no se hace responsable de la exactitud, integridad o actualidad del contenido
                                 presentado. El uso de la plataforma es bajo la propia{' '}
                                 <span className={styles.highlight}>responsabilidad del usuario</span>.

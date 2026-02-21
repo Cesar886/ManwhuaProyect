@@ -25,6 +25,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
   const mountTimeRef = useRef(null);
   const isMountedRef = useRef(true);
   const fpInitRef = useRef(false);
+  const apiCheckedRef = useRef(false);
 
   useEffect(() => {
     return () => { isMountedRef.current = false; };
@@ -32,7 +33,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
 
   const getStorageKey = (s, ch) => `mi_chapter_rating_${s}_${ch}`;
 
-  // Inicializar FingerprintJS solo cuando el usuario interactúa con las estrellas
+  // Inicializar FingerprintJS (lazy pero garantizado al montar)
   const initFingerprintOnDemand = useCallback(async () => {
     if (fpInitRef.current) return;
     fpInitRef.current = true;
@@ -41,16 +42,29 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
       const FingerprintJS = (await import('@fingerprintjs/fingerprintjs')).default;
       const fp = await FingerprintJS.load();
       const result = await fp.get();
-      if (isMountedRef.current) setVisitorId(result.visitorId);
-    } catch {
-      let fallbackId = localStorage.getItem('mi_visitor_id');
-      if (!fallbackId) {
-        fallbackId = 'fb_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-        localStorage.setItem('mi_visitor_id', fallbackId);
+      if (isMountedRef.current) {
+        // Guardar en localStorage para que sea el mismo ID en próximas recargas
+        localStorage.setItem('mi_visitor_id', result.visitorId);
+        setVisitorId(result.visitorId);
       }
-      if (isMountedRef.current) setVisitorId(fallbackId);
+    } catch {
+      // El ID de localStorage ya fue establecido en el useEffect de montaje
     }
   }, []);
+
+  // Inicializar visitorId al montar: inmediato desde localStorage, mejorar con FingerprintJS
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // 1. Establecer ID de forma síncrona para que los botones estén habilitados de inmediato
+    let fid = localStorage.getItem('mi_visitor_id');
+    if (!fid) {
+      fid = 'anon_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+      localStorage.setItem('mi_visitor_id', fid);
+    }
+    setVisitorId(fid);
+    // 2. Intentar mejorar con FingerprintJS en background (no bloquea la UI)
+    initFingerprintOnDemand();
+  }, [initFingerprintOnDemand]);
 
   // Registrar cuándo el usuario puede empezar a votar (para anti-bot)
   useEffect(() => {
@@ -95,15 +109,16 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
     return () => { mounted = false; };
   }, [slug, chapterNum]);
 
-  // Cargar voto previo del usuario desde la API
+  // Cargar voto previo del usuario desde la API (solo la primera vez que visitorId esté disponible)
   useEffect(() => {
-    if (!visitorId || !slug || !chapterNum) return;
+    if (!visitorId || !slug || !chapterNum || apiCheckedRef.current) return;
+    apiCheckedRef.current = true;
+    let mounted = true;
 
-    const fetchUserRating = async () => {
-      try {
-        const res = await fetch(apiUrl(`chapters/${slug}/${chapterNum}/user-rating?visitorId=${visitorId}`));
-        const data = await res.json();
-        if (data.success && data.data?.userRating) {
+    fetch(apiUrl(`chapters/${slug}/${chapterNum}/user-rating?visitorId=${visitorId}`))
+      .then(res => res.json())
+      .then(data => {
+        if (mounted && data.success && data.data?.userRating) {
           setUserRating(data.data.userRating);
           setHasRated(true);
           if (typeof window !== 'undefined') {
@@ -113,10 +128,10 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
             );
           }
         }
-      } catch { /* Silently fail — localStorage ya cubre este caso */ }
-    };
+      })
+      .catch(() => {});
 
-    fetchUserRating();
+    return () => { mounted = false; };
   }, [visitorId, slug, chapterNum]);
 
   const handleRate = useCallback(async (value) => {
@@ -198,6 +213,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
         style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
         onMouseEnter={initFingerprintOnDemand}
         onFocus={initFingerprintOnDemand}
+        onTouchStart={initFingerprintOnDemand}
       >
         {[1, 2, 3, 4, 5].map((star) => (
           <button
@@ -209,7 +225,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
             style={{
               background: 'none',
               border: 'none',
-              cursor: (isSubmitting || hasRated) ? 'default' : 'pointer',
+              cursor: (isSubmitting || hasRated || !visitorId) ? 'default' : 'pointer',
               padding: '2px',
               transition: 'transform 0.15s ease',
               transform: (!hasRated && hoverRating === star) ? 'scale(1.15)' : 'scale(1)',

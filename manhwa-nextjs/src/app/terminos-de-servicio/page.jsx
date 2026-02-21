@@ -118,7 +118,7 @@ const sections = [
         title: 'Limitación de Responsabilidad',
         content: (
             <p className={styles.sectionText}>
-                Manhwa Imperial proporciona el servicio "tal cual" y "según disponibilidad". No garantizamos
+                Manhwa Imperial proporciona el servicio &quot;tal cual&quot; y &quot;según disponibilidad&quot;. No garantizamos
                 que el servicio sea ininterrumpido, seguro o libre de errores. En la máxima medida
                 permitida por la ley aplicable, la Plataforma no será responsable por daños indirectos,
                 incidentales o consecuentes.

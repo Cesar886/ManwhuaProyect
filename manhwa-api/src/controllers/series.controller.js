@@ -251,20 +251,8 @@ const getSeriesDetail = async (req, res, next) => {
 
         const series = result.rows[0];
 
-        // Incrementar vistas
-        await query(
-            'UPDATE series SET view_count = view_count + 1, daily_views = daily_views + 1 WHERE id = $1',
-            [series.id]
-        );
-
-        // Registrar vista si hay usuario
-        if (req.user) {
-            await query(
-                `INSERT INTO series_views (series_id, user_id, ip_address)
-                 VALUES ($1, $2, $3)`,
-                [series.id, req.user.id, req.ip]
-            );
-        }
+        // NOTA: Las vistas se registran vía POST /:slug/view desde el cliente.
+        // No incrementamos aquí para evitar contar hits de SSR, bots y crawlers.
 
         // Obtener últimos capítulos
         const chaptersResult = await query(
@@ -1288,6 +1276,36 @@ const getUserRating = async (req, res, next) => {
 };
 
 /**
+ * Obtener rating público de una serie (promedio + total votos)
+ * GET /api/series/:slug/rating
+ */
+const getSeriesRating = async (req, res, next) => {
+    try {
+        const { slug } = req.params;
+
+        const result = await query(
+            'SELECT rating_average, rating_count FROM series WHERE slug = $1 AND deleted_at IS NULL',
+            [slug]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Series not found' });
+        }
+
+        const row = result.rows[0];
+        res.json({
+            success: true,
+            data: {
+                rating: row.rating_average ? parseFloat(row.rating_average) : null,
+                ratingCount: parseInt(row.rating_count, 10) || 0
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * Crear serie
  * POST /api/series
  */
@@ -1727,30 +1745,6 @@ const unfeatureSeries = async (req, res, next) => {
     }
 };
 
-module.exports = {
-    listSeries,
-    getSeriesDetail,
-    getSeriesChapters,
-    getFeaturedSeries,
-    getPopularSeries,
-    getLatestSeries,
-    getTrendingSeries,
-    getNewReleases,
-    getSeriesComments,
-    getRelatedSeries,
-    likeSeries,
-    unlikeSeries,
-    bookmarkSeries,
-    unbookmarkSeries,
-    rateSeries,
-    createSeries,
-    updateSeries,
-    updateSeriesCover,
-    deleteSeries,
-    featureSeries,
-    unfeatureSeries
-};
-
 /**
  * Obtener todos los estados disponibles
  * GET /api/series/statuses
@@ -1798,5 +1792,6 @@ module.exports = {
     featureSeries,
     unfeatureSeries,
     getSeriesStatuses,
-    getUserRating
+    getUserRating,
+    getSeriesRating
 };

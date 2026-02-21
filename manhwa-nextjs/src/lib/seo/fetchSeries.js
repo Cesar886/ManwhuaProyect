@@ -6,7 +6,7 @@ export async function fetchSeriesForSEO(slug) {
   try {
     const url = endpoint('spaces', `manhwas/${slug}`)
     const res = await fetch(url, {
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 },
       headers: {
         'Accept': 'application/json',
         'Origin': SITE_URL,

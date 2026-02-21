@@ -89,6 +89,7 @@ const rateValidation = [
     body('review').optional().isString().isLength({ max: 500 })
 ];
 
+router.get('/:slug/rating', validate(slugParam), seriesController.getSeriesRating);
 router.get('/:slug/user-rating', validate([...slugParam, ...userRatingValidation]), optionalAuth, seriesController.getUserRating);
 router.post('/:slug/rate', voteLimiter, validate([...slugParam, ...rateValidation]), optionalAuth, seriesController.rateSeries);
 
