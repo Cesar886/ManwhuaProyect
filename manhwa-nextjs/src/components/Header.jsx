@@ -14,7 +14,6 @@ import {
   IconSettings,
   IconUser,
   IconHeart,
-  IconSearch,
 } from '@tabler/icons-react';
 import {
   Avatar,
@@ -334,68 +333,8 @@ function Header({ colorScheme, toggleColorScheme }) {
               })}
             </Group>
 
-            <Group gap="sm" style={{ position: 'absolute', right: '1rem' }}>
-              {/* Search Icon (ahora en el nivel inferior) */}
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="lg"
-                onClick={() => setSearchOpened(!searchOpened)}
-                className={styles.actionIcon}
-                aria-label="Buscar"
-              >
-                <IconSearch size={20} stroke={1.5} />
-              </ActionIcon>
-
-              {/* Burger removed (no dropdown on mobile) */}
-            </Group>
           </Group>
         </Container>
-
-        {/* Search Bar - Expandable */}
-        {searchOpened && (
-          <Container size="lg" pb="md">
-            <Input
-              placeholder="Buscar Biblioteca, autores, géneros..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const q = searchQuery.trim();
-                  if (q.length > 0) {
-                    try {
-                      router.push(`/biblioteca?search=${encodeURIComponent(q)}`);
-                      setSearchOpened(false);
-                      setSearchQuery('');
-                    } catch { void 0; }
-                  }
-                } else if (e.key === 'Escape') {
-                  setSearchOpened(false);
-                  setSearchQuery('');
-                }
-              }}
-              icon={<IconSearch size={18} />}
-              rightSectionPointerEvents="all"
-              rightSection={
-                <ActionIcon
-                  size="sm"
-                  color="gray"
-                  radius="xl"
-                  variant="subtle"
-                  onClick={() => {
-                    setSearchOpened(false);
-                    setSearchQuery('');
-                  }}
-                >
-                  <IconX size={16} />
-                </ActionIcon>
-              }
-              classNames={{ input: styles.searchInput }}
-              autoFocus
-            />
-          </Container>
-        )}
-
       </Box>
 
       {/* Navegación visible en móvil — no se usa Drawer */}
