@@ -51,7 +51,7 @@ const ChatIA = ({ onSearch, loading }) => {
                 disabled={loading}
                 spellCheck="false"
                 autoComplete="off"
-                placeholder={loading ? "Buscando..." : "Pregunta a la IA..."}
+                placeholder={loading ? "Buscando..." : "Buscar titulo o pregunta a la IA..."}
                 aria-label="Escribe tu consulta"
             />
 
