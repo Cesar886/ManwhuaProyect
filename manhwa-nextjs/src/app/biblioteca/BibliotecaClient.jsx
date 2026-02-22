@@ -120,6 +120,8 @@ import { useSpaces } from '../../hooks/useSpaces';
 import { useIA } from '../../hooks/useIA';
 import { normalizeImageUrl } from '../../utils/imageUtils';
 import ManhwaCover from '../../components/ManhwaCover';
+import dynamic from 'next/dynamic';
+const ChatIA = dynamic(() => import('../../components/ia-minicpm'), { ssr: false });
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
@@ -266,6 +268,7 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                     <Stack gap="md">
                         {/* IA Search Section */}
                         <Stack gap="md">
+                            <ChatIA onSearch={handleIASearch} loading={iaLoading} />
                             {/* Resultados de IA */}
                             {resultados && (
                                 <Transition mounted={!!resultados} transition="slide-down" duration={300}>

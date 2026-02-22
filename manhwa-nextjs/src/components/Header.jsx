@@ -7,7 +7,6 @@ import {
   IconHome,
   IconBooks,
   IconTrendingUp,
-  IconSearch,
   IconMoon,
   IconSun,
   IconX,
@@ -15,6 +14,7 @@ import {
   IconSettings,
   IconUser,
   IconHeart,
+  IconSearch,
 } from '@tabler/icons-react';
 import {
   Avatar,
@@ -22,11 +22,11 @@ import {
   Menu,
   Text,
   UnstyledButton,
-  Input,
   ActionIcon,
   Badge,
   Stack,
   Button,
+  Input,
   Container,
   ThemeIcon,
   useMantineColorScheme,
@@ -53,10 +53,10 @@ const USER_MENU_ITEMS = [
 
 function Header({ colorScheme, toggleColorScheme }) {
   const [userMenuOpened, setUserMenuOpened] = useState(false);
-  const [searchOpened, setSearchOpened] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [mounted, setMounted] = useState(false);
   const searchDebounce = useRef(null);
+  const [searchOpened, setSearchOpened] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const headerRef = useRef(null);
   const router = useRouter();
 
@@ -75,22 +75,9 @@ function Header({ colorScheme, toggleColorScheme }) {
     updateHeaderHeight();
     window.addEventListener('resize', updateHeaderHeight);
     return () => window.removeEventListener('resize', updateHeaderHeight);
-  }, [searchOpened]); // Recalcular cuando se abre/cierra búsqueda
+  }, []);
 
-  // Búsqueda con debounce - redirige a biblioteca con resultados
-  useEffect(() => {
-    if (!searchOpened) return;
-    const q = searchQuery.trim();
-    if (q.length === 0) return;
-    if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    searchDebounce.current = setTimeout(() => {
-      router.push(`/biblioteca?search=${encodeURIComponent(q)}`);
-      // Cerrar el buscador y limpiar después de redirigir
-      setSearchOpened(false);
-      setSearchQuery('');
-    }, 350);
-    return () => searchDebounce.current && clearTimeout(searchDebounce.current);
-  }, [searchQuery, router, searchOpened]);
+  // La búsqueda en el header fue removida; la lógica se maneja en la página de biblioteca.
 
   const pathname = usePathname();
 

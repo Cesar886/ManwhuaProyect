@@ -89,7 +89,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://*.digitaloceanspaces.com https://manhwaimperial.site https://lh3.googleusercontent.com https://cdn.discordapp.com https://dashboard.olympusbiblioteca.com",
               "font-src 'self' data:",
-              "connect-src 'self' http://localhost:3000 http://localhost:3001 https://*.digitaloceanspaces.com https://www.googletagmanager.com https://accounts.google.com https://apis.google.com https://www.google-analytics.com https://manhwaimperial.site https://cloudflareinsights.com",
+              "connect-src 'self' http://localhost:3000 http://localhost:3001 https://*.digitaloceanspaces.com https://www.googletagmanager.com https://accounts.google.com https://apis.google.com https://www.google-analytics.com https://manhwaimperial.site https://ai.manhwaimperial.site https://cloudflareinsights.com",
               "frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com",
               "frame-ancestors 'none'",
               "object-src 'none'",
