@@ -172,7 +172,7 @@ export default function RootLayout({ children }) {
           }}
         />
         <NavigationProgress />
-        <MantineProvider theme={imperialTheme} defaultColorScheme="dark">
+        <MantineProvider theme={imperialTheme} defaultColorScheme="light">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>
             <MainLayout>
