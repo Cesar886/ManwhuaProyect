@@ -18,7 +18,7 @@ const { authenticate } = require('./middleware/auth');
 const { requireRole } = require('./middleware/authorize');
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
-const { requireValidOrigin } = require('./middleware/security');
+const { requireValidOrigin, isAllowedSearchBot } = require('./middleware/security');
 const logger = require('./utils/logger');
 const { startIndexingDaemon, stopIndexingDaemon } = require('./services/googleIndexing');
 const { startIndexNowDaemon, stopIndexNowDaemon } = require('./services/indexNowDaemon');
@@ -116,6 +116,11 @@ app.use((req, res, next) => {
     // Excluir webhooks, callback de auth y assets estáticos si los hay
     if (req.path.startsWith('/webhooks') || req.path.includes('/auth/callback')) return next();
 
+    // CAMBIO: Permitir crawlers de motores de búsqueda legítimos (Googlebot, Bingbot, etc.)
+    // Sin esto, los crawlers que no envían Origin/Referer recibían 403 en producción.
+    const ua = req.headers['user-agent'] || '';
+    if (isAllowedSearchBot(ua)) return next();
+
     // Permitir acceso a imágenes/recursos públicos sin validación estricta de origen
     if (req.method === 'GET' && !req.path.startsWith('/api/admin')) return next();
 
@@ -159,6 +164,10 @@ app.use((req, res, next) => {
 app.use(requireValidOrigin);
 
 // Rate limiting general
+// CAMBIO: Se agrega skip para crawlers de motores de búsqueda.
+// El rate limit de 100 req/15min bloqueaba el crawleo masivo de Googlebot
+// y también los SSR fetches internos desde localhost cuando Google
+// rastreaba muchas páginas simultáneamente.
 const limiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
@@ -167,7 +176,15 @@ const limiter = rateLimit({
         message: 'Demasiadas peticiones, intenta de nuevo más tarde'
     },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    skip: (req) => {
+        // Eximir crawlers legítimos
+        if (isAllowedSearchBot(req.headers['user-agent'] || '')) return true;
+        // Eximir SSR internos (Next.js en localhost) que usan API key válida
+        const apiKey = req.headers['x-api-key'];
+        if (apiKey && process.env.INTERNAL_API_KEY && apiKey === process.env.INTERNAL_API_KEY) return true;
+        return false;
+    }
 });
 app.use('/api/', limiter);
 
@@ -195,6 +212,9 @@ const searchLimiter = rateLimit({
 app.use('/api/search', searchLimiter);
 
 // Rate limiting anti-scraping para catálogo de series y spaces
+// CAMBIO: Se agrega skip para crawlers legítimos.
+// El límite de 40 req/min combinado con keyGenerator que usa IP+UA
+// bloqueaba tanto a Googlebot directo como a los SSR fetches internos.
 const catalogLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minuto
     max: parseInt(process.env.CATALOG_RATE_LIMIT) || 40, // 40 req/min
@@ -209,6 +229,12 @@ const catalogLimiter = rateLimit({
         // Usar IP + User-Agent para dificultar rotación de IPs
         return `${req.ip}-${(req.get('User-Agent') || 'unknown').slice(0, 50)}`;
     },
+    skip: (req) => {
+        if (isAllowedSearchBot(req.headers['user-agent'] || '')) return true;
+        const apiKey = req.headers['x-api-key'];
+        if (apiKey && process.env.INTERNAL_API_KEY && apiKey === process.env.INTERNAL_API_KEY) return true;
+        return false;
+    }
 });
 app.use('/api/series', catalogLimiter);
 app.use('/api/spaces', catalogLimiter);

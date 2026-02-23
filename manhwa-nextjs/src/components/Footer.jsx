@@ -8,6 +8,7 @@ import {
   IconBrandTwitter,
   IconBrandDiscord,
   IconChevronDown,
+  IconBrandFacebook,
 } from '@tabler/icons-react';
 import classes from './Footer.module.css';
 
@@ -39,7 +40,7 @@ const navColumns = [
   {
     title: 'Comunidad',
     links: [
-      { label : 'x/ Twitter', link: 'https://x.com/manhwaimperial' },
+      { label : 'X/ Twitter', link: 'https://x.com/manhwaimperial' },
       { label: 'Instagram', link: 'https://instagram.com/manhwaimperial' },
       { label: 'Facebook', link: 'https://www.facebook.com/share/1DeCq4G8B4/' },
     ],
@@ -57,9 +58,9 @@ const navColumns = [
 ];
 
 const socialLinks = [
-  { icon: IconBrandTwitter, label: 'Twitter', href: '#' },
-  { icon: IconBrandDiscord, label: 'Discord', href: '#' },
-  { icon: IconBrandInstagram, label: 'Instagram', href: '#' },
+  { icon: IconBrandTwitter, label: 'Twitter', href: 'https://x.com/manhwaimperial' },
+  { icon: IconBrandFacebook, label: 'Facebook', href: 'https://www.facebook.com/share/1DeCq4G8B4/' },
+  { icon: IconBrandInstagram, label: 'Instagram', href: 'https://instagram.com/manhwaimperial' },
 ];
 
 // Columna colapsable para mobile

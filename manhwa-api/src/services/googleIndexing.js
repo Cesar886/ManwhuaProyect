@@ -14,7 +14,7 @@ const logger = require('../utils/logger');
 
 const CREDENTIALS_PATH = path.join(__dirname, '..', 'config', 'google-indexing-credentials.json');
 const HISTORY_PATH = path.join(__dirname, '..', '..', 'data', 'indexing-history.json');
-const SITEMAP_URL = 'https://manhwaimperial.site/sitemap.xml';
+const SITEMAP_URL = 'https://manhwaimperial.site/sitemap-chapters-1.xml';
 const SITE_BASE = 'https://manhwaimperial.site';
 
 const DAEMON_INTERVAL = 6 * 60 * 60 * 1000; // 6 horas
