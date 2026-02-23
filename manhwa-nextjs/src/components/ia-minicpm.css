@@ -1,20 +1,30 @@
 /* ============================================
    IA SEARCH — Minimal premium input
+   Usa las variables del sistema imperial
+   (imperial-variables.css) para adaptar
+   automáticamente a dark / light mode.
    ============================================ */
 
+/* ====== WRAPPER ====== */
+.ia-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+/* ====== FORM ====== */
 .ia-search {
     position: relative;
     display: flex;
     align-items: center;
     gap: 0.6rem;
     padding: 0.7rem 1rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-md, 0.75rem);
     background: transparent;
     border: none;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-slow, 0.3s cubic-bezier(0.4, 0, 0.2, 1));
 }
 
-/* Subtle bottom line instead of border */
+/* Línea inferior sutil */
 .ia-search::after {
     content: '';
     position: absolute;
@@ -22,40 +32,51 @@
     left: 1rem;
     right: 1rem;
     height: 1px;
-    background: currentColor;
-    opacity: 0.08;
-    transition: opacity 0.3s ease;
+    background: var(--border-medium);
+    opacity: 0.6;
+    transition: opacity var(--transition-base, 0.2s ease);
 }
 
-.ia-search:hover::after {
-    opacity: 0.14;
-}
-
-.ia-search:focus-within::after {
-    opacity: 0.2;
-}
+.ia-search:hover::after        { opacity: 0.9; }
+.ia-search:focus-within::after { opacity: 0; } /* la shimmer la reemplaza */
 
 /* ====== ICON ====== */
 .ia-icon {
     flex-shrink: 0;
-    opacity: 0.3;
-    transition: all 0.35s ease;
+    width: 20px;
+    height: 20px;
+    color: var(--imperial-purple);
+    opacity: 0.85;
+    animation: ia-float 3s ease-in-out infinite;
+    transition: all var(--transition-slow, 0.35s ease);
 }
 
 .ia-search:focus-within .ia-icon {
-    opacity: 0.6;
-    color: rgb(139, 92, 246);
+    opacity: 1;
+    color: var(--imperial-purple);
+    animation: ia-float-focus 2.5s ease-in-out infinite;
 }
 
 .ia-processing .ia-icon {
-    opacity: 0.7;
-    color: rgb(139, 92, 246);
+    opacity: 1;
+    color: var(--imperial-purple);
     animation: ia-sparkle 1.8s ease-in-out infinite;
 }
 
+@keyframes ia-float {
+    0%, 100% { transform: translateY(0)    rotate(0deg);  opacity: 0.85; }
+    33%       { transform: translateY(-3px) rotate(6deg);  opacity: 1;    }
+    66%       { transform: translateY(-1px) rotate(-4deg); opacity: 0.9;  }
+}
+
+@keyframes ia-float-focus {
+    0%, 100% { transform: translateY(0)    rotate(0deg)   scale(1);    }
+    50%       { transform: translateY(-4px) rotate(8deg)   scale(1.08); }
+}
+
 @keyframes ia-sparkle {
-    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
-    50% { transform: scale(1.15) rotate(15deg); opacity: 1; }
+    0%, 100% { transform: scale(1)    rotate(0deg);  opacity: 0.8; }
+    50%       { transform: scale(1.15) rotate(15deg); opacity: 1;   }
 }
 
 /* ====== INPUT ====== */
@@ -67,15 +88,15 @@
     padding: 0.25rem 0;
     font-size: 0.9rem;
     font-weight: 400;
-    color: inherit;
-    font-family: inherit;
+    color: var(--text-primary);
+    font-family: var(--font-body, inherit);
     letter-spacing: 0.01em;
-    caret-color: rgb(139, 92, 246);
+    caret-color: var(--imperial-purple);
 }
 
 .ia-input::placeholder {
-    color: currentColor;
-    opacity: 0.3;
+    color: var(--text-muted);
+    opacity: 0.7;
     font-weight: 400;
 }
 
@@ -84,7 +105,7 @@
     cursor: not-allowed;
 }
 
-/* ====== SHIMMER LINE (processing) ====== */
+/* ====== SHIMMER LINE (procesando) ====== */
 .ia-shimmer {
     position: absolute;
     bottom: 0;
@@ -97,9 +118,9 @@
     background: linear-gradient(
         90deg,
         transparent 0%,
-        rgb(139, 92, 246) 30%,
-        rgb(6, 182, 212) 50%,
-        rgb(139, 92, 246) 70%,
+        var(--imperial-purple) 30%,
+        var(--imperial-cyan, #22d3ee) 50%,
+        var(--imperial-purple) 70%,
         transparent 100%
     );
     background-size: 200% 100%;
@@ -112,14 +133,11 @@
 }
 
 @keyframes ia-shimmer-flow {
-    0% { background-position: 100% 0; }
+    0%   { background-position: 100% 0; }
     100% { background-position: -100% 0; }
 }
 
-/* Hide the static line when shimmer is active */
-.ia-processing::after {
-    opacity: 0;
-}
+.ia-processing::after { opacity: 0; }
 
 /* ====== LOADING DOTS ====== */
 .ia-dots {
@@ -134,22 +152,161 @@
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: rgb(139, 92, 246);
+    background: var(--imperial-purple);
     opacity: 0.6;
     animation: ia-dot-bounce 1.2s ease-in-out infinite;
 }
 
-.ia-dots span:nth-child(2) {
-    animation-delay: 0.15s;
-}
-
-.ia-dots span:nth-child(3) {
-    animation-delay: 0.3s;
-}
+.ia-dots span:nth-child(2) { animation-delay: 0.15s; }
+.ia-dots span:nth-child(3) { animation-delay: 0.3s; }
 
 @keyframes ia-dot-bounce {
-    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-    30% { transform: translateY(-4px); opacity: 1; }
+    0%, 60%, 100% { transform: translateY(0);    opacity: 0.4; }
+    30%           { transform: translateY(-4px); opacity: 1;   }
+}
+
+/* ====================================================
+   SUGGESTIONS DROPDOWN
+   Usa --dropdown-bg, --border-*, --text-* del tema
+   ==================================================== */
+.ia-suggestions {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    z-index: var(--z-popover, 600);
+
+    background: var(--dropdown-bg);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md, 0.75rem);
+    overflow: hidden;
+
+    /* Sombra premium adaptada al tema */
+    box-shadow:
+        var(--shadow-xl),
+        0 0 0 1px var(--border-subtle);
+
+    animation: ia-dropdown-in 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ia-dropdown-in {
+    from { opacity: 0; transform: translateY(-5px) scale(0.99); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* Línea de acento superior */
+.ia-suggestions::before {
+    content: '';
+    display: block;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        var(--imperial-purple) 0%,
+        var(--imperial-cyan, #22d3ee) 50%,
+        var(--imperial-purple) 100%
+    );
+    opacity: 0.7;
+}
+
+/* Etiqueta "Consultas populares" */
+.ia-suggestions-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1rem 0.3rem;
+    margin: 0;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-family: var(--font-body, inherit);
+}
+
+.ia-suggestions-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-subtle);
+}
+
+/* Cada sugerencia */
+.ia-suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: var(--font-body, inherit);
+    font-size: 0.875rem;
+    font-weight: 400;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        background var(--transition-fast, 0.12s ease),
+        color      var(--transition-fast, 0.12s ease),
+        padding-left var(--transition-fast, 0.12s ease);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.ia-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.ia-suggestion-item:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    padding-left: 1.2rem;
+}
+
+.ia-suggestion-item:active {
+    background: var(--imperial-primary-alpha, rgba(var(--imperial-blue-rgb), 0.15));
+}
+
+/* Número de ranking */
+.ia-suggestion-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    border-radius: var(--radius-xs, 0.25rem);
+    background: var(--imperial-primary-alpha, rgba(var(--imperial-blue-rgb), 0.1));
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: var(--imperial-purple);
+    letter-spacing: 0;
+    flex-shrink: 0;
+}
+
+/* Destacar el #1 */
+.ia-suggestion-item:first-of-type .ia-suggestion-rank {
+    background: linear-gradient(135deg, var(--imperial-purple), var(--imperial-cyan, #22d3ee));
+    color: #fff;
+}
+
+/* Texto de la sugerencia */
+.ia-suggestion-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+/* Contador de búsquedas */
+.ia-suggestion-count {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    opacity: 0.6;
+    background: var(--subtle-bg);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-xs, 0.25rem);
 }
 
 /* ====== RESPONSIVE ====== */
@@ -160,11 +317,20 @@
     }
 
     .ia-input {
-        font-size: 16px;
+        font-size: 16px; /* evita zoom en iOS */
     }
 
     .ia-icon {
         width: 14px;
         height: 14px;
+    }
+
+    .ia-suggestion-item {
+        padding: 0.55rem 0.75rem;
+        font-size: 0.825rem;
+    }
+
+    .ia-suggestion-item:hover {
+        padding-left: 0.9rem;
     }
 }
