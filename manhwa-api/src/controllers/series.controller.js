@@ -1458,9 +1458,20 @@ const updateSeries = async (req, res, next) => {
         // NOTA: NO incluir 'slug' ni 'author' en campos permitidos
         // author se maneja mediante author_id
         const allowedFields = [
+            // Campos básicos
             'title', 'original_title', 'synopsis', 'description',
             'status', 'cover_url', 'banner_url',
-            'release_year', 'is_adult', 'is_featured', 'is_hot', 'type', 'content_type'
+            'release_year', 'is_adult', 'is_featured', 'is_hot', 'type', 'content_type',
+            'country', 'original_language', 'meta_title', 'meta_description',
+            // Campos de enriquecimiento AI
+            'alternative_titles', 'themes', 'tone', 'protagonist_type',
+            'has_anime', 'has_drama', 'narrative_tropes', 'official_hashtags',
+            'age_recommendation', 'content_warnings', 'romance_level', 'power_system',
+            'entry_barrier', 'serialization_platform', 'adaptations', 'art_style',
+            'color_scheme', 'awards', 'world_building_depth', 'publication_format',
+            'has_physical_edition', 'trigger_warnings', 'target_demographic',
+            'international_title_variations', 'update_reliability', 'writing_quality',
+            'cultural_notes', 'educational_value',
         ];
 
         const updateFields = [];

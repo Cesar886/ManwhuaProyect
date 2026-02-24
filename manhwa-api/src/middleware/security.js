@@ -30,9 +30,11 @@ const ALLOWED_BOT_PATTERNS = [
 ];
 
 // Bots maliciosos/scraping que NO deben tener acceso libre
+// NOTA: Bytespider (TikTok) fue removido de esta lista porque robots.txt lo permite.
+// Si quieres bloquearlo, agrégalo aquí Y en robots.txt para consistencia.
 const BLOCKED_BOT_PATTERNS = [
   'AhrefsBot', 'SemrushBot', 'MJ12bot', 'DotBot',
-  'BLEXBot', 'PetalBot', 'Bytespider',
+  'BLEXBot', 'PetalBot',
 ];
 
 /**
