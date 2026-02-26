@@ -569,7 +569,7 @@ const listManhwasFromDatabase = async (req, res, next) => {
             }
         }
 
-        // PASO 4: Fallback a BD (metadata) + chapterCounts de Spaces cache
+        // PASO 4: Fallback a BD (metadata) + chapterCounts de Spaces cache o BD
         const result = await query(`
             SELECT s.id, s.slug, s.title, s.cover_url, s.status, s.updated_at
             FROM series s

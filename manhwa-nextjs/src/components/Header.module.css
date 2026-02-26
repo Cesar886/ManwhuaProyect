@@ -740,6 +740,62 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+/* Login Button - Imperial styled */
+.loginButton {
+  background: linear-gradient(135deg, #D4A528 0%, #8B5CC8 100%) !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  padding: 0.4rem 1.2rem !important;
+  box-shadow: 0 4px 15px -3px rgba(212, 165, 40, 0.35),
+              0 2px 6px rgba(139, 92, 200, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.loginButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.loginButton:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px -3px rgba(212, 165, 40, 0.45),
+              0 4px 10px rgba(139, 92, 200, 0.3) !important;
+}
+
+.loginButton:hover::before {
+  left: 100%;
+}
+
+.loginButton:active {
+  transform: translateY(0) !important;
+}
+
+:global([data-theme="light"]) .loginButton {
+  background: linear-gradient(135deg, #B8860B 0%, #6B4FA3 100%) !important;
+  box-shadow: 0 4px 15px -3px rgba(184, 134, 11, 0.3),
+              0 2px 6px rgba(107, 79, 163, 0.15);
+}
+
+:global([data-theme="light"]) .loginButton:hover {
+  box-shadow: 0 6px 20px -3px rgba(184, 134, 11, 0.4),
+              0 4px 10px rgba(107, 79, 163, 0.25) !important;
+}
+
 .logoImage {
   width: 40px !important;
   height: 40px !important;

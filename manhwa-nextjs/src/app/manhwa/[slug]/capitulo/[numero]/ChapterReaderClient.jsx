@@ -100,7 +100,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
 
   // Red adaptativa
   const networkInfo = useNetworkQuality();
-  // eslint-disable-next-line react-hooks/exhaustive-deps — deps granulares intencionales
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const networkConfig = useMemo(
     () => getQueueConfig(networkInfo),
     [networkInfo.quality, networkInfo.savingData, networkInfo.downlink]

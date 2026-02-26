@@ -124,7 +124,7 @@ function Header({ colorScheme, toggleColorScheme }) {
         {/* Main Header Section (2 niveles) */}
         <Container size="lg" py="xs">
           {/* Nivel superior: Logo a la izquierda, Notificaciones / Tema / Usuario a la derecha */}
-          <Group justify="space-between" align="center" wrap="nowrap">
+          <Group justify="space-between" align="center" wrap="nowrap" maw={800} mx="auto" w="100%">
             {/* Logo */}
             <UnstyledButton
               onClick={() => {
@@ -289,7 +289,13 @@ function Header({ colorScheme, toggleColorScheme }) {
                   </Menu.Dropdown>
                 </Menu>
               ) : (
-                <Button variant="outline" size="sm" onClick={() => openLogin()}>
+                <Button
+                  size="sm"
+                  radius="xl"
+                  className={styles.loginButton}
+                  onClick={() => openLogin()}
+                >
+                  <IconUser size={16} stroke={2} style={{ marginRight: 6 }} />
                   Entrar
                 </Button>
               )}

@@ -296,6 +296,11 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                         <div key={series.slug || series.id} className={classes.releaseCard}>
                                             <Link href={`/manhwa/${series.slug}`} className={classes.releaseCoverContainer}>
                                                 <div className={classes.releaseCoverWrapper}>
+                                                    {(series.chapterCount || series.totalChapters || (series.chapters || []).length) > 0 && (
+                                                        <span className={classes.chapterBadge}>
+                                                            {series.chapterCount || series.totalChapters || series.chapters?.length} caps
+                                                        </span>
+                                                    )}
                                                     <ManhwaCover
                                                         src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
                                                         alt={`Portada del manhwa ${series.title} - Leer en español online gratis en Manhwa Imperial`}
@@ -308,20 +313,6 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                                     </div>
                                                 </div>
                                             </Link>
-                                            <div className={classes.releaseInfo}>
-                                                <div className={classes.chaptersList}>
-                                                    {(series.chapters || []).slice(0, 3).map((ch) => (
-                                                        <Link
-                                                            key={`${series.slug}-${ch.number}`}
-                                                            href={`/manhwa/${series.slug}/capitulo/${ch.number}`}
-                                                            className={classes.chapterLink}
-                                                        >
-                                                            <span>Cap. {ch.number}</span>
-                                                            <span className={classes.chapterTime}>{ch.time}</span>
-                                                        </Link>
-                                                    ))}
-                                                </div>
-                                            </div>
                                         </div>
                                     ))}
                                 </div>
