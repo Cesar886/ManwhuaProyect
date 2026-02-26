@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { IconChevronLeft, IconChevronRight, IconBook } from '@tabler/icons-react';
+import { usePathname } from 'next/navigation';
+import { IconChevronLeft, IconChevronRight, IconBook, IconLoader2 } from '@tabler/icons-react';
 import styles from './ChapterNavigation.module.css';
 
 /**
@@ -16,8 +17,16 @@ import styles from './ChapterNavigation.module.css';
  * @param {string} props.slug - Slug del manhwa
  * @param {Array} props.chapters - Lista de capítulos disponibles
  */
-const ChapterNavigation = ({ currentChapter, slug, chapters = [] }) => {
+const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate }) => {
     const currentNum = parseFloat(currentChapter);
+    const pathname = usePathname();
+    // 'prev' | 'next' | null — indica qué botón está cargando
+    const [navigating, setNavigating] = useState(null);
+
+    // Resetear loading cuando la navegación se completa (pathname cambia)
+    useEffect(() => {
+        setNavigating(null);
+    }, [pathname]);
 
     // Calcular capítulos anterior y siguiente con validación
     const { prevChapter, nextChapter, hasPrev, hasNext } = useMemo(() => {
@@ -61,20 +70,25 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [] }) => {
         };
     }, [currentNum, chapters]);
 
-    // Limpiar fullscreen al navegar
-    const handleNavClick = useCallback(async (e) => {
+    // Limpiar fullscreen al navegar y mostrar loading
+    const handleNavClick = useCallback((direction, targetChapter) => (e) => {
+        if (onNavigate) {
+            e.preventDefault();
+            onNavigate(targetChapter);
+            return;
+        }
+        setNavigating(direction);
         if (document.fullscreenElement) {
             try {
-                await document.exitFullscreen();
+                document.exitFullscreen();
             } catch (error) {
                 // Silently handle fullscreen exit errors
             }
         }
         document.body.style.overflow = '';
         document.documentElement.style.overflow = '';
-        // Scroll al inicio después de navegación
         setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
-    }, []);
+    }, [onNavigate]);
 
     // Formatear número de capítulo (ej: 115.5 -> "115.5")
     const formatChapterNum = (num) => {
@@ -93,21 +107,30 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [] }) => {
             {hasPrev ? (
                 <Link
                     href={`/manhwa/${slug}/capitulo/${prevChapter}`}
-                    className={`${styles.chapterNav} ${styles.secondary}`}
+                    className={`${styles.chapterNav} ${styles.secondary} ${navigating === 'prev' ? styles.navigating : ''}`}
                     aria-label={`Ir al capítulo anterior: ${prevChapter}`}
                     title={`Capítulo ${formatChapterNum(prevChapter)}`}
-                    onClick={handleNavClick}
+                    onClick={handleNavClick('prev', prevChapter)}
                 >
-                    <IconChevronLeft
-                        stroke={2.5}
-                        size={18}
-                        aria-hidden="true"
-                    />
+                    {navigating === 'prev' ? (
+                        <IconLoader2
+                            stroke={2.5}
+                            size={18}
+                            className={styles.spinnerIcon}
+                            aria-hidden="true"
+                        />
+                    ) : (
+                        <IconChevronLeft
+                            stroke={2.5}
+                            size={18}
+                            aria-hidden="true"
+                        />
+                    )}
                     <span>
-                        Cap. {formatChapterNum(prevChapter)}
+                        {navigating === 'prev' ? 'Cargando...' : `Cap. ${formatChapterNum(prevChapter)}`}
                     </span>
                     <span>
-                        {formatChapterNum(prevChapter)}
+                        {navigating === 'prev' ? '...' : formatChapterNum(prevChapter)}
                     </span>
                 </Link>
             ) : (
@@ -145,22 +168,31 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [] }) => {
             {hasNext ? (
                 <Link
                     href={`/manhwa/${slug}/capitulo/${nextChapter}`}
-                    className={`${styles.chapterNav} ${styles.secondary}`}
+                    className={`${styles.chapterNav} ${styles.secondary} ${navigating === 'next' ? styles.navigating : ''}`}
                     aria-label={`Ir al capítulo siguiente: ${nextChapter}`}
                     title={`Capítulo ${formatChapterNum(nextChapter)}`}
-                    onClick={handleNavClick}
+                    onClick={handleNavClick('next', nextChapter)}
                 >
                     <span>
-                        Cap. {formatChapterNum(nextChapter)}
+                        {navigating === 'next' ? 'Cargando...' : `Cap. ${formatChapterNum(nextChapter)}`}
                     </span>
                     <span>
-                        {formatChapterNum(nextChapter)}
+                        {navigating === 'next' ? '...' : formatChapterNum(nextChapter)}
                     </span>
-                    <IconChevronRight
-                        stroke={2.5}
-                        size={18}
-                        aria-hidden="true"
-                    />
+                    {navigating === 'next' ? (
+                        <IconLoader2
+                            stroke={2.5}
+                            size={18}
+                            className={styles.spinnerIcon}
+                            aria-hidden="true"
+                        />
+                    ) : (
+                        <IconChevronRight
+                            stroke={2.5}
+                            size={18}
+                            aria-hidden="true"
+                        />
+                    )}
                 </Link>
             ) : (
                 <span

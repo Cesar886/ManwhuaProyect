@@ -2607,20 +2607,22 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
             radius="xl"
             leftSection={<IconSend size={15} style={{ marginRight: -2 }} />}
             onClick={async () => { if (!user) { openLogin(); return } await handleSubmitComment() }}
-            disabled={!canSubmit || commentSubmitting}
+            disabled={user ? (!canSubmit || commentSubmitting) : false}
             loading={commentSubmitting}
             style={{
-              background: canSubmit && !commentSubmitting
+              background: !user
                 ? 'linear-gradient(135deg, rgb(var(--accent-cyan)) 0%, rgba(var(--accent-cyan), 0.9) 100%)'
-                : 'var(--subtle-bg-hover)',
-              color: canSubmit ? '#ffffff' : 'var(--dimmed-text)',
+                : (canSubmit && !commentSubmitting
+                  ? 'linear-gradient(135deg, rgb(var(--accent-cyan)) 0%, rgba(var(--accent-cyan), 0.9) 100%)'
+                  : 'var(--subtle-bg-hover)'),
+              color: !user ? '#ffffff' : (canSubmit ? '#ffffff' : 'var(--dimmed-text)'),
               border: 'none',
               fontWeight: 600,
               padding: '0 16px',
               height: 36,
               flexShrink: 0,
               marginLeft: 8,
-              boxShadow: canSubmit ? '0 6px 16px rgba(6,182,212,0.12)' : 'none',
+              boxShadow: (canSubmit || !user) ? '0 6px 16px rgba(6,182,212,0.12)' : 'none',
               transition: 'transform 120ms ease, box-shadow 120ms ease'
             }}
           >

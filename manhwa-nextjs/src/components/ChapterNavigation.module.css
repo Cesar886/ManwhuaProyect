@@ -18,11 +18,11 @@
     justify-content: center;
     align-items: center;
     gap: 12px;
-    padding: 40px 20px 32px;
+    padding: 20px 20px 62px;
     width: 100%;
     max-width: 600px;
     margin: 0 auto;
-    position: relative;
+    /* position: relative; */
 }
 
 /* Línea decorativa superior */
@@ -216,6 +216,28 @@
 
 .chapterNav.primary:active {
     transform: translateY(-1px) scale(0.99);
+}
+
+/* ============================================================================
+   NAVIGATING STATE - Loading feedback al hacer click
+   ============================================================================ */
+.chapterNav.navigating {
+    pointer-events: none;
+    opacity: 0.85;
+    border-color: #D4AF37 !important;
+    box-shadow:
+        0 0 12px rgba(212, 175, 55, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.spinnerIcon {
+    animation: spinNav 0.7s linear infinite;
+}
+
+@keyframes spinNav {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ============================================================================

@@ -65,7 +65,7 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
+import { Notifications, notifications } from '@mantine/notifications';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../lib/api/client';
 import Comentarios from '../../components/Comentarios';
@@ -138,7 +138,7 @@ export default function Pedidos() {
   // Filtrar y ordenar requests
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
-    
+
     let filtered = requests.filter(request => {
       if (searchQuery && !request.title.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
@@ -365,7 +365,7 @@ export default function Pedidos() {
                   <Badge
                     color={
                       request.status === 'Completado' ? 'green' :
-                      request.status === 'En progreso' ? 'yellow' : 'gray'
+                        request.status === 'En progreso' ? 'yellow' : 'gray'
                     }
                     size="sm"
                   >

@@ -98,6 +98,41 @@ export function useNetworkQuality() {
 }
 
 /**
+ * Obtener configuración de cola de carga adaptativa según calidad de red.
+ * Función pura: recibe el objeto de useNetworkQuality() y retorna config.
+ */
+export function getQueueConfig(networkInfo) {
+  const { savingData, effectiveType, downlink } = networkInfo;
+
+  if (savingData) {
+    return { batchSize: 1, lookaheadMargin: '200px', prefetchNextChapter: false, prefetchImageCount: 0, prefetchDelay: 0 };
+  }
+
+  // low: 2g o downlink < 0.5
+  if (effectiveType === 'slow-2g' || effectiveType === '2g' || (downlink !== null && downlink < 0.5)) {
+    return { batchSize: 1, lookaheadMargin: '300px', prefetchNextChapter: false, prefetchImageCount: 0, prefetchDelay: 0 };
+  }
+
+  // medium: 3g o downlink 0.5–2
+  if (effectiveType === '3g' || (downlink !== null && downlink >= 0.5 && downlink < 2)) {
+    return { batchSize: 2, lookaheadMargin: '500px', prefetchNextChapter: true, prefetchImageCount: 3, prefetchDelay: 3000 };
+  }
+
+  // fast: downlink >= 10
+  if (downlink !== null && downlink >= 10) {
+    return { batchSize: 5, lookaheadMargin: '1000px', prefetchNextChapter: true, prefetchImageCount: Infinity, prefetchDelay: 500 };
+  }
+
+  // high: 4g o downlink 2–10
+  if (effectiveType === '4g' || (downlink !== null && downlink >= 2)) {
+    return { batchSize: 3, lookaheadMargin: '700px', prefetchNextChapter: true, prefetchImageCount: 5, prefetchDelay: 2000 };
+  }
+
+  // fallback: sin API de red
+  return { batchSize: 3, lookaheadMargin: '600px', prefetchNextChapter: true, prefetchImageCount: 5, prefetchDelay: 2000 };
+}
+
+/**
  * Obtener configuración de imagen basada en calidad de red
  */
 export function getImageConfigForNetwork(quality, dataSaverMode = false) {

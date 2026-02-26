@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import useImageQueue from '../../../../../hooks/useImageQueue';
+import { useNetworkQuality, getQueueConfig } from '../../../../../hooks/useNetworkQuality';
+import useNextChapterPrefetch from '../../../../../hooks/useNextChapterPrefetch';
+import ChapterImage from '../../../../../components/ChapterImage';
 
 import dynamic from 'next/dynamic';
 import { useChapterPages, useSeriesDetail } from '../../../../../hooks/useSpaces';
@@ -11,7 +13,7 @@ import ChapterNavigation from '../../../../../components/ChapterNavigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { getOrCreateChapterRequest } from '../../../../../api/requests';
 import ReaderHeader from '../../../../../components/ReaderHeader';
-import { useReadingProgress } from '../../../../../hooks/useReadingProgress'; ``
+import { useReadingProgress } from '../../../../../hooks/useReadingProgress';
 import ReadingProgressBar from '../../../../../components/ReadingProgressBar';
 import ChapterRating from '../../../../../components/ChapterRating';
 
@@ -55,8 +57,38 @@ function ComentariosWrapper({ chapterRequest, slug, chapterNum, openLogin, user 
 export default function ChapterReader({ initialPages = [], initialSeries = null }) {
   const params = useParams();
   const slug = params?.slug;
-  const chapterNum = params?.numero;
-  const router = useRouter();
+  const paramChapterNum = params?.numero;
+
+  // Estado local del capítulo — permite navegación instantánea sin pasar por Next.js router
+  const [chapterNum, setChapterNum] = useState(paramChapterNum);
+
+  // Sincronizar si cambia desde fuera (navegación del browser, Link de ChapterNavigation, etc.)
+  useEffect(() => {
+    if (paramChapterNum && paramChapterNum !== chapterNum) {
+      setChapterNum(paramChapterNum);
+    }
+  }, [paramChapterNum]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Escuchar popstate para back/forward del navegador
+  useEffect(() => {
+    const handlePopState = () => {
+      const match = window.location.pathname.match(/\/capitulo\/([^/]+)/);
+      if (match?.[1] && match[1] !== chapterNum) {
+        setChapterNum(match[1]);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [chapterNum]);
+
+  // Navegación instantánea: solo cambia estado + URL, sin Next.js routing
+  const navigateToChapter = useCallback((targetChapter) => {
+    const newUrl = `/manhwa/${slug}/capitulo/${targetChapter}`;
+    window.history.pushState(null, '', newUrl);
+    setChapterNum(String(targetChapter));
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [slug]);
+
   // Usar initialPages como estado inicial → disponible en el primer render (SSR)
   const { pages: hookPages } = useChapterPages(slug, chapterNum);
   const { series: hookSeries } = useSeriesDetail(slug);
@@ -65,6 +97,72 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
   // Combinar datos SSR con datos del hook (hook puede actualizar tras hidratación)
   const pages = hookPages.length > 0 ? hookPages : initialPages;
   const series = hookSeries || initialSeries;
+
+  // Red adaptativa
+  const networkInfo = useNetworkQuality();
+  // eslint-disable-next-line react-hooks/exhaustive-deps — deps granulares intencionales
+  const networkConfig = useMemo(
+    () => getQueueConfig(networkInfo),
+    [networkInfo.quality, networkInfo.savingData, networkInfo.downlink]
+  );
+
+  // Estado: capítulo actual completamente cargado
+  const [isCurrentChapterLoaded, setIsCurrentChapterLoaded] = useState(false);
+
+  // Reset al cambiar de capítulo
+  useEffect(() => {
+    setIsCurrentChapterLoaded(false);
+  }, [slug, chapterNum]);
+
+  const handleAllImagesLoaded = useCallback(() => {
+    setIsCurrentChapterLoaded(true);
+  }, []);
+
+  // Hook de carga secuencial de imágenes (adaptativo)
+  const { statuses: imageStatuses, markLoaded, registerRef } = useImageQueue(pages, networkConfig, handleAllImagesLoaded);
+
+  // Derivar capítulos anterior y siguiente desde la lista real de capítulos
+  const { prevChapterNum, nextChapterNum, hasPrev, hasNext } = useMemo(() => {
+    const currentNum = parseFloat(chapterNum);
+
+    if (!series?.chapters?.length) {
+      return {
+        prevChapterNum: currentNum - 1,
+        nextChapterNum: currentNum + 1,
+        hasPrev: currentNum > 1,
+        hasNext: true,
+      };
+    }
+
+    const sorted = [...series.chapters].sort((a, b) => parseFloat(a.number) - parseFloat(b.number));
+    const idx = sorted.findIndex(c => parseFloat(c.number) === currentNum);
+
+    if (idx !== -1) {
+      const prev = sorted[idx - 1];
+      const next = sorted[idx + 1];
+      return {
+        prevChapterNum: prev?.number ?? currentNum - 1,
+        nextChapterNum: next?.number ?? currentNum + 1,
+        hasPrev: !!prev,
+        hasNext: !!next,
+      };
+    }
+
+    return {
+      prevChapterNum: currentNum - 1,
+      nextChapterNum: currentNum + 1,
+      hasPrev: currentNum > 1,
+      hasNext: true,
+    };
+  }, [chapterNum, series?.chapters]);
+
+  // Prefetch del siguiente capítulo
+  useNextChapterPrefetch({
+    slug,
+    nextChapterNum,
+    networkConfig,
+    enabled: isCurrentChapterLoaded,
+  });
 
   const [currentPage, setCurrentPage] = useState(0);
   const [showControls, setShowControls] = useState(true);
@@ -172,20 +270,18 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
   const nextPage = useCallback(async () => {
     if (currentPage < pages.length - 1) {
       setCurrentPage(prev => prev + 1);
-    } else {
-      // Ir al siguiente capítulo (mantener pantalla completa si está activa)
-      router.push(`/manhwa/${slug}/capitulo/${parseInt(chapterNum) + 1}`);
+    } else if (hasNext) {
+      navigateToChapter(nextChapterNum);
     }
-  }, [currentPage, pages.length, router, slug, chapterNum]);
+  }, [currentPage, pages.length, navigateToChapter, nextChapterNum, hasNext]);
 
   const prevPage = useCallback(async () => {
     if (currentPage > 0) {
       setCurrentPage(prev => prev - 1);
-    } else if (parseInt(chapterNum) > 1) {
-      // Ir al capítulo anterior (mantener pantalla completa si está activa)
-      router.push(`/manhwa/${slug}/capitulo/${parseInt(chapterNum) - 1}`);
+    } else if (hasPrev) {
+      navigateToChapter(prevChapterNum);
     }
-  }, [currentPage, chapterNum, router, slug]);
+  }, [currentPage, navigateToChapter, prevChapterNum, hasPrev]);
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -318,10 +414,11 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
               marginTop: '5px',
             }}>
               {/* Botón Capítulo Anterior */}
-              {parseInt(chapterNum) > 1 ? (
-                <button
-                  onClick={() => router.push(`/manhwa/${slug}/capitulo/${parseInt(chapterNum) - 1}`)}
-                  title={`Capítulo ${parseInt(chapterNum) - 1}`}
+              {hasPrev ? (
+                <a
+                  href={`/manhwa/${slug}/capitulo/${prevChapterNum}`}
+                  title={`Capítulo ${prevChapterNum}`}
+                  onClick={e => { e.preventDefault(); navigateToChapter(prevChapterNum); }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -335,6 +432,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
                     lineHeight: '1',
                     padding: '0',
                     opacity: 0.8,
+                    textDecoration: 'none',
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.transform = 'scale(1.2)';
@@ -346,7 +444,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
                   }}
                 >
                   ‹
-                </button>
+                </a>
               ) : (
                 <div style={{ width: '28px' }} />
               )}
@@ -367,34 +465,40 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
               </div>
 
               {/* Botón Capítulo Siguiente */}
-              <button
-                onClick={() => router.push(`/manhwa/${slug}/capitulo/${parseInt(chapterNum) + 1}`)}
-                title={`Capítulo ${parseInt(chapterNum) + 1}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'none',
-                  border: 'none',
-                  color: '#667eea',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s ease, opacity 0.2s ease',
-                  fontSize: '22px',
-                  lineHeight: '1',
-                  padding: '0',
-                  opacity: 0.8,
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'scale(1.2)';
-                  e.currentTarget.style.opacity = '1';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.opacity = '0.8';
-                }}
-              >
-                ›
-              </button>
+              {hasNext ? (
+                <a
+                  href={`/manhwa/${slug}/capitulo/${nextChapterNum}`}
+                  title={`Capítulo ${nextChapterNum}`}
+                  onClick={e => { e.preventDefault(); navigateToChapter(nextChapterNum); }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'none',
+                    border: 'none',
+                    color: '#667eea',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease, opacity 0.2s ease',
+                    fontSize: '22px',
+                    lineHeight: '1',
+                    padding: '0',
+                    opacity: 0.8,
+                    textDecoration: 'none',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'scale(1.2)';
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.opacity = '0.8';
+                  }}
+                >
+                  ›
+                </a>
+              ) : (
+                <div style={{ width: '28px' }} />
+              )}
             </div>
 
             {/* Línea decorativa */}
@@ -413,23 +517,18 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
             Leer {series?.title || slug.replace(/-/g, ' ')} Capítulo {chapterNum} Online - Imágenes
           </h2>
 
-          {/* Imágenes del capítulo */}
+          {/* Imágenes del capítulo - carga secuencial */}
           {pages.map((page, index) => (
-            <div key={page.number || index} style={{ position: 'relative', width: '100%', minHeight: '100px' }}>
-              <Image
-                src={page.url}
-                alt={`Página ${page.number || index + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Imagen del webtoon coreano en español`}
-                width={0}
-                height={0}
-                sizes="100vw"
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  display: 'block',
-                }}
-                priority={index < 2}
-              />
-            </div>
+            <ChapterImage
+              key={page.number || index}
+              page={page}
+              index={index}
+              status={imageStatuses[index] || 'pending'}
+              onLoad={markLoaded}
+              registerRef={registerRef}
+              totalPages={pages.length}
+              alt={`Página ${page.number || index + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Imagen del webtoon coreano en español`}
+            />
           ))}
         </div>
       )}
@@ -445,12 +544,10 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
           paddingBottom: '60px',
           overflowX: 'hidden'
         }}>
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={pages[currentPage]?.url}
             alt={`Página ${currentPage + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Leer manhwa en español en Manhwa Imperial`}
-            width={0}
-            height={0}
-            sizes="100vh"
             style={{
               width: 'auto',
               height: 'auto',
@@ -458,10 +555,21 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
               maxHeight: 'calc(100vh - 120px)',
               objectFit: 'contain'
             }}
-            priority={true}
           />
         </div>
       )}
+
+      {/* Rating Section - Calificación PROPIA del capítulo (no de la serie) */}
+      <div style={{
+        maxWidth: '900px',
+        margin: '1rem auto',
+        padding: '0 1rem',
+      }}>
+        <ChapterRating
+          slug={slug}
+          chapterNum={chapterNum}
+        />
+      </div>
 
       {/* Chapter Navigation (New) */}
       <h2 style={{ position: 'absolute', width: '1px', height: '1px', padding: '0', margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: '0' }}>
@@ -472,19 +580,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
           currentChapter={chapterNum}
           slug={slug}
           chapters={series?.chapters}
-        />
-      </div>
-
-      {/* Rating Section - Calificación PROPIA del capítulo (no de la serie) */}
-      <div style={{
-        maxWidth: '900px',
-        margin: '1rem auto',
-        padding: '0 1rem',
-        borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
-      }}>
-        <ChapterRating
-          slug={slug}
-          chapterNum={chapterNum}
+          onNavigate={navigateToChapter}
         />
       </div>
 

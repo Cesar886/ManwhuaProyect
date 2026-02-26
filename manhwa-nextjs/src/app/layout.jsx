@@ -4,7 +4,7 @@ import './globals.css'
 import '@mantine/core/styles.layer.css'
 import '@mantine/notifications/styles.layer.css'
 import { MantineProvider, ColorSchemeScript } from '@mantine/core'
-import { Notifications } from '@mantine/notifications'
+import { Notifications, notifications } from '@mantine/notifications'
 import { imperialTheme } from '@/styles/imperial-theme.js'
 import { Providers } from './providers'
 import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateHomePageJsonLd, generateWebApplicationJsonLd, generateDefinedTermSetJsonLd } from '@/lib/seo/jsonld'
@@ -120,12 +120,13 @@ export default function RootLayout({ children }) {
     <html lang="es" className={`${outfit.variable} ${playfair.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <ColorSchemeScript />
-        <link rel="icon" href="/logo.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="icon" href="https://manhwaimperial.site/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="https://manhwaimperial.site/logo.png" />
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
         <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
-        {/* DNS prefetch for image CDN (chapter reader) — no preconnect: home usa /_next/image proxy */}
+        {/* Preconnect + DNS prefetch for image CDN (chapter reader) */}
+        <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />
         {/* DNS prefetch para analytics (GTM carga afterInteractive, no es crítico) */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
@@ -169,6 +170,14 @@ export default function RootLayout({ children }) {
               j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
               })(window,document,'script','dataLayer','GTM-M3DPPM9K');`
+          }}
+        />
+        {/* Service Worker para caché de imágenes del CDN */}
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}`
           }}
         />
         <NavigationProgress />

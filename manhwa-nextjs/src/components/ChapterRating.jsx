@@ -191,7 +191,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
         flexDirection: 'column',
         alignItems: 'center',
         gap: '8px',
-        padding: '16px 0',
+        padding: '56px 0px 1px',
       }}
       role="region"
       aria-label={`Calificación del capítulo: ${displayRating} de 5 estrellas basado en ${ratingCount} votos`}

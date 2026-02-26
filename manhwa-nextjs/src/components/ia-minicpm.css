@@ -334,3 +334,157 @@
         padding-left: 0.9rem;
     }
 }
+
+/* ====================================================
+   RESPONSE CARD — card de respuesta IA con streaming
+   Aparece en loading y permanece con la respuesta final
+   ==================================================== */
+.ia-response-card {
+    position: relative;
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md, 0.75rem);
+    border: 1px dashed var(--mantine-color-cyan-8, #0e7490);
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.04) 0%,
+        rgba(0, 150, 255, 0.01) 100%
+    );
+    overflow: hidden;
+    animation: ia-card-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ia-card-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Shimmer lateral de acento */
+.ia-response-shimmer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    bottom: 0;
+    border-radius: 2px 0 0 2px;
+    background: linear-gradient(
+        180deg,
+        var(--imperial-purple) 0%,
+        var(--imperial-cyan, #22d3ee) 50%,
+        var(--imperial-purple) 100%
+    );
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ia-response-loading .ia-response-shimmer {
+    opacity: 1;
+    animation: ia-response-shimmer-flow 1.8s ease-in-out infinite;
+}
+
+.ia-response-done .ia-response-shimmer {
+    opacity: 0.6;
+    animation: none;
+}
+
+@keyframes ia-response-shimmer-flow {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1;   }
+}
+
+/* Header: icono + título + badge + close */
+.ia-response-header {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.4rem;
+    flex-wrap: nowrap;
+}
+
+.ia-sparkle-icon {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    color: var(--mantine-color-cyan-4, #22d3ee);
+    animation: ia-sparkle 2.2s ease-in-out infinite;
+}
+
+.ia-response-loading .ia-sparkle-icon {
+    animation: ia-sparkle 1.2s ease-in-out infinite;
+}
+
+.ia-response-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--mantine-color-cyan-4, #22d3ee);
+    font-family: var(--font-body, inherit);
+    letter-spacing: 0.02em;
+}
+
+.ia-response-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--mantine-color-cyan-4, #22d3ee);
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    white-space: nowrap;
+}
+
+.ia-response-close {
+    margin-left: auto;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background var(--transition-fast, 0.12s ease), color var(--transition-fast, 0.12s ease);
+}
+
+.ia-response-close:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+/* Texto de la respuesta */
+.ia-response-text {
+    margin: 0;
+    font-size: 0.82rem;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--text-muted);
+    font-family: var(--font-body, inherit);
+    min-height: 1.2em; /* reserva espacio mientras llega texto */
+    word-break: break-word;
+}
+
+/* Cursor parpadeante de streaming */
+.ia-cursor {
+    display: inline-block;
+    margin-left: 1px;
+    color: var(--imperial-cyan, #22d3ee);
+    font-style: normal;
+    font-size: 0.85em;
+    animation: ia-cursor-blink 0.75s step-end infinite;
+    vertical-align: baseline;
+}
+
+/* Ocultar cursor cuando el card ya mostró toda la respuesta */
+.ia-response-done .ia-response-text .ia-cursor {
+    animation: ia-cursor-blink 0.75s step-end infinite;
+}
+
+@keyframes ia-cursor-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+}

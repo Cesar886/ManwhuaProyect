@@ -1,86 +1,86 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import styles from './NavigationProgress.module.css';
 
 /**
- * Barra de progreso optimizada que se muestra al navegar entre páginas
- * Se activa automáticamente al detectar cambios de ruta
+ * Barra de progreso que se muestra al navegar entre páginas.
+ * Se activa inmediatamente al hacer click en un link interno (intercepta clicks)
+ * y se completa cuando el pathname cambia.
  */
 export default function NavigationProgress() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const timeoutsRef = useRef([]);
-  const intervalsRef = useRef([]);
+  const intervalRef = useRef(null);
   const prevPathnameRef = useRef(pathname);
 
-  useEffect(() => {
-    // Solo activar si el pathname realmente cambió
-    if (prevPathnameRef.current === pathname) {
-      return;
+  const cleanup = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+  }, []);
 
-    prevPathnameRef.current = pathname;
-
-    // Limpiar timers anteriores
-    timeoutsRef.current.forEach(clearTimeout);
-    intervalsRef.current.forEach(clearInterval);
-    timeoutsRef.current = [];
-    intervalsRef.current = [];
-
+  const startProgress = useCallback(() => {
+    cleanup();
     setLoading(true);
     setProgress(0);
 
-    // Progreso rápido inicial (0-70%)
-    const fastInterval = setInterval(() => {
+    // Progreso incremental que se desacelera al acercarse a 90%
+    intervalRef.current = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 70) {
-          clearInterval(fastInterval);
-
-          // Progreso lento (70-90%)
-          const slowInterval = setInterval(() => {
-            setProgress((p) => {
-              if (p >= 90) {
-                clearInterval(slowInterval);
-                return 90;
-              }
-              return p + 1;
-            });
-          }, 200);
-
-          intervalsRef.current.push(slowInterval);
-          return 70;
+        if (prev >= 90) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          return 90;
         }
-        return prev + 10;
+        // Avanza rápido al inicio, lento después
+        const increment = prev < 30 ? 8 : prev < 60 ? 4 : prev < 80 ? 2 : 0.5;
+        return Math.min(prev + increment, 90);
       });
-    }, 100);
+    }, 150);
+  }, [cleanup]);
 
-    intervalsRef.current.push(fastInterval);
+  const completeProgress = useCallback(() => {
+    cleanup();
+    setProgress(100);
+    setTimeout(() => {
+      setLoading(false);
+      setProgress(0);
+    }, 300);
+  }, [cleanup]);
 
-    // Completar después de 500ms (asumiendo que la página cargó)
-    const completeTimer = setTimeout(() => {
-      setProgress(100);
+  // Interceptar clicks en links internos para activar la barra inmediatamente
+  useEffect(() => {
+    const handleClick = (e) => {
+      const anchor = e.target.closest('a[href]');
+      if (!anchor) return;
 
-      const hideTimer = setTimeout(() => {
-        setLoading(false);
-        setProgress(0);
-      }, 300);
-
-      timeoutsRef.current.push(hideTimer);
-    }, 500);
-
-    timeoutsRef.current.push(completeTimer);
-
-    // Cleanup
-    return () => {
-      timeoutsRef.current.forEach(clearTimeout);
-      intervalsRef.current.forEach(clearInterval);
-      timeoutsRef.current = [];
-      intervalsRef.current = [];
+      const href = anchor.getAttribute('href');
+      // Solo links internos que no sean el mismo pathname
+      if (href && href.startsWith('/') && href !== pathname) {
+        startProgress();
+      }
     };
-  }, [pathname]);
+
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  }, [pathname, startProgress]);
+
+  // Completar cuando el pathname cambia
+  useEffect(() => {
+    if (prevPathnameRef.current !== pathname) {
+      prevPathnameRef.current = pathname;
+      if (loading) {
+        completeProgress();
+      }
+    }
+  }, [pathname, loading, completeProgress]);
+
+  // Cleanup al desmontar
+  useEffect(() => cleanup, [cleanup]);
 
   if (!loading) return null;
 

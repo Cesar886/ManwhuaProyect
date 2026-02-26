@@ -315,27 +315,49 @@ export function useChapterPages(seriesSlug, chapterNum) {
         setLoading(true)
         setError(null)
 
-        // Siempre buscar images.json en el bucket DigitalOcean Spaces
         const paddedChapter = String(chapterNum).padStart(4, '0')
         const spacesUrl = process.env.NEXT_PUBLIC_DO_SPACES_URL
-        const imagesJsonUrl = `${spacesUrl}/${seriesSlug}/cap-${paddedChapter}/images.json`
+        const baseUrl = `${spacesUrl}/${seriesSlug}/cap-${paddedChapter}`
 
-        let imagesList = null
+        // Intentar images-meta.json primero (tiene blurhash + dimensiones)
+        let pagesData = null
         try {
-          const res = await fetch(imagesJsonUrl)
-          if (res.ok) {
-            imagesList = await res.json()
+          const metaRes = await fetch(`${baseUrl}/images-meta.json`)
+          if (metaRes.ok) {
+            const metaList = await metaRes.json()
+            if (Array.isArray(metaList) && metaList.length > 0) {
+              pagesData = metaList.map((item, idx) => ({
+                url: item.url,
+                blurhash: item.blurhash || null,
+                w: item.w || null,
+                h: item.h || null,
+                number: idx + 1,
+              }))
+            }
           }
         } catch {
-          // Si falla, imagesList queda null
+          // Fallback a images.json
         }
 
-        if (imagesList && Array.isArray(imagesList)) {
-          // Usar images.json siempre
-          const pagesData = imagesList.map((url, idx) => ({
-            url,
-            number: idx + 1,
-          }))
+        // Fallback: images.json (sin blurhash)
+        if (!pagesData) {
+          try {
+            const res = await fetch(`${baseUrl}/images.json`)
+            if (res.ok) {
+              const imagesList = await res.json()
+              if (Array.isArray(imagesList) && imagesList.length > 0) {
+                pagesData = imagesList.map((url, idx) => ({
+                  url,
+                  number: idx + 1,
+                }))
+              }
+            }
+          } catch {
+            // pagesData queda null
+          }
+        }
+
+        if (pagesData) {
           if (!cancelled) {
             setPages(pagesData)
             setError(null)

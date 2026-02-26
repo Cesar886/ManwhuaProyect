@@ -95,6 +95,7 @@ const nextConfig: NextConfig = {
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
+              "worker-src 'self'",
               // Bloquear mixed content (HTTP dentro de HTTPS)
               'upgrade-insecure-requests',
               // Reportar violaciones CSP (opcional: apunta a tu endpoint)

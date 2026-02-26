@@ -4,12 +4,12 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
-    Container, Center, Card, Text, Badge, Group,
-    Stack, Button, Box, Transition, ActionIcon
+    Container, Center, Text, Group,
+    Stack, Button, Box, Transition, Card
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight } from '@tabler/icons-react';
-import { IconX, IconBook, IconRefresh, IconSparkles } from '@tabler/icons-react';
+import { IconBook, IconRefresh } from '@tabler/icons-react';
 import Header from '@/components/Header';
 
 // Componente de Paginación personalizado para evitar conflictos con Next.js 15
@@ -268,29 +268,12 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                     <Stack gap="md">
                         {/* IA Search Section */}
                         <Stack gap="md">
-                            <ChatIA onSearch={handleIASearch} loading={iaLoading} />
-                            {/* Resultados de IA */}
-                            {resultados && (
-                                <Transition mounted={!!resultados} transition="slide-down" duration={300}>
-                                    {(styles) => (
-                                        <Card withBorder radius="lg" p="md" style={{ ...styles, borderStyle: 'dashed', borderColor: 'var(--mantine-color-cyan-8)', background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.04) 0%, rgba(0, 150, 255, 0.01) 100%)' }}>
-                                            <Group justify="space-between" align="flex-start" wrap="nowrap">
-                                                <Stack gap={4}>
-                                                    <Group gap="xs">
-                                                        <IconSparkles size={16} color="var(--mantine-color-cyan-4)" />
-                                                        <Text size="sm" fw={700} c="cyan">IA Imperial</Text>
-                                                        <Badge variant="light" color="cyan" size="xs">Búsqueda Inteligente</Badge>
-                                                    </Group>
-                                                    <Text size="sm" fs="italic" c="dimmed" lh={1.4}>{resultados.explanation}</Text>
-                                                </Stack>
-                                                <ActionIcon variant="subtle" color="gray" onClick={handleClearFilters}>
-                                                    <IconX size={16} />
-                                                </ActionIcon>
-                                            </Group>
-                                        </Card>
-                                    )}
-                                </Transition>
-                            )}
+                            <ChatIA
+                                onSearch={handleIASearch}
+                                loading={iaLoading}
+                                explanation={resultados?.explanation || null}
+                                onClear={handleClearFilters}
+                            />
 
                             {iaError && <Text c="red" size="xs" ta="center">❌ {iaError}</Text>}
                         </Stack>
