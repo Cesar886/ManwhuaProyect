@@ -309,6 +309,8 @@ export function useChapterPages(seriesSlug, chapterNum) {
     }
 
     let cancelled = false
+    // Limpiar páginas del capítulo anterior inmediatamente al cambiar
+    setPages([])
 
     const load = async () => {
       try {

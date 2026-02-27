@@ -1,0 +1,375 @@
+/* ── Contenedor raíz ── */
+.root {
+  width: 100%;
+  padding: 0;
+}
+
+/* ══════════════════════════════════════════
+   HERO SECTION
+══════════════════════════════════════════ */
+.heroSection {
+  position: relative;
+  padding: 28px 24px 22px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.heroGlow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 60% at 50% -10%,
+    rgba(var(--imperial-blue-rgb), 0.18) 0%,
+    rgba(var(--imperial-purple-rgb), 0.08) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.heroIconWrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg,
+    rgba(var(--imperial-blue-rgb), 0.25),
+    rgba(var(--imperial-purple-rgb), 0.2)
+  );
+  border: 1px solid rgba(var(--imperial-blue-rgb), 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  box-shadow: 0 0 20px rgba(var(--imperial-blue-rgb), 0.2);
+}
+
+.heroHeart {
+  color: #f06595;
+  animation: heartbeat 2.4s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  20%       { transform: scale(1.18); }
+  40%       { transform: scale(1); }
+  60%       { transform: scale(1.1); }
+}
+
+.heroText {
+  position: relative;
+}
+
+.heroLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--imperial-gold, #A78BFA);
+  background: rgba(var(--imperial-gold-rgb, 167, 139, 250), 0.12);
+  border: 1px solid rgba(var(--imperial-gold-rgb, 167, 139, 250), 0.2);
+  padding: 3px 10px;
+  border-radius: 99px;
+  margin-bottom: 8px;
+}
+
+.heroDesc {
+  font-size: 0.88rem;
+  color: var(--text-secondary, #D1D1DB);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ══════════════════════════════════════════
+   SECTIONS
+══════════════════════════════════════════ */
+.section {
+  padding: 20px 24px 0;
+}
+
+.sectionLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9CA3AF);
+  margin: 0 0 10px;
+}
+
+/* ── Botones de monto preset ── */
+.amounts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.amountBtn {
+  padding: 10px 6px;
+  background: var(--subtle-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  border-radius: 10px;
+  color: var(--text-secondary, #D1D1DB);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.amountDollar {
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0.6;
+  vertical-align: super;
+  margin-right: 1px;
+}
+
+.amountBtn:hover {
+  background: rgba(var(--imperial-blue-rgb), 0.1);
+  border-color: rgba(var(--imperial-blue-rgb), 0.3);
+  color: #fff;
+}
+
+.amountBtnActive {
+  background: linear-gradient(135deg,
+    rgba(var(--imperial-blue-rgb), 0.25),
+    rgba(var(--imperial-purple-rgb), 0.2)
+  );
+  border-color: rgba(var(--imperial-blue-rgb), 0.5);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(var(--imperial-blue-rgb), 0.25),
+              inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+/* ── Input personalizado ── */
+.customRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--input-bg, rgba(24,24,32,0.6));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  border-radius: 10px;
+  padding: 10px 14px;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  margin-top: 2px;
+}
+
+.customRow:focus-within,
+.customRowFocused {
+  border-color: rgba(var(--imperial-blue-rgb), 0.45);
+  box-shadow: 0 0 0 3px rgba(var(--imperial-blue-rgb), 0.1);
+}
+
+.currencySign {
+  color: var(--text-muted, #9CA3AF);
+  font-weight: 600;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.customInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary, #fff);
+  font-size: 0.95rem;
+  font-weight: 500;
+  min-width: 0;
+}
+
+.customInput::placeholder {
+  color: var(--text-muted, #9CA3AF);
+}
+
+.customInput::-webkit-outer-spin-button,
+.customInput::-webkit-inner-spin-button { -webkit-appearance: none; }
+.customInput[type=number] { -moz-appearance: textfield; }
+
+.currencyBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #9CA3AF);
+  background: var(--subtle-bg, rgba(255,255,255,0.05));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  padding: 2px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.hint {
+  font-size: 0.76rem;
+  color: #fab005;
+  margin: 6px 0 0;
+}
+
+/* ── Monto resumen ── */
+.selectedAmount {
+  margin: 16px 24px 0;
+  padding: 10px 14px;
+  background: linear-gradient(135deg,
+    rgba(var(--imperial-blue-rgb), 0.1),
+    rgba(var(--imperial-purple-rgb), 0.07)
+  );
+  border: 1px solid rgba(var(--imperial-blue-rgb), 0.2);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #D1D1DB);
+  text-align: center;
+}
+
+.selectedAmount strong {
+  color: var(--imperial-blue-light, #C7D2FE);
+  font-weight: 700;
+}
+
+/* ── Error ── */
+.errorBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 24px 0;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 10px;
+  color: #fca5a5;
+  font-size: 0.82rem;
+}
+
+.errorDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+}
+
+/* ── PayPal section ── */
+.paypalSection {
+  padding: 16px 24px 0;
+}
+
+/* ── Separador "o paga con tarjeta" ── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #9CA3AF);
+  margin: 10px 0 6px;
+  user-select: none;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle, rgba(255,255,255,0.08));
+}
+
+
+
+/* ── Footer ── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 14px 24px 20px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #9CA3AF);
+}
+
+.footerIcon {
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════
+   SUCCESS STATE
+══════════════════════════════════════════ */
+.successState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 24px 32px;
+  gap: 10px;
+}
+
+.successRing {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  animation: successPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes successPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.successIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4ade80;
+}
+
+.successTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary, #fff);
+  margin: 0;
+}
+
+.successMsg {
+  font-size: 0.9rem;
+  color: var(--imperial-gold, #A78BFA);
+  margin: 0;
+  font-weight: 500;
+}
+
+.successSub {
+  font-size: 0.8rem;
+  color: var(--text-muted, #9CA3AF);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 260px;
+}
+
+.resetBtn {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--border-medium, rgba(255,255,255,0.12));
+  border-radius: 10px;
+  padding: 9px 20px;
+  color: var(--text-secondary, #D1D1DB);
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.resetBtn:hover {
+  background: var(--subtle-bg-hover, rgba(255,255,255,0.07));
+  border-color: var(--border-strong, rgba(255,255,255,0.2));
+  color: #fff;
+}

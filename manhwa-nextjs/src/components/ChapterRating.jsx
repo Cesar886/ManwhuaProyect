@@ -73,10 +73,21 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
     }
   }, [visitorId]);
 
-  // Check localStorage inmediatamente para mostrar estrellas al instante
+  // Resetear estado al cambiar de capítulo para permitir votar en cada uno independientemente
   useEffect(() => {
     if (typeof window === 'undefined' || !slug || !chapterNum) return;
 
+    // Resetear estado del voto anterior
+    apiCheckedRef.current = false;
+    setHasRated(false);
+    setUserRating(0);
+    setHoverRating(0);
+    setAvgRating(0);
+    setRatingCount(0);
+    setErrorMsg(null);
+    mountTimeRef.current = visitorId ? Date.now() : null;
+
+    // Verificar localStorage para este capítulo específico
     const stored = localStorage.getItem(getStorageKey(slug, chapterNum));
     if (stored) {
       try {
@@ -243,17 +254,6 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
         ))}
       </div>
 
-      <p style={{
-        fontSize: '12px',
-        color: errorMsg ? 'var(--error-color, #ef4444)' : 'var(--dimmed-text, #888)',
-        margin: 0,
-      }}>
-        {hasRated
-          ? `Tu calificación: ${userRating} estrellas`
-          : errorMsg
-            ? errorMsg
-            : (isSubmitting ? 'Enviando...' : 'Califica este capítulo')}
-      </p>
     </div>
   );
 }

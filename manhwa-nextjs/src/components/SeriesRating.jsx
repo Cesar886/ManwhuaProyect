@@ -220,13 +220,12 @@ export default function SeriesRating({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: compact ? '12px 0' : '24px 0',
-        gap: '8px',
+        alignItems: compact ? 'flex-start' : 'center',
+        padding: compact ? '6px 0' : '24px 0',
+        gap: '4px',
       }}
       role="region"
-      aria-label={`Calificación: ${displayAverage} de 5 estrellas basaddo en ${currentCount} votos`}
+      aria-label={`Calificación: ${displayAverage} de 5 estrellas basado en ${currentCount} votos`}
     >
       {!compact && (
         <h3 style={{
@@ -286,15 +285,6 @@ export default function SeriesRating({
         ))}
       </div>
 
-      <p style={{
-        fontSize: '0.85rem',
-        color: 'var(--dimmed-text)',
-        marginTop: '4px',
-      }}>
-        {hasRated
-          ? `Tu calificación: ${rating} estrellas`
-          : (isSubmitting ? 'Enviando...' : 'Toca una estrella para calificar')}
-      </p>
     </div>
   );
 }

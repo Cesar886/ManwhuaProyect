@@ -953,6 +953,95 @@
 }
 
 /* ============================================ */
+/* PayPal Support - Imperial Minimal            */
+/* ============================================ */
+.paypalSupport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 10px;
+  border-radius: var(--radius-full);
+  background: var(--subtle-bg);
+  border: 1px solid var(--border-subtle);
+  text-decoration: none !important;
+  transition: all var(--transition-slow);
+  margin: 4px 0;
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+}
+
+.paypalSupport:hover {
+  border-color: rgba(var(--imperial-blue-rgb), 0.35);
+  background: rgba(var(--imperial-blue-rgb), 0.06);
+  box-shadow: var(--shadow-imperial);
+  transform: translateY(-1px);
+}
+
+.paypalIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(var(--imperial-blue-rgb), 0.1);
+  color: var(--imperial-blue);
+  flex-shrink: 0;
+  transition: background var(--transition-base), color var(--transition-base);
+}
+
+.paypalSupport:hover .paypalIconWrap {
+  background: rgba(var(--imperial-blue-rgb), 0.18);
+  color: var(--imperial-blue-light);
+}
+
+.paypalLabel {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  transition: color var(--transition-base);
+}
+
+.paypalSupport:hover .paypalLabel {
+  color: var(--text-primary);
+}
+
+.paypalCta {
+  font-size: 0.67rem;
+  font-weight: 700;
+  color: var(--imperial-primary);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: rgba(var(--imperial-blue-rgb), 0.1);
+  border: 1px solid rgba(var(--imperial-blue-rgb), 0.2);
+  transition: all var(--transition-base);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  font-family: var(--font-body);
+}
+
+.paypalSupport:hover .paypalCta {
+  background: var(--imperial-primary);
+  color: #fff;
+  border-color: var(--imperial-primary);
+}
+
+.donacionWrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+@media (max-width: 400px) {
+  .paypalLabel {
+    font-size: 0.75rem;
+  }
+}
+
+/* ============================================ */
 /* Chapter Count Badge (posición izquierda)     */
 /* ============================================ */
 .chapterBadge {

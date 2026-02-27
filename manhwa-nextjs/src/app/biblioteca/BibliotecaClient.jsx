@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Container, Center, Text, Group,
-    Stack, Button, Box, Transition, Card
+    Stack, Button, Box, Transition, Card, Modal
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight } from '@tabler/icons-react';
@@ -117,13 +117,12 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
 import classes from './Biblioteca.module.css';
 import { PremiumSkeletonGrid } from '../../components/PremiumSkeleton';
 import { useSpaces } from '../../hooks/useSpaces';
-import { useIA } from '../../hooks/useIA';
+import { slugifyQuery } from '../../hooks/useIA';
 import { normalizeImageUrl } from '../../utils/imageUtils';
 import ManhwaCover from '../../components/ManhwaCover';
 import dynamic from 'next/dynamic';
 const ChatIA = dynamic(() => import('../../components/ia-minicpm'), { ssr: false });
-
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const Donacion = dynamic(() => import('../../components/Donacion'), { ssr: false });
 
 /**
  * BibliotecaClient — Componente cliente para la página de Biblioteca.
@@ -137,11 +136,13 @@ const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 export default function BibliotecaClient({ initialSeries = [] }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [isInitialLoad, setIsInitialLoad] = useState(initialSeries.length === 0);
+    const [navigatingToIA, setNavigatingToIA] = useState(false);
+    const [donacionOpen, setDonacionOpen] = useState(false);
     const itemsPerPage = 32;
     const gridTopRef = useRef(null);
+    const router = useRouter();
 
-    // 1. Hooks de Datos e IA
-    const { buscarConIA, cargando: iaLoading, error: iaError, resultados, limpiar: limpiarIA } = useIA();
+    // 1. Hooks de Datos (IA ya no se usa inline — redirige a /busqueda-ia)
 
     // Solo usar el hook de Spaces como fallback si no hay datos SSR
     const {
@@ -161,14 +162,12 @@ export default function BibliotecaClient({ initialSeries = [] }) {
         return initialSeries;
     }, [spacesData, initialSeries]);
 
-    // 3. Lógica de Filtrado Optimizada
-    // Prioriza resultados de IA si existen, de lo contrario muestra el catálogo
+    // 3. Lógica de Filtrado
     const searchParams = useSearchParams();
     const querySearch = searchParams.get('search') || '';
 
     const filteredSeries = useMemo(() => {
-        // Si la IA devolvió resultados, priorizarlos
-        const base = resultados?.series || seriesData;
+        const base = seriesData;
 
         // Si hay query `search` en la URL, filtrar por título (case-insensitive)
         if (querySearch && querySearch.trim().length > 0) {
@@ -177,7 +176,7 @@ export default function BibliotecaClient({ initialSeries = [] }) {
         }
 
         return base;
-    }, [seriesData, resultados, querySearch]);
+    }, [seriesData, querySearch]);
 
     // 4. Memoización de Paginación
     // Evita recalcular tajadas de array en cada render si los datos no cambian
@@ -201,16 +200,17 @@ export default function BibliotecaClient({ initialSeries = [] }) {
         }
     }, [seriesData.length, spacesLoading, isInitialLoad, initialSeries.length]);
 
-    // 6. Callbacks Memoizados (Evitan re-renders en componentes hijos como ChatIA)
-    const handleIASearch = useCallback(async (pregunta) => {
-        setCurrentPage(1);
-        await buscarConIA(pregunta);
-    }, [buscarConIA]);
+    // 6. Callbacks Memoizados
+    const handleIASearch = useCallback((pregunta) => {
+        const slug = slugifyQuery(pregunta);
+        setNavigatingToIA(true);
+        router.prefetch(`/busqueda-ia/${slug}`);
+        router.push(`/busqueda-ia/${slug}`);
+    }, [router]);
 
     const handleClearFilters = useCallback(() => {
         setCurrentPage(1);
-        limpiarIA();
-    }, [limpiarIA]);
+    }, []);
 
     const handlePageChange = useCallback((page) => {
         setCurrentPage(page);
@@ -266,17 +266,77 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                 {/* Main Content Area */}
                 {!isLoading && !hasError && (
                     <Stack gap="md">
-                        {/* IA Search Section */}
+                        {/* IA Search Section — redirige a /busqueda-ia/[query] */}
                         <Stack gap="md">
                             <ChatIA
                                 onSearch={handleIASearch}
-                                loading={iaLoading}
-                                explanation={resultados?.explanation || null}
-                                onClear={handleClearFilters}
+                                loading={navigatingToIA}
+                                explanation={null}
+                                onClear={null}
                             />
-
-                            {iaError && <Text c="red" size="xs" ta="center">❌ {iaError}</Text>}
                         </Stack>
+                        {/* {!navigatingToIA && !querySearch && (
+                            <button
+                                className={classes.paypalSupport}
+                                onClick={() => setDonacionOpen(true)}
+                            >
+                                <div className={classes.paypalIconWrap}>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42c-.03.19-.065.383-.105.578-1.128 5.794-4.96 8.043-9.86 8.043H9.07a.641.641 0 0 0-.633.741l.922 5.84c.066.42.432.727.856.727h3.655c.463 0 .855-.335.927-.791l.038-.198.734-4.653.047-.257c.072-.456.464-.792.927-.792h.583c3.78 0 6.738-1.535 7.603-5.978.362-1.856.175-3.407-.782-4.5a3.72 3.72 0 0 0-1.75-.76z" fill="currentColor" />
+                                    </svg>
+                                </div>
+                                <span className={classes.paypalLabel}>¿Te gusta la IA? Apóyanos para mantenerla</span>
+                                <span className={classes.paypalCta}>Donar</span>
+                            </button>
+                        )} */}
+
+                        <Modal
+                            opened={donacionOpen}
+                            onClose={() => setDonacionOpen(false)}
+                            withCloseButton
+                            centered
+                            size={380}
+                            padding={0}
+                            radius="lg"
+                            trapFocus={false}
+                            overlayProps={{ blur: 4, backgroundOpacity: 0.55 }}
+                            styles={{
+                                header: {
+                                    position: 'absolute',
+                                    top: 8,
+                                    right: 8,
+                                    background: 'transparent',
+                                    zIndex: 10,
+                                    minHeight: 'unset',
+                                    padding: 0,
+                                },
+                                close: {
+                                    color: 'var(--text-muted)',
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: '8px',
+                                    width: 28,
+                                    height: 28,
+                                    '&:hover': {
+                                        background: 'rgba(255,255,255,0.12)',
+                                        color: '#fff',
+                                    },
+                                },
+                                body: {
+                                    padding: 0,
+                                    overflowY: 'auto',
+                                    maxHeight: 'min(88dvh, 680px)',
+                                },
+                                content: {
+                                    background: 'var(--modal-bg, rgba(15,15,20,0.98))',
+                                    border: '1px solid var(--border-medium, rgba(255,255,255,0.12))',
+                                    boxShadow: 'var(--shadow-xl), 0 0 60px rgba(var(--imperial-blue-rgb),0.12)',
+                                    overflow: 'visible',
+                                },
+                            }}
+                        >
+                            <Donacion />
+                        </Modal>
 
                         {/* Manhwa Grid */}
                         {paginatedSeries.length > 0 ? (
@@ -284,9 +344,7 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                 <Group ref={gridTopRef} justify="space-between">
                                     <Group gap="xs">
                                         <IconBook size={22} className={classes.sectionIcon} />
-                                        <Text size="lg" fw={700}>
-                                            {resultados ? 'Resultados Personalizados' : 'Catálogo Imperial'}
-                                        </Text>
+                                        <Text size="lg" fw={700}>Catálogo Imperial</Text>
                                     </Group>
                                     <Text size="xs" c="dimmed">{filteredSeries.length} títulos disponibles</Text>
                                 </Group>

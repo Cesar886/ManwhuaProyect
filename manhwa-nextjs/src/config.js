@@ -49,6 +49,7 @@ export const ENDPOINTS = {
   upload: apiUrl(`${apiPrefix}upload`),
   spaces: apiUrl(`${apiPrefix}spaces`),
   progress: apiUrl(`${apiPrefix}progress`),
+  donations: apiUrl(`${apiPrefix}donations`),
 }
 
 export const endpoint = (name, subpath = '') => {

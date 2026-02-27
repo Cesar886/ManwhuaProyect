@@ -6,13 +6,13 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   IconArrowLeft, IconBook, IconClock, IconEye, IconChevronRight, IconChevronDown, IconChevronUp,
-  IconCalendar, IconUser, IconTag, IconStar, IconTrendingUp, IconEdit, IconHeart, IconBookmark, IconBell,
+  IconCalendar, IconUser, IconTag, IconStar, IconTrendingUp, IconEdit, IconHeart, IconBell,
   IconBellOff, IconShare, IconFlag, IconBrandTwitter, IconBrandFacebook, IconLink, IconQrcode,
   IconFilter, IconSearch, IconDownload, IconCheck, IconX, IconAlertTriangle, IconMessageCircle,
   IconChartBar, IconUsers, IconGlobe, IconTrash, IconEyeOff, IconSparkles, IconPlayerPlay, IconRefresh,
   IconThumbUp, IconThumbDown, IconChevronLeft, IconDots, IconPhoto, IconAward,
   IconFlame, IconBolt, IconAlertCircle, IconCopy, IconExternalLink, IconSettings, IconPlus, IconMinus,
-  IconPhotoOff, IconQuestionMark
+  IconPhotoOff, IconQuestionMark, IconInfoCircle
 } from '@tabler/icons-react';
 import { useSeriesDetail } from '../../../hooks/useSpaces';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -25,10 +25,11 @@ import styles from './ManhwaDetail.module.css';
 import SeriesEditModalV2 from '../../../components/SeriesEditModalV2';
 import Comentarios from '../../../components/Comentarios';
 import { normalizeImageUrl } from '../../../utils/imageUtils';
-import { Pill, Container, Skeleton, Group, Stack, Box } from '@mantine/core';
+import { Pill, Container, Skeleton, Group, Stack, Box, Badge as MantineBadge } from '@mantine/core';
 import ManhwaCover from '../../../components/ManhwaCover';
 import Header from '@/components/Header';
 import SimilarManhwas from '../../../components/SimilarManhwas';
+import { slugifyQuery } from '@/hooks/useIA';
 import LinkedSynopsis from '../../../components/LinkedSynopsis';
 import SeriesRating from '../../../components/SeriesRating';
 // SEO: Constantes para contenido optimizado
@@ -929,6 +930,8 @@ export default function ManhwaDetail({ initialSeries }) {
 
         {/* Hero Content: Cover + Title + CTA */}
         <div className={styles.heroContent}>
+
+          {/* Área: cover */}
           <div className={styles.coverContainer}>
             <ManhwaCover
               src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
@@ -942,13 +945,42 @@ export default function ManhwaDetail({ initialSeries }) {
             )}
           </div>
 
-          <div className={styles.heroInfo}>
+          {/* Área: core — Título, autor y calificación */}
+          <div className={styles.heroCoreInfo}>
             {/* SEO: H1 es el título del manhwa */}
             <h1 className={styles.title}>
               {effectiveSeries?.title || series?.title}
-              {/* Texto accesible para SEO */}
               <span className={styles.srOnly}> - Leer Manhwa en Español</span>
             </h1>
+
+            {(effectiveSeries?.originalTitle || series?.originalTitle) && (
+              <div className={styles.originalTitle}>
+                {effectiveSeries?.originalTitle || series?.originalTitle}
+              </div>
+            )}
+
+            {/* Año de lanzamiento + vistas en una sola fila */}
+            {((effectiveSeries?.releaseYear || series?.releaseYear) || (effectiveSeries?.views || series?.views)) && (
+              <div className={styles.heroMeta}>
+                {(effectiveSeries?.releaseYear || series?.releaseYear) && (
+                  <span className={styles.heroMetaItem}>
+                    <IconCalendar size={13} />
+                    {effectiveSeries?.releaseYear || series?.releaseYear}
+                  </span>
+                )}
+                {(effectiveSeries?.views || series?.views) && (
+                  <span className={styles.heroMetaItem}>
+                    <IconEye size={13} />
+                    {(() => {
+                      const v = effectiveSeries?.views || series?.views;
+                      if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+                      if (v >= 1_000) return `${Math.round(v / 1_000)}K`;
+                      return v;
+                    })()}
+                  </span>
+                )}
+              </div>
+            )}
 
             {(effectiveSeries?.author || series?.author) && (
               <div className={styles.heroAuthor}>
@@ -959,142 +991,44 @@ export default function ManhwaDetail({ initialSeries }) {
               </div>
             )}
 
-            {/* SEO: H2 para Sinopsis del Manhwa */}
-            {(effectiveSeries?.synopsis || series?.synopsis) && (
-              <>
-                <h2 className={styles.srOnly}>
-                  {SEO_CONTENT.manhwaDetail.getSynopsisTitle(effectiveSeries?.title || series?.title)}
-                </h2>
-                {/* id="sinopsis-manhwa": Apuntado por el schema Speakable para búsqueda por voz */}
-                <LinkedSynopsis
-                  id="sinopsis-manhwa"
-                  text={effectiveSeries?.synopsis || series?.synopsis}
-                  className={styles.heroSynopsis}
-                />
-              </>
-            )}
+            {/* Calificación de la serie */}
+            <SeriesRating
+              slug={slug}
+              initialRating={series?.userInteraction?.userRating || 0}
+              averageRating={parseFloat(series?.rating || series?.stats?.rating || 0)}
+              totalRatings={parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10)}
+              onRate={() => refetch?.()}
+              compact
+            />
+          </div>
 
-            {/* CTA + Action buttons */}
-            <div className={styles.heroActions}>
-              {series.chapters && series.chapters.length > 0 && (
-                <div style={{ width: '100%' }}>
-                  <Link
-                    href={`/manhwa/${slug}/capitulo/${
-                      // Prioridad: último capítulo leído (si existe) > primer capítulo
-                      lastReadChapter ||
-                      continueReadingChapter?.number ||
-                      series.chapters[0]?.number ||
-                      1
-                      }`}
-                    className={styles.heroReadButton}
-                  >
-                    <IconPlayerPlay size={18} fill="currentColor" />
-                    <span>
-                      {/*
-                        Lógica del texto:
-                        - Si está logueado Y tiene progreso: "Continuar Leyendo"
-                        - Si NO está logueado O NO tiene progreso: "Empezar a Leer"
-                      */}
-                      {user && hasProgress && lastReadChapter
-                        ? 'Continuar Leyendo'
-                        : 'Empezar a Leer'}
-                    </span>
-                  </Link>
-
-                  {/* Mostrar progreso visual SOLO si está logueado Y tiene progreso */}
-                  {user && hasProgress && lastReadChapter && (
-                    <div style={{
-                      marginTop: '12px',
-                      padding: '12px 16px',
-                      background: 'rgba(102, 126, 234, 0.1)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(102, 126, 234, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}>
-                      <IconBookmark size={16} style={{ color: '#667eea' }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{
-                          fontSize: '13px',
-                          color: 'rgba(255, 255, 255, 0.9)',
-                          marginBottom: '6px',
-                          fontWeight: '500'
-                        }}>
-                          Capítulo {lastReadChapter}
-                        </div>
-                        <div style={{
-                          width: '100%',
-                          height: '4px',
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          borderRadius: '4px',
-                          overflow: 'hidden'
-                        }}>
-                          <div style={{
-                            width: `${progressPercent}%`,
-                            height: '100%',
-                            background: 'linear-gradient(90deg, #667eea, #764ba2)',
-                            borderRadius: '4px',
-                            transition: 'width 0.3s ease'
-                          }} />
-                        </div>
-                        <div style={{
-                          fontSize: '11px',
-                          color: 'rgba(255, 255, 255, 0.6)',
-                          marginTop: '4px'
-                        }}>
-                          {Math.round(progressPercent)}% completado
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className={styles.secondaryActions}>
-                <button
-                  onClick={handleToggleFavorite}
-                  className={`${styles.heroActionBtn} ${isFavorite ? styles.heroActionActive : ''} ${isFavorite ? styles.heroActionFav : ''}`}
-                  title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-                >
-                  <IconHeart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
-                </button>
-                <button
-                  onClick={handleToggleLibrary}
-                  className={`${styles.heroActionBtn} ${isInLibrary ? styles.heroActionActive : ''}`}
-                  title={isInLibrary ? 'En biblioteca' : 'Agregar a biblioteca'}
-                >
-                  <IconBookmark size={18} fill={isInLibrary ? 'currentColor' : 'none'} />
-                </button>
-                <button
-                  onClick={() => setIsShareModalOpen(true)}
-                  className={styles.heroActionBtn}
-                  title="Compartir"
-                >
-                  <IconShare size={18} />
-                </button>
-                {isInLibrary && (
-                  <button
-                    onClick={handleToggleNotifications}
-                    className={`${styles.heroActionBtn} ${notificationsEnabled ? styles.heroActionActive : ''}`}
-                    title={notificationsEnabled ? 'Desactivar notificaciones' : 'Activar notificaciones'}
-                  >
-                    {notificationsEnabled ? <IconBell size={18} /> : <IconBellOff size={18} />}
-                  </button>
-                )}
-              </div>
-
-              {/* Calificación de la serie - Visible debajo de los botones de acción */}
-              <SeriesRating
-                slug={slug}
-                initialRating={series?.userInteraction?.userRating || 0}
-                averageRating={parseFloat(series?.rating || series?.stats?.rating || 0)}
-                totalRatings={parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10)}
-                onRate={() => refetch?.()}
-                compact
+          {/* Área: synopsis — se ubica debajo del par cover+core en mobile */}
+          {(effectiveSeries?.synopsis || series?.synopsis) && (
+            <div className={styles.heroSynopsisWrap}>
+              {/* SEO: H2 para Sinopsis del Manhwa */}
+              <h2 className={styles.srOnly}>
+                {SEO_CONTENT.manhwaDetail.getSynopsisTitle(effectiveSeries?.title || series?.title)}
+              </h2>
+              {/* id="sinopsis-manhwa": Apuntado por el schema Speakable para búsqueda por voz */}
+              <LinkedSynopsis
+                id="sinopsis-manhwa"
+                text={effectiveSeries?.synopsis || series?.synopsis}
+                className={styles.heroSynopsis}
               />
             </div>
+          )}
+
+          {/* Área: actions — Chip IA */}
+          <div className={styles.heroActions}>
+            <Link
+              href={`/busqueda-ia/${slugifyQuery(`manhwas similares a ${series.title}`)}`}
+              className={styles.iaSimilarChip}
+            >
+              <IconSparkles size={14} />
+              Buscar similares con IA
+            </Link>
           </div>
+
         </div>
       </div>
 
@@ -1104,10 +1038,13 @@ export default function ManhwaDetail({ initialSeries }) {
         {SEO_CONTENT.manhwaDetail.getInfoSection(effectiveSeries?.title || series?.title)}
       </h2>
       <div className={styles.infoSection}>
-        {/* Generos - badges rectangulares con enlaces SEO */}
+        {/* Géneros - Mantine badges premium con enlaces SEO */}
         {(effectiveSeries?.genres || series?.genres)?.length > 0 && (
           <div className={styles.infoCard}>
-            <h3 className={styles.infoCardTitle}>Géneros del Manhwa</h3>
+            <h3 className={styles.infoCardTitle}>
+              <IconTag size={16} />
+              Géneros
+            </h3>
             <div className={styles.genresRow}>
               {(effectiveSeries?.genres || series?.genres)?.map((genre, index) => {
                 const genreName = typeof genre === 'string'
@@ -1116,60 +1053,23 @@ export default function ManhwaDetail({ initialSeries }) {
                 const genreKey = genre?.id || genreName || index;
                 const genreSlug = genreName.toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 return (
-                  <Link
+                  <MantineBadge
                     key={genreKey}
+                    component={Link}
                     href={`/genero/${genreSlug}`}
-                    className={styles.genreTag}
                     title={getAnchorText.genre(genreName)}
+                    classNames={{ root: styles.genreTag }}
+                    variant="light"
+                    size="lg"
+                    radius="xl"
                   >
                     {genreName}
-                  </Link>
+                  </MantineBadge>
                 );
               })}
             </div>
           </div>
         )}
-
-        {/* Detalles / Metadata */}
-        <div className={styles.metaRow}>
-          <div className={styles.metaItem}>
-            <IconBook size={16} />
-            <span>{series.chapters?.length || 0} capítulos</span>
-          </div>
-          <div className={styles.metaDivider} />
-          <div className={styles.metaItem}>
-            <span className={`${styles.statusDot} ${series.status === 'completed' ? styles.statusCompleted : series.status === 'paused' ? styles.statusPaused : styles.statusOngoing}`} />
-            <span>
-              {series.status === 'completed' ? 'Completado' :
-                series.status === 'paused' ? 'Pausado' : 'En emisión'}
-            </span>
-          </div>
-          {series.views > 0 && (
-            <>
-              <div className={styles.metaDivider} />
-              <div className={styles.metaItem}>
-                <IconEye size={16} />
-                <span>{series.views > 1000 ? `${(series.views / 1000).toFixed(0)}K` : series.views}</span>
-              </div>
-            </>
-          )}
-          <>
-            <div className={styles.metaDivider} />
-            <div className={styles.metaItem}>
-              <IconStar size={16} className={styles.starIcon} />
-              <span>{(parseFloat(series.rating || 0) / 2).toFixed(1)}</span>
-              <span className={styles.ratingCountMeta}>({series.ratingCount || 0} {series.ratingCount === 1 ? 'voto' : 'votos'})</span>
-            </div>
-          </>
-          {badges.length > 0 && (
-            <>
-              <div className={styles.metaDivider} />
-              {badges.map((badge, i) => (
-                <Badge key={i} type={badge.type}>{badge.label}</Badge>
-              ))}
-            </>
-          )}
-        </div>
       </div>
 
       {/*
@@ -1296,79 +1196,21 @@ export default function ManhwaDetail({ initialSeries }) {
         };
 
         return (
-          <>
-            {/* JSON-LD Structured Data — ItemList */}
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-            />
-
-            {/* Tabla visual para IA y usuarios */}
-            <section
-              className={styles.updateStatusSection}
-              aria-label="Estado de actualización de la obra"
-            >
-              <h3 className={styles.updateStatusTitle}>
-                <IconCalendar size={18} aria-hidden="true" />
-                Estado Actual de Publicación
-              </h3>
-
-              <p className={styles.updateStatusIntro}>
-                Consulta el estado actualizado de <strong>{effectiveSeries?.title || series?.title}</strong> basado en el historial real de capítulos de nuestra base de datos.
-              </p>
-
-              <div className={styles.updateStatusTableWrapper}>
-                <table className={styles.updateStatusTable}>
-                  <thead>
-                    <tr>
-                      <th scope="col">Último Capítulo</th>
-                      <th scope="col">Fecha de Publicación</th>
-                      <th scope="col">Estado</th>
-                      <th scope="col">Frecuencia</th>
-                      {series.status !== 'completed' && <th scope="col">Próximo Estimado</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <Link
-                          href={`/manhwa/${slug}/capitulo/${latestNum}`}
-                          className={styles.updateStatusChapterLink}
-                        >
-                          Capítulo {latestNum}
-                        </Link>
-                      </td>
-                      <td>
-                        {latestDateISO
-                          ? <time dateTime={latestDateISO}>{latestDateLabel}</time>
-                          : latestDateLabel
-                        }
-                      </td>
-                      <td>
-                        <span className={`${styles.updateStatusBadge} ${series.status === 'completed'
-                            ? styles.updateStatusCompleted
-                            : series.status === 'paused'
-                              ? styles.updateStatusPaused
-                              : styles.updateStatusOngoing
-                          }`}>
-                          {statusLabel}
-                        </span>
-                      </td>
-                      <td>{frequencyLabel}</td>
-                      {series.status !== 'completed' && <td>{nextChapterLabel}</td>}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <p className={styles.updateStatusNote}>
-                Total: <strong>{series.chapters.length} capítulos</strong> disponibles en Manhwa Imperial.
-                {series.status !== 'completed' && ' Datos actualizados automáticamente con cada nueva traducción.'}
-              </p>
-            </section>
-          </>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
         );
       })()}
+
+      {/* SEO: Párrafo introductorio antes de la lista de capítulos */}
+      <p className={styles.seoChapterIntro}>
+        {SEO_CONTENT.manhwaDetail.getIntroText(
+          effectiveSeries?.title || series?.title,
+          (effectiveSeries?.genres || series?.genres || []).map(g => typeof g === 'string' ? g : g?.name).filter(Boolean),
+          series.chapters?.length || 0
+        )}
+      </p>
 
       {/* Tabs de navegación */}
       <div className={styles.tabsContainer} ref={tabsRef}>
@@ -1382,32 +1224,25 @@ export default function ManhwaDetail({ initialSeries }) {
               <span className={styles.tabBadge}>{series.chapters.length}</span>
             )}
           </button>
-          {/* <button
-            className={`${styles.tab} ${activeTab === 'comments' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('comments')}
+          <button
+            className={`${styles.tab} ${activeTab === 'informacion' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('informacion')}
           >
-            <IconMessageCircle size={18} /> Comentarios
+            <IconInfoCircle size={18} /> Informacion
             {series.commentCount > 0 && (
               <span className={styles.tabBadge}>{series.commentCount}</span>
             )}
-          </button> */}
+          </button>
         </div>
       </div>
 
       {/* Sección de Contenido */}
       <div className={styles.contentSection}>
 
+
         {/* Tab: Capítulos */}
         {activeTab === 'chapters' && (
           <div className={styles.chaptersTab}>
-            {/* SEO: Párrafo introductorio antes de la lista de capítulos */}
-            <p className={styles.seoChapterIntro}>
-              {SEO_CONTENT.manhwaDetail.getIntroText(
-                effectiveSeries?.title || series?.title,
-                (effectiveSeries?.genres || series?.genres || []).map(g => typeof g === 'string' ? g : g?.name).filter(Boolean),
-                series.chapters?.length || 0
-              )}
-            </p>
 
             {/* Filtros de capítulos */}
             <div className={styles.chaptersHeader}>
@@ -1528,6 +1363,280 @@ export default function ManhwaDetail({ initialSeries }) {
           </div>
         )}
 
+        {/* Tab: Información / Estado de publicación */}
+        {activeTab === 'informacion' && (
+          <div className={styles.informacionTab}>
+            {(() => {
+              const statusLabel = series.status === 'completed' ? 'Completada'
+                : series.status === 'paused' ? 'Pausada'
+                : 'En emisión activa';
+              const statusBadgeClass = `${styles.updateStatusBadge} ${
+                series.status === 'completed' ? styles.updateStatusCompleted
+                : series.status === 'paused' ? styles.updateStatusPaused
+                : styles.updateStatusOngoing
+              }`;
+
+              let latestChapter = null, latestNum = null;
+              let latestDateLabel = 'Fecha no disponible', latestDateISO = null;
+              let frequencyLabel = 'Irregular', estimatedFrequencyDays = null;
+              let nextChapterLabel = '—';
+
+              if (series?.chapters?.length) {
+                latestChapter = series.chapters.reduce((max, c) => {
+                  const n = parseFloat(c.number);
+                  return n > parseFloat(max.number) ? c : max;
+                }, series.chapters[0]);
+                latestNum = parseFloat(latestChapter.number);
+
+                const rawDate = latestChapter.publishedAt || latestChapter.date || latestChapter.time;
+                if (rawDate) {
+                  try {
+                    const d = new Date(rawDate);
+                    if (!isNaN(d.getTime())) {
+                      latestDateISO = d.toISOString();
+                      const diffDays = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+                      if (diffDays === 0) latestDateLabel = 'Hoy';
+                      else if (diffDays === 1) latestDateLabel = 'Hace 1 día';
+                      else if (diffDays < 7) latestDateLabel = `Hace ${diffDays} días`;
+                      else if (diffDays < 30) latestDateLabel = `Hace ${Math.floor(diffDays / 7)} semana${Math.floor(diffDays / 7) > 1 ? 's' : ''}`;
+                      else latestDateLabel = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+                    }
+                  } catch (_) { /* sin fecha */ }
+                }
+
+                const chaptersWithDate = series.chapters
+                  .filter(c => c.publishedAt || c.date)
+                  .sort((a, b) => new Date(b.publishedAt || b.date) - new Date(a.publishedAt || a.date))
+                  .slice(0, 6);
+
+                if (chaptersWithDate.length >= 2) {
+                  const diffs = [];
+                  for (let i = 0; i < chaptersWithDate.length - 1; i++) {
+                    const d1 = new Date(chaptersWithDate[i].publishedAt || chaptersWithDate[i].date);
+                    const d2 = new Date(chaptersWithDate[i + 1].publishedAt || chaptersWithDate[i + 1].date);
+                    const diff = Math.abs(d1 - d2) / (1000 * 60 * 60 * 24);
+                    if (!isNaN(diff)) diffs.push(diff);
+                  }
+                  if (diffs.length) {
+                    const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+                    estimatedFrequencyDays = Math.round(avg);
+                    if (avg <= 3) frequencyLabel = 'Varios por semana';
+                    else if (avg <= 8) frequencyLabel = 'Semanal';
+                    else if (avg <= 18) frequencyLabel = 'Quincenal';
+                    else if (avg <= 35) frequencyLabel = 'Mensual';
+                    else frequencyLabel = 'Irregular';
+                  }
+                }
+
+                if (series.status !== 'completed' && latestDateISO && estimatedFrequencyDays) {
+                  const nextDate = new Date(latestDateISO);
+                  nextDate.setDate(nextDate.getDate() + estimatedFrequencyDays);
+                  const nextChapterNum = latestNum + 1;
+                  const diffToNext = Math.round((nextDate - Date.now()) / (1000 * 60 * 60 * 24));
+                  if (diffToNext <= 0) nextChapterLabel = `Cap. ${nextChapterNum} — Pronto`;
+                  else if (diffToNext === 1) nextChapterLabel = `Cap. ${nextChapterNum} — Mañana`;
+                  else nextChapterLabel = `Cap. ${nextChapterNum} — En ${diffToNext} días`;
+                } else if (series.status === 'completed') {
+                  nextChapterLabel = 'Obra completada';
+                }
+              }
+
+              return (
+                <section
+                  className={styles.updateStatusSection}
+                  aria-label="Estado de actualización de la obra"
+                >
+                  <h3 className={styles.updateStatusTitle}>
+                    <IconCalendar size={18} aria-hidden="true" />
+                    Estado Actual de Publicación
+                  </h3>
+
+                  <p className={styles.updateStatusIntro}>
+                    Consulta el estado actualizado de <strong>{effectiveSeries?.title || series?.title}</strong> basado en el historial real de capítulos de nuestra base de datos.
+                  </p>
+
+                  {/* Stats grid: Estado, Vistas, Puntuación, Frecuencia, Badges */}
+                  <div className={styles.infoStatsGrid}>
+                    <div className={styles.infoStatCard}>
+                      <span className={styles.infoStatLabel}>Estado</span>
+                      <span className={statusBadgeClass}>{statusLabel}</span>
+                    </div>
+
+                    {series.views > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Vistas</span>
+                        <span className={styles.infoStatValue}>
+                          <IconEye size={15} />
+                          {series.views > 1000 ? `${(series.views / 1000).toFixed(0)}K` : series.views}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className={styles.infoStatCard}>
+                      <span className={styles.infoStatLabel}>Puntuación</span>
+                      <span className={styles.infoStatValue}>
+                        <IconStar size={15} className={styles.starIcon} />
+                        {(parseFloat(series.rating || 0) / 2).toFixed(1)} / 5
+                        <span className={styles.infoStatSub}>({series.ratingCount || 0} {series.ratingCount === 1 ? 'voto' : 'votos'})</span>
+                      </span>
+                    </div>
+
+                    {series?.chapters?.length > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Frecuencia</span>
+                        <span className={styles.infoStatValue}>{frequencyLabel}</span>
+                      </div>
+                    )}
+
+                    {series?.country > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>País</span>
+                        <span className={styles.infoStatValue}>{series.country}</span>
+                      </div>
+                    )}
+
+                    {series?.isAdult > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Adulto</span>
+                        <span className={styles.infoStatValue}>Sí</span>
+                      </div>
+                    )}
+
+                    {series?.isHot > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Popular</span>
+                        <span className={styles.infoStatValue}>Sí</span>
+                      </div>
+                    )}
+
+                    {series?.isNew > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Nuevo</span>
+                        <span className={styles.infoStatValue}>Sí</span>
+                      </div>
+                    )}
+
+                    {series?.isTrending > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Tendencia</span>
+                        <span className={styles.infoStatValue}>Sí</span>
+                      </div>
+                    )}
+                    {series?.hasAnime > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Tiene Anime</span>
+                        <span className={styles.infoStatValue}>Sí</span>
+                      </div>
+                    )}
+                    {series?.ageRecommendation > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Recomendación de Edad</span>
+                        <span className={styles.infoStatValue}>{series.ageRecommendation}+</span>
+                      </div>
+                    )}
+
+                    {series?.contentWarnings > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Advertencias de Contenido</span>
+                        <span className={styles.infoStatValue}>{series.contentWarnings}</span>
+                      </div>
+                    )}
+
+                    {series?.romanceLevel > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Nivel de Romance</span>
+                        <span className={styles.infoStatValue}>{series.romanceLevel}</span>
+                      </div>
+                    )}
+
+                    {series?.artStyle > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Estilo Artístico</span>
+                        <span className={styles.infoStatValue}>{series.artStyle}</span>
+                      </div>
+                    )}
+
+                    {series?.publicationFormat > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Formato de Publicación</span>
+                        <span className={styles.infoStatValue}>{series.publicationFormat}</span>
+                      </div>
+                    )}
+                    {series?.targetDemographic > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Demografía Objetivo</span>
+                        <span className={styles.infoStatValue}>{series.targetDemographic}</span>
+                      </div>
+                    )}
+                    {series?.writingQuality > 0 && (
+                      <div className={styles.infoStatCard}>
+                        <span className={styles.infoStatLabel}>Calidad de Escritura</span>
+                        <span className={styles.infoStatValue}>{series.writingQuality}</span>
+                      </div>
+                    )}
+
+                    {badges.length > 0 && badges.map((badge, i) => (
+                      <div key={i} className={`${styles.infoStatCard} ${styles.infoStatCardBadge}`}>
+                        <Badge type={badge.type}>{badge.label}</Badge>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tabla de capítulos */}
+                  {latestChapter ? (
+                    <>
+                      <div className={styles.updateStatusTableWrapper}>
+                        <table className={styles.updateStatusTable}>
+                          <thead>
+                            <tr>
+                              <th scope="col">Último Capítulo</th>
+                              <th scope="col">Publicación</th>
+                              <th scope="col">Total</th>
+                              {series.status !== 'completed' && <th scope="col">Próximo Estimado</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td data-label="Último Capítulo">
+                                <Link
+                                  href={`/manhwa/${slug}/capitulo/${latestNum}`}
+                                  className={styles.updateStatusChapterLink}
+                                >
+                                  Capítulo {latestNum}
+                                </Link>
+                              </td>
+                              <td data-label="Publicación">
+                                {latestDateISO
+                                  ? <time dateTime={latestDateISO}>{latestDateLabel}</time>
+                                  : latestDateLabel
+                                }
+                              </td>
+                              <td data-label="Total">
+                                <strong>{series.chapters.length}</strong> caps.
+                              </td>
+                              {series.status !== 'completed' && (
+                                <td data-label="Próximo">{nextChapterLabel}</td>
+                              )}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <p className={styles.updateStatusNote}>
+                        {series.status !== 'completed'
+                          ? 'Datos actualizados automáticamente con cada nueva traducción.'
+                          : 'Esta obra está completa. Todos los capítulos están disponibles.'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className={styles.updateStatusNote}>No hay capítulos disponibles aún.</p>
+                  )}
+                </section>
+              );
+            })()}
+          </div>
+        )}
+
         {/* Tab: Comentarios */}
         {activeTab === 'comments' && (
           <div className={styles.commentsTab}>
@@ -1552,37 +1661,42 @@ export default function ManhwaDetail({ initialSeries }) {
             <button
               onClick={handleToggleFavorite}
               className={`${styles.mobileAction} ${isFavorite ? styles.active : ''}`}
+              title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
             >
               <IconHeart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
             </button>
             <button
               onClick={() => setIsShareModalOpen(true)}
               className={styles.mobileAction}
+              title="Compartir"
             >
               <IconShare size={20} />
             </button>
           </div>
           <Link
             href={`/manhwa/${slug}/capitulo/${
-              // Prioridad: último capítulo leído (si existe) > primer capítulo
               lastReadChapter ||
               continueReadingChapter?.number ||
               series.chapters[0]?.number ||
               1
-              }`}
+            }`}
             className={styles.mobileReadLink}
+            style={user && hasProgress && progressPercent > 0
+              ? { '--read-progress': `${progressPercent}%` }
+              : undefined
+            }
           >
-            <IconBook size={18} />
-            <span>
-              {/*
-                Lógica del texto:
-                - Si está logueado Y tiene progreso: "Continuar Cap. X"
-                - Si NO está logueado O NO tiene progreso: "Primer capitulo"
-              */}
+            <IconPlayerPlay size={18} fill="currentColor" />
+            <span className={styles.mobileReadLinkText}>
               {user && hasProgress && lastReadChapter
-                ? `Continuar Cap. ${lastReadChapter}`
-                : 'Primer capitulo'}
+                ? `Continuar · Cap. ${lastReadChapter}`
+                : 'Empezar a Leer'}
             </span>
+            {user && hasProgress && progressPercent > 0 && (
+              <span className={styles.mobileReadBadge}>
+                {Math.round(progressPercent)}%
+              </span>
+            )}
           </Link>
         </div>
       )}

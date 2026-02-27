@@ -39,6 +39,7 @@ const adminRoutes = require('./routes/admin.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const spacesRoutes = require('./routes/spaces.routes');
 const progressRoutes = require('./routes/progress.routes');
+const donationRoutes = require('./routes/donation.routes');
 
 
 const app = express();
@@ -397,6 +398,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/spaces', spacesRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/donations', donationRoutes);
 
 // ============================================
 // MANEJO DE ERRORES

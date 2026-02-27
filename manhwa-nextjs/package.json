@@ -25,6 +25,7 @@
     "@mantine/tiptap": "^8.3.14",
     "@mantinex/mantine-logo": "^2.0.0",
     "@marsidev/react-turnstile": "^1.4.2",
+    "@paypal/react-paypal-js": "^9.0.0",
     "@react-oauth/google": "^0.13.4",
     "@tabler/icons-react": "^3.36.0",
     "@tiptap/extension-link": "^3.19.0",

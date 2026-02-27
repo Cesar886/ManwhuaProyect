@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { getSearchHistory, removeFromHistory } from '@/hooks/useIA';
 import './ia-minicpm.css';
 
 const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read')
@@ -439,13 +440,37 @@ function useThinkingStream(active, query = '') {
     return displayed;
 }
 
-const ChatIA = ({ onSearch, loading, explanation, onClear }) => {
-    const [query, setQuery] = useState('');
+const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) => {
+    const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
     const [placeholder, setPlaceholder] = useState('');
     const [phrases, setPhrases] = useState([]);
     const [suggestions, setSuggestions] = useState([]); // top 5 para el dropdown
     const [isFocused, setIsFocused] = useState(false);
+    const [history, setHistory] = useState([]);
+
+    // Refrescar historial cuando se enfoca el input
+    const refreshHistory = useCallback(() => {
+        try {
+            setHistory(getSearchHistory(5));
+        } catch { setHistory([]); }
+    }, []);
+
+    const handleRemoveHistory = useCallback((slug, e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        removeFromHistory(slug);
+        refreshHistory();
+    }, [refreshHistory]);
+
+    // Sincronizar initialQuery cuando cambia (ej: navegación entre rutas)
+    const prevInitialQuery = useRef(initialQuery);
+    useEffect(() => {
+        if (initialQuery !== prevInitialQuery.current) {
+            prevInitialQuery.current = initialQuery;
+            setQuery(initialQuery);
+        }
+    }, [initialQuery]);
 
     // Refs para el loop typewriter (sin re-renders)
     const phraseIdxRef = useRef(0);
@@ -570,6 +595,10 @@ const ChatIA = ({ onSearch, loading, explanation, onClear }) => {
         e.preventDefault();
         const value = query.trim();
         if (!value || loading) return;
+        // Cerrar teclado en móvil para que no tape los resultados
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
         if (typeof onSearch === 'function') onSearch(value);
     };
 
@@ -585,15 +614,16 @@ const ChatIA = ({ onSearch, loading, explanation, onClear }) => {
         return 'ia-idle';
     };
 
-    const showDropdown = isFocused && !loading && !isTyping && query.length === 0 && suggestions.length > 0;
+    const showDropdown = isFocused && !loading && !isTyping && query.length === 0 && (suggestions.length > 0 || history.length > 0);
 
     return (
-        <div className="ia-wrapper" ref={wrapperRef}>
+        <div className="ia-wrapper" ref={wrapperRef} aria-busy={loading}>
             <form
                 className={`ia-search ${getStateClass()}`}
                 onSubmit={handleSubmit}
                 aria-label="Buscar con IA"
             >
+                {loading && <span className="sr-only" role="status">Buscando resultados...</span>}
                 <div className="ia-shimmer" aria-hidden="true" />
 
                 <svg className="ia-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -604,12 +634,13 @@ const ChatIA = ({ onSearch, loading, explanation, onClear }) => {
                     type="text"
                     value={query}
                     onChange={handleInput}
-                    onFocus={() => setIsFocused(true)}
+                    onFocus={() => { setIsFocused(true); refreshHistory(); }}
                     onBlur={() => setTimeout(() => setIsFocused(false), 150)}
                     className="ia-input"
                     disabled={loading}
                     spellCheck="false"
                     autoComplete="off"
+                    maxLength={300}
                     placeholder={loading ? 'Buscando...' : placeholder}
                     aria-label="Escribe tu consulta"
                 />
@@ -657,23 +688,63 @@ const ChatIA = ({ onSearch, loading, explanation, onClear }) => {
                 </div>
             )}
 
-            {/* Dropdown de consultas populares */}
+            {/* Dropdown de historial + consultas populares */}
             {showDropdown && (
-                <div className="ia-suggestions" role="listbox" aria-label="Consultas populares">
-                    <p className="ia-suggestions-label">Consultas populares</p>
-                    {suggestions.map((s, i) => (
-                        <button
-                            key={s.query}
-                            type="button"
-                            className="ia-suggestion-item"
-                            onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
-                            role="option"
-                        >
-                            <span className="ia-suggestion-rank">#{i + 1}</span>
-                            <span className="ia-suggestion-text">{s.query}</span>
-                            <span className="ia-suggestion-count">{s.count}x</span>
-                        </button>
-                    ))}
+                <div className="ia-suggestions" role="listbox" aria-label="Sugerencias de búsqueda">
+                    {history.length > 0 && (
+                        <>
+                            <p className="ia-suggestions-label">Búsquedas recientes</p>
+                            {history.map((h) => (
+                                <div
+                                    key={h.slug}
+                                    className="ia-suggestion-item ia-history-item"
+                                    role="option"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        // Ignorar clicks en el botón de eliminar
+                                        if (e.target.closest('.ia-history-delete')) return;
+                                        handleSuggestionClick(h.query);
+                                    }}
+                                >
+                                    <svg className="ia-history-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                    <span className="ia-suggestion-text">{h.query}</span>
+                                    <button
+                                        type="button"
+                                        className="ia-history-delete"
+                                        onMouseDown={(e) => handleRemoveHistory(h.slug, e)}
+                                        aria-label={`Eliminar "${h.query}" del historial`}
+                                        title="Eliminar del historial"
+                                    >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                            <line x1="18" y1="6" x2="6" y2="18" />
+                                            <line x1="6" y1="6" x2="18" y2="18" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ))}
+                        </>
+                    )}
+                    {suggestions.length > 0 && (
+                        <>
+                            <p className="ia-suggestions-label">Consultas populares</p>
+                            {suggestions.map((s, i) => (
+                                <button
+                                    key={s.query}
+                                    type="button"
+                                    className="ia-suggestion-item"
+                                    onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                    role="option"
+                                >
+                                    <span className="ia-suggestion-rank">#{i + 1}</span>
+                                    <span className="ia-suggestion-text">{s.query}</span>
+                                    <span className="ia-suggestion-count">{s.count}x</span>
+                                </button>
+                            ))}
+                        </>
+                    )}
                 </div>
             )}
         </div>
