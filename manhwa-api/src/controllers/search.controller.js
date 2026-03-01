@@ -375,18 +375,32 @@ const autocomplete = async (req, res, next) => {
             });
         }
         
-        const searchTerm = `${q.trim()}%`;
-        
+        const trimmed = q.trim();
+        const prefixTerm = `${trimmed}%`;
+        const containsTerm = `%${trimmed}%`;
+
         const result = await query(
-            `SELECT title, slug, cover_url, 'series' as type
-             FROM series
-             WHERE deleted_at IS NULL AND is_adult = false
-                   AND title ILIKE $1
-             ORDER BY view_count DESC
-             LIMIT $2`,
-            [searchTerm, limit]
+            `SELECT s.title, s.slug, s.cover_url, s.content_type,
+                    COALESCE(
+                        (SELECT json_agg(json_build_object('name', g.name, 'slug', g.slug))
+                         FROM (
+                             SELECT g2.name, g2.slug
+                             FROM series_genres sg2 JOIN genres g2 ON sg2.genre_id = g2.id
+                             WHERE sg2.series_id = s.id
+                             LIMIT 3
+                         ) g),
+                        '[]'
+                    ) as genres
+             FROM series s
+             WHERE s.deleted_at IS NULL AND s.is_adult = false
+                   AND s.title ILIKE $2
+             ORDER BY
+                CASE WHEN s.title ILIKE $1 THEN 0 ELSE 1 END,
+                s.view_count DESC
+             LIMIT $3`,
+            [prefixTerm, containsTerm, limit]
         );
-        
+
         res.json({
             success: true,
             data: {
@@ -394,7 +408,9 @@ const autocomplete = async (req, res, next) => {
                     title: r.title,
                     slug: r.slug,
                     coverUrl: r.cover_url,
-                    type: r.type
+                    contentType: r.content_type,
+                    genres: r.genres,
+                    type: 'series'
                 }))
             }
         });

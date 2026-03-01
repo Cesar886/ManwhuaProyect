@@ -193,6 +193,8 @@
     border: 1px solid var(--border-medium);
     border-radius: var(--radius-md, 0.75rem);
     overflow: hidden;
+    max-height: 380px;
+    overflow-y: auto;
 
     /* Sombra premium adaptada al tema */
     box-shadow:
@@ -365,6 +367,93 @@
     color: var(--text-primary);
 }
 
+/* ====== SIMILAR ITEMS ====== */
+.ia-similar-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.ia-similar-item:hover .ia-similar-icon {
+    opacity: 1;
+    color: var(--imperial-purple);
+}
+
+/* ====== AI ICON (sugerencias IA sparkle) ====== */
+.ia-ai-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--imperial-purple);
+    opacity: 0.8;
+}
+
+.ia-suggestion-item:hover .ia-ai-icon {
+    opacity: 1;
+}
+
+/* ====== SERIES RESULT (resultado visual con miniatura) ====== */
+.ia-series-result {
+    text-decoration: none;
+    gap: 0.6rem;
+}
+
+.ia-series-thumb {
+    flex-shrink: 0;
+    width: 36px;
+    height: 50px;
+    border-radius: var(--radius-xs, 0.25rem);
+    object-fit: cover;
+    background: var(--subtle-bg);
+}
+
+.ia-series-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.ia-series-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.ia-series-tags {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
+.ia-series-tag {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    background: var(--imperial-primary-alpha, rgba(var(--imperial-blue-rgb), 0.1));
+    color: var(--imperial-purple);
+    border: 1px solid var(--imperial-primary-alpha, rgba(var(--imperial-blue-rgb), 0.15));
+    white-space: nowrap;
+}
+
+/* ====== AUTOCOMPLETE LOADING ====== */
+.ia-autocomplete-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
 /* ====== RESPONSIVE ====== */
 @media (max-width: 480px) {
     .ia-search {
@@ -388,6 +477,19 @@
 
     .ia-suggestion-item:hover {
         padding-left: 0.9rem;
+    }
+
+    .ia-series-thumb {
+        width: 30px;
+        height: 42px;
+    }
+
+    .ia-series-title {
+        font-size: 0.8rem;
+    }
+
+    .ia-series-tag {
+        font-size: 0.55rem;
     }
 }
 

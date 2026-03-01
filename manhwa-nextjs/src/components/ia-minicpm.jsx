@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { getSearchHistory, removeFromHistory } from '@/hooks/useIA';
+import { api } from '@/api/client';
 import './ia-minicpm.css';
 
 const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read')
@@ -441,13 +443,20 @@ function useThinkingStream(active, query = '') {
 }
 
 const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) => {
+    const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
     const [placeholder, setPlaceholder] = useState('');
     const [phrases, setPhrases] = useState([]);
     const [suggestions, setSuggestions] = useState([]); // top 5 para el dropdown
+    const [similarQueries, setSimilarQueries] = useState([]); // queries tipo "similar a X"
     const [isFocused, setIsFocused] = useState(false);
     const [history, setHistory] = useState([]);
+    const [autocompleteResults, setAutocompleteResults] = useState([]);
+    const [filteredPhrases, setFilteredPhrases] = useState([]);
+    const [autocompleteLoading, setAutocompleteLoading] = useState(false);
+    const debounceRef = useRef(null);
+    const abortRef = useRef(null);
 
     // Refrescar historial cuando se enfoca el input
     const refreshHistory = useCallback(() => {
@@ -489,19 +498,24 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
     const cardVisible = loading || !!explanation;
     const cardText = loading ? thinkingStream : streamedExplanation;
 
-    // --- Fetch top 20 consultas populares reales ---
+    // --- Fetch top consultas populares reales ---
     useEffect(() => {
         // Poner fallback de inmediato para que el dropdown funcione desde el primer click
         setSuggestions(FALLBACK_SUGGESTIONS);
         setPhrases(shuffleArray(FALLBACK_PHRASES));
 
         let cancelled = false;
-        fetch(`${AI_BASE_URL}/api/popular?limit=20`)
+        fetch(`${AI_BASE_URL}/api/popular?limit=50`)
             .then(r => r.json())
             .then(data => {
                 if (cancelled) return;
                 if (data.success && Array.isArray(data.queries) && data.queries.length > 0) {
-                    setSuggestions(data.queries.slice(0, 5));
+                    const isSimilar = (q) => /similar\s*(a\b|al\b)/i.test(q.query);
+                    const normal = data.queries.filter(q => !isSimilar(q));
+                    const similar = data.queries.filter(q => isSimilar(q));
+
+                    setSuggestions(normal.slice(0, 5));
+                    setSimilarQueries(similar.slice(0, 8));
                     setPhrases(shuffleArray(data.queries.map(q => q.query)));
                 }
             })
@@ -584,18 +598,89 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
         return () => clearTimeout(t);
     }, [query]);
 
+    // Función debounced para autocomplete API
+    const debouncedAutocomplete = useCallback((value) => {
+        // Filtrar frases IA localmente (instantáneo)
+        const lower = value.toLowerCase();
+        const allPhrases = [...new Set([
+            ...FALLBACK_PHRASES,
+            ...suggestions.map(s => s.query)
+        ])];
+        const matched = allPhrases
+            .filter(p => p.toLowerCase().includes(lower))
+            .slice(0, 4);
+        setFilteredPhrases(matched);
+
+        // Cancelar debounce anterior
+        clearTimeout(debounceRef.current);
+
+        if (value.length < 2) {
+            setAutocompleteResults([]);
+            setAutocompleteLoading(false);
+            return;
+        }
+
+        setAutocompleteLoading(true);
+
+        debounceRef.current = setTimeout(async () => {
+            // Cancelar request anterior
+            if (abortRef.current) abortRef.current.abort();
+            const controller = new AbortController();
+            abortRef.current = controller;
+
+            try {
+                const res = await api.get('search', `autocomplete?q=${encodeURIComponent(value)}&limit=6`, {
+                    signal: controller.signal
+                });
+                if (!controller.signal.aborted && res?.success && res.data?.suggestions) {
+                    setAutocompleteResults(res.data.suggestions);
+                }
+            } catch {
+                // Ignorar errores de abort o red
+            } finally {
+                if (!controller.signal.aborted) setAutocompleteLoading(false);
+            }
+        }, 300);
+    }, [suggestions]);
+
+    // Cleanup debounce y abort en unmount
+    useEffect(() => {
+        return () => {
+            clearTimeout(debounceRef.current);
+            if (abortRef.current) abortRef.current.abort();
+        };
+    }, []);
+
     const handleInput = (e) => {
-        setQuery(e.target.value);
+        const value = e.target.value;
+        setQuery(value);
         setIsTyping(true);
-        // Cerrar dropdown cuando el usuario escribe algo
-        if (e.target.value.length > 0) setIsFocused(false);
+
+        if (value.length > 0) {
+            setIsFocused(true);
+            debouncedAutocomplete(value);
+        } else {
+            setFilteredPhrases([]);
+            setAutocompleteResults([]);
+            setAutocompleteLoading(false);
+            clearTimeout(debounceRef.current);
+        }
+    };
+
+    const clearAutocomplete = () => {
+        setAutocompleteResults([]);
+        setFilteredPhrases([]);
+        setAutocompleteLoading(false);
+        clearTimeout(debounceRef.current);
+        if (abortRef.current) abortRef.current.abort();
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         const value = query.trim();
         if (!value || loading) return;
-        // Cerrar teclado en móvil para que no tape los resultados
+        clearAutocomplete();
+        setIsFocused(false);
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
         }
@@ -604,6 +689,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
 
     const handleSuggestionClick = (text) => {
         setQuery(text);
+        clearAutocomplete();
         setIsFocused(false);
         if (typeof onSearch === 'function') onSearch(text);
     };
@@ -614,7 +700,11 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
         return 'ia-idle';
     };
 
-    const showDropdown = isFocused && !loading && !isTyping && query.length === 0 && (suggestions.length > 0 || history.length > 0);
+    const hasAutocompleteContent = filteredPhrases.length > 0 || autocompleteResults.length > 0 || autocompleteLoading;
+    const showDropdown = isFocused && !loading && (
+        (query.length === 0 && (suggestions.length > 0 || history.length > 0 || similarQueries.length > 0)) ||
+        (query.length > 0 && hasAutocompleteContent)
+    );
 
     return (
         <div className="ia-wrapper" ref={wrapperRef} aria-busy={loading}>
@@ -688,61 +778,155 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                 </div>
             )}
 
-            {/* Dropdown de historial + consultas populares */}
+            {/* Dropdown de historial + consultas populares / autocomplete */}
             {showDropdown && (
                 <div className="ia-suggestions" role="listbox" aria-label="Sugerencias de búsqueda">
-                    {history.length > 0 && (
+                    {query.length === 0 ? (
+                        /* Modo vacío: historial + populares */
                         <>
-                            <p className="ia-suggestions-label">Búsquedas recientes</p>
-                            {history.map((h) => (
-                                <div
-                                    key={h.slug}
-                                    className="ia-suggestion-item ia-history-item"
-                                    role="option"
-                                    onMouseDown={(e) => {
-                                        e.preventDefault();
-                                        // Ignorar clicks en el botón de eliminar
-                                        if (e.target.closest('.ia-history-delete')) return;
-                                        handleSuggestionClick(h.query);
-                                    }}
-                                >
-                                    <svg className="ia-history-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <polyline points="12 6 12 12 16 14" />
-                                    </svg>
-                                    <span className="ia-suggestion-text">{h.query}</span>
-                                    <button
-                                        type="button"
-                                        className="ia-history-delete"
-                                        onMouseDown={(e) => handleRemoveHistory(h.slug, e)}
-                                        aria-label={`Eliminar "${h.query}" del historial`}
-                                        title="Eliminar del historial"
-                                    >
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                            <line x1="18" y1="6" x2="6" y2="18" />
-                                            <line x1="6" y1="6" x2="18" y2="18" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            ))}
+                            {history.length > 0 && (
+                                <>
+                                    <p className="ia-suggestions-label">Búsquedas recientes</p>
+                                    {history.map((h) => (
+                                        <div
+                                            key={h.slug}
+                                            className="ia-suggestion-item ia-history-item"
+                                            role="option"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                if (e.target.closest('.ia-history-delete')) return;
+                                                handleSuggestionClick(h.query);
+                                            }}
+                                        >
+                                            <svg className="ia-history-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <circle cx="12" cy="12" r="10" />
+                                                <polyline points="12 6 12 12 16 14" />
+                                            </svg>
+                                            <span className="ia-suggestion-text">{h.query}</span>
+                                            <button
+                                                type="button"
+                                                className="ia-history-delete"
+                                                onMouseDown={(e) => handleRemoveHistory(h.slug, e)}
+                                                aria-label={`Eliminar "${h.query}" del historial`}
+                                                title="Eliminar del historial"
+                                            >
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </>
+                            )}
+                            {suggestions.length > 0 && (
+                                <>
+                                    <p className="ia-suggestions-label">Consultas populares</p>
+                                    {suggestions.map((s, i) => (
+                                        <button
+                                            key={s.query}
+                                            type="button"
+                                            className="ia-suggestion-item"
+                                            onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                            role="option"
+                                        >
+                                            <span className="ia-suggestion-rank">#{i + 1}</span>
+                                            <span className="ia-suggestion-text">{s.query}</span>
+                                            <span className="ia-suggestion-count">{s.count}x</span>
+                                        </button>
+                                    ))}
+                                </>
+                            )}
+                            {similarQueries.length > 0 && (
+                                <>
+                                    <p className="ia-suggestions-label">Similares a...</p>
+                                    {similarQueries.map((s) => (
+                                        <button
+                                            key={s.query}
+                                            type="button"
+                                            className="ia-suggestion-item ia-similar-item"
+                                            onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                            role="option"
+                                        >
+                                            <svg className="ia-similar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <circle cx="11" cy="11" r="8" />
+                                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                            </svg>
+                                            <span className="ia-suggestion-text">{s.query}</span>
+                                            <span className="ia-suggestion-count">{s.count}x</span>
+                                        </button>
+                                    ))}
+                                </>
+                            )}
                         </>
-                    )}
-                    {suggestions.length > 0 && (
+                    ) : (
+                        /* Modo escritura: sugerencias IA + resultados visuales */
                         <>
-                            <p className="ia-suggestions-label">Consultas populares</p>
-                            {suggestions.map((s, i) => (
-                                <button
-                                    key={s.query}
-                                    type="button"
-                                    className="ia-suggestion-item"
-                                    onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
-                                    role="option"
-                                >
-                                    <span className="ia-suggestion-rank">#{i + 1}</span>
-                                    <span className="ia-suggestion-text">{s.query}</span>
-                                    <span className="ia-suggestion-count">{s.count}x</span>
-                                </button>
-                            ))}
+                            {filteredPhrases.length > 0 && (
+                                <>
+                                    <p className="ia-suggestions-label">Sugerencias IA</p>
+                                    {filteredPhrases.map((phrase) => (
+                                        <button
+                                            key={phrase}
+                                            type="button"
+                                            className="ia-suggestion-item"
+                                            onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(phrase); }}
+                                            role="option"
+                                        >
+                                            <svg className="ia-ai-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
+                                            </svg>
+                                            <span className="ia-suggestion-text">{phrase}</span>
+                                        </button>
+                                    ))}
+                                </>
+                            )}
+                            {autocompleteResults.length > 0 && (
+                                <>
+                                    <p className="ia-suggestions-label">Resultados</p>
+                                    {autocompleteResults.map((r) => (
+                                        <a
+                                            key={r.slug}
+                                            href={`/series/${r.slug}`}
+                                            className="ia-suggestion-item ia-series-result"
+                                            onMouseDown={(e) => { e.preventDefault(); }}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                clearAutocomplete();
+                                                setIsFocused(false);
+                                                router.push(`/series/${r.slug}`);
+                                            }}
+                                            role="option"
+                                        >
+                                            {r.coverUrl && (
+                                                <img
+                                                    className="ia-series-thumb"
+                                                    src={r.coverUrl}
+                                                    alt=""
+                                                    loading="lazy"
+                                                />
+                                            )}
+                                            <div className="ia-series-info">
+                                                <span className="ia-series-title">{r.title}</span>
+                                                {Array.isArray(r.genres) && r.genres.length > 0 && (
+                                                    <div className="ia-series-tags">
+                                                        {r.genres.slice(0, 3).map((g) => (
+                                                            <span key={g.slug} className="ia-series-tag">{g.name}</span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </a>
+                                    ))}
+                                </>
+                            )}
+                            {autocompleteLoading && autocompleteResults.length === 0 && (
+                                <div className="ia-autocomplete-loading">
+                                    <div className="ia-dots" aria-label="Cargando">
+                                        <span /><span /><span />
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
