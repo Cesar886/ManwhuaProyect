@@ -1,97 +1,387 @@
-/* ============================================================================
-   POPULARES PAGE STYLES - MANHWA IMPERIAL
-   ============================================================================ */
+/* ====================================================
+   POPULARES PAGE — Estructura idéntica a Colección de Manhwas (/home)
+   Cards con aspect-ratio 2/3, título overlay, hover dorado
+   ==================================================== */
 
-.pageWrapper {
-  padding-top: var(--header-height, 80px);
+/* ====== PAGE WRAPPER ====== */
+.page {
+    padding-top: var(--header-height, 80px);
+    min-height: 100vh;
+    background: var(--page-bg);
+    color: var(--text-primary);
 }
 
-/* Card de estadísticas */
-.statsCard {
-  background: var(--card-bg) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle) !important;
-  transition: all var(--transition-smooth);
+.container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 3rem;
 }
 
-.statsCard:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-imperial-hover) !important;
-  border-color: var(--imperial-primary) !important;
+/* ====== SECTION BLOCK (cada sección de ranking) ====== */
+.sectionBlock {
+    margin-bottom: 2.5rem;
 }
 
-/* Card de filtros */
-.filterCard {
-  background: var(--card-bg) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle) !important;
-  border-radius: var(--radius-lg) !important;
-  transition: all var(--transition-smooth);
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    position: relative;
 }
 
-.filterCard:hover {
-  border-color: var(--imperial-primary) !important;
-  box-shadow: var(--shadow-subtle) !important;
+.sectionHeader::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        var(--imperial-purple, #a855f7) 0%,
+        rgba(168, 85, 247, 0.2) 50%,
+        transparent 100%
+    );
 }
 
-/* Tabs customizadas */
-.tabs {
-  --tabs-color: var(--text-body);
-  --tabs-default-border-color: var(--border-subtle);
-  --tabs-outline-color: var(--imperial-primary);
+.sectionIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg, 0.75rem);
+    background: var(--gradient-imperial, linear-gradient(135deg, #a855f7, #22d3ee));
+    color: white;
+    flex-shrink: 0;
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.25);
+    position: relative;
 }
 
-.tabs [data-active="true"] {
-  background: var(--gradient-imperial) !important;
-  color: white !important;
-  border-color: transparent !important;
+.sectionIcon::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: calc(var(--radius-lg, 0.75rem) + 2px);
+    background: var(--gradient-imperial, linear-gradient(135deg, #a855f7, #22d3ee));
+    opacity: 0.3;
+    filter: blur(8px);
+    z-index: -1;
 }
 
-.tabs button:not([data-active="true"]):hover {
-  background: var(--subtle-bg-hover) !important;
-  color: var(--imperial-primary) !important;
+.sectionTitle {
+    font-family: var(--font-heading, 'Outfit', sans-serif);
+    font-size: clamp(1.15rem, 3vw, 1.5rem);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.2;
 }
 
-/* Cards de ranking */
-.rankingCard {
-  background: var(--card-bg) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle) !important;
-  transition: all var(--transition-smooth);
-  cursor: pointer;
+.sectionSubtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0.15rem 0 0;
+    line-height: 1.3;
 }
 
-.rankingCard:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-imperial-hover) !important;
-  border-color: var(--imperial-primary) !important;
+/* ====== SCROLL HORIZONTAL ====== */
+.cardsScroll {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 0.5rem;
+    mask-image: linear-gradient(to right, transparent 0, #000 0.5%, #000 97%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 0.5%, #000 97%, transparent 100%);
 }
 
-/* Título del ranking */
-.rankingTitle {
-  color: var(--text-title) !important;
-  font-family: var(--font-heading, 'Playfair Display', serif) !important;
-  line-height: 1.3;
-  transition: color var(--transition-base);
+.cardsScroll::-webkit-scrollbar {
+    display: none;
 }
 
-.rankingCard:hover .rankingTitle {
-  color: var(--imperial-primary) !important;
+/* ====== CARD — Mismo estilo que Colección de Manhwas (/home) ====== */
+.cardItem {
+    flex-shrink: 0;
+    width: 160px;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    background: transparent;
+    border: none;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
 }
 
-/* Items de lista de ranking */
-.rankingListItem {
-  padding: var(--spacing-md) !important;
-  border-bottom: 1px solid var(--border-light) !important;
-  transition: all var(--transition-base);
-  cursor: pointer;
+.cardItem:hover {
+    transform: translateY(-6px) scale(1.02);
+    z-index: 10;
 }
 
-.rankingListItem:hover {
-  background: var(--subtle-bg-hover) !important;
-  transform: translateX(4px);
+.cardItem:hover .card {
+    box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.4),
+        0 0 0 2px #D4AF37;
 }
 
-.rankingListItem:last-child {
-  border-bottom: none !important;
+.card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.3s ease;
+}
+
+.cardImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.cardItem:hover .cardImg {
+    transform: scale(1.05);
+}
+
+/* Chapter badge — top left */
+.chapterBadge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    color: #ffffff;
+    font-weight: 600;
+    z-index: 5;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Status badge — top right */
+.statusBadge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 5;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Rating badge — bottom right (encima del gradiente del título) */
+.ratingBadge {
+    position: absolute;
+    bottom: 40px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fbbf24;
+    z-index: 5;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Rank badge — bottom left (solo Top Ranking) */
+.rankBadge {
+    position: absolute;
+    bottom: 38px;
+    left: 8px;
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.9);
+    z-index: 5;
+    font-family: var(--font-heading, 'Outfit', sans-serif);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.rankGold {
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.3);
+    background: rgba(245, 158, 11, 0.15);
+}
+
+.rankSilver {
+    color: #cbd5e1;
+    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(148, 163, 184, 0.15);
+}
+
+.rankBronze {
+    color: #cd7f32;
+    border-color: rgba(205, 127, 50, 0.3);
+    background: rgba(205, 127, 50, 0.15);
+}
+
+/* Título overlay con gradiente — idéntico al Home */
+.cardTitle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 40px 12px 12px;
+    text-decoration: none;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.6) 60%, transparent 100%);
+    z-index: 5;
+    margin: 0;
+    transition: all 0.3s ease;
+}
+
+.cardItem:hover .cardTitle {
+    color: #D4AF37;
+    padding-bottom: 16px;
+}
+
+/* ====== EMPTY STATE ====== */
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    text-align: center;
+    gap: 1rem;
+    padding: 2rem;
+}
+
+.emptyIcon {
+    width: 56px;
+    height: 56px;
+    color: var(--text-muted);
+    opacity: 0.3;
+}
+
+.emptyTitle {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.emptyText {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    max-width: 400px;
+    margin: 0;
+}
+
+.emptyLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.2rem;
+    border-radius: var(--radius-md, 0.75rem);
+    background: linear-gradient(135deg, var(--imperial-purple, #a855f7), var(--imperial-cyan, #22d3ee));
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.emptyLink:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+}
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 768px) {
+    .container {
+        padding: 1.25rem 1rem 2.5rem;
+    }
+
+    .cardItem {
+        width: 140px;
+    }
+
+    .cardsScroll {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 1rem 0.75rem 2rem;
+    }
+
+    .cardItem {
+        width: 125px;
+    }
+
+    .cardsScroll {
+        gap: 10px;
+    }
+
+    .sectionBlock {
+        margin-bottom: 1.5rem;
+    }
+
+    .sectionIcon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .cardTitle {
+        font-size: 0.75rem;
+        padding: 30px 8px 8px;
+    }
+
+    .chapterBadge,
+    .statusBadge {
+        font-size: 0.55rem;
+        padding: 0.2rem 0.4rem;
+        top: 6px;
+    }
+
+    .chapterBadge {
+        left: 6px;
+    }
+
+    .statusBadge {
+        right: 6px;
+    }
+
+    .rankBadge {
+        font-size: 0.9rem;
+        bottom: 30px;
+    }
+
+    .ratingBadge {
+        font-size: 0.6rem;
+        bottom: 30px;
+    }
 }

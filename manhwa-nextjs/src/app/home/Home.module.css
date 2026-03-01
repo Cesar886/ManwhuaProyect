@@ -833,6 +833,188 @@
   margin: 0;
 }
 
+/* ============================================================================
+   BÚSQUEDAS POPULARES - Netflix-style rows
+   ============================================================================ */
+
+.querySection {
+  /* min-width: 0 es CRÍTICO en un padre flex-direction: column
+     sin esto, los hijos no shrinkean y el overflow-x: auto no funciona */
+  min-width: 0;
+  width: 100%;
+}
+
+.queryRow {
+  margin-bottom: 2rem;
+  min-width: 0;
+}
+
+.queryHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.queryName {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queryName::first-letter {
+  text-transform: uppercase;
+}
+
+.queryLink {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--imperial-gold);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+/* Scroll horizontal */
+.queryScroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 8px;
+  /* Forzar width para que overflow-x funcione en flex column */
+  width: 100%;
+  min-width: 0;
+}
+
+.queryScroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Card dentro del scroll */
+.queryItem {
+  flex: 0 0 140px;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+/* Título dentro de la card — ajustar para cards más pequeñas */
+.queryItem .titleLink {
+  font-size: 0.8rem;
+  padding: 30px 8px 8px;
+}
+
+/* Badges más pequeños en las query cards */
+.queryItem .statusBadge,
+.queryItem .chapterBadge {
+  font-size: 0.55rem;
+  padding: 0.2rem 0.4rem;
+  top: 6px;
+}
+
+.queryItem .statusBadge {
+  right: 6px;
+}
+
+.queryItem .chapterBadge {
+  left: 6px;
+}
+
+/* Hover solo en desktop con ratón */
+@media (hover: hover) {
+  .queryItem {
+    transition: transform 0.3s ease;
+  }
+
+  .queryItem:hover {
+    transform: translateY(-5px);
+  }
+
+  .queryItem:hover .popularCard {
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.4),
+      0 0 0 2px #D4AF37;
+  }
+
+  .queryItem:hover .popularImg {
+    transform: scale(1.05);
+  }
+
+  .queryItem:hover .titleLink {
+    color: #D4AF37;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE - Búsquedas Populares
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .queryItem {
+    flex: 0 0 120px;
+  }
+
+  .queryItem .titleLink {
+    font-size: 0.72rem;
+    padding: 24px 6px 6px;
+  }
+
+  .queryRow {
+    margin-bottom: 1.5rem;
+  }
+
+  .queryName {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .queryScroll {
+    gap: 8px;
+  }
+
+  .queryItem {
+    flex: 0 0 105px;
+  }
+
+  .queryItem .titleLink {
+    font-size: 0.65rem;
+    padding: 20px 5px 5px;
+  }
+
+  .queryItem .statusBadge,
+  .queryItem .chapterBadge {
+    font-size: 0.5rem;
+    padding: 0.15rem 0.3rem;
+    top: 4px;
+  }
+
+  .queryRow {
+    margin-bottom: 1.25rem;
+  }
+
+  .queryName {
+    font-size: 0.875rem;
+  }
+
+  .queryLink {
+    font-size: 0.7rem;
+    padding: 6px 8px;
+  }
+}
+
 @media (max-width: 768px) {
   .seoH1 {
     font-size: 1.5rem;

@@ -76,14 +76,12 @@ const searchQueryValidation = [
         .optional()
         .trim()
         .isLength({ min: 1, max: 200 })
-        .withMessage('Búsqueda debe tener entre 1 y 200 caracteres')
-        .escape(),
+        .withMessage('Búsqueda debe tener entre 1 y 200 caracteres'),
     queryValidator('search')
         .optional()
         .trim()
         .isLength({ min: 1, max: 200 })
-        .withMessage('Búsqueda debe tener entre 1 y 200 caracteres')
-        .escape(),
+        .withMessage('Búsqueda debe tener entre 1 y 200 caracteres'),
 ];
 
 // ============================================

@@ -19,8 +19,17 @@ import { normalizeImageUrl } from '../../utils/imageUtils';
 import { endpoint } from '../../config';
 import Header from '@/components/Header';
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
+import { slugifyQuery } from '@/hooks/useIA';
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read')
+    .replace('/api/read', '')
+
+const formatCount = (n) => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n ?? 0);
+};
 
 // ============================================================================
 // COMPONENTE CLIENTE - Recibe datos iniciales del Server Component (SSR)
@@ -32,6 +41,7 @@ export default function HomeClient({ initialSeries = [] }) {
   const [loading, setLoading] = useState(initialSeries.length === 0)
   const [error, setError] = useState(null)
   const [isFromCache, setIsFromCache] = useState(false)
+  const [popularCategories, setPopularCategories] = useState([])
 
   // Solo carga client-side si el server no pudo proveer datos (fallback)
   useEffect(() => {
@@ -65,6 +75,72 @@ export default function HomeClient({ initialSeries = [] }) {
     load()
     return () => { cancelled = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cargar queries populares client-side via AI API (no bloquea SSR)
+  useEffect(() => {
+    let cancelled = false
+    const loadPopular = async () => {
+      try {
+        // 1. Obtener queries populares
+        const popRes = await fetch(`${AI_BASE_URL}/api/popular?limit=20`, {
+          headers: { 'Accept': 'application/json' },
+        })
+        if (!popRes.ok) return
+        const popData = await popRes.json()
+        if (!popData.success || !Array.isArray(popData.queries)) return
+
+        const queries = popData.queries.filter(q => q.query && q.query.trim().length > 3)
+        if (queries.length === 0) return
+
+        // 2. Buscar series via AI API (búsqueda semántica, en paralelo, max 12)
+        const toFetch = queries.slice(0, 12)
+        const searchResults = await Promise.all(
+          toFetch.map(async (q) => {
+            try {
+              const res = await fetch(`${AI_BASE_URL}/api/read`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  messages: [{ role: 'user', content: q.query }],
+                }),
+              })
+              if (!res.ok) return []
+              const result = await res.json()
+              const series = result.series || []
+              return series.slice(0, 15).map(s => ({
+                id: s.id,
+                title: s.title,
+                slug: s.slug,
+                cover: s.coverUrl || s.cover_url || '',
+                chapterCount: s.chapterCount ?? s.chapter_count ?? 0,
+                status: s.status ?? 'ongoing',
+              }))
+            } catch {
+              return []
+            }
+          })
+        )
+
+        if (cancelled) return
+
+        // 3. Armar categorías (solo las que tengan ≥3 resultados), max 8
+        const categories = toFetch
+          .map((q, i) => ({
+            query: q.query,
+            count: q.count,
+            series: searchResults[i],
+          }))
+          .filter(cat => cat.series.length >= 3)
+          .slice(0, 8)
+
+        setPopularCategories(categories)
+      } catch {
+        // Silencioso — la sección simplemente no aparece
+      }
+    }
+    loadPopular()
+    return () => { cancelled = true }
+  }, [])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -178,7 +254,7 @@ export default function HomeClient({ initialSeries = [] }) {
               color: 'var(--text-muted)',
               fontWeight: 500
             }}>
-              {series.length} títulos
+              +2000 títulos
             </span>
           </div>
 
@@ -214,218 +290,55 @@ export default function HomeClient({ initialSeries = [] }) {
         </section>
 
         {/* ================================================================== */}
-        {/* ÚLTIMAS ACTUALIZACIONES - SEO: "Últimos Manhwas Actualizados" */}
+        {/* BÚSQUEDAS POPULARES - Filas Netflix-style (cargado client-side) */}
         {/* ================================================================== */}
-        <section>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionIcon}>
-              <IconClock size={22} />
-            </div>
-            <h2 className={styles.sectionTitle}>
-              {SEO_CONTENT.home.sections.latest}
-            </h2>
-            <Link href="/biblioteca" className={styles.inlineBtn}>
-              {getAnchorText.seeAll}
-            </Link>
-          </div>
+        {popularCategories.length > 0 && (
+          <section className={styles.querySection}>
 
-          <div className={styles.gridReleases}>
-            {series.slice(0, 6).map((series) => (
-              <div key={series.slug} className={styles.releaseCard}>
-                <Link href={`/manhwa/${series.slug}`} title={getAnchorText.title(series.title)}>
-                  <div className={styles.releaseCoverWrapper}>
-                    <ManhwaCover
-                      src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
-                      alt={getImageAlt.cover(series.title)}
-                      className={styles.popularImg}
-                      sizes="(max-width: 640px) 30vw, (max-width: 1024px) 18vw, 120px"
-                    />
+            {popularCategories.map((cat, catIdx) => {
+              const slug = slugifyQuery(cat.query);
+              return (
+                <div key={cat.query} className={styles.queryRow}>
+                  <div className={styles.queryHeader}>
+                    <h2 className={styles.queryName}>{cat.query}</h2>
+                    <Link href={`/busqueda-ia/${slug}`} className={styles.queryLink}>
+                      Ver más →
+                    </Link>
                   </div>
-                </Link>
-                <div className={styles.releaseInfo}>
-                  <Link href={`/manhwa/${series.slug}`} className={styles.releaseTitle} title={getAnchorText.title(series.title)}>
-                    {series.title}
-                  </Link>
-                  <div className={styles.chaptersList}>
-                    {(series.chapters || []).slice(0, 3).map((ch) => (
+                  <div className={styles.queryScroll}>
+                    {cat.series.map((item, i) => (
                       <Link
-                        key={ch.number}
-                        href={`/manhwa/${series.slug}/capitulo/${ch.number}`}
-                        className={styles.chapterLink}
-                        title={getAnchorText.chapter(series.title, ch.number)}
+                        href={`/manhwa/${item.slug}`}
+                        key={item.id || item.slug}
+                        className={styles.queryItem}
                       >
-                        <span>Capítulo {ch.number}</span>
-                        <span className={styles.chapterTime}>{ch.time}</span>
+                        <div className={styles.popularCard}>
+                          <ManhwaCover
+                            src={normalizeImageUrl(item.cover) || ''}
+                            alt={getImageAlt.cover(item.title)}
+                            className={styles.popularImg}
+                            priority={catIdx === 0 && i < 4}
+                            sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
+                          />
+                          {item.chapterCount > 0 && (
+                            <span className={styles.chapterBadge}>
+                              {item.chapterCount} caps
+                            </span>
+                          )}
+                          <span className={styles.statusBadge}>
+                            {item.status || 'ongoing'}
+                          </span>
+                          <h3 className={styles.titleLink}>{item.title}</h3>
+                        </div>
                       </Link>
                     ))}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ================================================================== */}
-        {/* JOYAS OCULTAS - SEO: Enlazado interno a manhwas menos conocidos */}
-        {/* Rota semanalmente para distribuir autoridad SEO */}
-        {/* ================================================================== */}
-        {series.length > 12 && (
-          <section>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionIcon}>
-                <IconDiamond size={22} />
-              </div>
-              <h2 className={styles.sectionTitle}>
-                Joyas Ocultas - Manhwas que Deberías Leer
-              </h2>
-              <Link href="/biblioteca" className={`${styles.inlineBtn} ${styles.hideOnMobile}`}>
-                Explorar biblioteca
-              </Link>
-            </div>
-
-            <div className={styles.cardsRow}>
-              {(() => {
-                // Rotación semanal determinista basada en la semana del año
-                const weekNumber = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
-                const startOffset = 12 + ((weekNumber * 6) % Math.max(1, series.length - 18));
-                return series.slice(startOffset, startOffset + 6).map((series) => (
-                  <Link
-                    href={`/manhwa/${series.slug}`}
-                    key={series.slug}
-                    className={styles.popularItem}
-                    title={getAnchorText.title(series.title)}
-                  >
-                    <div className={styles.popularCard}>
-                      <ManhwaCover
-                        src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
-                        alt={getImageAlt.cover(series.title)}
-                        className={styles.popularImg}
-                        sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 160px"
-                      />
-                      {series.chapterCount > 0 && (
-                        <span className={styles.chapterBadge}>
-                          {series.chapterCount} caps
-                        </span>
-                      )}
-                      <h3 className={styles.titleLink}>{series.title}</h3>
-                    </div>
-                  </Link>
-                ));
-              })()}
-            </div>
+              );
+            })}
           </section>
         )}
 
-        {/* ================================================================== */}
-        {/* TOP SERIES (RANKINGS) - SEO: "Manhwas Populares en Español" */}
-        {/* ================================================================== */}
-        <section>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionIcon}>
-              <IconTrophy size={22} />
-            </div>
-            <h2 className={styles.sectionTitle}>
-              {SEO_CONTENT.home.sections.popular}
-            </h2>
-            <Link href="/populares" className={`${styles.inlineBtn} ${styles.hideOnMobile}`}>
-              {getAnchorText.fullRanking}
-            </Link>
-          </div>
-
-          <div className={styles.topSeriesGrid}>
-            {/* Top 3 - Featured Cards */}
-            <div className={styles.topSeriesContainer}>
-              {series.slice(0, 3).map((series, index) => (
-                <Link
-                  href={`/manhwa/${series.slug}`}
-                  key={series.slug}
-                  className={styles.topSeriesItem}
-                  title={getAnchorText.title(series.title)}
-                >
-                  <div className={styles.topSeriesCover}>
-                    <ManhwaCover
-                      src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
-                      alt={getImageAlt.cover(series.title)}
-                      sizes="(max-width: 640px) 80vw, (max-width: 1024px) 30vw, 250px"
-                    />
-                    <div
-                      className={styles.topSeriesBadge}
-                      style={{
-                        backgroundImage: index === 0
-                          ? 'linear-gradient(135deg, #FFD700, #FFA500)'
-                          : index === 1
-                            ? 'linear-gradient(135deg, #E8E8E8, #A8A8A8)'
-                            : 'linear-gradient(135deg, #CD7F32, #8B4513)',
-                      }}
-                    >
-                      {index + 1}
-                    </div>
-                  </div>
-                  <div className={styles.topSeriesInfo}>
-                    <h3 className={styles.topSeriesTitle}>{series.title}</h3>
-                    {series.chapterCount > 0 && (
-                      <div className={styles.topSeriesMeta}>
-                        <IconEye size={14} />
-                        <span>{series.chapterCount} capítulos</span>
-                      </div>
-                    )}
-                    <span className={styles.btnPrimary}>Leer manhwa</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {/* 4-10 - Side List */}
-            <div className={`${styles.listPanel} ${styles.hideOnMobile}`}>
-              <h3 className={styles.listPanelTitle}>
-                <IconTrendingUp size={18} />
-                Mejores Manhwas
-              </h3>
-              <div>
-                {series.slice(3, 10).map((series, index) => (
-                  <Link
-                    href={`/manhwa/${series.slug}`}
-                    key={series.slug}
-                    className={styles.listItem}
-                    title={getAnchorText.title(series.title)}
-                  >
-                    <span className={styles.listItemRank}>{index + 4}</span>
-                    <div className={styles.listItemCover} style={{ position: 'relative', overflow: 'hidden' }}>
-                      <ManhwaCover
-                        src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
-                        alt={getImageAlt.cover(series.title)}
-                        sizes="48px"
-                      />
-                    </div>
-                    <div className={styles.listItemInfo}>
-                      <h4 className={styles.listItemTitle}>{series.title}</h4>
-                      {series.chapterCount > 0 && (
-                        <span className={styles.listItemChapters}>{series.chapterCount} capítulos</span>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ================================================================== */}
-        {/* SEO: SECCIÓN ¿QUÉ ES UN MANHWA? - Contenido informativo para SEO */}
-        {/* ================================================================== */}
-        <section className={styles.seoSection}>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionIcon}>
-              <IconBook size={22} />
-            </div>
-            <h2 className={styles.sectionTitle}>
-              {SEO_CONTENT.home.whatIsManhwa.title}
-            </h2>
-          </div>
-          <div className={styles.seoContent}>
-            <p>{SEO_CONTENT.home.whatIsManhwa.text}</p>
-          </div>
-        </section>
       </main>
     </div>
   );

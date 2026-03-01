@@ -449,7 +449,8 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
     const [placeholder, setPlaceholder] = useState('');
     const [phrases, setPhrases] = useState([]);
     const [suggestions, setSuggestions] = useState([]); // top 5 para el dropdown
-    const [similarQueries, setSimilarQueries] = useState([]); // queries tipo "similar a X"
+    const [allSimilarQueries, setAllSimilarQueries] = useState([]); // todas las "similar a X"
+    const [visibleSimilar, setVisibleSimilar] = useState([]); // 5 visibles rotando
     const [isFocused, setIsFocused] = useState(false);
     const [history, setHistory] = useState([]);
     const [autocompleteResults, setAutocompleteResults] = useState([]);
@@ -457,6 +458,16 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
     const [autocompleteLoading, setAutocompleteLoading] = useState(false);
     const debounceRef = useRef(null);
     const abortRef = useRef(null);
+
+    // Rotar "Similares a..." cada vez que se abre el dropdown
+    const rotateSimilar = useCallback(() => {
+        setAllSimilarQueries(prev => {
+            if (prev.length <= 5) return prev;
+            const shuffled = shuffleArray(prev);
+            setVisibleSimilar(shuffled.slice(0, 5));
+            return prev;
+        });
+    }, []);
 
     // Refrescar historial cuando se enfoca el input
     const refreshHistory = useCallback(() => {
@@ -515,7 +526,8 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                     const similar = data.queries.filter(q => isSimilar(q));
 
                     setSuggestions(normal.slice(0, 5));
-                    setSimilarQueries(similar.slice(0, 8));
+                    setAllSimilarQueries(similar);
+                    setVisibleSimilar(shuffleArray(similar).slice(0, 5));
                     setPhrases(shuffleArray(data.queries.map(q => q.query)));
                 }
             })
@@ -702,7 +714,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
 
     const hasAutocompleteContent = filteredPhrases.length > 0 || autocompleteResults.length > 0 || autocompleteLoading;
     const showDropdown = isFocused && !loading && (
-        (query.length === 0 && (suggestions.length > 0 || history.length > 0 || similarQueries.length > 0)) ||
+        (query.length === 0 && (suggestions.length > 0 || history.length > 0 || visibleSimilar.length > 0)) ||
         (query.length > 0 && hasAutocompleteContent)
     );
 
@@ -724,7 +736,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                     type="text"
                     value={query}
                     onChange={handleInput}
-                    onFocus={() => { setIsFocused(true); refreshHistory(); }}
+                    onFocus={() => { setIsFocused(true); refreshHistory(); rotateSimilar(); }}
                     onBlur={() => setTimeout(() => setIsFocused(false), 150)}
                     className="ia-input"
                     disabled={loading}
@@ -837,10 +849,10 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                                     ))}
                                 </>
                             )}
-                            {similarQueries.length > 0 && (
+                            {visibleSimilar.length > 0 && (
                                 <>
                                     <p className="ia-suggestions-label">Similares a...</p>
-                                    {similarQueries.map((s) => (
+                                    {visibleSimilar.map((s) => (
                                         <button
                                             key={s.query}
                                             type="button"
@@ -894,7 +906,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                                                 e.preventDefault();
                                                 clearAutocomplete();
                                                 setIsFocused(false);
-                                                router.push(`/series/${r.slug}`);
+                                                router.push(`/manhwa/${r.slug}`);
                                             }}
                                             role="option"
                                         >
