@@ -87,6 +87,29 @@ function getFromCache(query, { allowStale = false } = {}) {
     }
 }
 
+// Normaliza los campos de cada serie para que el frontend siempre use los mismos nombres.
+// Maneja todas las variantes de naming que pueden venir del AI middleware o del API.
+function normalizeSeries(data) {
+    if (!data) return data;
+    const series = data.series;
+    if (!Array.isArray(series) || series.length === 0) return data;
+    return {
+        ...data,
+        series: series.map(s => {
+            if (!s || typeof s !== 'object') return s;
+            const cover = s.cover || s.coverUrl || s.cover_url || s.coverImage || s.image || null;
+            return {
+                ...s,
+                cover,
+                coverUrl: cover,
+                chapterCount: s.chapterCount || s.chapter_count || s.totalChapters || (Array.isArray(s.chapters) ? s.chapters.length : 0) || 0,
+                rating: s.rating ?? s.rating_average ?? s.ratingAverage ?? 0,
+                status: s.status || 'ongoing',
+            };
+        }),
+    };
+}
+
 function saveToCache(query, data) {
     if (typeof window === 'undefined') return;
     try {
@@ -247,8 +270,9 @@ export function useIA() {
             if (controller !== activeControllerRef.current) return null;
 
             if (data.success) {
-                setResultados(data);
-                saveToCache(trimmed, data);
+                const normalized = normalizeSeries(data);
+                setResultados(normalized);
+                saveToCache(trimmed, normalized);
                 trackIAEvent('ia_search', {
                     query: trimmed,
                     result_count: (data.series || []).length,
@@ -273,7 +297,7 @@ export function useIA() {
             // Intentar usar caché stale como fallback si la API falla
             const staleCache = getFromCache(trimmed, { allowStale: true });
             if (staleCache) {
-                setResultados(staleCache.data);
+                setResultados(normalizeSeries(staleCache.data));
                 setError(null);
                 setCargando(false);
                 trackIAEvent('ia_search', {
@@ -309,7 +333,7 @@ export function useIA() {
 
         const cached = getFromCache(texto.trim());
         if (cached && !cached.stale) {
-            setResultados(cached.data);
+            setResultados(normalizeSeries(cached.data));
             setError(null);
             trackIAEvent('ia_search', {
                 query: texto.trim(),
@@ -327,7 +351,7 @@ export function useIA() {
         if (!query) return false;
         const cached = getFromCache(query.trim(), { allowStale: true });
         if (cached) {
-            setResultados(cached.data);
+            setResultados(normalizeSeries(cached.data));
             setError(null);
             return true;
         }
