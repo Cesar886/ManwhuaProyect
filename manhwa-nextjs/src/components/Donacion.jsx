@@ -300,7 +300,7 @@ export default function Donacion() {
             {/* Monto seleccionado */}
             {validAmount && (
               <div className={classes.selectedAmount}>
-                Vas a donar <strong>${finalAmount.toFixed(2)} USD</strong>
+                Nos ayudarias con <strong>${finalAmount.toFixed(2)} USD</strong>
               </div>
             )}
 

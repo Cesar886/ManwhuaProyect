@@ -372,8 +372,18 @@ export function generateChapterJsonLd(series, chapterNum, pageCount = null, chap
     jsonLd.numberOfPages = pageCount
   }
 
-  if (series.coverUrl || series.cover) {
-    jsonLd.image = series.coverUrl || series.cover
+  // Portada oficial de la serie como ImageObject (Google prioriza ImageObject sobre strings)
+  const coverSrc = series.coverUrl || series.cover || series.cover_url || series.coverImage || null
+  if (coverSrc) {
+    jsonLd.image = {
+      '@type': 'ImageObject',
+      url: coverSrc,
+      width: 460,
+      height: 640,
+      caption: `Portada de ${title} - Manhwa en Español`,
+    }
+    // thumbnailUrl refuerza que Google use esta imagen y no la primera del capítulo
+    jsonLd.thumbnailUrl = coverSrc
   }
 
   const chapter = series.chapters?.find(c => Number(c.number) === n)

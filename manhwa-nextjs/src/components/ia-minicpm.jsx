@@ -810,7 +810,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                             {history.length > 0 && (
                                 <>
                                     <p className="ia-suggestions-label">Búsquedas recientes</p>
-                                    {history.map((h) => (
+                                    {history.slice(0, 2).map((h) => (
                                         <div
                                             key={h.slug}
                                             className="ia-suggestion-item ia-history-item"
