@@ -54,8 +54,24 @@ const authLimiter = rateLimit({
     }
 });
 
+/**
+ * Limitador para donaciones
+ * 10 intentos por hora por IP — pagos no necesitan más
+ */
+const donationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Demasiados intentos de pago. Intenta de nuevo más tarde.'
+    }
+});
+
 module.exports = {
     apiLimiter,
     voteLimiter,
-    authLimiter
+    authLimiter,
+    donationLimiter
 };

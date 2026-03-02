@@ -275,7 +275,7 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                 onClear={null}
                             />
                         </Stack>
-                        {/* {!navigatingToIA && !querySearch && (
+                        {!navigatingToIA && !querySearch && (
                             <button
                                 className={classes.paypalSupport}
                                 onClick={() => setDonacionOpen(true)}
@@ -288,7 +288,7 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                 <span className={classes.paypalLabel}>¿Te gusta la IA? Apóyanos para mantenerla</span>
                                 <span className={classes.paypalCta}>Donar</span>
                             </button>
-                        )} */}
+                        )}
 
                         <Modal
                             opened={donacionOpen}

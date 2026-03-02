@@ -31,6 +31,8 @@ export const ENDPOINTS = {
   admin: apiUrl(`${apiPrefix}admin`),
   upload: apiUrl(`${apiPrefix}upload`),
   spaces: apiUrl(`${apiPrefix}spaces`),
+  progress: apiUrl(`${apiPrefix}progress`),
+  donations: apiUrl(`${apiPrefix}donations`),
 }
 
 // Helper para obtener un endpoint y agregar un subpath opcional

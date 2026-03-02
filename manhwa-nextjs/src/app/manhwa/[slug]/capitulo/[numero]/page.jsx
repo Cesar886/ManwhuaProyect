@@ -106,7 +106,7 @@ export async function generateMetadata({ params }) {
 export default async function ChapterReaderPage({ params }) {
   const { slug, numero } = await params
 
-  // Fetch paralelo: series, rating del capítulo e imágenes (SSR)
+  // Fetch paralelo: series, rating e imágenes (SSR)
   const [series, chapterRating, initialPages] = await Promise.all([
     fetchSeriesForSEO(slug),
     fetchChapterRatingForSEO(slug, numero),
@@ -114,7 +114,6 @@ export default async function ChapterReaderPage({ params }) {
   ])
 
   const title = series?.title || slug.replace(/-/g, ' ')
-  // Pasar rating específico del capítulo (null si no hay votos → no incluye aggregateRating)
   const chapterJsonLd = generateChapterJsonLd(series || { slug, title }, numero, null, chapterRating)
   // Breadcrumbs SEO optimizados con "Manhwa" incluido
   const breadcrumbJsonLd = generateBreadcrumbJsonLd([

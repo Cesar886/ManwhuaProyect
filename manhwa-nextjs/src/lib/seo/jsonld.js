@@ -166,9 +166,11 @@ export function generateComicSeriesJsonLd(series) {
   const genres = series.genres?.map(g => typeof g === 'string' ? g : g.name).filter(Boolean) || []
   const chapterCount = series.chapters?.length || series.chapterCount || 0
 
+  // Tipo dual: ComicSeries (semántico) + CreativeWorkSeries (soportado por Google para review snippets).
+  // Google acepta aggregateRating en CreativeWorkSeries pero no en ComicSeries solo.
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'ComicSeries',
+    '@type': ['ComicSeries', 'CreativeWorkSeries'],
     '@id': `${SITE_URL}/manhwa/${series.slug}#series`,
     name: title,
     alternateName: series.alternativeTitles || [],
@@ -177,10 +179,7 @@ export function generateComicSeriesJsonLd(series) {
     description: series.synopsis || series.description || `Lee ${title} manhwa completo en español gratis. Disfruta de este manhwa en ${SITE_NAME}.`,
     inLanguage: 'es',
     genre: genres,
-    // SEO: Indicar que es accesible gratuitamente
     isAccessibleForFree: true,
-    // Tipo de contenido
-    '@graph': [],
   }
 
   // Imagen de portada
@@ -329,12 +328,11 @@ export function generateFAQJsonLd(series) {
 // Schema para páginas de capítulos individuales
 // ============================================================================
 /**
- * Genera JSON-LD para capítulos individuales (ComicIssue)
+ * Genera JSON-LD para capítulos individuales.
  *
- * IMPORTANTE para Google Rich Snippets:
- * - aggregateRating solo se incluye si se pasan datos de rating específicos del capítulo
- * - NO se copia el rating de la serie al capítulo (Google detecta datos duplicados
- *   idénticos en miles de páginas y anula los Rich Snippets)
+ * Tipo dual: ComicIssue (semántico) + Episode (soportado por Google para review snippets).
+ * Google acepta aggregateRating en Episode pero NO en ComicIssue solo.
+ * Un capítulo de manhwa es conceptualmente un episodio de una serie → válido semánticamente.
  *
  * @param {Object} series - Datos de la serie
  * @param {string|number} chapterNum - Número del capítulo
@@ -349,17 +347,18 @@ export function generateChapterJsonLd(series, chapterNum, pageCount = null, chap
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'ComicIssue',
+    '@type': ['ComicIssue', 'Episode'],
     '@id': `${SITE_URL}/manhwa/${series.slug}/capitulo/${chapterNum}#chapter`,
     issueNumber: n,
+    episodeNumber: n,
     name: `${title} Capítulo ${chapterNum}`,
     headline: `Leer ${title} Capítulo ${chapterNum} - Manhwa Online Gratis`,
     url: `${SITE_URL}/manhwa/${series.slug}/capitulo/${chapterNum}`,
     description: `Lee ${title} Capítulo ${chapterNum} manhwa online gratis en español. Disfruta de la mejor calidad de imagen en ${SITE_NAME}.`,
     inLanguage: 'es',
     isAccessibleForFree: true,
-    isPartOf: {
-      '@type': 'ComicSeries',
+    partOfSeries: {
+      '@type': ['ComicSeries', 'CreativeWorkSeries'],
       '@id': `${SITE_URL}/manhwa/${series.slug}#series`,
       name: title,
       url: `${SITE_URL}/manhwa/${series.slug}`,
@@ -369,24 +368,20 @@ export function generateChapterJsonLd(series, chapterNum, pageCount = null, chap
     },
   }
 
-  // Número de páginas si está disponible
   if (pageCount) {
     jsonLd.numberOfPages = pageCount
   }
 
-  // Imagen de portada de la serie
   if (series.coverUrl || series.cover) {
     jsonLd.image = series.coverUrl || series.cover
   }
 
-  // Fecha de publicación del capítulo si está disponible
   const chapter = series.chapters?.find(c => Number(c.number) === n)
   if (chapter?.publishedAt) {
     jsonLd.datePublished = new Date(chapter.publishedAt).toISOString()
   }
 
-  // Rating ESPECÍFICO del capítulo - Solo si hay votos reales propios
-  // NO copiar el rating de la serie (Google penaliza datos duplicados idénticos)
+  // Rating específico del capítulo — válido gracias al tipo Episode
   if (chapterRating) {
     const ratingCount = parseInt(chapterRating.ratingCount) || 0
     const rawRating = parseFloat(chapterRating.rating) || 0

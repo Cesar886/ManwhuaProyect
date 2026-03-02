@@ -14,6 +14,13 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.heroRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .heroGlow {
   position: absolute;
   inset: 0;
@@ -39,7 +46,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+  min-width: 44px;
   box-shadow: 0 0 20px rgba(var(--imperial-blue-rgb), 0.2);
 }
 
@@ -55,10 +64,6 @@
   60%       { transform: scale(1.1); }
 }
 
-.heroText {
-  position: relative;
-}
-
 .heroLabel {
   display: inline-flex;
   align-items: center;
@@ -72,7 +77,6 @@
   border: 1px solid rgba(var(--imperial-gold-rgb, 167, 139, 250), 0.2);
   padding: 3px 10px;
   border-radius: 99px;
-  margin-bottom: 8px;
 }
 
 .heroDesc {
@@ -255,7 +259,7 @@
   padding: 16px 24px 0;
 }
 
-/* ── Separador "o paga con tarjeta" ── */
+/* ── Separador "o paga con tarjeta" (deshabilitado: solo PayPal) ──
 .divider {
   display: flex;
   align-items: center;
@@ -272,6 +276,56 @@
   flex: 1;
   height: 1px;
   background: var(--border-subtle, rgba(255,255,255,0.08));
+}
+*/
+
+/* ── Sección deshabilitada durante procesamiento ── */
+.sectionDisabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ── Error de carga del SDK de PayPal ── */
+.sdkError {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  background: rgba(251, 146, 60, 0.08);
+  border: 1px solid rgba(251, 146, 60, 0.25);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #fdba74;
+  line-height: 1.45;
+}
+
+.sdkError svg {
+  flex-shrink: 0;
+}
+
+/* ── Overlay de procesamiento ── */
+.processingOverlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: rgba(var(--imperial-blue-rgb), 0.08);
+  border: 1px solid rgba(var(--imperial-blue-rgb), 0.2);
+  border-radius: 10px;
+  font-size: 0.84rem;
+  color: var(--text-secondary, #D1D1DB);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  color: var(--imperial-blue-light, #C7D2FE);
 }
 
 
