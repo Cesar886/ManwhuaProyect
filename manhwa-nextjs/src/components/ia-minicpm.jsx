@@ -460,12 +460,17 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
     const abortRef = useRef(null);
 
     // Rotar "Similares a..." cada vez que se abre el dropdown
+    // Si hay más de 5, rota mostrando los siguientes 5 en orden de popularidad
     const rotateSimilar = useCallback(() => {
         setAllSimilarQueries(prev => {
-            if (prev.length <= 5) return prev;
-            const shuffled = shuffleArray(prev);
-            setVisibleSimilar(shuffled.slice(0, 5));
-            return prev;
+            if (prev.length <= 5) {
+                setVisibleSimilar(prev);
+                return prev;
+            }
+            // Rotar: mover los primeros 5 al final y mostrar los nuevos primeros 5
+            const rotated = [...prev.slice(5), ...prev.slice(0, 5)];
+            setVisibleSimilar(rotated.slice(0, 5));
+            return rotated;
         });
     }, []);
 
@@ -509,29 +514,35 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
     const cardVisible = loading || !!explanation;
     const cardText = loading ? thinkingStream : streamedExplanation;
 
-    // --- Fetch top consultas populares reales ---
+    // --- Fetch top consultas populares + similares (endpoints separados, en paralelo) ---
     useEffect(() => {
         // Poner fallback de inmediato para que el dropdown funcione desde el primer click
         setSuggestions(FALLBACK_SUGGESTIONS);
         setPhrases(shuffleArray(FALLBACK_PHRASES));
 
         let cancelled = false;
-        fetch(`${AI_BASE_URL}/api/popular?limit=50`)
-            .then(r => r.json())
-            .then(data => {
-                if (cancelled) return;
-                if (data.success && Array.isArray(data.queries) && data.queries.length > 0) {
-                    const isSimilar = (q) => /similar\s*(a\b|al\b)/i.test(q.query);
-                    const normal = data.queries.filter(q => !isSimilar(q));
-                    const similar = data.queries.filter(q => isSimilar(q));
 
-                    setSuggestions(normal.slice(0, 5));
-                    setAllSimilarQueries(similar);
-                    setVisibleSimilar(shuffleArray(similar).slice(0, 5));
-                    setPhrases(shuffleArray(data.queries.map(q => q.query)));
-                }
-            })
-            .catch(() => { /* mantiene el fallback ya seteado */ });
+        Promise.all([
+            fetch(`${AI_BASE_URL}/api/popular?limit=50`).then(r => r.json()).catch(() => null),
+            fetch(`${AI_BASE_URL}/api/popular-similar?limit=10`).then(r => r.json()).catch(() => null),
+        ]).then(([popData, simData]) => {
+            if (cancelled) return;
+
+            // Populares (excluyendo "similar a..." que ya vienen del otro endpoint)
+            if (popData?.success && Array.isArray(popData.queries) && popData.queries.length > 0) {
+                const isSimilar = (q) => /similar\s*(a\b|al\b)/i.test(q.query);
+                const normal = popData.queries.filter(q => !isSimilar(q));
+                setSuggestions(normal.slice(0, 5));
+                setPhrases(shuffleArray(popData.queries.map(q => q.query)));
+            }
+
+            // Similares a... (endpoint dedicado, rankeados por popularidad)
+            if (simData?.success && Array.isArray(simData.queries) && simData.queries.length > 0) {
+                setAllSimilarQueries(simData.queries);
+                setVisibleSimilar(simData.queries.slice(0, 5));
+            }
+        });
+
         return () => { cancelled = true; };
     }, []);
 
@@ -852,7 +863,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                             {visibleSimilar.length > 0 && (
                                 <>
                                     <p className="ia-suggestions-label">Similares a...</p>
-                                    {visibleSimilar.map((s) => (
+                                    {visibleSimilar.map((s, i) => (
                                         <button
                                             key={s.query}
                                             type="button"
@@ -860,10 +871,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                                             onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
                                             role="option"
                                         >
-                                            <svg className="ia-similar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <circle cx="11" cy="11" r="8" />
-                                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                            </svg>
+                                            <span className="ia-suggestion-rank">#{i + 1}</span>
                                             <span className="ia-suggestion-text">{s.query}</span>
                                             <span className="ia-suggestion-count">{s.count}x</span>
                                         </button>

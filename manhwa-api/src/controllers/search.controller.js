@@ -11,30 +11,30 @@ const { query } = require('../config/database');
 const search = async (req, res, next) => {
     try {
         const { q } = req.query;
-        const limit = Math.min(parseInt(req.query.limit) || 10, 20);
-        
+        const limit = Math.min(parseInt(req.query.limit) || 25, 50);
+
         if (!q || q.trim().length < 2) {
             return res.status(400).json({
                 success: false,
                 message: 'Búsqueda debe tener al menos 2 caracteres'
             });
         }
-        
+
         const searchTerm = `%${q.trim()}%`;
-        
+
         // Buscar series
         const seriesResult = await query(
             `SELECT id, title, slug, cover_url, status, rating_average, chapter_count
              FROM series
              WHERE deleted_at IS NULL AND is_adult = false
                    AND (title ILIKE $1 OR original_title ILIKE $1 OR synopsis ILIKE $1)
-             ORDER BY 
+             ORDER BY
                 CASE WHEN title ILIKE $2 THEN 0 ELSE 1 END,
                 view_count DESC
              LIMIT $3`,
             [searchTerm, `${q.trim()}%`, limit]
         );
-        
+
         // Buscar usuarios
         const usersResult = await query(
             `SELECT id, username, display_name, avatar_url, is_premium
@@ -43,9 +43,9 @@ const search = async (req, res, next) => {
                    AND (username ILIKE $1 OR display_name ILIKE $1)
              ORDER BY followers_count DESC
              LIMIT $2`,
-            [searchTerm, 5]
+            [searchTerm, 10]
         );
-        
+
         // Buscar colecciones
         const collectionsResult = await query(
             `SELECT c.id, c.name, c.slug, c.cover_url, c.manhwas_count, c.followers_count,
@@ -56,7 +56,7 @@ const search = async (req, res, next) => {
                    AND (c.name ILIKE $1 OR c.description ILIKE $1)
              ORDER BY c.followers_count DESC
              LIMIT $2`,
-            [searchTerm, 5]
+            [searchTerm, 10]
         );
         
         res.json({
@@ -366,7 +366,7 @@ const searchCollections = async (req, res, next) => {
 const autocomplete = async (req, res, next) => {
     try {
         const { q } = req.query;
-        const limit = Math.min(parseInt(req.query.limit) || 8, 15);
+        const limit = Math.min(parseInt(req.query.limit) || 15, 25);
         
         if (!q || q.trim().length < 1) {
             return res.json({

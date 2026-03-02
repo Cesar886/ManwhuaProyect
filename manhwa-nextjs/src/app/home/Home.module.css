@@ -1034,3 +1034,93 @@
     font-size: 0.875rem;
   }
 }
+
+/* ============================================================================
+   IA TIP BANNER - Banner informativo del buscador IA
+   ============================================================================ */
+
+.iaTipBanner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.08) 0%, rgba(100, 200, 255, 0.06) 100%);
+  border: 1px solid rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.18);
+  position: relative;
+  overflow: hidden;
+}
+
+.iaTipBanner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.04) 50%, transparent 100%);
+  animation: iaTipShimmer 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes iaTipShimmer {
+  0%, 100% { opacity: 0; transform: translateX(-100%); }
+  50% { opacity: 1; transform: translateX(100%); }
+}
+
+.iaTipIcon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.18), rgba(100, 200, 255, 0.12));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--imperial-gold, #d4af37);
+}
+
+.iaTipContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.iaTipTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-color, #fff);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.iaTipText {
+  font-size: 0.82rem;
+  color: var(--text-muted, #999);
+  margin: 0;
+  line-height: 1.45;
+}
+
+@media (max-width: 480px) {
+  .iaTipBanner {
+    padding: 1rem 1.1rem;
+    gap: 0.75rem;
+  }
+
+  .iaTipIcon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .iaTipIcon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .iaTipTitle {
+    font-size: 0.88rem;
+  }
+
+  .iaTipText {
+    font-size: 0.78rem;
+  }
+}
