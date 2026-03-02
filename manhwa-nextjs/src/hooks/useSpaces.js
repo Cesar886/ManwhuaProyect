@@ -60,7 +60,7 @@ export function useSpaces() {
           ? endpoint('spaces', 'manhwas?refresh=true')
           : endpoint('spaces', 'manhwas')
         
-        logger.debug(`🌐 Intentando conectar a: ${url}`)
+        logger.debug(`🌐 Intentando conectar...`)
         
         const response = await fetch(url, {
           signal: controller.signal,
