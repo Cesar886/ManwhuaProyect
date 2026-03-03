@@ -76,6 +76,7 @@ export const metadata = {
   // GEO meta tags adicionales (next.js 'other' se renderiza como <meta name="...")
   other: {
     rating: 'general',
+    'mylead-verification': 'a030d8faf1f6f5c67eabe4c817e326a7',
   },
   openGraph: {
     type: 'website',
@@ -133,6 +134,8 @@ export default function RootLayout({ children }) {
         <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />
         {/* DNS prefetch para analytics (GTM carga afterInteractive, no es crítico) */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        {/* mylead-verification: a030d8faf1f6f5c67eabe4c817e326a7 */}
+        <noscript dangerouslySetInnerHTML={{ __html: '<!-- mylead-verification: a030d8faf1f6f5c67eabe4c817e326a7 -->' }} />
         {/* === GEO: señales legales para crawlers de IA — Next.js metadata API no genera estos === */}
         {/* rating: ya se inyecta vía metadata.other, este es el fallback explícito */}
         <link rel="terms-of-service" href="https://manhwaimperial.site/terminos-de-servicio" />
