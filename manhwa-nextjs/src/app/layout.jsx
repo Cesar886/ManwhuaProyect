@@ -129,6 +129,7 @@ export default function RootLayout({ children }) {
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
         <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
+        <meta name='impact-site-verification' value='a62d51e4-8267-4442-bba4-45de72b6c992'></meta>
         {/* Preconnect + DNS prefetch for image CDN (chapter reader) */}
         <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />
