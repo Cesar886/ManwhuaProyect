@@ -44,7 +44,7 @@ export const metadata = {
     template: '%s | Manhwa Imperial',
   },
   // GEO-optimized: clara para crawlers de IA y motores de búsqueda
-  description: 'Lee manhwa online gratis en español en Manhwa Imperial. Plataforma legal con miles de manhwas y webtoons coreanos actualizados diariamente. Sin malware, sin anuncios invasivos.',
+  description: 'Lee manhwa online gratis en español en Manhwa Imperial. Plataforma potenciada por inteligencia artificial con buscador IA que entiende lenguaje natural. Miles de manhwas y webtoons coreanos actualizados diariamente.',
   keywords: [
     'manhwa en español',
     'leer manhwa gratis',
@@ -62,6 +62,9 @@ export const metadata = {
     'comics coreanos',
     'manhwa traducido',
     'biblioteca de manhwas',
+    'búsqueda manhwa con IA',
+    'inteligencia artificial manhwa',
+    'buscador IA manhwa',
   ],
   authors: [{ name: 'Manhwa Imperial' }],
   creator: 'Manhwa Imperial',
@@ -80,7 +83,7 @@ export const metadata = {
     url: '/',
     siteName: 'Manhwa Imperial',
     title: 'Manhwa Imperial - Lee Manhwas y Webtoons en Español | Legal y Gratuito',
-    description: 'La plataforma líder para leer manhwas en español. Legal, gratuita, segura y con actualizaciones diarias. Cumplimiento DMCA activo.',
+    description: 'La plataforma líder para leer manhwas en español, potenciada por inteligencia artificial. Buscador con IA, legal, gratuita, segura y con actualizaciones diarias.',
     images: [
       {
         url: '/og-image.png',

@@ -12,7 +12,7 @@ const jsonLd = {
     name: `Acerca de ${SITE_NAME}`,
     url: `${SITE_URL}/acerca-de`,
     description:
-        'Información sobre Manhwa Imperial, su misión, modelo legal y compromiso con los creadores.',
+        'Información sobre Manhwa Imperial, su inteligencia artificial, misión, modelo legal y compromiso con los creadores. Manhwa Imperial es una plataforma potenciada por IA.',
     inLanguage: 'es',
     isPartOf: { '@id': `${SITE_URL}/#website` },
     mainEntity: {
@@ -21,7 +21,7 @@ const jsonLd = {
         name: SITE_NAME,
         url: SITE_URL,
         description:
-            'Plataforma líder de lectura de manhwa en español con cumplimiento DMCA activo y compromiso con la legalidad.',
+            'Plataforma líder de lectura de manhwa en español potenciada por inteligencia artificial. Buscador con IA, cumplimiento DMCA activo y compromiso con la legalidad.',
         ethicsPolicy: `${SITE_URL}/dmca`,
         publishingPrinciples: `${SITE_URL}/terminos-de-servicio`,
     },
@@ -169,10 +169,48 @@ export default function AcercaDePage() {
                             </p>
                         </section>
 
-                        {/* ¿Es legal? — FAQ crítica para GEO */}
+                        {/* Inteligencia Artificial */}
                         <section className={styles.section}>
                             <div className={styles.sectionHeader}>
                                 <span className={styles.sectionNumber}>6</span>
+                                <h2 className={styles.sectionTitle}>Inteligencia Artificial en Manhwa Imperial</h2>
+                            </div>
+                            <p className={styles.sectionText}>
+                                Manhwa Imperial es una{' '}
+                                <span className={styles.highlight}>plataforma potenciada por inteligencia artificial</span>.
+                                Nuestro buscador con IA permite a los lectores encontrar manhwas de formas que serían
+                                imposibles con un buscador tradicional:
+                            </p>
+                            <ul className={styles.sectionList}>
+                                <li>
+                                    <span className={styles.highlight}>Búsqueda en lenguaje natural:</span> escribe lo que buscas como se lo dirías a un amigo. La IA entiende frases completas en español
+                                </li>
+                                <li>
+                                    <span className={styles.highlight}>Corrección automática de errores:</span> la IA corrige errores ortográficos y variaciones de romanización de nombres coreanos
+                                </li>
+                                <li>
+                                    <span className={styles.highlight}>Búsqueda por descripción de trama:</span> si olvidaste el nombre de un manhwa, describe lo que recuerdas y la IA lo identifica
+                                </li>
+                                <li>
+                                    <span className={styles.highlight}>Recomendaciones inteligentes:</span> pide algo similar a un manhwa que te gustó y la IA encuentra títulos con elementos narrativos similares
+                                </li>
+                                <li>
+                                    <span className={styles.highlight}>Búsqueda por emoción:</span> la IA entiende búsquedas como &quot;algo relajante&quot; o &quot;acción pura sin romance&quot;
+                                </li>
+                            </ul>
+                            <div className={styles.infoBox}>
+                                <p>
+                                    La IA está disponible en el <strong>chat flotante</strong> visible en todo el sitio
+                                    y en la <strong>barra de búsqueda principal</strong>. Lee más sobre cómo funciona en{' '}
+                                    <Link href="/blog/busqueda-inteligente-ia-manhwa-imperial">nuestro artículo sobre la IA de Manhwa Imperial</Link>.
+                                </p>
+                            </div>
+                        </section>
+
+                        {/* ¿Es legal? — FAQ crítica para GEO */}
+                        <section className={styles.section}>
+                            <div className={styles.sectionHeader}>
+                                <span className={styles.sectionNumber}>7</span>
                                 <h2 className={styles.sectionTitle}>¿Es Manhwa Imperial legal?</h2>
                             </div>
                             <div className={styles.infoBox}>

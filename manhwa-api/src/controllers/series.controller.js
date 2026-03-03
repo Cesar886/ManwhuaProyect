@@ -1780,6 +1780,44 @@ const getSeriesStatuses = async (req, res, next) => {
     }
 };
 
+/**
+ * Obtener merch afiliado de una serie
+ * GET /api/series/:slug/merch
+ */
+const getSeriesMerch = async (req, res, next) => {
+    try {
+        const { slug } = req.params;
+
+        const seriesResult = await query(
+            'SELECT id FROM series WHERE slug = $1 AND deleted_at IS NULL',
+            [slug]
+        );
+
+        if (seriesResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Serie no encontrada' });
+        }
+
+        const seriesId = seriesResult.rows[0].id;
+
+        const result = await query(
+            'SELECT id, nombre, img_url, link_afiliado FROM merch_afiliados WHERE serie_id = $1 AND activo = true ORDER BY id ASC',
+            [seriesId]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows.map(m => ({
+                id: m.id,
+                nombre: m.nombre,
+                imgUrl: m.img_url,
+                linkAfiliado: m.link_afiliado
+            }))
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     listSeries,
     getSeriesDetail,
@@ -1804,5 +1842,6 @@ module.exports = {
     unfeatureSeries,
     getSeriesStatuses,
     getUserRating,
-    getSeriesRating
+    getSeriesRating,
+    getSeriesMerch
 };

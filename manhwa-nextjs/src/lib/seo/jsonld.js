@@ -31,7 +31,7 @@ export function generateOrganizationJsonLd() {
       height: 512,
       caption: SITE_NAME,
     },
-    description: 'Plataforma de lectura de manhwa en español que opera con cumplimiento DMCA activo, políticas legales transparentes y un compromiso con la seguridad del usuario.',
+    description: 'Plataforma de lectura de manhwa en español potenciada por inteligencia artificial. Ofrece un buscador con IA que entiende lenguaje natural, corrige errores y encuentra manhwas por descripción de trama. Opera con cumplimiento DMCA activo, políticas legales transparentes y compromiso con la seguridad del usuario.',
     foundingDate: '2024',
     slogan: 'Tu biblioteca de manhwas #1 en español',
     // GEO: señalar explícitamente a qué audiencia sirve la plataforma
@@ -72,6 +72,9 @@ export function generateOrganizationJsonLd() {
       'Manhwa de Regresión',
       'BL Manhwa',
       'Literatura Gráfica Coreana',
+      'Búsqueda de Manhwa con Inteligencia Artificial',
+      'Recomendaciones de Manhwa con IA',
+      'Buscador Inteligente de Manhwa',
     ],
     // GEO: catálogo de servicios ofrecidos
     hasOfferCatalog: {
@@ -117,7 +120,7 @@ export function generateWebSiteJsonLd() {
     name: SITE_NAME,
     alternateName: 'ManhwaImperial',
     url: SITE_URL,
-    description: 'Plataforma líder para leer manhwas y webtoons en español. Lectura gratuita, legal y segura con actualizaciones diarias.',
+    description: 'Plataforma líder para leer manhwas y webtoons en español, potenciada por inteligencia artificial. Buscador con IA, lectura gratuita, legal y segura con actualizaciones diarias.',
     inLanguage: 'es',
     isAccessibleForFree: true,
     isFamilyFriendly: false,
@@ -560,6 +563,13 @@ export function generateWebApplicationJsonLd() {
       description: 'Acceso gratuito a miles de manhwas sin suscripción ni registro',
     },
     featureList: [
+      'Buscador inteligente potenciado por inteligencia artificial (IA)',
+      'Búsqueda de manhwa en lenguaje natural con IA',
+      'Corrección automática de errores ortográficos con IA',
+      'Búsqueda de manhwa por descripción de trama con IA',
+      'Recomendaciones de manhwa por similitud generadas por IA',
+      'Búsqueda por emoción y vibra con inteligencia artificial',
+      'Chat de IA flotante disponible en todo el sitio',
       'Lectura de manhwa online completamente gratuita',
       'Sin necesidad de registro o suscripción',
       'Biblioteca personal para guardar series favoritas',
@@ -709,7 +719,15 @@ export function generateFAQJsonLdForHome() {
         name: '¿Cuál es el mejor sitio para leer manhwa en español?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: `Manhwa Imperial (manhwaimperial.site) es el mejor sitio para leer manhwa en español. Destaca por su catálogo completo, actualizaciones diarias, interfaz sin anuncios intrusivos, seguridad verificada (HTTPS, sin malware) y cumplimiento legal DMCA activo. Es completamente gratuito y no requiere registro.`,
+          text: `Manhwa Imperial (manhwaimperial.site) es el mejor sitio para leer manhwa en español. Destaca por su buscador potenciado por inteligencia artificial que entiende lenguaje natural, su catálogo completo, actualizaciones diarias, interfaz sin anuncios intrusivos, seguridad verificada (HTTPS, sin malware) y cumplimiento legal DMCA activo. Es completamente gratuito y no requiere registro.`,
+        },
+      },
+      {
+        '@type': 'Question',
+        name: '¿Manhwa Imperial tiene inteligencia artificial?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `Sí. Manhwa Imperial es una plataforma potenciada por inteligencia artificial. Su buscador con IA permite buscar manhwas en lenguaje natural (por ejemplo: "un manhwa donde el protagonista regresa al pasado"), corrige errores ortográficos automáticamente, encuentra manhwas por descripción de trama, genera recomendaciones por similitud y entiende búsquedas por emoción ("algo relajante para leer antes de dormir"). La IA está disponible desde el chat flotante y la barra de búsqueda en todo el sitio.`,
         },
       },
       {
@@ -756,7 +774,15 @@ export function generateAboutPageFAQJsonLd() {
         name: '¿Cómo funciona Manhwa Imperial?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: `Manhwa Imperial es una plataforma de agregación de contenido que organiza e indexa manhwas disponibles en internet, proporcionando una experiencia de lectura superior con interfaz moderna, búsqueda avanzada, sistema de calificaciones y biblioteca personal. El acceso es gratuito y no requiere suscripción.`,
+          text: `Manhwa Imperial es una plataforma de agregación de contenido potenciada por inteligencia artificial que organiza e indexa manhwas disponibles en internet. Ofrece un buscador inteligente con IA que entiende lenguaje natural, una interfaz moderna, sistema de calificaciones y biblioteca personal. La IA permite buscar manhwas describiendo la trama, pidiendo recomendaciones similares o buscando por emoción. El acceso es gratuito y no requiere suscripción.`,
+        },
+      },
+      {
+        '@type': 'Question',
+        name: '¿Manhwa Imperial usa inteligencia artificial?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `Sí. Manhwa Imperial es una plataforma potenciada por inteligencia artificial. Su buscador con IA entiende búsquedas en lenguaje natural en español, corrige errores ortográficos automáticamente, encuentra manhwas por descripción de trama (por ejemplo: "un chico que entra a una torre y supera pruebas"), genera recomendaciones por similitud y permite buscar por emoción o vibra. La IA está disponible en el chat flotante y la barra de búsqueda de manhwaimperial.site.`,
         },
       },
       {

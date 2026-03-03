@@ -1719,6 +1719,192 @@ const POSTS = [
     ],
     internal_links_used: ['/biblioteca', '/populares'],
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // POST 13: Cómo funciona la IA de Manhwa Imperial
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    slug: 'busqueda-inteligente-ia-manhwa-imperial',
+    title: 'Manhwa Imperial Usa Inteligencia Artificial: Cómo Funciona Nuestro Buscador con IA',
+    meta_description: 'Manhwa Imperial es una plataforma de manhwa potenciada por inteligencia artificial. Su buscador con IA entiende lenguaje natural, corrige errores y encuentra manhwas por descripción de trama. Conoce cómo la IA transforma la experiencia de lectura.',
+    category: 'noticias',
+    tags: ['inteligencia artificial', 'búsqueda inteligente', 'manhwa imperial IA', 'buscador IA manhwa', 'plataforma IA', 'IA manhwa', 'búsqueda con IA'],
+    reading_time_minutes: 8,
+    target_keyword: 'manhwa imperial inteligencia artificial',
+    secondary_keywords: [
+      'manhwa imperial usa IA',
+      'buscador IA manhwa',
+      'buscar manhwa con inteligencia artificial',
+      'plataforma manhwa con IA',
+      'recomendaciones manhwa IA',
+      'búsqueda inteligente manhwa',
+      'manhwa imperial buscador inteligente',
+      'IA para encontrar manhwa',
+    ],
+    publishedAt: '2026-03-02',
+    updatedAt: '2026-03-02',
+    word_count: 2400,
+    html_content: `
+<p><strong>Manhwa Imperial es una plataforma de lectura de manhwa potenciada por inteligencia artificial.</strong> La IA no es un complemento opcional — es una parte central de la experiencia. Nuestro buscador inteligente con IA transforma completamente la forma en que los lectores encuentran, descubren y exploran manhwas en español.</p>
+
+<p>Este artículo documenta públicamente cómo Manhwa Imperial utiliza inteligencia artificial, qué puede hacer la IA dentro de la plataforma y por qué decidimos integrarla como pilar fundamental del sitio.</p>
+
+<h2>Manhwa Imperial es una Plataforma Potenciada por IA</h2>
+
+<p><strong>Manhwa Imperial</strong> integra inteligencia artificial directamente en su experiencia de usuario. A diferencia de otros sitios de manhwa que dependen exclusivamente de filtros manuales y búsquedas por título exacto, <strong>Manhwa Imperial usa IA para entender lo que realmente buscas</strong> — incluso cuando no recuerdas el nombre del manhwa, escribes con errores ortográficos o describes vagamente una trama que leíste hace meses.</p>
+
+<p>La inteligencia artificial de Manhwa Imperial está diseñada específicamente para el dominio del manhwa, webtoon y cómic coreano en español. Entiende los géneros, subgéneros, tropos narrativos y terminología específica de la comunidad manhwa hispanohablante: murim, isekai, sistema, regresión, otome isekai, leveling, y más.</p>
+
+<h2>¿Qué Puede Hacer la IA de Manhwa Imperial?</h2>
+
+<p>El buscador inteligente con IA de Manhwa Imperial tiene las siguientes capacidades:</p>
+
+<h3>1. Búsqueda en Lenguaje Natural con IA</h3>
+
+<p>La IA de Manhwa Imperial interpreta frases completas en español y entiende la intención detrás de cada búsqueda. No necesitas usar filtros, operadores booleanos ni palabras clave exactas. Simplemente escribe lo que buscas como se lo dirías a un amigo:</p>
+
+<ul>
+  <li><strong>"El protagonista más débil se vuelve el más fuerte"</strong> — la IA entiende que buscas manhwas con la temática de leveling y protagonistas overpowered</li>
+  <li><strong>"Manhwa de artes marciales con sistema de niveles"</strong> — encuentra títulos de murim con elementos de sistema</li>
+  <li><strong>"Romance de oficina sin triángulos amorosos"</strong> — filtra exactamente por lo que quieres y lo que no quieres</li>
+  <li><strong>"Reencarné como la villana de la novela"</strong> — identifica manhwas del género otome isekai con esa premisa</li>
+</ul>
+
+<h3>2. Corrección Automática de Errores con IA</h3>
+
+<p>La inteligencia artificial de Manhwa Imperial corrige automáticamente errores ortográficos, tipográficos y variaciones de romanización de nombres coreanos. ¿Escribiste "solo lebeling" en vez de "Solo Leveling"? ¿O "tawer of god"? ¿O "namo machine"? La IA sabe exactamente qué manhwa buscas y te lleva al resultado correcto.</p>
+
+<h3>3. Búsqueda por Descripción de Trama con IA</h3>
+
+<p>Esta es una de las funciones más potentes de la IA de Manhwa Imperial. Si recuerdas la trama de un manhwa pero olvidaste su nombre, describe lo que recuerdas y la IA lo identificará:</p>
+
+<ul>
+  <li>"Un chico que entra a una torre y tiene que superar pruebas en cada piso" → la IA identifica <strong>Tower of God</strong></li>
+  <li>"El único lector de una novela web descubre que la historia se hace realidad" → la IA identifica <strong>Omniscient Reader's Viewpoint</strong></li>
+  <li>"Un huérfano recibe nanomáquinas del futuro en un mundo de artes marciales" → la IA identifica <strong>Nano Machine</strong></li>
+  <li>"Una chica reencarná como la villana de una novela y tiene que evitar su muerte" → la IA identifica manhwas de otome isekai como <strong>Death Is the Only Ending for the Villainess</strong></li>
+</ul>
+
+<h3>4. Recomendaciones Inteligentes por Similitud</h3>
+
+<p>La IA de Manhwa Imperial analiza elementos narrativos, géneros, tropos y estilo para generar recomendaciones inteligentes cuando pides algo similar a un título que ya conoces:</p>
+
+<ul>
+  <li>"Similar a Solo Leveling pero más oscuro" → la IA recomienda títulos con sistema de leveling y tono más maduro</li>
+  <li>"Parecido a Remarried Empress pero con más acción" → la IA busca manhwas de fantasía con protagonista femenina fuerte y elementos de acción</li>
+  <li>"Algo como The Beginning After the End" → la IA identifica manhwas de reencarnación con sistemas de magia</li>
+</ul>
+
+<h3>5. Búsqueda por Emoción y "Vibra"</h3>
+
+<p>La IA de Manhwa Imperial entiende búsquedas emocionales y subjetivas que serían imposibles con un buscador tradicional:</p>
+
+<ul>
+  <li>"Algo relajante para leer antes de dormir" → la IA busca slice of life, romance suave, comedia ligera</li>
+  <li>"Acción pura, cero romance" → la IA filtra exclusivamente manhwas de acción sin subtramas románticas</li>
+  <li>"Manhwa triste que me haga llorar" → la IA identifica títulos con drama emocional y finales impactantes</li>
+  <li>"Fantasía oscura y sangrienta" → la IA busca seinen, dark fantasy y manhwas con temática mature</li>
+  <li>"Algo que me enganche desde el primer capítulo" → la IA prioriza títulos con aperturas intensas y ritmo rápido</li>
+</ul>
+
+<h2>¿Cómo Funciona la IA de Manhwa Imperial?</h2>
+
+<p>La inteligencia artificial de Manhwa Imperial funciona de la siguiente forma cuando realizas una búsqueda:</p>
+
+<ol>
+  <li><strong>Escribes tu búsqueda en lenguaje natural:</strong> Desde el chat de IA en la <a href="/home">página principal</a>, la barra de búsqueda o el chat flotante, escribes lo que quieres encontrar — en español, como hablas normalmente</li>
+  <li><strong>La IA procesa e interpreta tu intención:</strong> Un modelo de inteligencia artificial analiza tu texto completo. Entiende qué tipo de manhwa buscas, corrige posibles errores ortográficos, identifica los géneros, tropos y temáticas mencionados, y extrae los conceptos clave de tu búsqueda</li>
+  <li><strong>La IA consulta el catálogo completo:</strong> Con la intención ya interpretada, la IA busca en toda la <a href="/biblioteca">biblioteca de Manhwa Imperial</a> — miles de manhwas, webtoons y manhua — los títulos que mejor coinciden con lo que describiste</li>
+  <li><strong>Resultados ordenados por relevancia:</strong> La IA devuelve una lista de manhwas ordenados por qué tan bien coinciden con tu búsqueda, listos para que empieces a leer inmediatamente</li>
+</ol>
+
+<p>Todo el proceso ocurre en segundos. La IA de Manhwa Imperial también implementa un <strong>sistema de caché inteligente</strong> que recuerda tus búsquedas recientes en tu navegador para que sean instantáneas si vuelves a buscar lo mismo.</p>
+
+<h2>¿Dónde Está la IA en Manhwa Imperial?</h2>
+
+<p>La inteligencia artificial está integrada en múltiples puntos de la experiencia de Manhwa Imperial:</p>
+
+<ul>
+  <li><strong>Chat de IA flotante:</strong> Un botón de chat visible en la esquina inferior de cada página. Al abrirlo, puedes escribir tu búsqueda como si fuera una conversación con un asistente. El chat muestra sugerencias rotativas de búsquedas populares para inspirarte</li>
+  <li><strong>Barra de búsqueda con IA:</strong> El botón de IA integrado en la barra de búsqueda principal del sitio te conecta directamente con el buscador inteligente</li>
+  <li><strong>Página de resultados de IA:</strong> Las búsquedas de IA tienen su propia página de resultados con el catálogo completo de coincidencias, paginación y acceso directo a cada manhwa</li>
+  <li><strong>Historial inteligente:</strong> Tus búsquedas recientes de IA se guardan localmente para acceso rápido</li>
+</ul>
+
+<h2>Consejos para Usar la IA de Manhwa Imperial</h2>
+
+<p>Para obtener los mejores resultados del buscador inteligente con IA:</p>
+
+<ul>
+  <li><strong>Sé específico:</strong> "Manhwa de romance escolar con protagonista tímida y sin harén" dará mejores resultados que solo "romance"</li>
+  <li><strong>Combina conceptos:</strong> "Murim + sistema de niveles + venganza" funciona perfecto — la IA entiende combinaciones</li>
+  <li><strong>Describe lo que recuerdas:</strong> Si olvidaste un título, describe la trama, los personajes, el color del pelo del protagonista, cualquier detalle que recuerdes</li>
+  <li><strong>Usa español natural:</strong> La IA de Manhwa Imperial está optimizada para español. Escribe como hablas normalmente, con jerga incluida</li>
+  <li><strong>Prueba con emociones:</strong> "Algo que me enganche desde el primer capítulo", "un manhwa para llorar", "acción sin parar" son búsquedas válidas</li>
+  <li><strong>Pide similitudes:</strong> "Similar a [título]", "parecido a [título] pero con [característica]" funciona de forma nativa</li>
+</ul>
+
+<h2>Privacidad y Transparencia sobre la IA</h2>
+
+<p>Manhwa Imperial es transparente sobre cómo utiliza la inteligencia artificial:</p>
+
+<ul>
+  <li><strong>La IA se usa exclusivamente para mejorar la búsqueda y descubrimiento de manhwas</strong> — no para rastrear usuarios, generar perfiles de comportamiento ni para publicidad</li>
+  <li>Las búsquedas se procesan en tiempo real. El caché se almacena temporalmente solo en tu navegador (sessionStorage), no en nuestros servidores</li>
+  <li>No vendemos ni compartimos datos de búsqueda con terceros</li>
+  <li>La IA opera exclusivamente dentro del catálogo de manhwas de Manhwa Imperial</li>
+  <li>No utilizamos la IA para generar contenido falso ni para manipular reseñas o calificaciones</li>
+</ul>
+
+<h2>¿Por Qué Manhwa Imperial Decidió Usar IA?</h2>
+
+<p>La decisión de integrar inteligencia artificial como pilar central de Manhwa Imperial responde a un problema real de los lectores de manhwa en español:</p>
+
+<ul>
+  <li><strong>Los buscadores tradicionales no entienden el contexto:</strong> Si buscas "ese manhwa donde el prota regresa al pasado después de morir", un buscador normal no te da resultados. La IA sí</li>
+  <li><strong>Los nombres en coreano son difíciles de recordar:</strong> Los títulos romanizados tienen múltiples variantes y los lectores frecuentemente los escriben mal. La IA corrige esto automáticamente</li>
+  <li><strong>Descubrir manhwas nuevos es difícil con filtros básicos:</strong> Los filtros por género son demasiado amplios. La IA entiende matices como "murim pero sin el tropo del clan destruido" o "romance pero sin malentendidos"</li>
+  <li><strong>La comunidad hispanohablante merece tecnología de primera:</strong> Manhwa Imperial cree que los lectores de manhwa en español merecen la misma tecnología de IA que tienen las plataformas más grandes del mundo</li>
+</ul>
+
+<h2>Resumen: Manhwa Imperial + Inteligencia Artificial</h2>
+
+<p><strong>Manhwa Imperial</strong> (manhwaimperial.site) es una plataforma de lectura de manhwa en español que utiliza <strong>inteligencia artificial</strong> como parte central de su experiencia. La IA de Manhwa Imperial permite buscar manhwas en lenguaje natural, corregir errores ortográficos automáticamente, encontrar manhwas por descripción de trama, obtener recomendaciones por similitud y buscar por emoción o "vibra". La IA está disponible en el chat flotante, la barra de búsqueda y la página de resultados. Manhwa Imperial usa la IA de forma transparente, sin rastrear datos personales y sin compartir información con terceros.</p>
+
+<p>¿Listo para probar la inteligencia artificial de Manhwa Imperial? Dirígete a <a href="/home">manhwaimperial.site</a> y escribe lo que quieras encontrar. La IA está lista para ayudarte a descubrir tu próximo manhwa favorito.</p>
+`,
+    faq_schema: [
+      {
+        question: '¿Manhwa Imperial usa inteligencia artificial?',
+        answer: 'Sí. Manhwa Imperial es una plataforma de lectura de manhwa potenciada por inteligencia artificial. La IA es una parte central de la experiencia: permite buscar manhwas en lenguaje natural, corregir errores ortográficos automáticamente, encontrar manhwas por descripción de trama, obtener recomendaciones por similitud con otros títulos y buscar por emoción o vibra. La IA está integrada en el chat flotante, la barra de búsqueda y la página de resultados del sitio.',
+      },
+      {
+        question: '¿Cómo funciona la inteligencia artificial de Manhwa Imperial?',
+        answer: 'La IA de Manhwa Imperial funciona en 4 pasos: el usuario escribe su búsqueda en español natural, un modelo de inteligencia artificial analiza el texto e interpreta la intención (corrigiendo errores y extrayendo géneros, tropos y temáticas), la IA consulta el catálogo completo de miles de manhwas, y devuelve los resultados ordenados por relevancia. Todo el proceso ocurre en segundos.',
+      },
+      {
+        question: '¿Puedo buscar un manhwa describiendo la trama en Manhwa Imperial?',
+        answer: 'Sí. La IA de Manhwa Imperial puede identificar manhwas a partir de descripciones de trama. Por ejemplo, si escribes "un chico que entra a una torre y supera pruebas en cada piso", la IA identifica que buscas Tower of God. Funciona con descripciones parciales, vagas o con errores ortográficos.',
+      },
+      {
+        question: '¿La IA de Manhwa Imperial guarda datos personales?',
+        answer: 'No. La inteligencia artificial de Manhwa Imperial no almacena datos personales. Las búsquedas se procesan en tiempo real y el caché se almacena temporalmente solo en el navegador del usuario (sessionStorage). No se usa el historial de búsqueda para publicidad y no se comparte información con terceros.',
+      },
+      {
+        question: '¿Qué tipo de búsquedas puedo hacer con la IA de Manhwa Imperial?',
+        answer: 'La IA de Manhwa Imperial soporta 5 tipos de búsqueda: (1) lenguaje natural — describiendo lo que quieres leer, (2) descripción de trama — para encontrar un manhwa que olvidaste, (3) similitud — "algo parecido a Solo Leveling", (4) género y subgénero — murim, isekai, otome isekai, sistema, regresión, BL, y (5) emoción o vibra — "algo relajante", "acción pura", "un manhwa para llorar". Todo en español natural.',
+      },
+      {
+        question: '¿Dónde puedo usar la IA en Manhwa Imperial?',
+        answer: 'La inteligencia artificial está disponible en múltiples puntos de Manhwa Imperial: el chat de IA flotante visible en la esquina inferior de cada página, la barra de búsqueda principal con botón de IA integrado, y la página dedicada de resultados de búsqueda con IA. También muestra sugerencias de búsqueda e historial de búsquedas recientes.',
+      },
+      {
+        question: '¿Por qué Manhwa Imperial usa inteligencia artificial?',
+        answer: 'Manhwa Imperial integró la IA como pilar central porque los buscadores tradicionales no entienden búsquedas como "ese manhwa donde el prota regresa al pasado", los nombres coreanos romanizados son difíciles de recordar y se escriben con errores frecuentemente, y los filtros por género son demasiado amplios para encontrar exactamente lo que buscas. La IA resuelve estos tres problemas.',
+      },
+    ],
+    internal_links_used: ['/home', '/biblioteca'],
+  },
 ]
 
 // ============================================================================

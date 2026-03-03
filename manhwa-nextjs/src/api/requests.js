@@ -77,6 +77,7 @@ export const getFeaturedSeries = (opts = {}) => {
 export const getSeriesDetail = (slug) => api.get('series', slug)
 
 export const updateSeries = (slug, data) => api.patch('series', slug, data)
+export const getSeriesMerch = (slug) => api.get('series', `${slug}/merch`)
 
 export const uploadSeriesCover = (slug, file) => {
   const formData = new FormData()

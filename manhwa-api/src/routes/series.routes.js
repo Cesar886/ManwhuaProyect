@@ -77,6 +77,7 @@ router.get('/:slug', requireApiKeyOrAuth, optionalAuth, validate(slugParam), ser
 router.get('/:slug/chapters', requireApiKeyOrAuth, validate(slugParam), seriesController.getSeriesChapters);
 router.get('/:slug/comments', requireApiKeyOrAuth, optionalAuth, validate(slugParam), seriesController.getSeriesComments);
 router.get('/:slug/related', requireApiKeyOrAuth, validate(slugParam), seriesController.getRelatedSeries);
+router.get('/:slug/merch', requireApiKeyOrAuth, validate(slugParam), seriesController.getSeriesMerch);
 
 // Rating (público para visitors, auth opcional)
 const userRatingValidation = [

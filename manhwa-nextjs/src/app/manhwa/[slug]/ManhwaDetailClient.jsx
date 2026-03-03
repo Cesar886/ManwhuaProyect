@@ -18,7 +18,7 @@ import { useSeriesDetail } from '../../../hooks/useSpaces';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   updateSeries, addBookmark, removeBookmark, updateBookmark,
-  toggleBookmarkNotifications, trackShare
+  toggleBookmarkNotifications, trackShare, getSeriesMerch
 } from '../../../api/requests';
 import { useSeriesProgress } from '../../../hooks/useSeriesProgress';
 import styles from './ManhwaDetail.module.css';
@@ -477,12 +477,21 @@ export default function ManhwaDetail({ initialSeries }) {
 
   // Estado para la expansión de la sinopsis
   const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
+  const [merch, setMerch] = useState([]);
 
   // Resetear estados locales cuando cambia la serie
   useEffect(() => {
     setLocalCoverUrl(null);
     setLocalUpdates({});
     setIsSynopsisExpanded(false);
+  }, [series?.slug]);
+
+  // Cargar merch afiliado de la serie
+  useEffect(() => {
+    if (!series?.slug) return;
+    getSeriesMerch(series.slug)
+      .then((res) => setMerch(res?.data || []))
+      .catch(() => setMerch([]));
   }, [series?.slug]);
 
   // Escuchar evento de actualización de serie (desde modal de edición)
@@ -1000,7 +1009,42 @@ export default function ManhwaDetail({ initialSeries }) {
               onRate={() => refetch?.()}
               compact
             />
+
           </div>
+
+          {/* Área: genres — Marquee continuo, justo debajo del rating y encima de la sinopsis */}
+          {(effectiveSeries?.genres || series?.genres)?.length > 0 && (
+            <div className={styles.heroGenresArea}>
+              <div className={styles.genresMarqueeWrap}>
+                <div className={styles.genresMarqueeTrack}>
+                  {[0, 1].map(copy => (
+                    <div key={copy} className={styles.genresMarqueeSet} aria-hidden={copy === 1 ? 'true' : undefined}>
+                      {(effectiveSeries?.genres || series?.genres).map((genre, index) => {
+                        const genreName = typeof genre === 'string'
+                          ? genre
+                          : genre?.name || genre?.label || `Género ${index + 1}`;
+                        const genreSlug = genreName.toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                        return (
+                          <MantineBadge
+                            key={`${copy}-${genre?.id || genreName || index}`}
+                            component={copy === 0 ? Link : 'span'}
+                            href={copy === 0 ? `/genero/${genreSlug}` : undefined}
+                            title={copy === 0 ? getAnchorText.genre(genreName) : undefined}
+                            classNames={{ root: styles.genreTag }}
+                            variant="light"
+                            size="lg"
+                            radius="xl"
+                          >
+                            {genreName}
+                          </MantineBadge>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Área: synopsis — se ubica debajo del par cover+core en mobile */}
           {(effectiveSeries?.synopsis || series?.synopsis) && (
@@ -1027,6 +1071,41 @@ export default function ManhwaDetail({ initialSeries }) {
               <IconSparkles size={14} />
               Buscar similares con IA
             </Link>
+
+            {merch.length > 0 && (
+              <div className={styles.merchSection}>
+                <div className={styles.merchHeader}>
+                  <span className={styles.merchHeaderLine} />
+                  <span className={styles.merchHeaderLabel}>
+                    <IconTag size={9} />
+                    Merch oficial
+                  </span>
+                  <span className={styles.merchHeaderLine} />
+                </div>
+                <div className={styles.merchScroll}>
+                  {merch.map((item) => (
+                    <a
+                      key={item.id}
+                      href={item.linkAfiliado}
+                      target="_blank"
+                      rel="noopener noreferrer sponsored"
+                      className={styles.merchCard}
+                      title={item.nombre}
+                    >
+                      <div className={styles.merchImgWrap}>
+                        <img src={item.imgUrl} alt={item.nombre} className={styles.merchImg} loading="lazy" />
+                        <div className={styles.merchOverlay}>
+                          <span className={styles.merchBuyBtn}>
+                            Ver oferta <IconExternalLink size={9} />
+                          </span>
+                        </div>
+                      </div>
+                      <span className={styles.merchNombre}>{item.nombre}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -1037,40 +1116,7 @@ export default function ManhwaDetail({ initialSeries }) {
       <h2 className={styles.srOnly}>
         {SEO_CONTENT.manhwaDetail.getInfoSection(effectiveSeries?.title || series?.title)}
       </h2>
-      <div className={styles.infoSection}>
-        {/* Géneros - Mantine badges premium con enlaces SEO */}
-        {(effectiveSeries?.genres || series?.genres)?.length > 0 && (
-          <div className={styles.infoCard}>
-            <h3 className={styles.infoCardTitle}>
-              <IconTag size={16} />
-              Géneros
-            </h3>
-            <div className={styles.genresRow}>
-              {(effectiveSeries?.genres || series?.genres)?.map((genre, index) => {
-                const genreName = typeof genre === 'string'
-                  ? genre
-                  : genre?.name || genre?.label || `Género ${index + 1}`;
-                const genreKey = genre?.id || genreName || index;
-                const genreSlug = genreName.toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                return (
-                  <MantineBadge
-                    key={genreKey}
-                    component={Link}
-                    href={`/genero/${genreSlug}`}
-                    title={getAnchorText.genre(genreName)}
-                    classNames={{ root: styles.genreTag }}
-                    variant="light"
-                    size="lg"
-                    radius="xl"
-                  >
-                    {genreName}
-                  </MantineBadge>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
+
 
       {/*
         #estado-publicacion: Fragmento speakable para búsqueda por voz.
