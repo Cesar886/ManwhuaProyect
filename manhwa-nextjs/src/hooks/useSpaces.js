@@ -321,42 +321,36 @@ export function useChapterPages(seriesSlug, chapterNum) {
         const spacesUrl = process.env.NEXT_PUBLIC_DO_SPACES_URL
         const baseUrl = `${spacesUrl}/${seriesSlug}/cap-${paddedChapter}`
 
-        // Intentar images-meta.json primero (tiene blurhash + dimensiones)
-        let pagesData = null
-        try {
-          const metaRes = await fetch(`${baseUrl}/images-meta.json`)
-          if (metaRes.ok) {
-            const metaList = await metaRes.json()
-            if (Array.isArray(metaList) && metaList.length > 0) {
-              pagesData = metaList.map((item, idx) => ({
-                url: item.url,
-                blurhash: item.blurhash || null,
-                w: item.w || null,
-                h: item.h || null,
-                number: idx + 1,
-              }))
-            }
-          }
-        } catch {
-          // Fallback a images.json
-        }
+        // Fetch en paralelo: images.json (siempre existe) + images-meta.json (opcional, tiene blurhash)
+        const [imagesResult, metaResult] = await Promise.allSettled([
+          fetch(`${baseUrl}/images.json`).then(r => r.ok ? r.json() : Promise.reject()),
+          fetch(`${baseUrl}/images-meta.json`).then(r => r.ok ? r.json() : Promise.reject()),
+        ])
 
-        // Fallback: images.json (sin blurhash)
-        if (!pagesData) {
-          try {
-            const res = await fetch(`${baseUrl}/images.json`)
-            if (res.ok) {
-              const imagesList = await res.json()
-              if (Array.isArray(imagesList) && imagesList.length > 0) {
-                pagesData = imagesList.map((url, idx) => ({
-                  url,
-                  number: idx + 1,
-                }))
-              }
-            }
-          } catch {
-            // pagesData queda null
-          }
+        let pagesData = null
+
+        // Preferir images-meta.json si tiene datos (blurhash + dimensiones)
+        if (
+          metaResult.status === 'fulfilled' &&
+          Array.isArray(metaResult.value) &&
+          metaResult.value.length > 0
+        ) {
+          pagesData = metaResult.value.map((item, idx) => ({
+            url: item.url,
+            blurhash: item.blurhash || null,
+            w: item.w || null,
+            h: item.h || null,
+            number: idx + 1,
+          }))
+        } else if (
+          imagesResult.status === 'fulfilled' &&
+          Array.isArray(imagesResult.value) &&
+          imagesResult.value.length > 0
+        ) {
+          pagesData = imagesResult.value.map((url, idx) => ({
+            url,
+            number: idx + 1,
+          }))
         }
 
         if (pagesData) {

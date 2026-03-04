@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.digitaloceanspaces.com',
+        hostname: 'manwhaimperialstorage.sfo3.digitaloceanspaces.com',
       },
       {
         protocol: 'https',
@@ -87,9 +87,9 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://accounts.google.com https://apis.google.com https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.paypal.com https://www.paypalobjects.com",
               "style-src 'self' 'unsafe-inline' https://www.paypalobjects.com",
-              "img-src 'self' data: blob: https://*.digitaloceanspaces.com https://manhwaimperial.site https://lh3.googleusercontent.com https://cdn.discordapp.com https://dashboard.olympusbiblioteca.com https://www.paypalobjects.com https://*.paypal.com",
+              "img-src 'self' data: blob: https://manwhaimperialstorage.sfo3.digitaloceanspaces.com https://manhwaimperial.site https://lh3.googleusercontent.com https://cdn.discordapp.com https://dashboard.olympusbiblioteca.com https://www.paypalobjects.com https://*.paypal.com",
               "font-src 'self' data: https://www.paypalobjects.com",
-              "connect-src 'self' http://localhost:3000 http://localhost:3001 https://*.digitaloceanspaces.com https://www.googletagmanager.com https://accounts.google.com https://apis.google.com https://www.google-analytics.com https://manhwaimperial.site https://ai.manhwaimperial.site https://cloudflareinsights.com https://www.paypal.com https://api-m.paypal.com https://*.paypal.com",
+              "connect-src 'self' http://localhost:3000 http://localhost:3001 https://manwhaimperialstorage.sfo3.digitaloceanspaces.com https://www.googletagmanager.com https://accounts.google.com https://apis.google.com https://www.google-analytics.com https://manhwaimperial.site https://ai.manhwaimperial.site https://cloudflareinsights.com https://www.paypal.com https://api-m.paypal.com https://*.paypal.com",
               "frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com https://www.paypal.com https://*.paypal.com https://www.paypalobjects.com",
               "frame-ancestors 'none'",
               "object-src 'none'",

@@ -30,6 +30,9 @@ export default function useImageQueue(pages, networkConfig, onAllLoaded) {
   const queueRunning = useRef(false);
   const allLoadedFired = useRef(false);
   const itemRefs = useRef({}); // Map<index, HTMLElement>
+  // Clave de URLs para detectar cambio real de capítulo (evita reinit cuando
+  // initialPages y hookPages tienen el mismo contenido pero distinta referencia)
+  const prevUrlKey = useRef(pages.map(p => p.url).join('|'));
 
   // Sincronizar refs
   useEffect(() => { statusesRef.current = statuses; }, [statuses]);
@@ -37,7 +40,15 @@ export default function useImageQueue(pages, networkConfig, onAllLoaded) {
   useEffect(() => { onAllLoadedRef.current = onAllLoaded; }, [onAllLoaded]);
   useEffect(() => {
     pagesRef.current = pages;
-    // Re-inicializar statuses si pages cambia (nuevo capítulo)
+
+    // Solo reinicializar si las URLs cambiaron (nuevo capítulo o contenido distinto)
+    const urlKey = pages.map(p => p.url).join('|');
+    if (urlKey === prevUrlKey.current && Object.keys(statusesRef.current).length > 0) {
+      return;
+    }
+    prevUrlKey.current = urlKey;
+
+    // Re-inicializar statuses
     const m = {};
     pages.forEach((_, i) => { m[i] = 'pending'; });
     setStatuses(m);
@@ -119,10 +130,10 @@ export default function useImageQueue(pages, networkConfig, onAllLoaded) {
     loadNextBatch();
   }, []);
 
-  // Cuando un status cambia a 'loaded', disparar callback de batch si existe
+  // Cuando un status cambia a 'loaded' o 'error', disparar callback de batch si existe
   useEffect(() => {
     Object.entries(statuses).forEach(([idx, status]) => {
-      if (status === 'loaded' && batchCallbacks.current[idx]) {
+      if ((status === 'loaded' || status === 'error') && batchCallbacks.current[idx]) {
         const cb = batchCallbacks.current[idx];
         delete batchCallbacks.current[idx];
         cb();
@@ -130,13 +141,15 @@ export default function useImageQueue(pages, networkConfig, onAllLoaded) {
     });
   }, [statuses]);
 
-  // Chequear si fase 1 terminó
+  // Chequear si fase 1 terminó (acepta 'loaded' o 'error' como terminal)
   useEffect(() => {
     if (phase1Done.current) return;
     if (phase1Indices.current.size === 0) return;
 
-    const allLoaded = [...phase1Indices.current].every(i => statuses[i] === 'loaded');
-    if (allLoaded) {
+    const allDone = [...phase1Indices.current].every(
+      i => statuses[i] === 'loaded' || statuses[i] === 'error'
+    );
+    if (allDone) {
       phase1Done.current = true;
       runQueue();
     }
@@ -194,16 +207,32 @@ export default function useImageQueue(pages, networkConfig, onAllLoaded) {
     };
   }, [pages, startLoading, runQueue]);
 
-  // Chequear si todas están cargadas (para caso donde no hay cola, e.g. pocas imágenes)
+  // Chequear si todas están cargadas (acepta 'loaded' o 'error' como terminal)
   useEffect(() => {
     if (allLoadedFired.current) return;
     if (pages.length === 0) return;
-    const allDone = pages.every((_, i) => statuses[i] === 'loaded');
+    const allDone = pages.every((_, i) => statuses[i] === 'loaded' || statuses[i] === 'error');
     if (allDone) {
       allLoadedFired.current = true;
       onAllLoadedRef.current?.();
     }
   }, [statuses, pages]);
 
-  return { statuses, startLoading, markLoaded, registerRef };
+  // Timer de seguridad: si el IntersectionObserver no disparó en 3s, arrancar cola
+  useEffect(() => {
+    if (pages.length === 0) return;
+    const t = setTimeout(() => {
+      if (!phase1Done.current) {
+        phase1Done.current = true;
+        runQueue();
+      }
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [pages, runQueue]);
+
+  const markError = useCallback((index) => {
+    setStatuses(prev => ({ ...prev, [index]: 'error' }));
+  }, []);
+
+  return { statuses, startLoading, markLoaded, markError, registerRef };
 }

@@ -119,7 +119,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
   }, []);
 
   // Hook de carga secuencial de imágenes (adaptativo)
-  const { statuses: imageStatuses, markLoaded, registerRef } = useImageQueue(pages, networkConfig, handleAllImagesLoaded);
+  const { statuses: imageStatuses, markLoaded, markError, registerRef } = useImageQueue(pages, networkConfig, handleAllImagesLoaded);
 
   // Derivar capítulos anterior y siguiente desde la lista real de capítulos
   const { prevChapterNum, nextChapterNum, hasPrev, hasNext } = useMemo(() => {
@@ -525,6 +525,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
               index={index}
               status={imageStatuses[index] || 'pending'}
               onLoad={markLoaded}
+              onError={markError}
               registerRef={registerRef}
               totalPages={pages.length}
               alt={`Página ${page.number || index + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Imagen del webtoon coreano en español`}
