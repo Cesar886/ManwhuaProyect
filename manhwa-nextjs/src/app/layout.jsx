@@ -129,14 +129,13 @@ export default function RootLayout({ children }) {
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
         <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
-        <meta name='impact-site-verification' value='a62d51e4-8267-4442-bba4-45de72b6c992'></meta>
+        <meta name="impact-site-verification" content="a62d51e4-8267-4442-bba4-45de72b6c992" />
         {/* Preconnect + DNS prefetch for image CDN (chapter reader) */}
         <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />
         {/* DNS prefetch para analytics (GTM carga afterInteractive, no es crítico) */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-        {/* mylead-verification: a030d8faf1f6f5c67eabe4c817e326a7 */}
-        <noscript dangerouslySetInnerHTML={{ __html: '<!-- mylead-verification: a030d8faf1f6f5c67eabe4c817e326a7 -->' }} />
+        {/* mylead-verification ya se inyecta vía metadata.other */}
         {/* === GEO: señales legales para crawlers de IA — Next.js metadata API no genera estos === */}
         {/* rating: ya se inyecta vía metadata.other, este es el fallback explícito */}
         <link rel="terms-of-service" href="https://manhwaimperial.site/terminos-de-servicio" />

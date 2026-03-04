@@ -1,8 +1,9 @@
-// Service Worker — Cache First para imágenes del CDN
-const CACHE_NAME = 'manhwa-images-v2';
+// Service Worker — Cache First para imágenes de capítulos (cualquier host)
+const CACHE_NAME = 'manhwa-images-v3';
 const MAX_ENTRIES = 500;
-const CDN_ORIGIN = 'digitaloceanspaces.com';
 const IA_API_ORIGIN = 'ai.manhwaimperial.site';
+// Orígenes propios que NO deben cachearse aquí (Next.js ya los maneja)
+const SELF_ORIGIN = self.location.origin;
 
 // Interceptar requests
 self.addEventListener('fetch', (event) => {
@@ -11,8 +12,10 @@ self.addEventListener('fetch', (event) => {
   // IA API — dejar que el navegador maneje CORS directamente (no interceptar)
   if (request.url.includes(IA_API_ORIGIN)) return;
 
-  // CDN Images — Cache First
-  if (!request.url.includes(CDN_ORIGIN)) return;
+  // Solo imágenes externas (no las del propio sitio, Next.js las maneja)
+  if (request.url.startsWith(SELF_ORIGIN)) return;
+
+  // Cache First para cualquier imagen externa (capítulos vienen de múltiples hosts)
   const isImage = /\.(webp|avif|jpg|jpeg|png|gif)(\?.*)?$/i.test(request.url);
   if (!isImage) return;
 
