@@ -442,7 +442,7 @@ function useThinkingStream(active, query = '') {
     return displayed;
 }
 
-const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) => {
+const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, placeholderPhrases = [] }) => {
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
@@ -476,17 +476,22 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
 
     // Refrescar historial cuando se enfoca el input
     const refreshHistory = useCallback(() => {
+        if (incognitoMode) {
+            setHistory([]);
+            return;
+        }
         try {
             setHistory(getSearchHistory(5));
         } catch { setHistory([]); }
-    }, []);
+    }, [incognitoMode]);
 
     const handleRemoveHistory = useCallback((slug, e) => {
+        if (incognitoMode) return;
         e.stopPropagation();
         e.preventDefault();
         removeFromHistory(slug);
         refreshHistory();
-    }, [refreshHistory]);
+    }, [incognitoMode, refreshHistory]);
 
     // Sincronizar initialQuery cuando cambia (ej: navegación entre rutas)
     const prevInitialQuery = useRef(initialQuery);
@@ -516,6 +521,17 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
 
     // --- Fetch top consultas populares + similares (endpoints separados, en paralelo) ---
     useEffect(() => {
+        if (Array.isArray(placeholderPhrases) && placeholderPhrases.length > 0) {
+            setPhrases(shuffleArray(placeholderPhrases));
+        }
+
+        if (incognitoMode) {
+            setSuggestions([]);
+            setAllSimilarQueries([]);
+            setVisibleSimilar([]);
+            return;
+        }
+
         // Poner fallback de inmediato para que el dropdown funcione desde el primer click
         setSuggestions(FALLBACK_SUGGESTIONS);
         setPhrases(shuffleArray(FALLBACK_PHRASES));
@@ -544,7 +560,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
         });
 
         return () => { cancelled = true; };
-    }, []);
+    }, [incognitoMode, placeholderPhrases]);
 
     // --- Efecto máquina de escribir (placeholder) ---
     useEffect(() => {
@@ -623,6 +639,13 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
 
     // Función debounced para autocomplete API
     const debouncedAutocomplete = useCallback((value) => {
+        if (incognitoMode) {
+            setFilteredPhrases([]);
+            setAutocompleteResults([]);
+            setAutocompleteLoading(false);
+            return;
+        }
+
         // Filtrar frases IA localmente (instantáneo)
         const lower = value.toLowerCase();
         const allPhrases = [...new Set([
@@ -664,7 +687,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                 if (!controller.signal.aborted) setAutocompleteLoading(false);
             }
         }, 300);
-    }, [suggestions]);
+    }, [incognitoMode, suggestions]);
 
     // Cleanup debounce y abort en unmount
     useEffect(() => {
@@ -678,6 +701,15 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
         const value = e.target.value;
         setQuery(value);
         setIsTyping(true);
+
+        if (incognitoMode) {
+            setFilteredPhrases([]);
+            setAutocompleteResults([]);
+            setAutocompleteLoading(false);
+            setIsFocused(false);
+            clearTimeout(debounceRef.current);
+            return;
+        }
 
         if (value.length > 0) {
             setIsFocused(true);
@@ -724,7 +756,8 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
     };
 
     const hasAutocompleteContent = filteredPhrases.length > 0 || autocompleteResults.length > 0 || autocompleteLoading;
-    const showDropdown = isFocused && !loading && (
+    const showIncognitoDropdown = incognitoMode && isFocused && !loading;
+    const showDropdown = !incognitoMode && isFocused && !loading && (
         (query.length === 0 && (suggestions.length > 0 || history.length > 0 || visibleSimilar.length > 0)) ||
         (query.length > 0 && hasAutocompleteContent)
     );
@@ -747,14 +780,22 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                     type="text"
                     value={query}
                     onChange={handleInput}
-                    onFocus={() => { setIsFocused(true); refreshHistory(); rotateSimilar(); }}
+                    onFocus={() => {
+                        if (incognitoMode) {
+                            setIsFocused(true);
+                            return;
+                        }
+                        setIsFocused(true);
+                        refreshHistory();
+                        rotateSimilar();
+                    }}
                     onBlur={() => setTimeout(() => setIsFocused(false), 150)}
                     className="ia-input"
                     disabled={loading}
                     spellCheck="false"
                     autoComplete="off"
                     maxLength={300}
-                    placeholder={loading ? 'Buscando...' : placeholder}
+                    placeholder={loading ? 'Buscando...' : (placeholder || (incognitoMode ? 'Buscar en modo incógnito…' : ''))}
                     aria-label="Escribe tu consulta"
                 />
 
@@ -798,6 +839,23 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '' }) 
                     <p className="ia-response-text">
                         {cardText}
                     </p>
+                </div>
+            )}
+
+            {showIncognitoDropdown && (
+                <div className="ia-suggestions" role="status" aria-label="Modo incógnito">
+                    <div className="ia-incognito-note" aria-hidden="true">
+                        <div className="ia-incognito-icon-wrap">
+                            <svg className="ia-incognito-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="10" rx="2" ry="2" />
+                                <path d="M7 11V8a5 5 0 0 1 10 0v3" />
+                            </svg>
+                        </div>
+                        <div className="ia-incognito-copy">
+                            <span className="ia-incognito-title">Modo incognito</span>
+                            <span className="ia-incognito-subtitle">No se muestra historial ni sugerencias públicas.</span>
+                        </div>
+                    </div>
                 </div>
             )}
 

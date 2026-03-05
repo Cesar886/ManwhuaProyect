@@ -285,7 +285,7 @@ export default function HomeClient({ initialSeries = [] }) {
           </div>
 
           <div className={styles.cardsRow}>
-            {series.slice(0, 12).map((series, index) => (
+            {series.filter(s => !isAdultSeries(s)).slice(0, 12).map((series, index) => (
               <Link
                 href={`/manhwa/${series.slug}`}
                 key={series.slug}
@@ -363,7 +363,7 @@ export default function HomeClient({ initialSeries = [] }) {
                     </Link>
                   </div>
                   <div className={styles.queryScroll}>
-                    {cat.series.map((item, i) => (
+                    {cat.series.filter(item => !isAdultSeries(item)).map((item, i) => (
                       <Link
                         href={`/manhwa/${item.slug}`}
                         key={item.id || item.slug}

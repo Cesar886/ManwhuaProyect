@@ -37,7 +37,9 @@ const listSeries = async (req, res, next) => {
         let paramCount = 0;
 
         // Filtrar contenido adulto
-        if (adult !== 'true') {
+        if (adult === 'only') {
+            whereClause += ' AND s.is_adult = true';
+        } else if (adult !== 'true') {
             whereClause += ' AND s.is_adult = false';
         }
 

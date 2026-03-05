@@ -195,7 +195,8 @@ export default function BibliotecaClient({ initialSeries = [] }) {
     const querySearch = searchParams.get('search') || '';
 
     const filteredSeries = useMemo(() => {
-        const base = seriesData;
+        // Excluir contenido adulto — solo visible en /nsfw
+        const base = seriesData.filter(s => !isAdultSeries(s));
 
         // Si hay query `search` en la URL, filtrar por título (case-insensitive)
         if (querySearch && querySearch.trim().length > 0) {

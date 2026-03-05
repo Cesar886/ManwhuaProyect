@@ -40,6 +40,7 @@ const NAVIGATION_TABS = [
   { label: 'Inicio', icon: IconHome, value: 'home', path: '/home' },
   { label: 'Biblioteca', icon: IconBooks, value: 'Biblioteca', path: '/biblioteca' },
   { label: 'Populares', icon: IconTrendingUp, value: 'Populares', path: '/populares' },
+  { label: '18+', icon: IconHeart, value: '18+', path: '/nsfw' },
 ];
 
 // Items del menú del usuario (fuera del componente)
