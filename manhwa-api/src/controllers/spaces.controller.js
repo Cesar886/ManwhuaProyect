@@ -848,6 +848,7 @@ const getManhwaFromSpaces = async (req, res, next) => {
             const dbResult = await query(
                 `SELECT s.id, s.cover_url, s.title, s.original_title, s.synopsis, s.status,
                         s.rating_average, s.rating_count, s.release_year, s.view_count,
+                        s.is_adult,
                         a.name as author_name,
                         COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
                  FROM series s
@@ -877,6 +878,7 @@ const getManhwaFromSpaces = async (req, res, next) => {
                 if (dbSeries.release_year)   dbMetadata.releaseYear   = dbSeries.release_year;
                 if (dbSeries.view_count)     dbMetadata.views         = dbSeries.view_count;
                 if (dbSeries.genres?.length) dbMetadata.genres        = dbSeries.genres;
+                dbMetadata.isAdult = dbSeries.is_adult || false;
             }
         } catch (dbError) {
             // No fallar si la consulta a BD falla, solo loguear
@@ -910,6 +912,7 @@ const getManhwaFromSpaces = async (req, res, next) => {
                 ratingCount: dbMetadata.ratingCount || 0,
                 releaseYear: dbMetadata.releaseYear || null,
                 views: dbMetadata.views || 0,
+                isAdult: dbMetadata.isAdult || false,
                 chapterCount: chapters.length,
                 chapters,
                 lastUpdated: series.lastModified
