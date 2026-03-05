@@ -19,20 +19,11 @@ import { endpoint } from '../../config';
 import Header from '@/components/Header';
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { slugifyQuery } from '@/hooks/useIA';
+import { filterNonAdultSeries } from '@/utils/adultContent';
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read')
     .replace('/api/read', '')
-
-const isAdultSeries = (s) => {
-  if (!s) return false
-  const truthy = (v) => v === true || v === 1 || v === '1' || v === 'true'
-  if (truthy(s.isAdult) || truthy(s.is_adult)) return true
-  return (s.genres || []).some((g) => {
-    const name = (typeof g === 'string' ? g : g?.name || '').toLowerCase()
-    return name.includes('adult') || name.includes('hentai') || name.includes('ecchi') || name.includes('smut')
-  })
-}
 
 const formatCount = (n) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -145,6 +136,9 @@ export default function HomeClient({ initialSeries = [] }) {
                 cover: s.coverUrl || s.cover_url || '',
                 chapterCount: s.chapterCount ?? s.chapter_count ?? 0,
                 status: s.status ?? 'ongoing',
+                isAdult: s.isAdult,
+                is_adult: s.is_adult,
+                genres: Array.isArray(s.genres) ? s.genres : [],
               }))
               if (mapped.length >= 3) {
                 accumulated.push({ query: q.query, count: q.count, series: mapped })
@@ -285,7 +279,7 @@ export default function HomeClient({ initialSeries = [] }) {
           </div>
 
           <div className={styles.cardsRow}>
-            {series.filter(s => !isAdultSeries(s)).slice(0, 12).map((series, index) => (
+            {filterNonAdultSeries(series).slice(0, 12).map((series, index) => (
               <Link
                 href={`/manhwa/${series.slug}`}
                 key={series.slug}
@@ -307,16 +301,9 @@ export default function HomeClient({ initialSeries = [] }) {
                       {series.chapterCount} caps
                     </span>
                   )}
-                  {isAdultSeries(series) ? (
-                    <span className={styles.adultBadge}>
-                      <IconFlame size={11} stroke={2.5} />
-                      +18
-                    </span>
-                  ) : (
-                    <span className={styles.statusBadge}>
-                      {series.status || 'ongoing'}
-                    </span>
-                  )}
+                  <span className={styles.statusBadge}>
+                    {series.status || 'ongoing'}
+                  </span>
                   <h3 className={styles.titleLink}>{series.title}</h3>
                 </div>
               </Link>
@@ -363,7 +350,7 @@ export default function HomeClient({ initialSeries = [] }) {
                     </Link>
                   </div>
                   <div className={styles.queryScroll}>
-                    {cat.series.filter(item => !isAdultSeries(item)).map((item, i) => (
+                    {filterNonAdultSeries(cat.series).map((item, i) => (
                       <Link
                         href={`/manhwa/${item.slug}`}
                         key={item.id || item.slug}
@@ -384,16 +371,9 @@ export default function HomeClient({ initialSeries = [] }) {
                               {item.chapterCount} caps
                             </span>
                           )}
-                          {isAdultSeries(item) ? (
-                            <span className={styles.adultBadge}>
-                              <IconFlame size={10} stroke={2.5} />
-                              +18
-                            </span>
-                          ) : (
-                            <span className={styles.statusBadge}>
-                              {item.status || 'ongoing'}
-                            </span>
-                          )}
+                          <span className={styles.statusBadge}>
+                            {item.status || 'ongoing'}
+                          </span>
                           <h3 className={styles.titleLink}>{item.title}</h3>
                         </div>
                       </Link>

@@ -15,6 +15,7 @@ import { useIA, slugifyQuery, getOriginalQuery } from '@/hooks/useIA';
 import { normalizeImageUrl } from '@/utils/imageUtils';
 import ManhwaCover from '@/components/ManhwaCover';
 import { PremiumSkeletonGrid } from '@/components/PremiumSkeleton';
+import { filterNonAdultSeries } from '@/utils/adultContent';
 import classes from '../../biblioteca/Biblioteca.module.css';
 import dynamic from 'next/dynamic';
 const ChatIA = dynamic(() => import('@/components/ia-minicpm'), { ssr: false });
@@ -125,7 +126,7 @@ export default function BusquedaIAClient({ querySlug }) {
     }, [slugDecoded, searchQuery, buscarConIACached]);
 
     const filteredSeries = useMemo(() => {
-        return resultados?.series || [];
+        return filterNonAdultSeries(resultados?.series || []);
     }, [resultados]);
 
     const paginatedSeries = useMemo(() => {

@@ -1,5 +1,6 @@
 import PopularesClient from './PopularesClient'
 import { SERVER_API_BASE, SITE_URL } from '../../config'
+import { filterNonAdultSeries } from '@/utils/adultContent'
 
 // ============================================================================
 // SERVER COMPONENT — Fetches real ranking data from backend endpoints
@@ -32,7 +33,8 @@ async function fetchSeriesList(path) {
         const result = await res.json()
         const series = result.data?.series || result.series || result.data || []
         if (!Array.isArray(series)) return []
-        return series.map((s, i) => ({
+        const safeSeries = filterNonAdultSeries(series)
+        return safeSeries.map((s, i) => ({
             id: s.id,
             rank: i + 1,
             title: s.title,

@@ -88,12 +88,15 @@ function Header({ colorScheme, toggleColorScheme }) {
   const isDark = activeColorScheme === 'dark';
 
   // Derivar pestaña activa
-  const path = pathname.toLowerCase();
-  const activeTab = path.startsWith('/biblioteca') ? 'Biblioteca'
-    : path.startsWith('/populares') ? 'Populares'
-      : path.startsWith('/nsfw') ? '18+'
-      : path.startsWith('/perfil') ? 'Perfil'
-        : 'home';
+  const normalizedPath = (pathname || '').toLowerCase().replace(/\/+$/, '') || '/';
+  const pathSegments = normalizedPath.split('/').filter(Boolean);
+  const hasSegment = (segment) => pathSegments.includes(segment);
+
+  const activeTab = hasSegment('biblioteca') ? 'Biblioteca'
+    : hasSegment('populares') ? 'Populares'
+      : hasSegment('nsfw') ? '18+'
+        : hasSegment('perfil') ? 'Perfil'
+          : 'home';
 
   // Usuario provisto por el contexto (no duplicamos el estado local)
   const { user: authUser, openLogin, doLogout } = useAuth()

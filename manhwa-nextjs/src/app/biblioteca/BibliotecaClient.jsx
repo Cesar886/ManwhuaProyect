@@ -397,12 +397,6 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                                         priority={currentPage === 1 && index < 8}
                                                         sizes="(max-width: 480px) 45vw, (max-width: 768px) 30vw, (max-width: 1200px) 22vw, 200px"
                                                     />
-                                                    {isAdultSeries(series) && (
-                                                        <span className={classes.adultBadge}>
-                                                            <IconFlame size={11} stroke={2.5} />
-                                                            +18
-                                                        </span>
-                                                    )}
                                                     <div className={classes.releaseOverlay}>
                                                         <h3 className={classes.releaseTitle}>{series.title}</h3>
                                                     </div>

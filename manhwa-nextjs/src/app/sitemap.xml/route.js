@@ -1,13 +1,14 @@
 import { SITE_URL } from '@/config'
 import { fetchAllSeriesForSitemap } from '@/lib/seo/fetchSeries'
 import { buildUrlset, urlEntry, xmlResponse } from '@/lib/seo/xml'
+import { filterNonAdultSeries } from '@/utils/adultContent'
 
 // force-dynamic: el sitemap siempre se genera en runtime con datos frescos
 // Evita que el build pre-renderice con datos vacíos (API no disponible en build local)
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const series = await fetchAllSeriesForSitemap()
+  const series = filterNonAdultSeries(await fetchAllSeriesForSitemap())
   const now = new Date().toISOString()
 
   const staticPages = [

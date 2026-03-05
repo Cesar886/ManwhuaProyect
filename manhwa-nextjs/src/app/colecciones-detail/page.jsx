@@ -33,6 +33,7 @@ import {
   Paper,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { filterNonAdultSeries } from '@/utils/adultContent';
 import {
   IconArrowLeft,
   IconHeart,
@@ -163,8 +164,9 @@ export default function ColeccionesDetail() {
 
   // Filtrar manhwas según búsqueda
   const filteredManhwas = useMemo(() => {
-    if (!searchQuery) return collection.manhwas;
-    return collection.manhwas.filter(manhwa =>
+    const safeManhwas = filterNonAdultSeries(collection.manhwas);
+    if (!searchQuery) return safeManhwas;
+    return safeManhwas.filter(manhwa =>
       manhwa.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       manhwa.author.toLowerCase().includes(searchQuery.toLowerCase())
     );
