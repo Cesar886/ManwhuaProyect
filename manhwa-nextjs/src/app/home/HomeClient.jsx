@@ -280,7 +280,7 @@ export default function HomeClient({ initialSeries = [] }) {
               color: 'var(--text-muted)',
               fontWeight: 500
             }}>
-              {series.length}
+              {series.length} Titulos disponibles
             </span>
           </div>
 
