@@ -1,5 +1,5 @@
 // Service Worker — Cache First para imágenes de capítulos (cualquier host)
-const CACHE_NAME = 'manhwa-images-v3';
+const CACHE_NAME = 'manhwa-images-v4';
 const MAX_ENTRIES = 500;
 const IA_API_ORIGIN = 'ai.manhwaimperial.site';
 // Orígenes propios que NO deben cachearse aquí (Next.js ya los maneja)
@@ -29,8 +29,19 @@ async function cacheFirst(request) {
   if (cached) return cached;
 
   try {
-    const response = await fetch(request);
-    // Solo cachear respuestas exitosas y opacas (cross-origin)
+    // Para imágenes cross-origin, necesitamos usar 'no-cors' mode.
+    // Sin esto, el fetch falla con NetworkError cuando el servidor externo
+    // (ej. ImageShack) no envía headers CORS.
+    // Las etiquetas <img> normalmente hacen esto automáticamente,
+    // pero el ServiceWorker necesita hacerlo explícitamente.
+    const fetchRequest = new Request(request.url, {
+      mode: 'no-cors',
+      credentials: 'omit',
+      redirect: 'follow',
+    });
+
+    const response = await fetch(fetchRequest);
+    // Las respuestas no-cors son "opaque" (status 0), pero son válidas para imágenes
     if (response.ok || response.type === 'opaque') {
       const clone = response.clone();
       // Cachear en background sin bloquear la respuesta
