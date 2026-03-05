@@ -156,10 +156,28 @@ export default function BibliotecaClient({ initialSeries = [] }) {
     // 2. Memoización de Datos Base
     // Preferir datos SSR sobre datos del hook (más rápido y más fresh para SEO)
     const seriesData = useMemo(() => {
-        // Si el hook ya cargó datos frescos, usarlos
-        if (spacesData && spacesData.length > 0) return spacesData;
-        // Sino usar los datos SSR como fallback confiable
-        return initialSeries;
+        // Si el hook no cargó todavía, usar datos SSR
+        if (!spacesData || spacesData.length === 0) return initialSeries;
+
+        // Cuando spacesData llega (puede venir de caché sin coverUrlWeb),
+        // parchamos los covers desde initialSeries para evitar que desaparezcan
+        const initialMap = new Map(initialSeries.map(s => [s.slug, s]));
+
+        return spacesData.map(s => {
+            const hasAnyCover = s.coverUrlWeb || s.cover_url_web || s.coverUrl || s.cover_url || s.cover;
+            if (hasAnyCover) return s;
+            // Si spacesData no trae cover para esta serie, rescatar de initialSeries
+            const init = initialMap.get(s.slug);
+            if (!init) return s;
+            return {
+                ...s,
+                cover:       s.cover       || init.cover,
+                coverUrl:    s.coverUrl    || init.coverUrl,
+                cover_url:   s.cover_url   || init.cover_url,
+                coverUrlWeb: s.coverUrlWeb || init.coverUrlWeb,
+                cover_url_web: s.cover_url_web || init.cover_url_web,
+            };
+        });
     }, [spacesData, initialSeries]);
 
     // 3. Lógica de Filtrado
@@ -360,7 +378,9 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                                         </span>
                                                     )}
                                                     <ManhwaCover
-                                                        src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
+                                                        src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
+                                                        fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
+                                                        slug={series.slug}
                                                         alt={`Portada del manhwa ${series.title} - Leer en español online gratis en Manhwa Imperial`}
                                                         className={classes.popularImg}
                                                         priority={currentPage === 1 && index < 8}

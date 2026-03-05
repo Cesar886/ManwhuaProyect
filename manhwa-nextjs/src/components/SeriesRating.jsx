@@ -239,7 +239,7 @@ export default function SeriesRating({
       )}
 
       {/* SEO Visible Text */}
-      {(currentCount > 0 || hasRated) && (
+      {/* {(currentCount > 0 || hasRated) && (
         <p style={{
           fontSize: '14px',
           fontWeight: 600,
@@ -248,7 +248,7 @@ export default function SeriesRating({
         }}>
           {displayAverage} ({currentCount} {currentCount === 1 ? 'voto' : 'votos'})
         </p>
-      )}
+      )} */}
 
       <div
         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -276,9 +276,9 @@ export default function SeriesRating({
             title={hasRated ? "Ya has calificado esta obra" : `Calificar con ${star} estrellas`}
           >
             <IconStar
-              size={compact ? 28 : 32}
-              fill={(hoverRating || rating) >= star ? '#FBBF24' : 'transparent'}
-              color={(hoverRating || rating) >= star ? '#FBBF24' : 'var(--dimmed-text, #666)'}
+              size={compact ? 24 : 28}
+              fill={(hoverRating || rating) >= star ? '#fbbf24' : 'transparent'}
+              color={(hoverRating || rating) >= star ? '#fbbf24' : 'rgba(251, 191, 36, 0.55)'}
               strokeWidth={1.5}
             />
           </button>

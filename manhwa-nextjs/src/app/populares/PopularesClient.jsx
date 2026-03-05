@@ -31,7 +31,9 @@ function PopularCard({ item, index, priority = false, showRank = false }) {
         >
             <div className={classes.card}>
                 <ManhwaCover
-                    src={normalizeImageUrl(item.cover) || ''}
+                    src={normalizeImageUrl(item.cover || item.coverUrl || item.cover_url || item.coverUrlWeb || item.cover_url_web) || ''}
+                    fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
+                    slug={item.slug}
                     alt={`Portada del manhwa ${item.title}`}
                     className={classes.cardImg}
                     priority={priority}

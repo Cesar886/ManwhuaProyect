@@ -97,8 +97,30 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Cache static assets aggressively (fonts, images, JS/CSS bundles)
-        source: '/(.*)\\.(js|css|woff|woff2|ttf|eot|ico|png|jpg|jpeg|webp|avif|svg)',
+        // CRÍTICO: sw.js NUNCA debe cachearse con immutable.
+        // Next.js aplica TODAS las reglas que coinciden en orden, la última gana.
+        // Por eso cambiamos el patrón genérico a /_next/static/ en lugar de /(.*)\.(js|...)
+        // para que sw.js (en la raíz) no sea afectado por la regla de assets.
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Expires', value: '0' },
+        ],
+      },
+      {
+        // Cache agresivo SOLO para los chunks internos de Next.js (/_next/static/).
+        // NUNCA usa /(.*)\.(js|...) porque eso también matchea /sw.js y lo sobreescribe.
+        // Todos los JS/CSS/fonts compilados por Next.js van a /_next/static/ automáticamente.
+        source: '/_next/static/(.*)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        // Cache para assets públicos estáticos (imágenes, iconos, fuentes en /public)
+        // que NO sean sw.js (ya cubierto arriba con no-cache).
+        source: '/(.*)\\.(woff|woff2|ttf|eot|ico|png|jpg|jpeg|webp|avif|svg)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],

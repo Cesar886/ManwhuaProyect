@@ -42,6 +42,7 @@ export default function HomeClient({ initialSeries = [] }) {
   const [error, setError] = useState(null)
   const [isFromCache, setIsFromCache] = useState(false)
   const [popularCategories, setPopularCategories] = useState([])
+  const [popularLoading, setPopularLoading] = useState(true)
 
   // Solo carga client-side si el server no pudo proveer datos (fallback)
   useEffect(() => {
@@ -63,7 +64,23 @@ export default function HomeClient({ initialSeries = [] }) {
         const result = await res.json()
         const data = result.data?.series || result.series || []
         if (!cancelled) {
-          setSeries(data)
+          // Preservar covers de initialSeries si el fetch no los trae
+          const initMap = new Map(initialSeries.map(s => [s.slug, s]))
+          const merged = data.map(s => {
+            const hasAnyCover = s.coverUrlWeb || s.cover_url_web || s.coverUrl || s.cover_url || s.cover
+            if (hasAnyCover) return s
+            const init = initMap.get(s.slug)
+            if (!init) return s
+            return {
+              ...s,
+              cover:         s.cover         || init.cover,
+              coverUrl:      s.coverUrl      || init.coverUrl,
+              cover_url:     s.cover_url     || init.cover_url,
+              coverUrlWeb:   s.coverUrlWeb   || init.coverUrlWeb,
+              cover_url_web: s.cover_url_web || init.cover_url_web,
+            }
+          })
+          setSeries(merged)
           setError(null)
         }
       } catch (err) {
@@ -79,35 +96,40 @@ export default function HomeClient({ initialSeries = [] }) {
   // Cargar queries populares client-side via AI API (no bloquea SSR)
   useEffect(() => {
     let cancelled = false
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
     const loadPopular = async () => {
       try {
+        setPopularLoading(true)
         // 1. Obtener queries populares
         const popRes = await fetch(`${AI_BASE_URL}/api/popular?limit=20`, {
           headers: { 'Accept': 'application/json' },
         })
-        if (!popRes.ok) return
+        if (!popRes.ok) { setPopularLoading(false); return }
         const popData = await popRes.json()
-        if (!popData.success || !Array.isArray(popData.queries)) return
+        if (!popData.success || !Array.isArray(popData.queries)) { setPopularLoading(false); return }
 
         const queries = popData.queries.filter(q => q.query && q.query.trim().length > 3)
-        if (queries.length === 0) return
+        if (queries.length === 0) { setPopularLoading(false); return }
 
-        // 2. Buscar series via AI API (búsqueda semántica, en paralelo, max 12)
-        const toFetch = queries.slice(0, 12)
-        const searchResults = await Promise.all(
-          toFetch.map(async (q) => {
-            try {
-              const res = await fetch(`${AI_BASE_URL}/api/read`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  messages: [{ role: 'user', content: q.query }],
-                }),
-              })
-              if (!res.ok) return []
+        // 2. Buscar series via AI API secuencialmente para evitar rate-limit (max 8)
+        const toFetch = queries.slice(0, 8)
+        const accumulated = []
+
+        for (let i = 0; i < toFetch.length; i++) {
+          if (cancelled) break
+          const q = toFetch[i]
+          try {
+            const res = await fetch(`${AI_BASE_URL}/api/read`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messages: [{ role: 'user', content: q.query }],
+              }),
+            })
+            if (res.ok) {
               const result = await res.json()
-              const series = result.series || []
-              return series.slice(0, 15).map(s => ({
+              const seriesList = result.series || []
+              const mapped = seriesList.slice(0, 15).map(s => ({
                 id: s.id,
                 title: s.title,
                 slug: s.slug,
@@ -115,27 +137,22 @@ export default function HomeClient({ initialSeries = [] }) {
                 chapterCount: s.chapterCount ?? s.chapter_count ?? 0,
                 status: s.status ?? 'ongoing',
               }))
-            } catch {
-              return []
+              if (mapped.length >= 3) {
+                accumulated.push({ query: q.query, count: q.count, series: mapped })
+                // Actualización progresiva: mostrar categorías conforme llegan
+                if (!cancelled) setPopularCategories([...accumulated])
+              }
             }
-          })
-        )
-
-        if (cancelled) return
-
-        // 3. Armar categorías (solo las que tengan ≥3 resultados), max 8
-        const categories = toFetch
-          .map((q, i) => ({
-            query: q.query,
-            count: q.count,
-            series: searchResults[i],
-          }))
-          .filter(cat => cat.series.length >= 3)
-          .slice(0, 8)
-
-        setPopularCategories(categories)
+          } catch {
+            // ignorar error individual
+          }
+          // Esperar entre peticiones para no saturar el rate-limit
+          if (i < toFetch.length - 1 && !cancelled) await delay(500)
+        }
       } catch {
         // Silencioso — la sección simplemente no aparece
+      } finally {
+        if (!cancelled) setPopularLoading(false)
       }
     }
     loadPopular()
@@ -268,7 +285,9 @@ export default function HomeClient({ initialSeries = [] }) {
               >
                 <div className={styles.popularCard}>
                   <ManhwaCover
-                    src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
+                    src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
+                    fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
+                    slug={series.slug}
                     alt={getImageAlt.cover(series.title)}
                     className={styles.popularImg}
                     priority={index < 4}
@@ -292,6 +311,28 @@ export default function HomeClient({ initialSeries = [] }) {
         {/* ================================================================== */}
         {/* BÚSQUEDAS POPULARES - Filas Netflix-style (cargado client-side) */}
         {/* ================================================================== */}
+        {popularLoading && popularCategories.length === 0 && (
+          <section className={styles.querySection}>
+            {Array.from({ length: 3 }, (_, rowIdx) => (
+              <div key={rowIdx} className={styles.queryRow}>
+                <div className={styles.queryHeader}>
+                  <div style={{
+                    height: '1.25rem',
+                    width: '12rem',
+                    borderRadius: '0.375rem',
+                    background: 'var(--skeleton-base, rgba(255,255,255,0.06))',
+                    backgroundImage: 'linear-gradient(110deg, transparent 25%, var(--skeleton-shimmer, rgba(255,255,255,0.06)) 50%, transparent 75%)',
+                    backgroundSize: '300% 100%',
+                    animation: 'shimmer 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                  }} />
+                </div>
+                <div className={styles.queryScroll}>
+                  <PremiumSkeletonGrid count={6} />
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
         {popularCategories.length > 0 && (
           <section className={styles.querySection}>
 
@@ -314,7 +355,9 @@ export default function HomeClient({ initialSeries = [] }) {
                       >
                         <div className={styles.popularCard}>
                           <ManhwaCover
-                            src={normalizeImageUrl(item.cover) || ''}
+                            src={normalizeImageUrl(item.cover || item.coverUrl || item.cover_url || item.coverUrlWeb || item.cover_url_web) || ''}
+                            fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
+                            slug={item.slug}
                             alt={getImageAlt.cover(item.title)}
                             className={styles.popularImg}
                             priority={catIdx === 0 && i < 4}

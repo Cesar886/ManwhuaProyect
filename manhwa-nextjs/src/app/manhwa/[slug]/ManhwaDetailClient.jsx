@@ -415,10 +415,15 @@ export default function ManhwaDetail({ initialSeries }) {
   const slug = params?.slug;
   const { series: hookSeries, loading, error, refetch } = useSeriesDetail(slug, initialSeries);
   const { user, openLogin } = useAuth();
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   // IMPORTANTE para SEO: Usar initialSeries como fallback si el hook no tiene datos
   // Esto evita Soft 404 en Google durante la hidratación
   const series = hookSeries || initialSeries;
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
 
   // Estados de UI
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -501,19 +506,21 @@ export default function ManhwaDetail({ initialSeries }) {
         slug: updatedSlug,
         updateType,
         coverUrl: newCoverUrl,
+        coverUrlWeb: newCoverUrlWeb,
         updatedFields,
         serverData
       } = event.detail || {};
 
       // Si es esta serie la que se actualizó
       if (updatedSlug === slug) {
-        console.log('🔄 Serie actualizada:', { updateType, newCoverUrl, updatedFields, serverData });
+        console.log('🔄 Serie actualizada:', { updateType, newCoverUrl, newCoverUrlWeb, updatedFields, serverData });
 
         // Actualizar portada inmediatamente si viene en el evento
-        if (newCoverUrl && (updateType === 'cover' || updateType === 'all')) {
-          console.log('📸 Actualizando portada local:', newCoverUrl);
+        const updatedCoverUrl = newCoverUrl || newCoverUrlWeb;
+        if (updatedCoverUrl && (updateType === 'cover' || updateType === 'all')) {
+          console.log('📸 Actualizando portada local:', updatedCoverUrl);
           // Agregar timestamp solo si es necesario forzar recarga
-          const cleanUrl = newCoverUrl.split('?')[0];
+          const cleanUrl = updatedCoverUrl.split('?')[0];
           setLocalCoverUrl(`${cleanUrl}?t=${Date.now()}`);
         }
 
@@ -522,8 +529,9 @@ export default function ManhwaDetail({ initialSeries }) {
           console.log('📦 Datos del servidor recibidos:', serverData);
 
           // Actualizar la portada si viene del servidor
-          if (serverData.coverUrl) {
-            const cleanUrl = serverData.coverUrl.split('?')[0];
+          const serverCoverUrl = serverData.coverUrl || serverData.coverUrlWeb || serverData.cover_url || serverData.cover_url_web;
+          if (serverCoverUrl) {
+            const cleanUrl = serverCoverUrl.split('?')[0];
             setLocalCoverUrl(`${cleanUrl}?t=${Date.now()}`);
           }
 
@@ -575,52 +583,64 @@ export default function ManhwaDetail({ initialSeries }) {
     return () => window.removeEventListener('seriesUpdated', handleSeriesUpdate);
   }, [slug, refetch]);
 
-  // Calcular la URL de la portada a usar (priorizar actualización local)
-  const effectiveCoverUrl = useMemo(() => {
-    // Si hay una URL local (recién actualizada), usarla
-    if (localCoverUrl) {
-      console.log('🎨 Usando portada local:', localCoverUrl);
-      return localCoverUrl;
-    }
+  // Calcular URLs de portada (primaria + fallback) para cubrir coverUrl y coverUrlWeb
+  const effectiveCoverUrls = useMemo(() => {
+    const sanitizeCover = (input) => {
+      if (!input) return null;
 
-    // Sino, usar la de la serie (puede venir como cover o coverUrl)
-    let url = series?.cover || series?.coverUrl || series?.cover_url;
-
-    // Validar y limpiar la URL
-    if (url) {
-      // Limpiar espacios y caracteres raros
-      url = String(url).trim();
-
-      // Rechazar valores inválidos
-      if (!url || url === 'undefined' || url === 'null' || url === 'false') {
-        console.warn('⚠️ URL de portada inválida:', url);
+      const value = String(input).trim();
+      if (!value || value === 'undefined' || value === 'null' || value === 'false') {
         return null;
       }
 
-      // Asegurar que la URL es válida
-      try {
-        // Si es una URL relativa, convertirla a absoluta
-        if (url.startsWith('/')) {
-          url = window.location.origin + url;
-        }
+      // Bloquear esquemas peligrosos, pero permitir paths/keys para normalizeImageUrl
+      if (/^(javascript|data|vbscript):/i.test(value)) return null;
 
-        // Si no tiene protocolo, agregar https
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          console.warn('⚠️ URL sin protocolo, agregando https://', url);
-          url = 'https://' + url;
-        }
+      return value;
+    };
 
-        // Verificar que sea una URL válida
-        const urlObj = new URL(url);
-        return urlObj.href;
-      } catch (e) {
-        console.error('❌ Error validando URL de portada:', url, e.message);
-        return null;
-      }
+    const unique = new Set();
+    const candidates = [
+      localCoverUrl,
+      series?.coverUrl,
+      series?.cover_url,
+      series?.coverUrlWeb,
+      series?.cover_url_web,
+      series?.cover,
+    ]
+      .map(sanitizeCover)
+      .filter((url) => {
+        if (!url || unique.has(url)) return false;
+        unique.add(url);
+        return true;
+      });
+
+    return {
+      primary: candidates[0] || null,
+      fallback: candidates[1] || null,
+    };
+  }, [localCoverUrl, series?.coverUrl, series?.cover_url, series?.coverUrlWeb, series?.cover_url_web, series?.cover]);
+
+  const normalizedPrimaryCover = useMemo(
+    () => normalizeImageUrl(effectiveCoverUrls.primary) || '',
+    [effectiveCoverUrls.primary]
+  );
+
+  const normalizedFallbackCover = useMemo(
+    () => normalizeImageUrl(effectiveCoverUrls.fallback) || '',
+    [effectiveCoverUrls.fallback]
+  );
+
+  const heroBackgroundImage = useMemo(() => {
+    const gradient = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+    if (normalizedPrimaryCover && normalizedFallbackCover) {
+      return `url(${normalizedPrimaryCover}), url(${normalizedFallbackCover}), ${gradient}`;
     }
-
-    return null;
-  }, [localCoverUrl, series?.cover, series?.coverUrl, series?.cover_url]);
+    if (normalizedPrimaryCover) {
+      return `url(${normalizedPrimaryCover}), ${gradient}`;
+    }
+    return gradient;
+  }, [normalizedPrimaryCover, normalizedFallbackCover]);
 
   // Crear objeto de serie efectivo que combina datos del servidor con actualizaciones locales
   const effectiveSeries = useMemo(() => {
@@ -663,6 +683,31 @@ export default function ManhwaDetail({ initialSeries }) {
 
     return merged;
   }, [series, localUpdates]);
+
+  const badgeSeries = useMemo(() => {
+    if (!hasHydrated) return initialSeries || series || effectiveSeries;
+    return effectiveSeries || series || initialSeries;
+  }, [hasHydrated, initialSeries, series, effectiveSeries]);
+
+  const showAdultBadge = useMemo(() => {
+    if (!badgeSeries) return false;
+
+    const isTruthyFlag = (value) => (
+      value === true || value === 1 || value === '1' || value === 'true'
+    );
+
+    const hasAdultFlag = (
+      isTruthyFlag(badgeSeries?.isAdult) ||
+      isTruthyFlag(badgeSeries?.is_adult)
+    );
+
+    const hasAdultGenre = (badgeSeries?.genres || []).some((genre) => {
+      const genreName = (typeof genre === 'string' ? genre : genre?.name || '')?.toLowerCase();
+      return genreName.includes('adult') || genreName.includes('hentai') || genreName.includes('ecchi') || genreName.includes('smut');
+    });
+
+    return hasAdultFlag || hasAdultGenre;
+  }, [badgeSeries]);
 
   // Handlers
   const handleToggleLibrary = async () => {
@@ -932,7 +977,7 @@ export default function ManhwaDetail({ initialSeries }) {
         <div
           className={styles.heroBackground}
           style={{
-            backgroundImage: effectiveCoverUrl ? `url(${effectiveCoverUrl})` : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+            backgroundImage: heroBackgroundImage
           }}
         />
         <div className={styles.heroOverlay} />
@@ -943,14 +988,18 @@ export default function ManhwaDetail({ initialSeries }) {
           {/* Área: cover */}
           <div className={styles.coverContainer}>
             <ManhwaCover
-              src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url) || ''}
+              src={normalizedPrimaryCover}
+              fallbackSrc={normalizedFallbackCover}
+              slug={series?.slug}
               alt={getImageAlt.cover(series.title)}
               className={styles.coverImage}
             />
-            {(effectiveSeries?.isHot || series?.isHot) && (
-              <div className={styles.hotBadge}>
-                <IconFlame size={14} /> HOT
-              </div>
+            {/* +18 Badge overlay — esquina superior derecha de la portada */}
+            {showAdultBadge && (
+              <span className={styles.hotBadge}>
+                <IconFlame size={13} stroke={2.5} />
+                +18
+              </span>
             )}
           </div>
 
@@ -969,16 +1018,16 @@ export default function ManhwaDetail({ initialSeries }) {
             )}
 
             {/* Año de lanzamiento + vistas en una sola fila */}
-            {((effectiveSeries?.releaseYear || series?.releaseYear) || (effectiveSeries?.views || series?.views)) && (
+            {(effectiveSeries?.releaseYear || series?.releaseYear || effectiveSeries?.views || series?.views || effectiveSeries?.isAdult || series?.isAdult) && (
               <div className={styles.heroMeta}>
                 {(effectiveSeries?.releaseYear || series?.releaseYear) && (
-                  <span className={styles.heroMetaItem}>
+                  <span className={`${styles.heroMetaItem} ${styles.heroMetaYear}`}>
                     <IconCalendar size={13} />
                     {effectiveSeries?.releaseYear || series?.releaseYear}
                   </span>
                 )}
                 {(effectiveSeries?.views || series?.views) && (
-                  <span className={styles.heroMetaItem}>
+                  <span className={`${styles.heroMetaItem} ${styles.heroMetaViews}`}>
                     <IconEye size={13} />
                     {(() => {
                       const v = effectiveSeries?.views || series?.views;
@@ -986,6 +1035,33 @@ export default function ManhwaDetail({ initialSeries }) {
                       if (v >= 1_000) return `${Math.round(v / 1_000)}K`;
                       return v;
                     })()}
+                  </span>
+                )}
+                {/* +18 Badge */}
+                {showAdultBadge && (
+                  <span className={`${styles.hotBadgeMeta} ${styles.heroMetaItem}`}>
+                    <IconFlame size={14} stroke={2.5} />
+                    +18
+                  </span>
+                )}
+
+                {/* Puntuación inline — SEO: microdata AggregateRating visible para Google */}
+                {(parseFloat(series?.rating || series?.stats?.rating || 0) > 0) && (
+                  <span
+                    className={`${styles.heroMetaItem} ${styles.heroRating}`}
+                    itemScope
+                    itemType="https://schema.org/AggregateRating"
+                  >
+                    <meta itemProp="worstRating" content="1" />
+                    <IconStar size={13} className={styles.starIconHero} />
+                    <span itemProp="ratingValue">
+                      {(parseFloat(series?.rating || series?.stats?.rating || 0) / 2).toFixed(1)}
+                    </span>
+                    <span className={styles.heroRatingSub}>
+                      / <span itemProp="bestRating">5</span>{' '}
+                      (<span itemProp="ratingCount">{parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10)}</span>{' '}
+                      {parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10) === 1 ? 'voto' : 'votos'})
+                    </span>
                   </span>
                 )}
               </div>
@@ -1415,12 +1491,11 @@ export default function ManhwaDetail({ initialSeries }) {
             {(() => {
               const statusLabel = series.status === 'completed' ? 'Completada'
                 : series.status === 'paused' ? 'Pausada'
-                : 'En emisión activa';
-              const statusBadgeClass = `${styles.updateStatusBadge} ${
-                series.status === 'completed' ? styles.updateStatusCompleted
+                  : 'En emisión activa';
+              const statusBadgeClass = `${styles.updateStatusBadge} ${series.status === 'completed' ? styles.updateStatusCompleted
                 : series.status === 'paused' ? styles.updateStatusPaused
-                : styles.updateStatusOngoing
-              }`;
+                  : styles.updateStatusOngoing
+                }`;
 
               let latestChapter = null, latestNum = null;
               let latestDateLabel = 'Fecha no disponible', latestDateISO = null;
@@ -1720,12 +1795,11 @@ export default function ManhwaDetail({ initialSeries }) {
             </button>
           </div>
           <Link
-            href={`/manhwa/${slug}/capitulo/${
-              lastReadChapter ||
+            href={`/manhwa/${slug}/capitulo/${lastReadChapter ||
               continueReadingChapter?.number ||
               series.chapters[0]?.number ||
               1
-            }`}
+              }`}
             className={styles.mobileReadLink}
             style={user && hasProgress && progressPercent > 0
               ? { '--read-progress': `${progressPercent}%` }

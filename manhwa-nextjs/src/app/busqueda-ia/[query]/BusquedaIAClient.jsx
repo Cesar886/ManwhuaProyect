@@ -282,7 +282,9 @@ export default function BusquedaIAClient({ querySlug }) {
                                                     </span>
                                                 )}
                                                 <ManhwaCover
-                                                    src={normalizeImageUrl(series.cover) || ''}
+                                                    src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
+                                                    fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
+                                                    slug={series.slug}
                                                     alt={`Portada del manhwa ${series.title} - Leer en español online gratis en Manhwa Imperial`}
                                                     className={classes.popularImg}
                                                     priority={currentPage === 1 && index < 8}

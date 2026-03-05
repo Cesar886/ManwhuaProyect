@@ -11,12 +11,14 @@
     inset: 0;
     background: linear-gradient(
         110deg,
-        transparent 25%,
-        var(--skeleton-shimmer, rgba(255, 255, 255, 0.06)) 50%,
-        transparent 75%
+        transparent 20%,
+        var(--skeleton-shimmer, rgba(255, 255, 255, 0.05)) 40%,
+        rgba(255, 255, 255, 0.09) 50%,
+        var(--skeleton-shimmer, rgba(255, 255, 255, 0.05)) 60%,
+        transparent 80%
     );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
+    background-size: 300% 100%;
+    animation: shimmer 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes shimmer {
