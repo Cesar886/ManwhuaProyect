@@ -17,7 +17,7 @@ import styles from './SimilarManhwas.module.css';
  * @param {Object} props
  * @param {Object} props.currentSeries - Serie actual (para extraer géneros y slug)
  */
-export default function SimilarManhwas({ currentSeries }) {
+export default function SimilarManhwas({ currentSeries, basePath = '/manhwa' }) {
   const { series: allSeries } = useSpaces();
 
   const similarManhwas = useMemo(() => {
@@ -60,7 +60,7 @@ export default function SimilarManhwas({ currentSeries }) {
         {similarManhwas.map((series) => (
           <Link
             key={series.slug}
-            href={`/manhwa/${series.slug}`}
+            href={`${basePath}/${series.slug}`}
             className={styles.card}
             title={getAnchorText.title(series.title)}
           >

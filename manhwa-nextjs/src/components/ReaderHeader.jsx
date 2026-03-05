@@ -59,7 +59,7 @@ const INACTIVITY_TIMEOUT = 3000;      // Auto-hide después de 3 segundos
 const INITIAL_HIDE_DELAY = 2000;      // Ocultar header inicial después de 2 segundos
 const MOBILE_BREAKPOINT = 768;        // Breakpoint mobile vs desktop
 
-export default function ReaderHeader({ slug, chapterNum }) {
+export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manhwa' }) {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -176,9 +176,9 @@ export default function ReaderHeader({ slug, chapterNum }) {
   const handleBack = useCallback((e) => {
     e.stopPropagation();
 
-    router.push(`/manhwa/${slug}`);
+    router.push(`${seriesBasePath}/${slug}`);
 
-  }, [slug, router]);
+  }, [slug, router, seriesBasePath]);
 
   // Fullscreen state y toggle (usa Fullscreen API a nivel de documento)
   const [isFullscreenLocal, setIsFullscreenLocal] = useState(false);

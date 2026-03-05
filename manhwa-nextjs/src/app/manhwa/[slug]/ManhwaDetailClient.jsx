@@ -206,9 +206,9 @@ const Badge = ({ type, children, icon: Icon }) => {
 };
 
 // Modal de Compartir
-const ShareModal = ({ isOpen, onClose, series, slug }) => {
+const ShareModal = ({ isOpen, onClose, series, slug, basePath = '/manhwa' }) => {
   const [copied, setCopied] = useState(false);
-  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/manhwa/${slug}` : `https://manhwaimperial.com/manhwa/${slug}`;
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}${basePath}/${slug}` : `https://manhwaimperial.com${basePath}/${slug}`;
 
   const handleShare = async (platform) => {
     await trackShare(series.id, platform).catch(() => { });
@@ -329,14 +329,14 @@ const RatingDistribution = ({ distribution = {} }) => {
 };
 
 // Componente de Capítulo
-const ChapterCard = ({ chapter, slug, isRead, isNew }) => {
+const ChapterCard = ({ chapter, slug, isRead, isNew, basePath = '/manhwa' }) => {
   const progressPercent = chapter.progress ? Math.round((chapter.progress.page / chapter.pageCount) * 100) : 0;
   const pathname = usePathname();
   const isActive = typeof window !== 'undefined' && pathname?.includes(`/capitulo/${chapter.number}`);
 
   return (
     <Link
-      href={`/manhwa/${slug}/capitulo/${chapter.number}`}
+      href={`${basePath}/${slug}/capitulo/${chapter.number}`}
       className={`${styles.chapterCard} ${isRead ? styles.chapterRead : ''} ${isActive ? styles.chapterActive : ''}`}
     >
       {chapter.thumbnail && (
@@ -386,8 +386,8 @@ const ChapterCard = ({ chapter, slug, isRead, isNew }) => {
 };
 
 // Componente de Serie Relacionada
-const RelatedSeriesCard = ({ series }) => (
-  <Link href={`/manhwa/${series.slug}`} className={styles.relatedCard}>
+const RelatedSeriesCard = ({ series, basePath = '/manhwa' }) => (
+  <Link href={`${basePath}/${series.slug}`} className={styles.relatedCard}>
     <img
       src={normalizeImageUrl(series.cover)}
       alt={`Portada del manhwa ${series.title} - Serie relacionada recomendada en Manhwa Imperial`}
@@ -410,7 +410,7 @@ const RelatedSeriesCard = ({ series }) => (
 /**
  * Página de detalle de un Manhwa desde DigitalOcean Spaces
  */
-export default function ManhwaDetail({ initialSeries }) {
+export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
   const params = useParams();
   const slug = params?.slug;
   const { series: hookSeries, loading, error, refetch } = useSeriesDetail(slug, initialSeries);
@@ -1467,6 +1467,7 @@ export default function ManhwaDetail({ initialSeries }) {
                     slug={slug}
                     isRead={chapter.isRead}
                     isNew={daysSincePublish <= 3}
+                    basePath={basePath}
                   />
                 );
               })}
@@ -1720,7 +1721,7 @@ export default function ManhwaDetail({ initialSeries }) {
                             <tr>
                               <td data-label="Último Capítulo">
                                 <Link
-                                  href={`/manhwa/${slug}/capitulo/${latestNum}`}
+                                  href={`${basePath}/${slug}/capitulo/${latestNum}`}
                                   className={styles.updateStatusChapterLink}
                                 >
                                   Capítulo {latestNum}
@@ -1773,7 +1774,7 @@ export default function ManhwaDetail({ initialSeries }) {
       {/* ================================================================== */}
       {/* SEO: MANHWAS SIMILARES - Enlazado interno entre obras */}
       {/* ================================================================== */}
-      <SimilarManhwas currentSeries={effectiveSeries || series} />
+      <SimilarManhwas currentSeries={effectiveSeries || series} basePath={basePath} />
 
       {/* Botón fijo en móvil - SIEMPRE VISIBLE si hay capítulos */}
       {series?.chapters?.length > 0 && (
@@ -1795,7 +1796,7 @@ export default function ManhwaDetail({ initialSeries }) {
             </button>
           </div>
           <Link
-            href={`/manhwa/${slug}/capitulo/${lastReadChapter ||
+            href={`${basePath}/${slug}/capitulo/${lastReadChapter ||
               continueReadingChapter?.number ||
               series.chapters[0]?.number ||
               1
@@ -1857,6 +1858,7 @@ export default function ManhwaDetail({ initialSeries }) {
         onClose={() => setIsShareModalOpen(false)}
         series={series}
         slug={slug}
+        basePath={basePath}
       />
 
       <AddToListModal

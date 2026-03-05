@@ -40,6 +40,24 @@ const isAdultSeries = (s) => {
   });
 };
 
+const resolveSeriesSlug = (item) => {
+  const candidates = [
+    item?.slug,
+    item?.seriesSlug,
+    item?.series_slug,
+    item?.slugUrl,
+    item?.slug_url,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+};
+
 // Paginación reutilizable
 function CustomPagination({ value, onChange, total, color = 'red' }) {
   const isMobile = useMediaQuery('(max-width: 600px)');
@@ -369,14 +387,17 @@ export default function NsfwClient({ initialSeries = [] }) {
               </p>
             ) : (
               <div className={classes.gridReleases}>
-                {iaResults.filter(s => isAdultSeries(s)).map((item, index) => (
-                  <div key={item.slug || item.id} className={classes.releaseCard}>
-                    <Link href={`/manhwa/${item.slug}`} className={classes.releaseCoverContainer}>
+                {iaResults.filter(s => isAdultSeries(s)).map((item, index) => {
+                  const itemSlug = resolveSeriesSlug(item);
+                  return (
+                  <div key={itemSlug || item.id || `ia-${index}`} className={classes.releaseCard}>
+                    {itemSlug ? (
+                    <Link href={`/nsfw/${itemSlug}`} className={classes.releaseCoverContainer}>
                       <div className={classes.releaseCoverWrapper}>
                         <ManhwaCover
                           src={normalizeImageUrl(item.cover || item.coverUrl || item.cover_url || item.coverUrlWeb || item.cover_url_web) || ''}
                           fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.coverUrl || item.cover_url) || ''}
-                          slug={item.slug}
+                          slug={itemSlug}
                           alt={`Portada ${item.title} - Contenido +18`}
                           className={classes.popularImg}
                           priority={index < 8}
@@ -391,8 +412,30 @@ export default function NsfwClient({ initialSeries = [] }) {
                         </div>
                       </div>
                     </Link>
+                    ) : (
+                    <div className={classes.releaseCoverContainer} aria-disabled="true">
+                      <div className={classes.releaseCoverWrapper}>
+                        <ManhwaCover
+                          src={normalizeImageUrl(item.cover || item.coverUrl || item.cover_url || item.coverUrlWeb || item.cover_url_web) || ''}
+                          fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.coverUrl || item.cover_url) || ''}
+                          slug={itemSlug || undefined}
+                          alt={`Portada ${item.title} - Contenido +18`}
+                          className={classes.popularImg}
+                          priority={index < 8}
+                          sizes="(max-width: 480px) 45vw, (max-width: 768px) 30vw, (max-width: 1200px) 22vw, 200px"
+                        />
+                        <span className={classes.adultBadge}>
+                          <IconFlame size={11} stroke={2.5} />
+                          +18
+                        </span>
+                        <div className={classes.releaseOverlay}>
+                          <h3 className={classes.releaseTitle}>{item.title}</h3>
+                        </div>
+                      </div>
+                    </div>
+                    )}
                   </div>
-                ))}
+                )})}
               </div>
             )}
           </div>
@@ -424,19 +467,6 @@ export default function NsfwClient({ initialSeries = [] }) {
             <span aria-hidden="true">🔞</span>
             <span>Solo para mayores de 18 años. En esta sección no se guarda el historial de búsqueda (modo incógnito).</span>
           </div>
-
-          {/* <span style={{
-            fontSize: '0.8rem',
-            color: 'var(--text-muted, #9ca3af)',
-            whiteSpace: 'nowrap',
-            padding: 0,
-            border: 'none',
-            background: 'transparent',
-            alignSelf: 'flex-start',
-            order: -1,
-          }}>
-            {adultSeries.length} títulos
-          </span> */}
         </div>
 
         {(loading || adultSeries.length === 0) && (
@@ -451,9 +481,12 @@ export default function NsfwClient({ initialSeries = [] }) {
         {!loading && paginatedSeries.length > 0 && (
           <>
             <div ref={gridTopRef} className={classes.gridReleases}>
-              {paginatedSeries.map((item, index) => (
-                <div key={item.slug || item.id} className={classes.releaseCard}>
-                  <Link href={`/manhwa/${item.slug}`} className={classes.releaseCoverContainer}>
+              {paginatedSeries.map((item, index) => {
+                const itemSlug = resolveSeriesSlug(item);
+                return (
+                <div key={itemSlug || item.id || `grid-${index}`} className={classes.releaseCard}>
+                  {itemSlug ? (
+                  <Link href={`/nsfw/${itemSlug}`} className={classes.releaseCoverContainer}>
                     <div className={classes.releaseCoverWrapper}>
                       {(item.chapterCount || item.totalChapters) > 0 && (
                         <span className={classes.chapterBadge}>
@@ -463,7 +496,7 @@ export default function NsfwClient({ initialSeries = [] }) {
                       <ManhwaCover
                         src={normalizeImageUrl(item.cover || item.coverUrl || item.cover_url || item.coverUrlWeb || item.cover_url_web) || ''}
                         fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.coverUrl || item.cover_url) || ''}
-                        slug={item.slug}
+                        slug={itemSlug}
                         alt={`Portada ${item.title} - Contenido +18`}
                         className={classes.popularImg}
                         priority={index < 8}
@@ -478,8 +511,35 @@ export default function NsfwClient({ initialSeries = [] }) {
                       </div>
                     </div>
                   </Link>
+                  ) : (
+                  <div className={classes.releaseCoverContainer} aria-disabled="true">
+                    <div className={classes.releaseCoverWrapper}>
+                      {(item.chapterCount || item.totalChapters) > 0 && (
+                        <span className={classes.chapterBadge}>
+                          {item.chapterCount || item.totalChapters} caps
+                        </span>
+                      )}
+                      <ManhwaCover
+                        src={normalizeImageUrl(item.cover || item.coverUrl || item.cover_url || item.coverUrlWeb || item.cover_url_web) || ''}
+                        fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.coverUrl || item.cover_url) || ''}
+                        slug={itemSlug || undefined}
+                        alt={`Portada ${item.title} - Contenido +18`}
+                        className={classes.popularImg}
+                        priority={index < 8}
+                        sizes="(max-width: 480px) 45vw, (max-width: 768px) 30vw, (max-width: 1200px) 22vw, 200px"
+                      />
+                      <span className={classes.adultBadge}>
+                        <IconFlame size={11} stroke={2.5} />
+                        +18
+                      </span>
+                      <div className={classes.releaseOverlay}>
+                        <h3 className={classes.releaseTitle}>{item.title}</h3>
+                      </div>
+                    </div>
+                  </div>
+                  )}
                 </div>
-              ))}
+              )})}
             </div>
 
             {totalPages > 1 && (

@@ -54,7 +54,7 @@ function ComentariosWrapper({ chapterRequest, slug, chapterNum, openLogin, user 
  *                     crawlers sin JS vean el capítulo completo en el HTML inicial.
  *   initialSeries   - datos de la serie pre-cargados en el servidor (SSR).
  */
-export default function ChapterReader({ initialPages = [], initialSeries = null }) {
+export default function ChapterReader({ initialPages = [], initialSeries = null, seriesBasePath = '/manhwa' }) {
   const params = useParams();
   const slug = params?.slug;
   const paramChapterNum = params?.numero;
@@ -83,11 +83,11 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
 
   // Navegación instantánea: solo cambia estado + URL, sin Next.js routing
   const navigateToChapter = useCallback((targetChapter) => {
-    const newUrl = `/manhwa/${slug}/capitulo/${targetChapter}`;
+    const newUrl = `${seriesBasePath}/${slug}/capitulo/${targetChapter}`;
     window.history.pushState(null, '', newUrl);
     setChapterNum(String(targetChapter));
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [slug]);
+  }, [slug, seriesBasePath]);
 
   // Usar initialPages como estado inicial → disponible en el primer render (SSR)
   const { pages: hookPages } = useChapterPages(slug, chapterNum);
@@ -369,6 +369,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
         <ReaderHeader
           chapterNum={chapterNum}
           slug={slug}
+          seriesBasePath={seriesBasePath}
         />
       )}
 
@@ -416,7 +417,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
               {/* Botón Capítulo Anterior */}
               {hasPrev ? (
                 <a
-                  href={`/manhwa/${slug}/capitulo/${prevChapterNum}`}
+                  href={`${seriesBasePath}/${slug}/capitulo/${prevChapterNum}`}
                   title={`Capítulo ${prevChapterNum}`}
                   onClick={e => { e.preventDefault(); navigateToChapter(prevChapterNum); }}
                   style={{
@@ -467,7 +468,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
               {/* Botón Capítulo Siguiente */}
               {hasNext ? (
                 <a
-                  href={`/manhwa/${slug}/capitulo/${nextChapterNum}`}
+                  href={`${seriesBasePath}/${slug}/capitulo/${nextChapterNum}`}
                   title={`Capítulo ${nextChapterNum}`}
                   onClick={e => { e.preventDefault(); navigateToChapter(nextChapterNum); }}
                   style={{
@@ -582,6 +583,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null 
           slug={slug}
           chapters={series?.chapters}
           onNavigate={navigateToChapter}
+          seriesBasePath={seriesBasePath}
         />
       </div>
 

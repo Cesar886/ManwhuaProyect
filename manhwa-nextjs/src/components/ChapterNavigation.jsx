@@ -17,7 +17,7 @@ import styles from './ChapterNavigation.module.css';
  * @param {string} props.slug - Slug del manhwa
  * @param {Array} props.chapters - Lista de capítulos disponibles
  */
-const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate }) => {
+const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, seriesBasePath = '/manhwa' }) => {
     const currentNum = parseFloat(currentChapter);
     const pathname = usePathname();
     // 'prev' | 'next' | null — indica qué botón está cargando
@@ -106,7 +106,7 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate }) 
             {/* SEO: Enlace <a> real al Capítulo Anterior para que Googlebot pueda rastrearlo */}
             {hasPrev ? (
                 <Link
-                    href={`/manhwa/${slug}/capitulo/${prevChapter}`}
+                    href={`${seriesBasePath}/${slug}/capitulo/${prevChapter}`}
                     className={`${styles.chapterNav} ${styles.secondary} ${navigating === 'prev' ? styles.navigating : ''}`}
                     aria-label={`Ir al capítulo anterior: ${prevChapter}`}
                     title={`Capítulo ${formatChapterNum(prevChapter)}`}
@@ -151,7 +151,7 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate }) 
 
             {/* Botón Central - Ver Todos los Capítulos */}
             <Link
-                href={`/manhwa/${slug}`}
+                href={`${seriesBasePath}/${slug}`}
                 className={`${styles.chapterNav} ${styles.primary}`}
                 aria-label="Lista de capítulos"
                 title="Ver todos los capítulos"
@@ -167,7 +167,7 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate }) 
             {/* SEO: Enlace <a> real al Capítulo Siguiente para que Googlebot pueda rastrearlo */}
             {hasNext ? (
                 <Link
-                    href={`/manhwa/${slug}/capitulo/${nextChapter}`}
+                    href={`${seriesBasePath}/${slug}/capitulo/${nextChapter}`}
                     className={`${styles.chapterNav} ${styles.secondary} ${navigating === 'next' ? styles.navigating : ''}`}
                     aria-label={`Ir al capítulo siguiente: ${nextChapter}`}
                     title={`Capítulo ${formatChapterNum(nextChapter)}`}
