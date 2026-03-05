@@ -9,6 +9,8 @@ import './ia-minicpm.css';
 const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read')
     .replace('/api/read', '');
 
+const EMPTY_PLACEHOLDER_PHRASES = Object.freeze([]);
+
 // Frases de respaldo si la API aún no tiene datos
 const FALLBACK_PHRASES = [
     // --- LOS CLÁSICOS DE ACCIÓN Y SISTEMAS ---
@@ -442,7 +444,7 @@ function useThinkingStream(active, query = '') {
     return displayed;
 }
 
-const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, placeholderPhrases = [] }) => {
+const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES }) => {
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
@@ -795,7 +797,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
                     spellCheck="false"
                     autoComplete="off"
                     maxLength={300}
-                    placeholder={loading ? 'Buscando...' : (placeholder || (incognitoMode ? 'Buscar en modo incógnito…' : ''))}
+                    placeholder={loading ? 'Buscando...' : (placeholder )}
                     aria-label="Escribe tu consulta"
                 />
 

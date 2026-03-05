@@ -89,6 +89,7 @@ function CustomPagination({ value, onChange, total, color = 'red' }) {
 export default function NsfwClient({ initialSeries = [] }) {
   const isTablet = useMediaQuery('(max-width: 1024px)');
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const [hasMounted, setHasMounted] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [series, setSeries] = useState(initialSeries);
   const [loading, setLoading] = useState(false);
@@ -165,25 +166,30 @@ export default function NsfwClient({ initialSeries = [] }) {
   }, [series.length]);
 
   useEffect(() => {
+    setHasMounted(true);
     try {
       const stored = window.localStorage.getItem(NSFW_AGE_CONFIRMED_KEY);
-      if (stored === 'true') {
-        setConfirmed(true);
-        if (series.length === 0) loadMore();
-      }
+      if (stored === 'true') setConfirmed(true);
     } catch {
       // silencioso
     }
-  }, [loadMore, series.length]);
+  }, []);
 
   useEffect(() => {
-    if (!confirmed) return;
+    if (!confirmed || series.length > 0) return;
+    loadMore();
+  }, [confirmed, loadMore, series.length]);
+
+  useEffect(() => {
+    if (!hasMounted || !confirmed) return;
     try {
       window.localStorage.setItem(NSFW_AGE_CONFIRMED_KEY, 'true');
     } catch {
       // silencioso
     }
-  }, [confirmed]);
+  }, [hasMounted, confirmed]);
+
+  if (!hasMounted) return null;
 
   // ── Pantalla de verificación de edad ──────────────────────────────────────
   if (!confirmed) {
@@ -210,7 +216,15 @@ export default function NsfwClient({ initialSeries = [] }) {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <button
-              onClick={() => { setConfirmed(true); if (series.length === 0) loadMore(); }}
+              onClick={() => {
+                try {
+                  window.localStorage.setItem(NSFW_AGE_CONFIRMED_KEY, 'true');
+                } catch {
+                  // silencioso
+                }
+                setConfirmed(true);
+                if (series.length === 0) loadMore();
+              }}
               style={{
                 background: 'linear-gradient(135deg, rgba(220,38,38,0.9) 0%, rgba(185,28,28,0.9) 100%)',
                 color: '#fff', border: 'none', borderRadius: 10, padding: '0.75rem 1.5rem',
@@ -238,7 +252,7 @@ export default function NsfwClient({ initialSeries = [] }) {
         maxWidth: 1280,
         margin: '0 auto',
         padding: isMobile ? '0 0.75rem' : (isTablet ? '0 1rem' : '0 1.25rem'),
-        marginTop: isMobile ? '4.25rem' : (isTablet ? '4.6rem' : '5rem'),
+        marginTop: isMobile ? '6rem' : (isTablet ? '6.6rem' : '7rem'),
       }}>
         <Header />
 
@@ -386,7 +400,7 @@ export default function NsfwClient({ initialSeries = [] }) {
 
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-start',
           alignItems: isMobile ? 'stretch' : 'center',
           gap: '0.75rem',
           flexWrap: 'wrap',
@@ -394,6 +408,7 @@ export default function NsfwClient({ initialSeries = [] }) {
         }}>
           {/* Aviso discreto */}
           <div style={{
+            marginTop: '0.5rem',
             background: 'rgba(220,38,38,0.06)',
             border: '1px solid rgba(220,38,38,0.2)',
             borderRadius: 10,
@@ -407,21 +422,21 @@ export default function NsfwClient({ initialSeries = [] }) {
             flex: isMobile ? '1 1 100%' : '1 1 auto',
           }}>
             <span aria-hidden="true">🔞</span>
-            <span>Solo para mayores de 18 años.  Aqui no se guarda el historial, modo incognito</span>
+            <span>Solo para mayores de 18 años. En esta sección no se guarda el historial de búsqueda (modo incógnito).</span>
           </div>
 
-          <span style={{
+          {/* <span style={{
             fontSize: '0.8rem',
             color: 'var(--text-muted, #9ca3af)',
             whiteSpace: 'nowrap',
-            padding: '0.45rem 0.65rem',
-            borderRadius: 8,
-            border: '1px solid rgba(156,163,175,0.2)',
-            background: 'rgba(255,255,255,0.02)',
-            alignSelf: isMobile ? 'flex-end' : 'auto',
+            padding: 0,
+            border: 'none',
+            background: 'transparent',
+            alignSelf: 'flex-start',
+            order: -1,
           }}>
             {adultSeries.length} títulos
-          </span>
+          </span> */}
         </div>
 
         {(loading || adultSeries.length === 0) && (

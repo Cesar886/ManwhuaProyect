@@ -14,6 +14,7 @@ import {
   IconSettings,
   IconUser,
   IconHeart,
+  IconFlame,
 } from '@tabler/icons-react';
 import {
   Avatar,
@@ -40,7 +41,7 @@ const NAVIGATION_TABS = [
   { label: 'Inicio', icon: IconHome, value: 'home', path: '/home' },
   { label: 'Biblioteca', icon: IconBooks, value: 'Biblioteca', path: '/biblioteca' },
   { label: 'Populares', icon: IconTrendingUp, value: 'Populares', path: '/populares' },
-  { label: '18+', icon: IconHeart, value: '18+', path: '/nsfw' },
+  { label: '18+', icon: IconFlame, value: '18+', path: '/nsfw' },
 ];
 
 // Items del menú del usuario (fuera del componente)
@@ -90,6 +91,7 @@ function Header({ colorScheme, toggleColorScheme }) {
   const path = pathname.toLowerCase();
   const activeTab = path.startsWith('/biblioteca') ? 'Biblioteca'
     : path.startsWith('/populares') ? 'Populares'
+      : path.startsWith('/nsfw') ? '18+'
       : path.startsWith('/perfil') ? 'Perfil'
         : 'home';
 
