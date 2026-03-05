@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight } from '@tabler/icons-react';
-import { IconBook, IconRefresh } from '@tabler/icons-react';
+import { IconBook, IconRefresh, IconFlame } from '@tabler/icons-react';
 import Header from '@/components/Header';
 
 // Componente de Paginación personalizado para evitar conflictos con Next.js 15
@@ -115,6 +115,16 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
 }
 
 import classes from './Biblioteca.module.css';
+
+const isAdultSeries = (s) => {
+  if (!s) return false
+  const truthy = (v) => v === true || v === 1 || v === '1' || v === 'true'
+  if (truthy(s.isAdult) || truthy(s.is_adult)) return true
+  return (s.genres || []).some((g) => {
+    const name = (typeof g === 'string' ? g : g?.name || '').toLowerCase()
+    return name.includes('adult') || name.includes('hentai') || name.includes('ecchi') || name.includes('smut')
+  })
+}
 import { PremiumSkeletonGrid } from '../../components/PremiumSkeleton';
 import { useSpaces } from '../../hooks/useSpaces';
 import { slugifyQuery } from '../../hooks/useIA';
@@ -386,6 +396,12 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                                         priority={currentPage === 1 && index < 8}
                                                         sizes="(max-width: 480px) 45vw, (max-width: 768px) 30vw, (max-width: 1200px) 22vw, 200px"
                                                     />
+                                                    {isAdultSeries(series) && (
+                                                        <span className={classes.adultBadge}>
+                                                            <IconFlame size={11} stroke={2.5} />
+                                                            +18
+                                                        </span>
+                                                    )}
                                                     <div className={classes.releaseOverlay}>
                                                         <h3 className={classes.releaseTitle}>{series.title}</h3>
                                                     </div>

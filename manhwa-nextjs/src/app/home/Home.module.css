@@ -302,6 +302,35 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.adultBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: linear-gradient(135deg,
+      rgba(var(--imperial-ruby-rgb, 220, 38, 38), 0.95) 0%,
+      rgba(var(--imperial-ruby-rgb, 220, 38, 38), 0.72) 100%);
+  color: var(--text-color, #fff);
+  border: 1px solid rgba(var(--imperial-ruby-rgb, 220, 38, 38), 0.4);
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.75rem;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  box-shadow:
+    0 8px 20px rgba(var(--imperial-ruby-rgb, 220, 38, 38), 0.28),
+    0 0 0 1px rgba(var(--imperial-blue-rgb, 37, 99, 235), 0.15) inset;
+  backdrop-filter: blur(4px);
+  z-index: 6;
+  animation: adultBounce 2s infinite;
+}
+
+@keyframes adultBounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+
 .titleLink {
   position: absolute;
   bottom: 0;
@@ -918,13 +947,15 @@
 
 /* Badges más pequeños en las query cards */
 .queryItem .statusBadge,
-.queryItem .chapterBadge {
+.queryItem .chapterBadge,
+.queryItem .adultBadge {
   font-size: 0.55rem;
   padding: 0.2rem 0.4rem;
   top: 6px;
 }
 
-.queryItem .statusBadge {
+.queryItem .statusBadge,
+.queryItem .adultBadge {
   right: 6px;
 }
 

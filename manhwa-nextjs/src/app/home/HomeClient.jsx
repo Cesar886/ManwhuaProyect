@@ -10,8 +10,7 @@ import {
   IconSparkles,
   IconRefresh,
   IconBook,
-  IconDiamond,
-} from '@tabler/icons-react';
+  IconDiamond,  IconFlame,} from '@tabler/icons-react';
 import { PremiumSkeletonGrid } from '../../components/PremiumSkeleton';
 import ManhwaCover from '../../components/ManhwaCover';
 import styles from './Home.module.css';
@@ -24,6 +23,16 @@ import { slugifyQuery } from '@/hooks/useIA';
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read')
     .replace('/api/read', '')
+
+const isAdultSeries = (s) => {
+  if (!s) return false
+  const truthy = (v) => v === true || v === 1 || v === '1' || v === 'true'
+  if (truthy(s.isAdult) || truthy(s.is_adult)) return true
+  return (s.genres || []).some((g) => {
+    const name = (typeof g === 'string' ? g : g?.name || '').toLowerCase()
+    return name.includes('adult') || name.includes('hentai') || name.includes('ecchi') || name.includes('smut')
+  })
+}
 
 const formatCount = (n) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -271,7 +280,7 @@ export default function HomeClient({ initialSeries = [] }) {
               color: 'var(--text-muted)',
               fontWeight: 500
             }}>
-              +2000 títulos
+              {series.length}
             </span>
           </div>
 
@@ -298,9 +307,16 @@ export default function HomeClient({ initialSeries = [] }) {
                       {series.chapterCount} caps
                     </span>
                   )}
-                  <span className={styles.statusBadge}>
-                    {series.status || 'ongoing'}
-                  </span>
+                  {isAdultSeries(series) ? (
+                    <span className={styles.adultBadge}>
+                      <IconFlame size={11} stroke={2.5} />
+                      +18
+                    </span>
+                  ) : (
+                    <span className={styles.statusBadge}>
+                      {series.status || 'ongoing'}
+                    </span>
+                  )}
                   <h3 className={styles.titleLink}>{series.title}</h3>
                 </div>
               </Link>
@@ -368,9 +384,16 @@ export default function HomeClient({ initialSeries = [] }) {
                               {item.chapterCount} caps
                             </span>
                           )}
-                          <span className={styles.statusBadge}>
-                            {item.status || 'ongoing'}
-                          </span>
+                          {isAdultSeries(item) ? (
+                            <span className={styles.adultBadge}>
+                              <IconFlame size={10} stroke={2.5} />
+                              +18
+                            </span>
+                          ) : (
+                            <span className={styles.statusBadge}>
+                              {item.status || 'ongoing'}
+                            </span>
+                          )}
                           <h3 className={styles.titleLink}>{item.title}</h3>
                         </div>
                       </Link>
