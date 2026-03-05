@@ -302,7 +302,7 @@ export default function HomeClient({ initialSeries = [] }) {
                     </span>
                   )}
                   <span className={styles.statusBadge}>
-                    {series.status || 'ongoing'}
+                    {series.contentType || series.content_type || 'Manhwa'}
                   </span>
                   <h3 className={styles.titleLink}>{series.title}</h3>
                 </div>
@@ -372,7 +372,7 @@ export default function HomeClient({ initialSeries = [] }) {
                             </span>
                           )}
                           <span className={styles.statusBadge}>
-                            {item.status || 'ongoing'}
+                            {item.contentType || item.content_type || 'Manhwa'}
                           </span>
                           <h3 className={styles.titleLink}>{item.title}</h3>
                         </div>

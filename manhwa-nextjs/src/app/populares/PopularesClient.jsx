@@ -47,9 +47,9 @@ function PopularCard({ item, index, priority = false, showRank = false }) {
                     </span>
                 )}
 
-                {/* Badge status — top right */}
+                {/* Badge tipo — top right */}
                 <span className={classes.statusBadge}>
-                    {item.status || 'ongoing'}
+                    {item.contentType || 'Manhwa'}
                 </span>
 
                 {/* Rank overlay — bottom left (solo Top Ranking) */}

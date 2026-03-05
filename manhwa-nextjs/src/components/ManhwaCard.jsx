@@ -37,25 +37,22 @@ export default function ManhwaCard({
     router.push(`/manhwa/${slug}`);
   };
 
-  // Determinar color del badge según estado
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'activo':
-      case 'ongoing':
-        return 'green';
-      case 'hiatus':
-        return 'yellow';
-      case 'finalizado':
-      case 'completed':
-        return 'blue';
-      case 'cancelado':
-        return 'red';
+  // Determinar color del badge según tipo de contenido
+  const getTypeColor = (type) => {
+    switch (type?.toLowerCase()) {
+      case 'manhwa':
+        return 'pink';
+      case 'manhua':
+        return 'orange';
+      case 'manga':
+        return 'violet';
       default:
-        return 'gray';
+        return 'pink';
     }
   };
 
-  const statusLabel = manhwa.status === 'ongoing' ? 'Activo' : manhwa.status;
+  const contentType = manhwa.contentType || manhwa.content_type || 'manhwa';
+  const typeLabel = contentType.charAt(0).toUpperCase() + contentType.slice(1).toLowerCase();
 
   // SEO: Generar alt text narrativo con keywords y contexto para Visión de IA
   const coverAlt = `Portada oficial del manhwa ${manhwa.title} - Serie de acción en español, ${manhwa.status === 'ongoing' ? 'en emisión' : manhwa.status || 'disponible'} en Manhwa Imperial`;
@@ -85,14 +82,14 @@ export default function ManhwaCard({
           <div className={classes.stateLabel}>ESTADO 2: Card con datos</div>
         </div>
 
-        {/* Status Badge */}
+        {/* Content Type Badge */}
         <Badge
           className={classes.statusBadge}
           size="xs"
           variant="filled"
-          color={getStatusColor(manhwa.status)}
+          color={getTypeColor(contentType)}
         >
-          {statusLabel}
+          {typeLabel}
         </Badge>
 
         {/* Favorite button */}

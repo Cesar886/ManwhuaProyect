@@ -44,6 +44,7 @@ async function fetchSeriesList(path) {
             chapters: s.chapterCount ?? s.totalChapters ?? s.chapter_count ?? 0,
             views: s.totalViews ?? s.view_count ?? s.views ?? 0,
             status: s.status ?? 'ongoing',
+            contentType: s.contentType || s.content_type || 'manhwa',
             genres: Array.isArray(s.genres) ? s.genres.slice(0, 3) : [],
             isHot: s.isHot ?? false,
             isNew: s.isNew ?? false,
