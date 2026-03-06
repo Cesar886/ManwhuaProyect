@@ -10,6 +10,7 @@ const sseHeaders = () => ({
 })
 
 export async function fetchSeriesForSEO(slug) {
+  // 1. Intentar con el endpoint de Spaces (tiene datos optimizados para SEO)
   try {
     const url = `${SERVER_API_BASE}/spaces/manhwas/${slug}`
     const res = await fetch(url, {
@@ -17,32 +18,50 @@ export async function fetchSeriesForSEO(slug) {
       headers: sseHeaders(),
     })
 
-    if (!res.ok) return null
-    const result = await res.json()
-    return result.data || result || null
+    if (res.ok) {
+      const result = await res.json()
+      const series = result.data || result || null
+      if (series) {
+        // Normalizar flags al nivel superior (igual que en fallback)
+        if (series.flags && typeof series.flags === 'object') {
+          for (const [key, value] of Object.entries(series.flags)) {
+            if (series[key] === undefined) {
+              series[key] = value
+            }
+          }
+        }
+        return series
+      }
+    }
   } catch {
-    return null
+    // Continuar al fallback
   }
-}
 
-/**
- * Verifica si un slug pertenece a una serie adulta consultando el endpoint de series
- * con filtro adult=only. Útil como fallback cuando el detalle no trae el flag isAdult.
- */
-export async function isSlugAdultSeries(slug) {
-  if (!slug) return false
+  // 2. Fallback: endpoint regular de series (funciona para todas las series)
   try {
-    const url = `${SERVER_API_BASE}/series?adult=only&slug=${encodeURIComponent(slug)}&limit=1`
+    const url = `${SERVER_API_BASE}/series/${slug}`
     const res = await fetch(url, {
       next: { revalidate: 300 },
       headers: sseHeaders(),
     })
-    if (!res.ok) return false
+
+    if (!res.ok) return null
     const result = await res.json()
-    const series = result.data?.series || result.series || []
-    return Array.isArray(series) && series.length > 0
+    const series = result.data?.series || result.data || result || null
+    if (!series) return null
+
+    // Normalizar flags al nivel superior para compatibilidad
+    if (series.flags && typeof series.flags === 'object') {
+      for (const [key, value] of Object.entries(series.flags)) {
+        if (series[key] === undefined) {
+          series[key] = value
+        }
+      }
+    }
+
+    return series
   } catch {
-    return false
+    return null
   }
 }
 

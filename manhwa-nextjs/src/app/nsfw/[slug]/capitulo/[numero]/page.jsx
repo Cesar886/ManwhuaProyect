@@ -1,4 +1,4 @@
-import { fetchSeriesForSEO, fetchChapterRatingForSEO, isSlugAdultSeries } from '@/lib/seo/fetchSeries'
+import { fetchSeriesForSEO, fetchChapterRatingForSEO } from '@/lib/seo/fetchSeries'
 import { generateChapterJsonLd, generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
 import ChapterReader from '../../../../manhwa/[slug]/capitulo/[numero]/ChapterReaderClient'
 import { notFound } from 'next/navigation'
@@ -28,17 +28,11 @@ async function fetchChapterPages(slug, numero) {
   }
 }
 
-async function verifyAdultSeries(series, slug) {
-  if (!series) return false
-  if (isAdultSeries(series)) return true
-  return isSlugAdultSeries(slug)
-}
-
 export async function generateMetadata({ params }) {
   const { slug, numero } = await params
   const series = await fetchSeriesForSEO(slug)
 
-  if (!series || !(await verifyAdultSeries(series, slug))) {
+  if (!series || !isAdultSeries(series)) {
     notFound()
   }
 
@@ -70,7 +64,7 @@ export default async function NsfwChapterReaderPage({ params }) {
     fetchChapterPages(slug, numero),
   ])
 
-  if (!series || !(await verifyAdultSeries(series, slug))) {
+  if (!series || !isAdultSeries(series)) {
     notFound()
   }
 
