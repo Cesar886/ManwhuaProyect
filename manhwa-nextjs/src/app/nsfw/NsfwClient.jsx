@@ -19,6 +19,7 @@ const Donacion = dynamic(() => import('../../components/Donacion'), { ssr: false
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || '';
 const NSFW_AGE_CONFIRMED_KEY = 'nsfw_age_confirmed';
+const NSFW_FETCH_LIMIT = 100;
 
 const placeholderNsfw = [
   'Manhwas +18 con buena trama',
@@ -152,6 +153,11 @@ const getCoverSources = (item) => {
   return { primary, fallback };
 };
 
+const toSafeSeriesArray = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => item && typeof item === 'object' && typeof item.title === 'string' && item.title.trim());
+};
+
 // Paginación reutilizable
 function CustomPagination({ value, onChange, total, color = 'red' }) {
   const isMobile = useMediaQuery('(max-width: 600px)');
@@ -205,7 +211,7 @@ export default function NsfwClient({ initialSeries = [] }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [hasMounted, setHasMounted] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const [series, setSeries] = useState(initialSeries);
+  const [series, setSeries] = useState(() => toSafeSeriesArray(initialSeries));
   const [loading, setLoading] = useState(false);
   const [iaSearchLoading, setIaSearchLoading] = useState(false);
   const [iaResults, setIaResults] = useState(null); // null = sin búsqueda activa
@@ -224,10 +230,10 @@ export default function NsfwClient({ initialSeries = [] }) {
   const catalogViewActive = !iaViewActive;
 
   // Solo mostrar series que sean realmente adultas
-  const adultSeries = useMemo(() =>
-    series.filter(s => isAdultSeries(s)),
-    [series]
-  );
+  const adultSeries = useMemo(() => {
+    const safeSeries = toSafeSeriesArray(series);
+    return safeSeries.filter((item) => isAdultSeries(item));
+  }, [series]);
 
   const adultCatalogBySlug = useMemo(() => {
     const map = new Map();
@@ -277,8 +283,16 @@ export default function NsfwClient({ initialSeries = [] }) {
       .filter(Boolean);
   }, [adultSeries]);
 
+  const paginatedSeries = useMemo(() => {
+    const safeSeries = Array.isArray(adultSeries) ? adultSeries : [];
+    const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    return safeSeries.slice(start, start + ITEMS_PER_PAGE);
+  }, [adultSeries, page]);
+
   const paginatedSeriesCards = useMemo(() => {
-    return paginatedSeries.map((item) => {
+    const source = Array.isArray(paginatedSeries) ? paginatedSeries : [];
+    return source.map((item) => {
       const itemSlug = resolveSeriesSlug(item);
       const { primary, fallback } = getCoverSources(item);
       return {
@@ -306,7 +320,7 @@ export default function NsfwClient({ initialSeries = [] }) {
     });
   }, [iaResults]);
 
-  const totalPages = Math.ceil(adultSeries.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil((Array.isArray(adultSeries) ? adultSeries.length : 0) / ITEMS_PER_PAGE);
 
   const incomingIAQuery = useMemo(() => {
     const raw = searchParams?.get('ia') || '';
@@ -317,11 +331,6 @@ export default function NsfwClient({ initialSeries = [] }) {
     if (!incomingIAQuery) return;
     setInitialIAInput(incomingIAQuery);
   }, [incomingIAQuery]);
-
-  const paginatedSeries = useMemo(() => {
-    const start = (page - 1) * ITEMS_PER_PAGE;
-    return adultSeries.slice(start, start + ITEMS_PER_PAGE);
-  }, [adultSeries, page]);
 
   const handlePageChange = useCallback((p) => {
     setPage(p);
@@ -521,24 +530,58 @@ export default function NsfwClient({ initialSeries = [] }) {
     if (series.length > 0) return;
     setLoading(true);
     try {
-      const url = endpoint('series') + '?adult=only&limit=120&sort=updated_at&order=desc';
-      const res = await Promise.race([
-        fetch(url, {
-          headers: {
-            'Accept': 'application/json',
-            ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-          },
-          signal: AbortSignal.timeout(8000), // 8s timeout
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout cargando series')), 8000))
-      ]);
-      
-      if (!res.ok) {
-        console.warn(`[NSFW] Error en respuesta de servidor: ${res.status}`);
-        return;
-      }
-      
-      const result = await res.json();
+      const fetchSeriesWithFallback = async () => {
+        const queryVariants = [
+          `adult=only&limit=${NSFW_FETCH_LIMIT}&sort=updated_at&order=desc`,
+          `adult=only&limit=${NSFW_FETCH_LIMIT}`,
+          `adult=true&limit=${NSFW_FETCH_LIMIT}`,
+        ];
+
+        let lastError = null;
+
+        for (const query of queryVariants) {
+          try {
+            const url = `${endpoint('series')}?${query}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+            const res = await fetch(url, {
+              headers: {
+                'Accept': 'application/json',
+                ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+              },
+              signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!res.ok) {
+              lastError = new Error(`HTTP ${res.status}`);
+              if (res.status === 400 || res.status === 422) {
+                continue;
+              }
+              throw lastError;
+            }
+
+            const json = await res.json().catch(() => null);
+            if (!json || typeof json !== 'object') {
+              lastError = new Error('Respuesta JSON inválida');
+              continue;
+            }
+
+            return json;
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            if (String(lastError.message || '').includes('abort')) {
+              console.warn('[NSFW] Timeout cargando series, intentando fallback...');
+            }
+          }
+        }
+
+        throw lastError || new Error('No se pudo cargar catálogo NSFW');
+      };
+
+      const result = await fetchSeriesWithFallback();
       
       // Validar estructura de respuesta
       if (!result || typeof result !== 'object') {
@@ -546,10 +589,9 @@ export default function NsfwClient({ initialSeries = [] }) {
         return;
       }
       
-      const seriesData = result.data?.series || result.series || [];
-      if (!Array.isArray(seriesData)) {
-        console.warn('[NSFW] Series data no es un array:', typeof seriesData);
-        return;
+      const seriesData = toSafeSeriesArray(result.data?.series || result.series || []);
+      if (seriesData.length === 0) {
+        console.warn('[NSFW] Respuesta válida pero sin series utilizables');
       }
       
       // Filtrar solo items válidos

@@ -12,19 +12,40 @@ export const revalidate = 300
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
+const toSafeSeriesArray = (value) => {
+  if (!Array.isArray(value)) return []
+  return value.filter((item) => item && typeof item === 'object' && typeof item.title === 'string' && item.title.trim())
+}
+
 async function getAdultSeries() {
+  const queryVariants = [
+    'adult=only&limit=100&sort=updated_at&order=desc',
+    'adult=only&limit=100',
+    'adult=true&limit=100',
+  ]
+
   try {
-    const res = await fetch(`${SERVER_API_BASE}/series?adult=only&limit=100&sort=updated_at&order=desc`, {
-      headers: {
-        'Accept': 'application/json',
-        'Origin': SITE_URL,
-        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-      },
-      next: { revalidate: 300 },
-    })
-    if (!res.ok) return []
-    const result = await res.json()
-    return result.data?.series || result.series || []
+    for (const query of queryVariants) {
+      const res = await fetch(`${SERVER_API_BASE}/series?${query}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Origin': SITE_URL,
+          ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+        },
+        next: { revalidate: 300 },
+      })
+
+      if (!res.ok) {
+        if (res.status === 400 || res.status === 422) continue
+        return []
+      }
+
+      const result = await res.json().catch(() => null)
+      const safeSeries = toSafeSeriesArray(result?.data?.series || result?.series || [])
+      if (safeSeries.length > 0) return safeSeries
+    }
+
+    return []
   } catch {
     return []
   }

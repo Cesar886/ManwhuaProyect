@@ -124,8 +124,8 @@ export default function RootLayout({ children }) {
     <html lang="es" className={`${outfit.variable} ${playfair.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <ColorSchemeScript />
-        <link rel="icon" href="https://manhwaimperial.site/logo.png" type="image/png" />
-        <link rel="apple-touch-icon" href="https://manhwaimperial.site/logo.png" />
+        <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
         <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
