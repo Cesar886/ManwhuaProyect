@@ -604,7 +604,6 @@ export default function NsfwClient({ initialSeries = [] }) {
       }
       
       setSeries(validSeries);
-      console.log(`[NSFW] Cargas ${validSeries.length} series adultas`);
     } catch (error) {
       console.error('[NSFW] Error cargando series:', error.message);
       // Silencio - no mostrar error al usuario, solo en logs

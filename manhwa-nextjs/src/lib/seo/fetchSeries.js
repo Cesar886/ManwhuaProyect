@@ -26,6 +26,27 @@ export async function fetchSeriesForSEO(slug) {
 }
 
 /**
+ * Verifica si un slug pertenece a una serie adulta consultando el endpoint de series
+ * con filtro adult=only. Útil como fallback cuando el detalle no trae el flag isAdult.
+ */
+export async function isSlugAdultSeries(slug) {
+  if (!slug) return false
+  try {
+    const url = `${SERVER_API_BASE}/series?adult=only&slug=${encodeURIComponent(slug)}&limit=1`
+    const res = await fetch(url, {
+      next: { revalidate: 300 },
+      headers: sseHeaders(),
+    })
+    if (!res.ok) return false
+    const result = await res.json()
+    const series = result.data?.series || result.series || []
+    return Array.isArray(series) && series.length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
  * Obtener rating específico de un capítulo para JSON-LD
  * Retorna { rating, ratingCount } o null si no hay datos
  */
