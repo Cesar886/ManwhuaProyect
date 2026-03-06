@@ -709,6 +709,31 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
     return hasAdultFlag || hasAdultGenre;
   }, [badgeSeries]);
 
+  const nsfwIaHref = useMemo(() => {
+    const currentTitle = effectiveSeries?.title || series?.title || 'manhwa adulto';
+    return {
+      pathname: '/nsfw',
+      query: {
+        ia: `similares a ${currentTitle}`,
+      },
+    };
+  }, [effectiveSeries?.title, series?.title]);
+
+  const similarIaHref = useMemo(() => {
+    const currentTitle = effectiveSeries?.title || series?.title || 'manhwa';
+
+    if (showAdultBadge) {
+      return {
+        pathname: '/nsfw',
+        query: {
+          ia: `similares a ${currentTitle}`,
+        },
+      };
+    }
+
+    return `/busqueda-ia/${slugifyQuery(`manhwas similares a ${currentTitle}`)}`;
+  }, [effectiveSeries?.title, series?.title, showAdultBadge]);
+
   // Handlers
   const handleToggleLibrary = async () => {
     if (!user) { openLogin(); return; }
@@ -996,10 +1021,15 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
             />
             {/* +18 Badge overlay — esquina superior derecha de la portada */}
             {showAdultBadge && (
-              <span className={styles.hotBadge}>
+              <Link
+                href={nsfwIaHref}
+                className={styles.hotBadge}
+                title="Explorar recomendaciones +18 con IA"
+                aria-label="Ir a recomendaciones +18 con IA"
+              >
                 <IconFlame size={13} stroke={2.5} />
                 +18
-              </span>
+              </Link>
             )}
           </div>
 
@@ -1039,10 +1069,15 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
                 )}
                 {/* +18 Badge */}
                 {showAdultBadge && (
-                  <span className={`${styles.hotBadgeMeta} ${styles.heroMetaItem}`}>
+                  <Link
+                    href={nsfwIaHref}
+                    className={`${styles.hotBadgeMeta} ${styles.heroMetaItem}`}
+                    title="Explorar recomendaciones +18 con IA"
+                    aria-label="Ir a recomendaciones +18 con IA"
+                  >
                     <IconFlame size={14} stroke={2.5} />
                     +18
-                  </span>
+                  </Link>
                 )}
 
                 {/* Puntuación inline — SEO: microdata AggregateRating visible para Google */}
@@ -1141,7 +1176,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
           {/* Área: actions — Chip IA */}
           <div className={styles.heroActions}>
             <Link
-              href={`/busqueda-ia/${slugifyQuery(`manhwas similares a ${series.title}`)}`}
+              href={similarIaHref}
               className={styles.iaSimilarChip}
             >
               <IconSparkles size={14} />

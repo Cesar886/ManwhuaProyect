@@ -125,12 +125,52 @@ const isAdultSeries = (s) => {
     return name.includes('adult') || name.includes('hentai') || name.includes('ecchi') || name.includes('smut')
   })
 }
+
+const getSeriesTypeLabel = (series) => {
+        const rawType =
+                series?.type ||
+                series?.seriesType ||
+                series?.series_type ||
+                series?.contentType ||
+                series?.content_type ||
+                series?.format ||
+                series?.mediaType ||
+                series?.media_type ||
+                series?.origin;
+
+        if (!rawType || typeof rawType !== 'string') return 'Manhwa';
+
+        const normalized = rawType.trim().toLowerCase();
+        if (normalized.includes('manga')) return 'Manga';
+        if (normalized.includes('manhua')) return 'Manhua';
+        if (normalized.includes('webtoon')) return 'Webtoon';
+        if (normalized.includes('comic')) return 'Comic';
+        if (normalized.includes('novel')) return 'Novela';
+        return rawType.trim().charAt(0).toUpperCase() + rawType.trim().slice(1);
+};
+
+const getSeriesChapterCount = (series) => {
+        const directCount = Number(
+                series?.chapterCount ??
+                series?.chaptersCount ??
+                series?.chapters_count ??
+                series?.totalChapters ??
+                series?.total_chapters ??
+                series?.chapter_total ??
+                0
+        );
+
+        if (Number.isFinite(directCount) && directCount > 0) return directCount;
+        if (Array.isArray(series?.chapters)) return series.chapters.length;
+        return 0;
+};
 import { PremiumSkeletonGrid } from '../../components/PremiumSkeleton';
 import { useSpaces } from '../../hooks/useSpaces';
 import { slugifyQuery } from '../../hooks/useIA';
 import { normalizeImageUrl } from '../../utils/imageUtils';
 import ManhwaCover from '../../components/ManhwaCover';
 import dynamic from 'next/dynamic';
+import homeStyles from '../home/Home.module.css';
 const ChatIA = dynamic(() => import('../../components/ia-minicpm'), { ssr: false });
 const Donacion = dynamic(() => import('../../components/Donacion'), { ssr: false });
 
@@ -383,11 +423,12 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                                         <div key={series.slug || series.id} className={classes.releaseCard}>
                                             <Link href={`/manhwa/${series.slug}`} className={classes.releaseCoverContainer}>
                                                 <div className={classes.releaseCoverWrapper}>
-                                                    {(series.chapterCount || series.totalChapters || (series.chapters || []).length) > 0 && (
-                                                        <span className={classes.chapterBadge}>
-                                                            {series.chapterCount || series.totalChapters || series.chapters?.length} caps
-                                                        </span>
-                                                    )}
+                                                    <span className={classes.chapterBadge}>
+                                                        {getSeriesChapterCount(series)} caps
+                                                    </span>
+                                                    <span className={homeStyles.statusBadge}>
+                                                        {getSeriesTypeLabel(series)}
+                                                    </span>
                                                     <ManhwaCover
                                                         src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
                                                         fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}

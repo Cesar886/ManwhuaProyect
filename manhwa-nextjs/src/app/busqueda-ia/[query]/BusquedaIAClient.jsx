@@ -12,13 +12,77 @@ import { IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight 
 import { IconBook, IconArrowLeft, IconRefresh, IconLink, IconCheck } from '@tabler/icons-react';
 import Header from '@/components/Header';
 import { useIA, slugifyQuery, getOriginalQuery } from '@/hooks/useIA';
+import { useSpaces } from '@/hooks/useSpaces';
 import { normalizeImageUrl } from '@/utils/imageUtils';
 import ManhwaCover from '@/components/ManhwaCover';
 import { PremiumSkeletonGrid } from '@/components/PremiumSkeleton';
 import { filterNonAdultSeries } from '@/utils/adultContent';
 import classes from '../../biblioteca/Biblioteca.module.css';
+import homeStyles from '../../home/Home.module.css';
 import dynamic from 'next/dynamic';
 const ChatIA = dynamic(() => import('@/components/ia-minicpm'), { ssr: false });
+
+const getSeriesChapterCount = (series) => {
+    const candidates = [
+        series?.chapterCount,
+        series?.chapter_count,
+        series?.chaptersCount,
+        series?.chapters_count,
+        series?.totalChapters,
+        series?.total_chapters,
+        series?.chapter_total,
+        series?.latestChapter,
+        series?.latest_chapter,
+        series?.lastChapter,
+        series?.last_chapter,
+    ];
+
+    for (const value of candidates) {
+        if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+            return value;
+        }
+
+        if (typeof value === 'string') {
+            const text = value.trim();
+            if (!text) continue;
+
+            const asNumber = Number(text);
+            if (Number.isFinite(asNumber) && asNumber > 0) {
+                return asNumber;
+            }
+
+            const extracted = text.match(/\d+/);
+            if (extracted) {
+                const parsed = Number(extracted[0]);
+                if (Number.isFinite(parsed) && parsed > 0) {
+                    return parsed;
+                }
+            }
+        }
+    }
+
+    return 0;
+};
+
+const normalizeSlugKey = (value) => {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+
+    const withoutQuery = raw.split('?')[0].split('#')[0];
+    const noTrailingSlash = withoutQuery.endsWith('/') ? withoutQuery.slice(0, -1) : withoutQuery;
+    const parts = noTrailingSlash.split('/').filter(Boolean);
+    return parts[parts.length - 1] || '';
+};
+
+const normalizeTitleKey = (value) => {
+    return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+};
 
 function CustomPagination({ value, onChange, total, color = "cyan" }) {
     const isMobile = useMediaQuery('(max-width: 600px)');
@@ -105,6 +169,8 @@ export default function BusquedaIAClient({ querySlug }) {
         limpiar: limpiarIA,
     } = useIA();
 
+    const { series: catalogSeries = [] } = useSpaces();
+
     // Derivar query: intentar recuperar original del caché, sino humanizar el slug
     const searchQuery = useMemo(() => {
         const original = getOriginalQuery(slugDecoded);
@@ -125,9 +191,73 @@ export default function BusquedaIAClient({ querySlug }) {
         buscarConIACached(searchQuery);
     }, [slugDecoded, searchQuery, buscarConIACached]);
 
+    const catalogBySlug = useMemo(() => {
+        const map = new Map();
+        for (const item of catalogSeries) {
+            const slugKey = normalizeSlugKey(item?.slug);
+            if (slugKey) map.set(slugKey, item);
+        }
+        return map;
+    }, [catalogSeries]);
+
+    const catalogById = useMemo(() => {
+        const map = new Map();
+        for (const item of catalogSeries) {
+            if (item?.id !== undefined && item?.id !== null) {
+                map.set(String(item.id), item);
+            }
+        }
+        return map;
+    }, [catalogSeries]);
+
+    const catalogByTitle = useMemo(() => {
+        const map = new Map();
+        for (const item of catalogSeries) {
+            const titleKey = normalizeTitleKey(item?.title);
+            if (titleKey && !map.has(titleKey)) {
+                map.set(titleKey, item);
+            }
+        }
+        return map;
+    }, [catalogSeries]);
+
+    const iaSeriesEnriched = useMemo(() => {
+        const baseSeries = resultados?.series || [];
+
+        return baseSeries.map((series) => {
+            const slugKey = normalizeSlugKey(series?.slug);
+            const idKey = series?.id !== undefined && series?.id !== null ? String(series.id) : '';
+            const titleKey = normalizeTitleKey(series?.title);
+            const catalogMatch =
+                catalogBySlug.get(slugKey) ||
+                (idKey ? catalogById.get(idKey) : null) ||
+                (titleKey ? catalogByTitle.get(titleKey) : null);
+
+            if (!catalogMatch) return series;
+
+            const catalogChapterCount = getSeriesChapterCount(catalogMatch);
+            const iaChapterCount = getSeriesChapterCount(series);
+
+            return {
+                ...catalogMatch,
+                ...series,
+                chapterCount: catalogChapterCount || iaChapterCount || 0,
+                contentType:
+                    catalogMatch?.contentType ||
+                    catalogMatch?.content_type ||
+                    series?.contentType ||
+                    series?.content_type ||
+                    series?.type ||
+                    series?.seriesType ||
+                    series?.series_type ||
+                    'Manhwa',
+            };
+        });
+    }, [resultados, catalogBySlug, catalogById, catalogByTitle]);
+
     const filteredSeries = useMemo(() => {
-        return filterNonAdultSeries(resultados?.series || []);
-    }, [resultados]);
+        return filterNonAdultSeries(iaSeriesEnriched);
+    }, [iaSeriesEnriched]);
 
     const paginatedSeries = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
@@ -277,11 +407,12 @@ export default function BusquedaIAClient({ querySlug }) {
                                     <div key={series.slug || series.id} className={classes.releaseCard}>
                                         <Link href={`/manhwa/${series.slug}`} className={classes.releaseCoverContainer}>
                                             <div className={classes.releaseCoverWrapper}>
-                                                {(series.chapterCount || series.totalChapters || (series.chapters || []).length) > 0 && (
-                                                    <span className={classes.chapterBadge}>
-                                                        {series.chapterCount || series.totalChapters || series.chapters?.length} caps
-                                                    </span>
-                                                )}
+                                                <span className={classes.chapterBadge}>
+                                                    {getSeriesChapterCount(series)} caps
+                                                </span>
+                                                <span className={homeStyles.statusBadge}>
+                                                    {series.contentType || series.content_type || series.type || series.seriesType || series.series_type || 'Manhwa'}
+                                                </span>
                                                 <ManhwaCover
                                                     src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
                                                     fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}

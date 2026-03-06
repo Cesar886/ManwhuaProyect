@@ -1059,6 +1059,23 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+.typeBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(var(--imperial-blue-rgb), 0.9);
+  backdrop-filter: blur(8px);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.67rem;
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  z-index: 5;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 .adultBadge {
   position: absolute;
   top: 6px;

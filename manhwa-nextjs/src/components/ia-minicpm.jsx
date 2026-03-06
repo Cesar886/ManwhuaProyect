@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSearchHistory, removeFromHistory } from '@/hooks/useIA';
 import { api } from '@/api/client';
@@ -328,19 +328,23 @@ const THINKING_GAP = 280;         // ms de silencio entre borrar y escribir sigu
 const HUMOR_PROBABILITY = 0.04;   // 4% — rarísimo pero sale
 const CONTEXT_PROBABILITY = 0.30; // 30% — si hay keyword match, aparece primero
 
-function useThinkingStream(active, query = '') {
+function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLACEHOLDER_PHRASES) {
     const [displayed, setDisplayed] = useState('');
     // pool: 'normal' | 'humor'
     const stateRef = useRef({ phase: 'typing', charIdx: 0, phraseIdx: 0, pool: 'normal', lastPool: null, lastIdx: -1 });
     const timerRef = useRef(null);
 
+    const normalThinkingPhrases = Array.isArray(customThinkingPhrases) && customThinkingPhrases.length > 0
+        ? customThinkingPhrases
+        : THINKING_PHRASES;
+
     const getPhrase = (pool, idx) =>
-        pool === 'humor' ? THINKING_PHRASES_HUMOR[idx] : THINKING_PHRASES[idx];
+        pool === 'humor' ? THINKING_PHRASES_HUMOR[idx] : normalThinkingPhrases[idx];
 
     // Elige siguiente frase — 4% humor, 96% normal; nunca repite la misma seguida
     const pickNext = (lastPool, lastIdx) => {
         const isHumor = Math.random() < HUMOR_PROBABILITY;
-        const pool = isHumor ? THINKING_PHRASES_HUMOR : THINKING_PHRASES;
+        const pool = isHumor ? THINKING_PHRASES_HUMOR : normalThinkingPhrases;
         const poolKey = isHumor ? 'humor' : 'normal';
         let idx;
         do {
@@ -372,7 +376,7 @@ function useThinkingStream(active, query = '') {
             };
         } else {
             // Rotación normal — la contextual nunca sale en esta sesión
-            const initIdx = Math.floor(Math.random() * THINKING_PHRASES.length);
+            const initIdx = Math.floor(Math.random() * normalThinkingPhrases.length);
             stateRef.current = {
                 phase: 'typing', charIdx: 0,
                 phraseIdx: initIdx, pool: 'normal',
@@ -439,12 +443,12 @@ function useThinkingStream(active, query = '') {
 
         timerRef.current = setTimeout(tick, STREAM_SPEED);
         return () => clearTimeout(timerRef.current);
-    }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [active, customThinkingPhrases]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return displayed;
 }
 
-const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES }) => {
+const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES, thinkingPhrases = EMPTY_PLACEHOLDER_PHRASES }) => {
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
@@ -460,6 +464,12 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
     const [autocompleteLoading, setAutocompleteLoading] = useState(false);
     const debounceRef = useRef(null);
     const abortRef = useRef(null);
+    const placeholderAnimationActive = !loading && !isFocused && query.trim().length === 0;
+
+    const localAutocompletePhrasePool = useMemo(() => {
+        const merged = [...FALLBACK_PHRASES, ...suggestions.map(s => s.query)];
+        return [...new Set(merged)];
+    }, [suggestions]);
 
     // Rotar "Similares a..." cada vez que se abre el dropdown
     // Si hay más de 5, rota mostrando los siguientes 5 en orden de popularidad
@@ -515,7 +525,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
     const streamedExplanation = useStreamingText(explanation || '', !!explanation && !loading);
 
     // Frase de pensando con ciclo completo escribe/borra (aleatorio + contextual)
-    const thinkingStream = useThinkingStream(loading, query);
+    const thinkingStream = useThinkingStream(loading, query, thinkingPhrases);
 
     // Determinar qué texto mostrar en el card
     const cardVisible = loading || !!explanation;
@@ -566,12 +576,16 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
 
     // --- Efecto máquina de escribir (placeholder) ---
     useEffect(() => {
-        if (!phrases.length) return;
+        clearTimeout(timeoutRef.current);
+
+        if (!placeholderAnimationActive || !phrases.length) {
+            setPlaceholder('');
+            return;
+        }
 
         phraseIdxRef.current = 0;
         charIdxRef.current = 0;
         isDeletingRef.current = false;
-        clearTimeout(timeoutRef.current);
 
         const tick = () => {
             const phrase = phrases[phraseIdxRef.current];
@@ -603,7 +617,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
 
         timeoutRef.current = setTimeout(tick, 800);
         return () => clearTimeout(timeoutRef.current);
-    }, [phrases]);
+    }, [phrases, placeholderAnimationActive]);
 
     // --- Cerrar dropdown al hacer scroll, Escape, o click fuera del wrapper ---
     useEffect(() => {
@@ -650,11 +664,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
 
         // Filtrar frases IA localmente (instantáneo)
         const lower = value.toLowerCase();
-        const allPhrases = [...new Set([
-            ...FALLBACK_PHRASES,
-            ...suggestions.map(s => s.query)
-        ])];
-        const matched = allPhrases
+        const matched = localAutocompletePhrasePool
             .filter(p => p.toLowerCase().includes(lower))
             .slice(0, 4);
         setFilteredPhrases(matched);
@@ -689,7 +699,7 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
                 if (!controller.signal.aborted) setAutocompleteLoading(false);
             }
         }, 300);
-    }, [incognitoMode, suggestions]);
+    }, [incognitoMode, localAutocompletePhrasePool]);
 
     // Cleanup debounce y abort en unmount
     useEffect(() => {
