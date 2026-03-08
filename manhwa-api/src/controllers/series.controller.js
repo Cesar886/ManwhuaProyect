@@ -101,6 +101,7 @@ const listSeries = async (req, res, next) => {
                 s.color_scheme, s.awards, s.world_building_depth, s.publication_format, s.has_physical_edition,
                 s.trigger_warnings, s.target_demographic, s.international_title_variations, s.update_reliability,
                 s.writing_quality, s.cultural_notes, s.educational_value,
+                s.source, s.demography, s.cover_url_tmo,
                 -- Subquery para traer el/los últimos capítulos publicados (como JSON)
                 (SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) FROM (
                     SELECT id, number, title, slug, published_at
@@ -202,7 +203,10 @@ const listSeries = async (req, res, next) => {
                     updateReliability: s.update_reliability,
                     writingQuality: s.writing_quality,
                     culturalNotes: s.cultural_notes,
-                    educationalValue: s.educational_value
+                    educationalValue: s.educational_value,
+                    source: s.source,
+                    demography: s.demography,
+                    coverUrlTmo: s.cover_url_tmo
                 })),
                 pagination: {
                     page,
@@ -280,6 +284,7 @@ const getSeriesDetail = async (req, res, next) => {
                     description: series.description,
                     coverUrl: series.cover_url,
                     coverUrlWeb: series.cover_url_web,
+                    coverUrlTmo: series.cover_url_tmo,
                     bannerUrl: series.banner_url,
                     status: series.status,
                     contentType: series.content_type,
@@ -320,6 +325,8 @@ const getSeriesDetail = async (req, res, next) => {
                         isLiked: series.is_liked,
                         userRating: series.user_rating
                     },
+                    source: series.source,
+                    demography: series.demography,
                     lastChapterAt: series.last_chapter_at,
                     createdAt: series.created_at,
                     latestChapters: chaptersResult.rows.map(c => ({
@@ -1323,8 +1330,9 @@ const createSeries = async (req, res, next) => {
     try {
         const {
             title, originalTitle, synopsis, description,
-            contentType, status, coverUrl, bannerUrl,
-            authorId, artistId, genres, releaseYear, isAdult
+            contentType, status, coverUrl, coverUrlTmo, bannerUrl,
+            authorId, artistId, genres, releaseYear, isAdult,
+            source, demography
         } = req.body;
 
         // Generar slug único
@@ -1342,13 +1350,15 @@ const createSeries = async (req, res, next) => {
             // Crear serie
             const seriesResult = await client.query(
                 `INSERT INTO series (title, original_title, slug, synopsis, description,
-                                    content_type, status, cover_url, banner_url,
-                                    author_id, artist_id, release_year, is_adult)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                                    content_type, status, cover_url, cover_url_tmo, banner_url,
+                                    author_id, artist_id, release_year, is_adult,
+                                    source, demography)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                  RETURNING *`,
                 [title, originalTitle, slug, synopsis, description,
-                    contentType || 'manhwa', status || 'ongoing', coverUrl, bannerUrl,
-                    authorId, artistId, releaseYear, isAdult || false]
+                    contentType || 'manhwa', status || 'ongoing', coverUrl, coverUrlTmo, bannerUrl,
+                    authorId, artistId, releaseYear, isAdult || false,
+                    source, demography]
             );
 
             const series = seriesResult.rows[0];
@@ -1482,6 +1492,8 @@ const updateSeries = async (req, res, next) => {
             'has_physical_edition', 'trigger_warnings', 'target_demographic',
             'international_title_variations', 'update_reliability', 'writing_quality',
             'cultural_notes', 'educational_value',
+            // Nuevos campos
+            'source', 'demography', 'cover_url_tmo',
         ];
 
         const updateFields = [];
@@ -1595,6 +1607,9 @@ const updateSeries = async (req, res, next) => {
                 releaseYear: updatedSeries.release_year,
                 author: updatedSeries.author_name || null,
                 genres: updatedSeries.genres,
+                coverUrlTmo: updatedSeries.cover_url_tmo,
+                source: updatedSeries.source,
+                demography: updatedSeries.demography,
                 isAdult: updatedSeries.is_adult,
                 isHot: updatedSeries.is_hot,
                 isFeatured: updatedSeries.is_featured

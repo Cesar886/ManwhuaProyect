@@ -38,7 +38,19 @@ const createSeriesValidation = [
         .withMessage('Géneros debe ser un array'),
     body('isAdult')
         .optional()
-        .isBoolean()
+        .isBoolean(),
+    body('source')
+        .optional()
+        .trim()
+        .isLength({ max: 500 }),
+    body('demography')
+        .optional()
+        .trim()
+        .isLength({ max: 100 }),
+    body('coverUrlTmo')
+        .optional()
+        .trim()
+        .isURL()
 ];
 
 const updateSeriesValidation = [
@@ -55,7 +67,19 @@ const updateSeriesValidation = [
         .isIn(['ongoing', 'completed', 'hiatus', 'dropped', 'upcoming']),
     body('genres')
         .optional()
-        .isArray()
+        .isArray(),
+    body('source')
+        .optional()
+        .trim()
+        .isLength({ max: 500 }),
+    body('demography')
+        .optional()
+        .trim()
+        .isLength({ max: 100 }),
+    body('coverUrlTmo')
+        .optional()
+        .trim()
+        .isURL()
 ];
 
 const slugParam = [
