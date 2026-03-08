@@ -1,4 +1,5 @@
 import { SERVER_API_BASE, SITE_URL } from '../../config'
+import { isAdultSeries, hasAvailableChapters } from '@/utils/adultContent'
 import NsfwClient from './NsfwClient'
 
 export const metadata = {
@@ -12,40 +13,26 @@ export const revalidate = 300
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
-const toSafeSeriesArray = (value) => {
-  if (!Array.isArray(value)) return []
-  return value.filter((item) => item && typeof item === 'object' && typeof item.title === 'string' && item.title.trim())
-}
-
 async function getAdultSeries() {
-  const queryVariants = [
-    'adult=only&limit=100&sort=updated_at&order=desc',
-    'adult=only&limit=100',
-    'adult=true&limit=100',
-  ]
-
   try {
-    for (const query of queryVariants) {
-      const res = await fetch(`${SERVER_API_BASE}/series?${query}`, {
-        headers: {
-          'Accept': 'application/json',
-          'Origin': SITE_URL,
-          ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-        },
-        next: { revalidate: 300 },
-      })
+    // Usar /spaces/manhwas que tiene chapterCount real de DigitalOcean Spaces
+    const res = await fetch(`${SERVER_API_BASE}/spaces/manhwas`, {
+      headers: {
+        'Accept': 'application/json',
+        'Origin': SITE_URL,
+        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+      },
+      next: { revalidate: 300 },
+    })
 
-      if (!res.ok) {
-        if (res.status === 400 || res.status === 422) continue
-        return []
-      }
+    if (!res.ok) return []
 
-      const result = await res.json().catch(() => null)
-      const safeSeries = toSafeSeriesArray(result?.data?.series || result?.series || [])
-      if (safeSeries.length > 0) return safeSeries
-    }
+    const result = await res.json().catch(() => null)
+    const series = result?.data?.series || result?.series || []
+    if (!Array.isArray(series)) return []
 
-    return []
+    // Filtrar solo series adultas que tengan capítulos en Spaces
+    return series.filter((s) => s && s.title && isAdultSeries(s) && hasAvailableChapters(s))
   } catch {
     return []
   }

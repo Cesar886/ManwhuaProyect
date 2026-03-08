@@ -5,6 +5,7 @@ import Link from 'next/link';
 import ManhwaCover from './ManhwaCover';
 import { normalizeImageUrl } from '../utils/imageUtils';
 import { useSpaces } from '../hooks/useSpaces';
+import { isAdultSeries, hasAvailableChapters } from '@/utils/adultContent';
 import { getImageAlt, getAnchorText, SEO_CONTENT } from '@/lib/seo/constants';
 import styles from './SimilarManhwas.module.css';
 
@@ -32,7 +33,7 @@ export default function SimilarManhwas({ currentSeries, basePath = '/manhwa' }) 
 
     // Calcular puntuación de similitud por géneros compartidos
     const scored = allSeries
-      .filter(s => s.slug !== currentSeries.slug)
+      .filter(s => s.slug !== currentSeries.slug && !isAdultSeries(s) && hasAvailableChapters(s))
       .map(s => {
         const genres = (s.genres || []).map(g =>
           (typeof g === 'string' ? g : g?.name || '').toLowerCase()

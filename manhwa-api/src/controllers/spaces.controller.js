@@ -1416,6 +1416,7 @@ const preloadCache = async () => {
             // La BD no depende de Spaces, así ahorramos tiempo
             const dbQueryPromise = query(
                 `SELECT s.slug, s.cover_url, s.cover_url_web, s.title, s.original_title, s.status,
+                        s.content_type, s.is_adult,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
                         COALESCE(

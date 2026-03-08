@@ -9,6 +9,7 @@ import ManhwaCover from '../../components/ManhwaCover';
 import Header from '@/components/Header';
 import { useIA } from '@/hooks/useIA';
 import { endpoint } from '../../config';
+import { isAdultSeries as isAdultSeriesCentral, hasAvailableChapters, isTruthyAdultFlag } from '@/utils/adultContent';
 import { IconFlame, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight, IconArrowLeft } from '@tabler/icons-react';
 import { Group, Center, Stack, Modal, Button } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
@@ -31,25 +32,12 @@ const placeholderNsfw = [
   'Drama adulto con arte de calidad',
 ];
 
-const isAdultSeries = (s) => {
-  if (!s || typeof s !== 'object') return false;
-  
-  const truthy = (v) => v === true || v === 1 || v === '1' || v === 'true';
-  if (truthy(s.isAdult) || truthy(s.is_adult)) return true;
-  
-  const genres = s.genres || [];
-  if (!Array.isArray(genres)) return false;
-  
-  return genres.some((g) => {
-    const name = (typeof g === 'string' ? g : (g?.name || '')).toLowerCase().trim();
-    return name && (name.includes('adult') || name.includes('hentai') || name.includes('ecchi') || name.includes('smut') || name.includes('mature'));
-  });
-};
+// Usar la utilidad centralizada para detección de contenido adulto
+const isAdultSeries = isAdultSeriesCentral;
 
 const hasAdultFlagTrue = (s) => {
   if (!s || typeof s !== 'object') return false;
-  return s.isAdult === true || s.isAdult === 1 || s.isAdult === '1' || s.isAdult === 'true'
-    || s.is_adult === true || s.is_adult === 1 || s.is_adult === '1' || s.is_adult === 'true';
+  return isTruthyAdultFlag(s.isAdult) || isTruthyAdultFlag(s.is_adult);
 };
 
 const resolveSeriesSlug = (item) => {
@@ -229,10 +217,10 @@ export default function NsfwClient({ initialSeries = [] }) {
   const iaViewActive = iaSearchLoading || iaResults !== null || Boolean(iaExplanation);
   const catalogViewActive = !iaViewActive;
 
-  // Solo mostrar series que sean realmente adultas
+  // Solo mostrar series adultas que tengan capítulos disponibles en Spaces
   const adultSeries = useMemo(() => {
     const safeSeries = toSafeSeriesArray(series);
-    return safeSeries.filter((item) => isAdultSeries(item));
+    return safeSeries.filter((item) => isAdultSeries(item) && hasAvailableChapters(item));
   }, [series]);
 
   const adultCatalogBySlug = useMemo(() => {
@@ -526,87 +514,43 @@ export default function NsfwClient({ initialSeries = [] }) {
   }, [adultCatalogById, adultCatalogBySlug, adultCatalogByTitle, adultSeries, adultSearchIndex, buscarConIACached]);
 
   // Carga client-side si no hubo datos SSR
+  // Usa /spaces/manhwas que tiene chapterCount real de DigitalOcean Spaces
   const loadMore = useCallback(async () => {
     if (series.length > 0) return;
     setLoading(true);
     try {
-      const fetchSeriesWithFallback = async () => {
-        const queryVariants = [
-          `adult=only&limit=${NSFW_FETCH_LIMIT}&sort=updated_at&order=desc`,
-          `adult=only&limit=${NSFW_FETCH_LIMIT}`,
-          `adult=true&limit=${NSFW_FETCH_LIMIT}`,
-        ];
+      const url = endpoint('spaces', 'manhwas');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        let lastError = null;
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+        },
+        signal: controller.signal,
+      });
 
-        for (const query of queryVariants) {
-          try {
-            const url = `${endpoint('series')}?${query}`;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
+      clearTimeout(timeoutId);
 
-            const res = await fetch(url, {
-              headers: {
-                'Accept': 'application/json',
-                ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-              },
-              signal: controller.signal,
-            });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-            clearTimeout(timeoutId);
-
-            if (!res.ok) {
-              lastError = new Error(`HTTP ${res.status}`);
-              if (res.status === 400 || res.status === 422) {
-                continue;
-              }
-              throw lastError;
-            }
-
-            const json = await res.json().catch(() => null);
-            if (!json || typeof json !== 'object') {
-              lastError = new Error('Respuesta JSON inválida');
-              continue;
-            }
-
-            return json;
-          } catch (error) {
-            lastError = error instanceof Error ? error : new Error(String(error));
-            if (String(lastError.message || '').includes('abort')) {
-              console.warn('[NSFW] Timeout cargando series, intentando fallback...');
-            }
-          }
-        }
-
-        throw lastError || new Error('No se pudo cargar catálogo NSFW');
-      };
-
-      const result = await fetchSeriesWithFallback();
-      
-      // Validar estructura de respuesta
+      const result = await res.json().catch(() => null);
       if (!result || typeof result !== 'object') {
         console.warn('[NSFW] Respuesta de servidor con estructura inválida');
         return;
       }
-      
+
       const seriesData = toSafeSeriesArray(result.data?.series || result.series || []);
-      if (seriesData.length === 0) {
-        console.warn('[NSFW] Respuesta válida pero sin series utilizables');
-      }
-      
-      // Filtrar solo items válidos
-      const validSeries = seriesData.filter((s) => 
-        s && typeof s === 'object' && s.title && isAdultSeries(s)
+
+      // Filtrar solo adultas con capítulos disponibles en Spaces
+      const validSeries = seriesData.filter((s) =>
+        s && typeof s === 'object' && s.title && isAdultSeries(s) && hasAvailableChapters(s)
       );
-      
-      if (validSeries.length === 0) {
-        console.warn('[NSFW] No se encontraron series adultas válidas');
-      }
-      
+
       setSeries(validSeries);
     } catch (error) {
       console.error('[NSFW] Error cargando series:', error.message);
-      // Silencio - no mostrar error al usuario, solo en logs
     } finally {
       setLoading(false);
     }
@@ -615,7 +559,7 @@ export default function NsfwClient({ initialSeries = [] }) {
   useEffect(() => {
     setHasMounted(true);
     try {
-      const stored = window.localStorage?.getItem(NSFW_AGE_CONFIRMED_KEY);
+      const stored = window.sessionStorage?.getItem(NSFW_AGE_CONFIRMED_KEY);
       if (stored === 'true') {
         setConfirmed(true);
       }
@@ -633,7 +577,7 @@ export default function NsfwClient({ initialSeries = [] }) {
   useEffect(() => {
     if (!hasMounted || !confirmed) return;
     try {
-      window.localStorage?.setItem(NSFW_AGE_CONFIRMED_KEY, 'true');
+      window.sessionStorage?.setItem(NSFW_AGE_CONFIRMED_KEY, 'true');
     } catch (error) {
       console.warn('[NSFW] Error guardando confirmación en localStorage:', error.message);
       // Continuar sin guardar - sesión seguirá funcionando
@@ -682,7 +626,7 @@ export default function NsfwClient({ initialSeries = [] }) {
             <button
               onClick={() => {
                 try {
-                  window.localStorage?.setItem(NSFW_AGE_CONFIRMED_KEY, 'true');
+                  window.sessionStorage?.setItem(NSFW_AGE_CONFIRMED_KEY, 'true');
                 } catch (error) {
                   console.warn('[NSFW] Error guardando confirmación:', error.message);
                 }

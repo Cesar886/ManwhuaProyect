@@ -116,15 +116,8 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
 
 import classes from './Biblioteca.module.css';
 
-const isAdultSeries = (s) => {
-  if (!s) return false
-  const truthy = (v) => v === true || v === 1 || v === '1' || v === 'true'
-  if (truthy(s.isAdult) || truthy(s.is_adult)) return true
-  return (s.genres || []).some((g) => {
-    const name = (typeof g === 'string' ? g : g?.name || '').toLowerCase()
-    return name.includes('adult') || name.includes('hentai') || name.includes('ecchi') || name.includes('smut')
-  })
-}
+// Usar la utilidad centralizada para detectar contenido adulto
+import { isAdultSeries, hasAvailableChapters } from '@/utils/adultContent';
 
 const getSeriesTypeLabel = (series) => {
         const rawType =
@@ -235,8 +228,8 @@ export default function BibliotecaClient({ initialSeries = [] }) {
     const querySearch = searchParams.get('search') || '';
 
     const filteredSeries = useMemo(() => {
-        // Excluir contenido adulto — solo visible en /nsfw
-        const base = seriesData.filter(s => !isAdultSeries(s));
+        // Excluir contenido adulto y series sin capítulos disponibles
+        const base = seriesData.filter(s => !isAdultSeries(s) && hasAvailableChapters(s));
 
         // Si hay query `search` en la URL, filtrar por título (case-insensitive)
         if (querySearch && querySearch.trim().length > 0) {

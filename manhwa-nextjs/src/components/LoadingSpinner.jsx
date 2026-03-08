@@ -6,13 +6,11 @@ export default function LoadingSpinner({ size = 'md', fullscreen = false }) {
   if (fullscreen) {
     return (
       <div style={{
-        position: 'fixed',
-        inset: 0,
+        minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         background: 'var(--page-bg)',
-        zIndex: 9999,
       }}>
         <div style={{ textAlign: 'center' }}>
           <Loader size="xl" color="cyan" />

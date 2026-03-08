@@ -247,7 +247,7 @@ export function useSeriesDetail(slug, initialData = null) {
         ? `${endpoint('spaces', `manhwas/${slug}`)}?t=${Date.now()}`
         : endpoint('spaces', `manhwas/${slug}`)
 
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         signal: controller.signal,
         credentials: 'include',
         headers: {
@@ -258,13 +258,39 @@ export function useSeriesDetail(slug, initialData = null) {
 
       clearTimeout(timeoutId)
 
+      // Fallback: si Spaces devuelve 404, intentar con el endpoint regular de series
+      if (response.status === 404) {
+        const fallbackUrl = endpoint('series', slug)
+        const fallbackController = new AbortController()
+        const fallbackTimeout = setTimeout(() => fallbackController.abort(), CONFIG.timeout)
+        response = await fetch(fallbackUrl, {
+          signal: fallbackController.signal,
+          credentials: 'include',
+          headers: {
+            'Cache-Control': forceRefresh ? 'no-cache' : 'max-age=60',
+            ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+          }
+        })
+        clearTimeout(fallbackTimeout)
+      }
+
       if (!response.ok) {
         throw new Error(response.status === 404 ? 'Serie no encontrada' : `Error ${response.status}`)
       }
 
       const result = await response.json()
+      const seriesData = result.data?.series || result.data || null
 
-      setSeries(result.data)
+      // Normalizar flags anidados al nivel superior
+      if (seriesData?.flags && typeof seriesData.flags === 'object') {
+        for (const [key, value] of Object.entries(seriesData.flags)) {
+          if (seriesData[key] === undefined) {
+            seriesData[key] = value
+          }
+        }
+      }
+
+      setSeries(seriesData)
       setError(null)
 
     } catch (err) {

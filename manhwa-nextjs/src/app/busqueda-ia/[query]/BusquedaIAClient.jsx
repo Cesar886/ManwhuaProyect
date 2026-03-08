@@ -16,7 +16,7 @@ import { useSpaces } from '@/hooks/useSpaces';
 import { normalizeImageUrl } from '@/utils/imageUtils';
 import ManhwaCover from '@/components/ManhwaCover';
 import { PremiumSkeletonGrid } from '@/components/PremiumSkeleton';
-import { filterNonAdultSeries } from '@/utils/adultContent';
+import { filterAvailableSeries } from '@/utils/adultContent';
 import classes from '../../biblioteca/Biblioteca.module.css';
 import homeStyles from '../../home/Home.module.css';
 import dynamic from 'next/dynamic';
@@ -256,7 +256,7 @@ export default function BusquedaIAClient({ querySlug }) {
     }, [resultados, catalogBySlug, catalogById, catalogByTitle]);
 
     const filteredSeries = useMemo(() => {
-        return filterNonAdultSeries(iaSeriesEnriched);
+        return filterAvailableSeries(iaSeriesEnriched);
     }, [iaSeriesEnriched]);
 
     const paginatedSeries = useMemo(() => {

@@ -1,6 +1,7 @@
 import { SERVER_API_BASE, SITE_URL } from '../../config'
 import { META_TEMPLATES } from '@/lib/seo/constants'
 import BibliotecaClient from './BibliotecaClient'
+import { filterAvailableSeries } from '@/utils/adultContent'
 
 export const metadata = {
   title: META_TEMPLATES.biblioteca.title,
@@ -54,7 +55,8 @@ async function getInitialSeries() {
 
 export default async function BibliotecaPage() {
   // Fetch ejecutado en el servidor → está en el HTML inicial
-  const initialSeries = await getInitialSeries()
+  // Filtrar contenido adulto desde el servidor para que no aparezca en el SSR HTML
+  const initialSeries = filterAvailableSeries(await getInitialSeries())
 
   return <BibliotecaClient initialSeries={initialSeries} />
 }

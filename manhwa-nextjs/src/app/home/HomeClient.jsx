@@ -19,7 +19,7 @@ import { endpoint } from '../../config';
 import Header from '@/components/Header';
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { slugifyQuery } from '@/hooks/useIA';
-import { filterNonAdultSeries } from '@/utils/adultContent';
+import { filterAvailableSeries } from '@/utils/adultContent';
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read')
@@ -279,7 +279,7 @@ export default function HomeClient({ initialSeries = [] }) {
           </div>
 
           <div className={styles.cardsRow}>
-            {filterNonAdultSeries(series).slice(0, 12).map((series, index) => (
+            {filterAvailableSeries(series).slice(0, 12).map((series, index) => (
               <Link
                 href={`/manhwa/${series.slug}`}
                 key={series.slug}
@@ -350,7 +350,7 @@ export default function HomeClient({ initialSeries = [] }) {
                     </Link>
                   </div>
                   <div className={styles.queryScroll}>
-                    {filterNonAdultSeries(cat.series).map((item, i) => (
+                    {filterAvailableSeries(cat.series).map((item, i) => (
                       <Link
                         href={`/manhwa/${item.slug}`}
                         key={item.id || item.slug}

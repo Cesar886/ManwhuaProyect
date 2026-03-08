@@ -1,4 +1,5 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
+import { isAdultSeries } from '@/utils/adultContent'
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
@@ -34,7 +35,7 @@ export async function fetchAllChaptersFromSpaces() {
     // Ordenar series por fecha de actualización DESC:
     // así los capítulos nuevos quedan en la página 1 del sitemap
     const sorted = [...series]
-      .filter(s => s.slug && (s.chapterCount || 0) > 0)
+      .filter(s => s.slug && (s.chapterCount || 0) > 0 && !isAdultSeries(s))
       .sort((a, b) => {
         const aTime = new Date(a.lastUpdated || a.updatedAt || a.updated_at || 0).getTime()
         const bTime = new Date(b.lastUpdated || b.updatedAt || b.updated_at || 0).getTime()
