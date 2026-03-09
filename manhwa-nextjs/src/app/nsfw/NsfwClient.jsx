@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { normalizeImageUrl } from '../../utils/imageUtils';
 import ManhwaCover from '../../components/ManhwaCover';
 import Header from '@/components/Header';
+import FiltersPanel from '@/components/FiltersPanel';
 import { useIA } from '@/hooks/useIA';
 import { endpoint } from '../../config';
 import { isAdultSeries as isAdultSeriesCentral, hasAvailableChapters, isTruthyAdultFlag } from '@/utils/adultContent';
@@ -642,7 +643,7 @@ export default function NsfwClient({ initialSeries = [] }) {
             >
               Soy mayor de 18 años — Entrar
             </button>
-            <Link href="/" style={{
+            <Link href="/biblioteca" style={{
               color: 'var(--text-muted, #9ca3af)', fontSize: '0.875rem', textDecoration: 'none',
             }}>
               ← Volver al inicio
@@ -757,16 +758,21 @@ export default function NsfwClient({ initialSeries = [] }) {
           `}</style>
 
           <Stack gap="md">
-            <ChatIA
-              key={`nsfw-ia-${iaSessionKey}`}
-              onSearch={handleIASearch}
-              loading={iaSearchLoading}
-              explanation={iaExplanation || null}
-              initialQuery={initialIAInput}
-              incognitoMode={true}
-              placeholderPhrases={placeholderNsfw}
-              onClear={(iaResults !== null || iaSearchLoading || iaExplanation) ? resetIASearch : null}
-            />
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <ChatIA
+                  key={`nsfw-ia-${iaSessionKey}`}
+                  onSearch={handleIASearch}
+                  loading={iaSearchLoading}
+                  explanation={iaExplanation || null}
+                  initialQuery={initialIAInput}
+                  incognitoMode={true}
+                  placeholderPhrases={placeholderNsfw}
+                  onClear={(iaResults !== null || iaSearchLoading || iaExplanation) ? resetIASearch : null}
+                />
+              </div>
+              <FiltersPanel />
+            </div>
           </Stack>
 
           {iaViewActive && (

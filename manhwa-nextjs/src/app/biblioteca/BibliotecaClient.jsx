@@ -11,6 +11,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight } from '@tabler/icons-react';
 import { IconBook, IconRefresh, IconFlame } from '@tabler/icons-react';
 import Header from '@/components/Header';
+import FiltersPanel from '@/components/FiltersPanel';
 
 // Componente de Paginación personalizado para evitar conflictos con Next.js 15
 function CustomPagination({ value, onChange, total, color = "cyan" }) {
@@ -181,8 +182,10 @@ export default function BibliotecaClient({ initialSeries = [] }) {
     const [isInitialLoad, setIsInitialLoad] = useState(initialSeries.length === 0);
     const [navigatingToIA, setNavigatingToIA] = useState(false);
     const [donacionOpen, setDonacionOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const itemsPerPage = 32;
     const gridTopRef = useRef(null);
+    const chatRef = useRef(null);
     const router = useRouter();
 
     // 1. Hooks de Datos (IA ya no se usa inline — redirige a /busqueda-ia)
@@ -270,6 +273,20 @@ export default function BibliotecaClient({ initialSeries = [] }) {
         router.push(`/busqueda-ia/${slug}`);
     }, [router]);
 
+    useEffect(() => { setMounted(true); }, []);
+
+    // Cuando se aplican filtros: escribe la query en el input de la IA con efecto typewriter,
+    // luego navega automáticamente al terminar de escribir.
+    const handleFilterApply = useCallback((query) => {
+        if (chatRef.current?.typeText) {
+            chatRef.current.typeText(query, () => {
+                handleIASearch(query);
+            });
+        } else {
+            handleIASearch(query);
+        }
+    }, [handleIASearch]);
+
     const handleClearFilters = useCallback(() => {
         setCurrentPage(1);
     }, []);
@@ -330,12 +347,20 @@ export default function BibliotecaClient({ initialSeries = [] }) {
                     <Stack gap="md">
                         {/* IA Search Section — redirige a /busqueda-ia/[query] */}
                         <Stack gap="md">
-                            <ChatIA
-                                onSearch={handleIASearch}
-                                loading={navigatingToIA}
-                                explanation={null}
-                                onClear={null}
-                            />
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    {mounted && (
+                                        <ChatIA
+                                            ref={chatRef}
+                                            onSearch={handleIASearch}
+                                            loading={navigatingToIA}
+                                            explanation={null}
+                                            onClear={null}
+                                        />
+                                    )}
+                                </div>
+                                <FiltersPanel onApply={handleFilterApply} />
+                            </div>
                         </Stack>
                         {!navigatingToIA && !querySearch && (
                             <button

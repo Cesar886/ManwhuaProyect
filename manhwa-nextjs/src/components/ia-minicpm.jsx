@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSearchHistory, removeFromHistory } from '@/hooks/useIA';
 import { api } from '@/api/client';
@@ -448,7 +448,7 @@ function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLA
     return displayed;
 }
 
-const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES, thinkingPhrases = EMPTY_PLACEHOLDER_PHRASES }) => {
+const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES, thinkingPhrases = EMPTY_PLACEHOLDER_PHRASES }, ref) => {
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
@@ -520,6 +520,35 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
     const isDeletingRef = useRef(false);
     const timeoutRef = useRef(null);
     const wrapperRef = useRef(null);
+    const externalTypewriterRef = useRef(null);
+
+    // API externa: permite que componentes padre escriban texto en el input con efecto typewriter
+    useImperativeHandle(ref, () => ({
+        typeText(text, onDone) {
+            if (externalTypewriterRef.current) {
+                clearInterval(externalTypewriterRef.current);
+                externalTypewriterRef.current = null;
+            }
+            setQuery('');
+            setIsFocused(false);
+            let i = 0;
+            externalTypewriterRef.current = setInterval(() => {
+                i++;
+                setQuery(text.slice(0, i));
+                if (i >= text.length) {
+                    clearInterval(externalTypewriterRef.current);
+                    externalTypewriterRef.current = null;
+                    if (typeof onDone === 'function') onDone();
+                }
+            }, 18);
+        },
+    }));
+
+    useEffect(() => {
+        return () => {
+            if (externalTypewriterRef.current) clearInterval(externalTypewriterRef.current);
+        };
+    }, []);
 
     // Streaming de la respuesta IA
     const streamedExplanation = useStreamingText(explanation || '', !!explanation && !loading);
@@ -1023,6 +1052,8 @@ const ChatIA = ({ onSearch, loading, explanation, onClear, initialQuery = '', in
             )}
         </div>
     );
-};
+});
+
+ChatIA.displayName = 'ChatIA';
 
 export default ChatIA;

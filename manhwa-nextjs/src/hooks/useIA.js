@@ -143,7 +143,7 @@ export function slugifyQuery(text) {
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '')
-        .slice(0, 120);
+        .slice(0, 300);
 }
 
 function getCacheKey(query, config = buildCacheConfig()) {
