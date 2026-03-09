@@ -48,13 +48,8 @@
   justify-content: space-between;
   align-items: center;
 
-  /* Forzar visibilidad siempre */
-  visibility: visible !important;
-  opacity: 1 !important;
-  transform: translateY(0) !important;
-
   /* Transición suave para auto-hide (0.25s ease para respuesta más rápida) */
-  transition: transform 0.25s ease, opacity 0.25s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 
   /* Asegurar que no interfiera con el scroll */
   will-change: transform;
@@ -66,10 +61,9 @@
    - Estos estilos ya no se aplican
    =============================================== */
 .readerHeader.hidden {
-  /* Forzar que siempre sea visible */
-  transform: translateY(0) !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
+  transform: translateY(calc(-100% - 20px));
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ===============================================

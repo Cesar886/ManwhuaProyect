@@ -55,6 +55,7 @@ function UserInitialsAvatar({ name }) {
 // CONSTANTES DE CONFIGURACIÓN
 // ===============================================
 const SCROLL_THRESHOLD = 30;         // Threshold: comenzar a ocultar después de 30px
+const SCROLL_UP_THRESHOLD = 250;     // Píxeles de scroll hacia arriba necesarios para mostrar el header
 const INACTIVITY_TIMEOUT = 3000;      // Auto-hide después de 3 segundos
 const INITIAL_HIDE_DELAY = 2000;      // Ocultar header inicial después de 2 segundos
 const MOBILE_BREAKPOINT = 768;        // Breakpoint mobile vs desktop
@@ -74,6 +75,7 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
   // REFERENCIAS
   // ===============================================
   const lastScrollY = useRef(0);                              // Última posición de scroll
+  const scrollUpAccumulated = useRef(0);                       // Píxeles acumulados de scroll hacia arriba
   const inactivityTimer = useRef(null);                       // Timer de inactividad
   const isUserInteracting = useRef(false);                    // Si el usuario está interactuando
   const headerRef = useRef(null);
@@ -119,15 +121,33 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
   }, []);
 
   // ===============================================
-  // HANDLER DE SCROLL - Mantener header siempre visible
-  // En mobile, el header se mantiene visible junto con el botón inferior
+  // HANDLER DE SCROLL - Ocultar al bajar, mostrar al subir
   // ===============================================
   useEffect(() => {
-    // Mantener el header siempre visible
-    setIsVisible(true);
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const delta = lastScrollY.current - currentScrollY;
 
-    // No agregar listener de scroll para ocultar el header
-    // El header permanecerá visible todo el tiempo
+      if (currentScrollY < SCROLL_THRESHOLD) {
+        setIsVisible(true);
+        scrollUpAccumulated.current = 0;
+      } else if (currentScrollY > lastScrollY.current) {
+        // Scroll hacia abajo → ocultar y resetear acumulador
+        setIsVisible(false);
+        scrollUpAccumulated.current = 0;
+      } else if (delta > 0) {
+        // Scroll hacia arriba → acumular y mostrar solo si supera el umbral
+        scrollUpAccumulated.current += delta;
+        if (scrollUpAccumulated.current >= SCROLL_UP_THRESHOLD) {
+          setIsVisible(true);
+        }
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // ===============================================

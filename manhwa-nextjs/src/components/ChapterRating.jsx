@@ -254,6 +254,16 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
         ))}
       </div>
 
+      {!hasRated && (
+        <small style={{
+          fontSize: '12px',
+          color: '#fbbf24',
+          fontStyle: 'italic',
+        }}>
+          Califica este capítulo
+        </small>
+      )}
+
     </div>
   );
 }
