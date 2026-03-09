@@ -22,8 +22,6 @@ import { slugifyQuery } from '@/hooks/useIA';
 import { filterAvailableSeries } from '@/utils/adultContent';
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
-const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read')
-    .replace('/api/read', '')
 
 const formatCount = (n) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -93,64 +91,20 @@ export default function HomeClient({ initialSeries = [] }) {
     return () => { cancelled = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cargar queries populares client-side via AI API (no bloquea SSR)
+  // Cargar queries populares via API route del servidor (caché compartido server-side)
+  // El servidor gestiona las llamadas a la IA — el cliente solo hace 1 request
   useEffect(() => {
     let cancelled = false
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
     const loadPopular = async () => {
       try {
         setPopularLoading(true)
-        // 1. Obtener queries populares
-        const popRes = await fetch(`${AI_BASE_URL}/api/popular?limit=20`, {
+        const res = await fetch('/api/popular-home', {
           headers: { 'Accept': 'application/json' },
         })
-        if (!popRes.ok) { setPopularLoading(false); return }
-        const popData = await popRes.json()
-        if (!popData.success || !Array.isArray(popData.queries)) { setPopularLoading(false); return }
-
-        const queries = popData.queries.filter(q => q.query && q.query.trim().length > 3)
-        if (queries.length === 0) { setPopularLoading(false); return }
-
-        // 2. Buscar series via AI API secuencialmente para evitar rate-limit (max 8)
-        const toFetch = queries.slice(0, 8)
-        const accumulated = []
-
-        for (let i = 0; i < toFetch.length; i++) {
-          if (cancelled) break
-          const q = toFetch[i]
-          try {
-            const res = await fetch(`${AI_BASE_URL}/api/read`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                messages: [{ role: 'user', content: q.query }],
-              }),
-            })
-            if (res.ok) {
-              const result = await res.json()
-              const seriesList = result.series || []
-              const mapped = seriesList.slice(0, 15).map(s => ({
-                id: s.id,
-                title: s.title,
-                slug: s.slug,
-                cover: s.coverUrl || s.cover_url || '',
-                chapterCount: s.chapterCount ?? s.chapter_count ?? 0,
-                status: s.status ?? 'ongoing',
-                isAdult: s.isAdult,
-                is_adult: s.is_adult,
-                genres: Array.isArray(s.genres) ? s.genres : [],
-              }))
-              if (mapped.length >= 3) {
-                accumulated.push({ query: q.query, count: q.count, series: mapped })
-                // Actualización progresiva: mostrar categorías conforme llegan
-                if (!cancelled) setPopularCategories([...accumulated])
-              }
-            }
-          } catch {
-            // ignorar error individual
-          }
-          // Esperar entre peticiones para no saturar el rate-limit
-          if (i < toFetch.length - 1 && !cancelled) await delay(500)
+        if (!res.ok || cancelled) return
+        const { data } = await res.json()
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setPopularCategories(data)
         }
       } catch {
         // Silencioso — la sección simplemente no aparece
@@ -161,6 +115,7 @@ export default function HomeClient({ initialSeries = [] }) {
     loadPopular()
     return () => { cancelled = true }
   }, [])
+
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -350,7 +305,7 @@ export default function HomeClient({ initialSeries = [] }) {
                     </Link>
                   </div>
                   <div className={styles.queryScroll}>
-                    {filterAvailableSeries(cat.series).map((item, i) => (
+                    {cat.series.filter(s => !isAdultSeries(s)).map((item, i) => (
                       <Link
                         href={`/manhwa/${item.slug}`}
                         key={item.id || item.slug}
@@ -358,8 +313,8 @@ export default function HomeClient({ initialSeries = [] }) {
                       >
                         <div className={styles.popularCard}>
                           <ManhwaCover
-                            src={normalizeImageUrl(item.cover || item.coverUrl || item.cover_url || item.coverUrlWeb || item.cover_url_web) || ''}
-                            fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
+                            src={normalizeImageUrl(item.cover) || ''}
+                            fallbackSrc={normalizeImageUrl(item.cover) || ''}
                             slug={item.slug}
                             alt={getImageAlt.cover(item.title)}
                             className={styles.popularImg}
@@ -372,7 +327,7 @@ export default function HomeClient({ initialSeries = [] }) {
                             </span>
                           )}
                           <span className={styles.statusBadge}>
-                            {item.contentType || item.content_type || 'Manhwa'}
+                            {item.contentType || 'Manhwa'}
                           </span>
                           <h3 className={styles.titleLink}>{item.title}</h3>
                         </div>

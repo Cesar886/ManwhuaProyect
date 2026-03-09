@@ -212,6 +212,7 @@ export default function NsfwClient({ initialSeries = [] }) {
   const [donacionOpen, setDonacionOpen] = useState(false);
   const autoIaQueryRunRef = useRef('');
   const gridTopRef = useRef(null);
+  const chatRef = useRef(null);
   const ITEMS_PER_PAGE = 32;
   const { buscarConIACached } = useIA({ namespace: 'nsfw', promptProtection: true });
   const querySearch = null; // No hay búsqueda de título en /nsfw (solo IA)
@@ -320,6 +321,16 @@ export default function NsfwClient({ initialSeries = [] }) {
     if (!incomingIAQuery) return;
     setInitialIAInput(incomingIAQuery);
   }, [incomingIAQuery]);
+
+  const handleFilterApply = useCallback((query) => {
+    if (chatRef.current?.typeText) {
+      chatRef.current.typeText(query, () => {
+        handleIASearch(query);
+      });
+    } else {
+      handleIASearch(query);
+    }
+  }, [handleIASearch]);
 
   const handlePageChange = useCallback((p) => {
     setPage(p);
@@ -761,6 +772,7 @@ export default function NsfwClient({ initialSeries = [] }) {
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <ChatIA
+                  ref={chatRef}
                   key={`nsfw-ia-${iaSessionKey}`}
                   onSearch={handleIASearch}
                   loading={iaSearchLoading}
@@ -771,7 +783,7 @@ export default function NsfwClient({ initialSeries = [] }) {
                   onClear={(iaResults !== null || iaSearchLoading || iaExplanation) ? resetIASearch : null}
                 />
               </div>
-              <FiltersPanel />
+              <FiltersPanel onApply={handleFilterApply} />
             </div>
           </Stack>
 

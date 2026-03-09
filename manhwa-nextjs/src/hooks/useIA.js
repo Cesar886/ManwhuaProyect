@@ -20,6 +20,116 @@ const PROMPT_INJECTION_PATTERNS = [
     /<(system|assistant|developer)>[\s\S]*?<\/(system|assistant|developer)>/i,
 ];
 
+// --- Detección de contenido NSFW para redirigir a /nsfw ---
+const NSFW_REDIRECT_MESSAGE = 'Este tipo de búsqueda pertenece a la sección +18. Usa el buscador en /nsfw para encontrar contenido adulto.';
+const NSFW_SAFE = Object.freeze({ isNsfw: false, message: null });
+
+// NOTA: Todos los patrones asumen texto ya normalizado (lowercase, sin diacríticos,
+// sin leetspeak, sin espacios sueltos entre letras).
+const NSFW_PATTERNS = [
+    // Términos explícitos del medio manga/manhwa
+    /\b(hentai|hntai|ec+hi|pornhwa|smut)\b/,
+    /\b(erotic[oa]?s?|erotico)\b/,
+    // Actos / verbos sexuales
+    /\b(sexo|sexuales?|follar|coj[eio](r|n|ndo)?|cojiend[oa]|fornicar)\b/,
+    // Partes del cuerpo (solo términos inequívocamente sexuales)
+    /\b(tetas|pechos?|senos|nalgas|trasero|vagina|pene|polla|verga|pija)\b/,
+    // Desnudez
+    /\b(desnud[oa]s?|nudes?|naked|xxx|nsfw)\b/,
+    // Actos grupales
+    /\b(orgias?|trio\s+sexual|threesome|gangbang|bukak+e)\b/,
+    // Actos sexuales específicos
+    /\b(masturb\w*|pajea\w*|handjob|blowjob|mamada|felacion|cunnilingus)\b/,
+    // Violencia sexual
+    /\b(violacion(es)?|violar|rape)\b/,
+    // Tropos adultos manga/manhwa
+    /\b(ntr|netorare|netori|cuckold)\b/,
+    // Fetishes
+    /\b(bondage|bdsm|sado(maso)?)\b/,
+    // Categorías adultas
+    /\b(incest[uo]\w*|milf|dilf|loli|shota)\b/,
+    /\b(futanari|futa)\b/,
+    // Fluidos / actos de culminación
+    /\b(creampie|semen|eyacul\w*)\b/,
+    // Porno genérico
+    /\b(porno?)\b/,
+    // Frases compuestas ("escenas de sexo", "escenas calientes")
+    /\bescenas?\s+(?:de\s+)?(sexo|sexuales?|cama|calientes?|explicitas?)\b/,
+    // Expresiones ("subido de tono", "contenido adulto")
+    /\bsubid[oa]s?\s+de\s+tono\b/,
+    /\bcontenido\s+adulto\b/,
+    /\bpara\s+adultos\b/,
+    // +18 / 18+
+    /\+\s*18\b|\b18\s*\+/,
+];
+
+/**
+ * Normaliza texto para detección NSFW:
+ * 1. lowercase + strip diacríticos
+ * 2. Preservar secuencias numéricas (\d+) antes de leetspeak (para "+18", "18+")
+ * 3. Leetspeak selectivo (3→e, 0→o, etc.) solo fuera de números
+ * 4. Colapsar letras repetidas (sexxo → sexo, heentai → hentai)
+ * 5. Colapsar letras con espacios intercalados ("h e n t a i" → "hentai")
+ */
+function normalizeForNsfw(text) {
+    let s = text.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // Proteger secuencias numéricas de 2+ dígitos antes del leetspeak:
+    // "+18", "18+", "100" → placeholders (dígitos sueltos como "3", "0" SÍ se convierten)
+    const numericTokens = [];
+    s = s.replace(/\+?\d{2,}\+?/g, (match) => {
+        numericTokens.push(match);
+        return `__NUM${numericTokens.length - 1}__`;
+    });
+
+    // Leetspeak → letras reales (solo aplicado al texto no-numérico)
+    s = s.replace(/3/g, 'e').replace(/0/g, 'o').replace(/1/g, 'i')
+         .replace(/4/g, 'a').replace(/5/g, 's').replace(/@/g, 'a');
+
+    // Restaurar tokens numéricos
+    s = s.replace(/__NUM(\d+)__/g, (_, idx) => numericTokens[parseInt(idx)] || '');
+
+    // Colapsar letras repetidas (3+) → 1 (pornooo→porno, sexxxo→sexo)
+    s = s.replace(/(.)\1{2,}/g, '$1');
+    // Colapsar dobles letras → 1 EXCEPTO ll, rr (legítimas en español)
+    s = s.replace(/([a-z])\1/g, (match, ch) => (ch === 'l' || ch === 'r') ? match : ch);
+
+    // Colapsar letras con espacios intercalados:
+    // "h e n t a i" → "hentai", "s e x o" → "sexo"
+    // Solo si hay ≥3 grupos de letra-espacio consecutivos
+    s = s.replace(/\b((?:[a-z]\s){3,}[a-z])\b/g, (match) => match.replace(/\s/g, ''));
+
+    // Limpiar espacios múltiples
+    s = s.replace(/\s+/g, ' ').trim();
+    return s;
+}
+
+/**
+ * Detecta si una consulta contiene términos NSFW.
+ * Retorna siempre un objeto seguro — nunca lanza excepciones.
+ * @param {string} query
+ * @returns {{ isNsfw: boolean, message: string | null }}
+ */
+export function detectNsfwQuery(query) {
+    try {
+        const raw = typeof query === 'string' ? query : String(query || '');
+        if (raw.length < 2) return NSFW_SAFE;
+
+        const sample = normalizeForNsfw(raw);
+        if (!sample || sample.length < 2) return NSFW_SAFE;
+
+        for (let i = 0; i < NSFW_PATTERNS.length; i++) {
+            if (NSFW_PATTERNS[i].test(sample)) {
+                return { isNsfw: true, message: NSFW_REDIRECT_MESSAGE };
+            }
+        }
+        return NSFW_SAFE;
+    } catch {
+        // Nunca bloquear al usuario por un error interno de detección
+        return NSFW_SAFE;
+    }
+}
+
 const storageAvailability = {
     local: null,
     session: null,
@@ -459,6 +569,7 @@ export function useIA(options = {}) {
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState(null);
     const [resultados, setResultados] = useState(null);
+    const [nsfwRedirect, setNsfwRedirect] = useState(false);
     const cacheConfigRef = useRef(buildCacheConfig(options.namespace));
     const promptProtectionRef = useRef(options.promptProtection !== false);
 
@@ -476,6 +587,8 @@ export function useIA(options = {}) {
     const lastSearchTimeRef = useRef(0);
 
     const buscarConIA = useCallback(async (texto) => {
+        setNsfwRedirect(false);
+
         if (!texto || texto.trim().length === 0) {
             setError('Por favor escribe una pregunta');
             return null;
@@ -485,6 +598,22 @@ export function useIA(options = {}) {
         if (!sanitized) {
             setError('Por favor escribe una pregunta válida');
             return null;
+        }
+
+        // Bloquear contenido NSFW en contextos no-adultos (cualquier namespace que no sea 'nsfw')
+        if (cacheConfigRef.current.namespace !== 'nsfw') {
+            const nsfwCheck = detectNsfwQuery(sanitized);
+            if (nsfwCheck.isNsfw) {
+                setNsfwRedirect(true);
+                setError(nsfwCheck.message);
+                setCargando(false);
+                trackIAEvent('ia_search_blocked', {
+                    query: sanitized,
+                    reason: 'nsfw_redirect',
+                    namespace: cacheConfigRef.current.namespace,
+                });
+                return null;
+            }
         }
 
         const risk = getPromptInjectionRisk(sanitized);
@@ -524,9 +653,14 @@ export function useIA(options = {}) {
             const timeoutId = setTimeout(() => controller.abort(), 45000);
 
             const t0 = performance.now();
+            const fetchHeaders = { 'Content-Type': 'application/json' };
+            // Informar al servidor del contexto para que no bloquee queries NSFW en /nsfw
+            if (cacheConfigRef.current.namespace === 'nsfw') {
+                fetchHeaders['X-Search-Context'] = 'nsfw';
+            }
             const response = await fetch(AI_API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: fetchHeaders,
                 body: JSON.stringify({
                     messages: [{ role: 'user', content: trimmed }]
                 }),
@@ -549,6 +683,19 @@ export function useIA(options = {}) {
             if (controller !== activeControllerRef.current) return null;
 
             if (data.success) {
+                // Si el servidor detectó NSFW y devolvió redirect, propagarlo
+                if (data.source === 'nsfw_redirect') {
+                    setNsfwRedirect(true);
+                    setError(data.explanation || NSFW_REDIRECT_MESSAGE);
+                    setCargando(false);
+                    trackIAEvent('ia_search_blocked', {
+                        query: trimmed,
+                        reason: 'nsfw_redirect_server',
+                        namespace: cacheConfigRef.current.namespace,
+                    });
+                    return null;
+                }
+
                 const normalized = normalizeSeries(data);
                 setResultados(normalized);
                 saveToCache(trimmed, normalized, cacheConfigRef.current);
@@ -607,6 +754,8 @@ export function useIA(options = {}) {
 
     // Busca primero en caché fresco, si no hay llama a la API (sin cooldown)
     const buscarConIACached = useCallback(async (texto) => {
+        setNsfwRedirect(false);
+
         if (!texto || texto.trim().length === 0) {
             setError('Por favor escribe una pregunta');
             return null;
@@ -616,6 +765,22 @@ export function useIA(options = {}) {
         if (!sanitized) {
             setError('Por favor escribe una pregunta válida');
             return null;
+        }
+
+        // Bloquear contenido NSFW en contextos no-adultos
+        if (cacheConfigRef.current.namespace !== 'nsfw') {
+            const nsfwCheck = detectNsfwQuery(sanitized);
+            if (nsfwCheck.isNsfw) {
+                setNsfwRedirect(true);
+                setError(nsfwCheck.message);
+                setCargando(false);
+                trackIAEvent('ia_search_blocked', {
+                    query: sanitized,
+                    reason: 'nsfw_redirect',
+                    namespace: cacheConfigRef.current.namespace,
+                });
+                return null;
+            }
         }
 
         const risk = getPromptInjectionRisk(sanitized);
@@ -666,6 +831,7 @@ export function useIA(options = {}) {
         }
         setResultados(null);
         setError(null);
+        setNsfwRedirect(false);
         setCargando(false);
     }, []);
 
@@ -675,6 +841,7 @@ export function useIA(options = {}) {
         restaurarDesdeCache,
         cargando,
         error,
+        nsfwRedirect,
         resultados,
         limpiar,
     };

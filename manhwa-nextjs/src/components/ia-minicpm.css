@@ -545,6 +545,84 @@
 }
 
 /* ====================================================
+   NSFW WARNING — banner de redirección a /nsfw
+   ==================================================== */
+.ia-nsfw-warning {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md, 0.75rem);
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    background: linear-gradient(135deg,
+        rgba(255, 50, 50, 0.08) 0%,
+        rgba(255, 100, 50, 0.04) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    animation: ia-nsfw-slide-in 0.3s ease-out;
+    flex-wrap: wrap;
+}
+
+.ia-nsfw-warning-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 140, 140, 0.95);
+    font-size: 0.82rem;
+    line-height: 1.4;
+    flex: 1;
+    min-width: 0;
+}
+
+.ia-nsfw-warning-content svg {
+    flex-shrink: 0;
+    color: rgba(255, 100, 100, 0.9);
+}
+
+.ia-nsfw-warning-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.5rem;
+    background: rgba(255, 80, 80, 0.15);
+    color: rgba(255, 160, 160, 0.95);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+    border: 1px solid rgba(255, 80, 80, 0.25);
+}
+
+.ia-nsfw-warning-link:hover {
+    background: rgba(255, 80, 80, 0.25);
+    color: #fff;
+}
+
+@keyframes ia-nsfw-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 480px) {
+    .ia-nsfw-warning {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ia-nsfw-warning-link {
+        align-self: flex-end;
+    }
+}
+
+/* ====================================================
    RESPONSE CARD — card de respuesta IA con streaming
    Aparece en loading y permanece con la respuesta final
    ==================================================== */

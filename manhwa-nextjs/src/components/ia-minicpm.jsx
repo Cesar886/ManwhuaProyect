@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSearchHistory, removeFromHistory } from '@/hooks/useIA';
+import Link from 'next/link';
+import { getSearchHistory, removeFromHistory, detectNsfwQuery } from '@/hooks/useIA';
 import { api } from '@/api/client';
 import './ia-minicpm.css';
 
@@ -462,6 +463,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     const [autocompleteResults, setAutocompleteResults] = useState([]);
     const [filteredPhrases, setFilteredPhrases] = useState([]);
     const [autocompleteLoading, setAutocompleteLoading] = useState(false);
+    const [nsfwWarning, setNsfwWarning] = useState(null);
     const debounceRef = useRef(null);
     const abortRef = useRef(null);
     const placeholderAnimationActive = !loading && !isFocused && query.trim().length === 0;
@@ -742,6 +744,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         const value = e.target.value;
         setQuery(value);
         setIsTyping(true);
+        if (nsfwWarning) setNsfwWarning(null);
 
         if (incognitoMode) {
             setFilteredPhrases([]);
@@ -775,6 +778,19 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         e.preventDefault();
         const value = query.trim();
         if (!value || loading) return;
+
+        // Detectar consultas NSFW y mostrar advertencia
+        try {
+            const nsfwCheck = detectNsfwQuery(value);
+            if (nsfwCheck && nsfwCheck.isNsfw) {
+                setNsfwWarning(nsfwCheck.message);
+                clearAutocomplete();
+                setIsFocused(false);
+                return;
+            }
+        } catch { /* nunca bloquear la búsqueda por error de detección */ }
+        setNsfwWarning(null);
+
         clearAutocomplete();
         setIsFocused(false);
         if (document.activeElement instanceof HTMLElement) {
@@ -787,6 +803,16 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         setQuery(text);
         clearAutocomplete();
         setIsFocused(false);
+
+        try {
+            const nsfwCheck = detectNsfwQuery(text);
+            if (nsfwCheck && nsfwCheck.isNsfw) {
+                setNsfwWarning(nsfwCheck.message);
+                return;
+            }
+        } catch { /* nunca bloquear la búsqueda por error de detección */ }
+        setNsfwWarning(null);
+
         if (typeof onSearch === 'function') onSearch(text);
     };
 
@@ -846,6 +872,27 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                     </div>
                 )}
             </form>
+
+            {/* Advertencia NSFW — redirige al usuario a /nsfw */}
+            {nsfwWarning && (
+                <div className="ia-nsfw-warning" role="alert">
+                    <div className="ia-nsfw-warning-content">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span>{nsfwWarning}</span>
+                    </div>
+                    <Link href="/nsfw" className="ia-nsfw-warning-link">
+                        Ir a /nsfw
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <polyline points="12 5 19 12 12 19" />
+                        </svg>
+                    </Link>
+                </div>
+            )}
 
             {/* Card de respuesta IA — visible cuando carga O cuando hay explanation */}
             {cardVisible && (

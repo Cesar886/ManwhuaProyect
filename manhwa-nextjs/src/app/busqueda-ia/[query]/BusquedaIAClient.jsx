@@ -165,6 +165,7 @@ export default function BusquedaIAClient({ querySlug }) {
         buscarConIACached,
         cargando: iaLoading,
         error: iaError,
+        nsfwRedirect,
         resultados,
         limpiar: limpiarIA,
     } = useIA();
@@ -443,14 +444,26 @@ export default function BusquedaIAClient({ querySlug }) {
                             )}
                         </Stack>
                     ) : !iaLoading ? (
-                        <Card p="xl" radius="lg" bg="rgba(255,255,255,0.02)" style={{ textAlign: 'center', border: '1px dashed var(--border-subtle)' }}>
+                        <Card p="xl" radius="lg" bg="rgba(255,255,255,0.02)" style={{ textAlign: 'center', border: nsfwRedirect ? '1px solid rgba(255,80,80,0.4)' : '1px dashed var(--border-subtle)' }}>
                             <Stack align="center" gap="sm">
                                 <Text fw={600}>
-                                    {iaError ? 'Hubo un error al buscar' : 'No hay resultados para tu búsqueda'}
+                                    {nsfwRedirect
+                                        ? iaError || 'Este tipo de búsqueda pertenece a la sección +18.'
+                                        : iaError
+                                            ? iaError
+                                            : 'No hay resultados para tu búsqueda'}
                                 </Text>
-                                <Text size="sm" c="dimmed">Prueba con géneros diferentes o una descripción más amplia.</Text>
+                                {nsfwRedirect ? (
+                                    <Link href="/nsfw">
+                                        <Button variant="light" color="red" radius="md">
+                                            Ir a la sección +18
+                                        </Button>
+                                    </Link>
+                                ) : (
+                                    <Text size="sm" c="dimmed">Prueba con géneros diferentes o una descripción más amplia.</Text>
+                                )}
 
-                                {!iaError && (
+                                {!iaError && !nsfwRedirect && (
                                     <>
                                         <Text size="xs" c="dimmed" mt="xs">Intenta buscar:</Text>
                                         <Group gap="xs" justify="center" wrap="wrap">
@@ -478,7 +491,7 @@ export default function BusquedaIAClient({ querySlug }) {
                                 )}
 
                                 <Group gap="xs">
-                                    {iaError && (
+                                    {iaError && !nsfwRedirect && (
                                         <Button variant="light" color="cyan" radius="md" leftSection={<IconRefresh size={16} />} onClick={handleRetry}>
                                             Reintentar búsqueda
                                         </Button>
