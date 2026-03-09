@@ -61,18 +61,51 @@ const NSFW_PATTERNS = [
     /\bpara\s+adultos\b/,
     // +18 / 18+
     /\+\s*18\b|\b18\s*\+/,
+    // Subgéneros adultos manga/manhwa/anime
+    /\b(doujin(shi)?|ahegao)\b/,
+    /\b(rule\s*34|r34)\b/,
+    // Vulgarismos inequívocamente sexuales (español)
+    /\b(culo|coño|puta|zorra)\b/,
+    /\b(correrse|corrida\s+sexual|chupada|chupar(la|selo)?)\b/,
+    // Variantes con typos/abreviaturas comunes
+    /\b(pr[o0]n|p0rn)\b/,
+    // Términos adultos en inglés comunes en búsquedas
+    /\b(harem\s+sexual|uncensored|raw\s+18)\b/,
 ];
+
+// Mapa de homóglifos Unicode comunes usados para evasión (Cyrillic, fullwidth, etc.)
+const HOMOGLYPH_MAP = {
+    '\u0430': 'a', '\u0435': 'e', '\u043E': 'o', '\u0440': 'p',
+    '\u0441': 'c', '\u0445': 'x', '\u0456': 'i', '\u0443': 'y',
+    '\u044A': 'b', '\u043D': 'h', '\u0442': 't', '\u043C': 'm',
+    '\u2107': 'e', '\u210E': 'h',
+};
+// Generar fullwidth Latin → ASCII (Ａ-Ｚ U+FF21-FF3A, ａ-ｚ U+FF41-FF5A)
+for (let i = 0; i < 26; i++) {
+    HOMOGLYPH_MAP[String.fromCharCode(0xFF21 + i)] = String.fromCharCode(97 + i);
+    HOMOGLYPH_MAP[String.fromCharCode(0xFF41 + i)] = String.fromCharCode(97 + i);
+}
+const HOMOGLYPH_REGEX = new RegExp('[' + Object.keys(HOMOGLYPH_MAP).join('') + ']', 'g');
 
 /**
  * Normaliza texto para detección NSFW:
  * 1. lowercase + strip diacríticos
- * 2. Preservar secuencias numéricas (\d+) antes de leetspeak (para "+18", "18+")
- * 3. Leetspeak selectivo (3→e, 0→o, etc.) solo fuera de números
- * 4. Colapsar letras repetidas (sexxo → sexo, heentai → hentai)
- * 5. Colapsar letras con espacios intercalados ("h e n t a i" → "hentai")
+ * 2. Strip caracteres invisibles (zero-width, BOM, soft-hyphen)
+ * 3. Mapear homóglifos Unicode → ASCII
+ * 4. Preservar secuencias numéricas (\d+) antes de leetspeak (para "+18", "18+")
+ * 5. Leetspeak selectivo (3→e, 0→o, etc.) solo fuera de números
+ * 6. Strip separadores entre letras (h-e-n-t-a-i, h.e.n.t.a.i, h_e_n_t_a_i)
+ * 7. Colapsar letras repetidas (sexxo → sexo, heentai → hentai)
+ * 8. Colapsar letras con espacios intercalados ("h e n t a i" → "hentai")
  */
 function normalizeForNsfw(text) {
     let s = text.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // Strip caracteres invisibles: zero-width spaces, BOM, soft-hyphen, etc.
+    s = s.replace(/[\u200B-\u200F\u2028-\u202F\uFEFF\u00AD\u2060\u180E]/g, '');
+
+    // Mapear homóglifos Unicode a ASCII (Cyrillic а→a, fullwidth Ａ→a, etc.)
+    s = s.replace(HOMOGLYPH_REGEX, (ch) => HOMOGLYPH_MAP[ch] || ch);
 
     // Proteger secuencias numéricas de 2+ dígitos antes del leetspeak:
     // "+18", "18+", "100" → placeholders (dígitos sueltos como "3", "0" SÍ se convierten)
@@ -88,6 +121,9 @@ function normalizeForNsfw(text) {
 
     // Restaurar tokens numéricos
     s = s.replace(/__NUM(\d+)__/g, (_, idx) => numericTokens[parseInt(idx)] || '');
+
+    // Strip separadores entre letras sueltas (h-e-n-t-a-i → hentai, p.o.r.n → porn)
+    s = s.replace(/([a-z])[-_.*\/\\|]+(?=[a-z])/g, '$1');
 
     // Colapsar letras repetidas (3+) → 1 (pornooo→porno, sexxxo→sexo)
     s = s.replace(/(.)\1{2,}/g, '$1');

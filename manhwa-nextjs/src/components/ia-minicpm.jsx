@@ -449,7 +449,7 @@ function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLA
     return displayed;
 }
 
-const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES, thinkingPhrases = EMPTY_PLACEHOLDER_PHRASES }, ref) => {
+const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, allowNsfw = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES, thinkingPhrases = EMPTY_PLACEHOLDER_PHRASES }, ref) => {
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
@@ -697,6 +697,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         const lower = value.toLowerCase();
         const matched = localAutocompletePhrasePool
             .filter(p => p.toLowerCase().includes(lower))
+            .filter(p => allowNsfw || !detectNsfwQuery(p).isNsfw)
             .slice(0, 4);
         setFilteredPhrases(matched);
 
@@ -712,6 +713,18 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         setAutocompleteLoading(true);
 
         debounceRef.current = setTimeout(async () => {
+            // Detección NSFW en tiempo real mientras escribe (debounced 300ms)
+            if (!allowNsfw) {
+                const nsfwCheck = detectNsfwQuery(value);
+                if (nsfwCheck.isNsfw) {
+                    setNsfwWarning(nsfwCheck.message);
+                    setAutocompleteResults([]);
+                    setFilteredPhrases([]);
+                    setAutocompleteLoading(false);
+                    return;
+                }
+            }
+
             // Cancelar request anterior
             if (abortRef.current) abortRef.current.abort();
             const controller = new AbortController();
@@ -722,7 +735,11 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                     signal: controller.signal
                 });
                 if (!controller.signal.aborted && res?.success && res.data?.suggestions) {
-                    setAutocompleteResults(res.data.suggestions);
+                    // Filtrar resultados adultos en contextos no-NSFW
+                    const suggestions = allowNsfw
+                        ? res.data.suggestions
+                        : res.data.suggestions.filter(s => !detectNsfwQuery(s.title || s.name || '').isNsfw);
+                    setAutocompleteResults(suggestions);
                 }
             } catch {
                 // Ignorar errores de abort o red
@@ -730,7 +747,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                 if (!controller.signal.aborted) setAutocompleteLoading(false);
             }
         }, 300);
-    }, [incognitoMode, localAutocompletePhrasePool]);
+    }, [incognitoMode, allowNsfw, localAutocompletePhrasePool]);
 
     // Cleanup debounce y abort en unmount
     useEffect(() => {
@@ -779,16 +796,18 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         const value = query.trim();
         if (!value || loading) return;
 
-        // Detectar consultas NSFW y mostrar advertencia
-        try {
-            const nsfwCheck = detectNsfwQuery(value);
-            if (nsfwCheck && nsfwCheck.isNsfw) {
-                setNsfwWarning(nsfwCheck.message);
-                clearAutocomplete();
-                setIsFocused(false);
-                return;
-            }
-        } catch { /* nunca bloquear la búsqueda por error de detección */ }
+        // Detectar consultas NSFW y mostrar advertencia (solo en contextos no-adultos)
+        if (!allowNsfw) {
+            try {
+                const nsfwCheck = detectNsfwQuery(value);
+                if (nsfwCheck && nsfwCheck.isNsfw) {
+                    setNsfwWarning(nsfwCheck.message);
+                    clearAutocomplete();
+                    setIsFocused(false);
+                    return;
+                }
+            } catch { /* nunca bloquear la búsqueda por error de detección */ }
+        }
         setNsfwWarning(null);
 
         clearAutocomplete();
@@ -804,13 +823,15 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         clearAutocomplete();
         setIsFocused(false);
 
-        try {
-            const nsfwCheck = detectNsfwQuery(text);
-            if (nsfwCheck && nsfwCheck.isNsfw) {
-                setNsfwWarning(nsfwCheck.message);
-                return;
-            }
-        } catch { /* nunca bloquear la búsqueda por error de detección */ }
+        if (!allowNsfw) {
+            try {
+                const nsfwCheck = detectNsfwQuery(text);
+                if (nsfwCheck && nsfwCheck.isNsfw) {
+                    setNsfwWarning(nsfwCheck.message);
+                    return;
+                }
+            } catch { /* nunca bloquear la búsqueda por error de detección */ }
+        }
         setNsfwWarning(null);
 
         if (typeof onSearch === 'function') onSearch(text);

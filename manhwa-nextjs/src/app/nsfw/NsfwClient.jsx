@@ -779,6 +779,7 @@ export default function NsfwClient({ initialSeries = [] }) {
                   explanation={iaExplanation || null}
                   initialQuery={initialIAInput}
                   incognitoMode={true}
+                  allowNsfw={true}
                   placeholderPhrases={placeholderNsfw}
                   onClear={(iaResults !== null || iaSearchLoading || iaExplanation) ? resetIASearch : null}
                 />
