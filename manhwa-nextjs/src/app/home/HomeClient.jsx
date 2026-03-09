@@ -13,6 +13,7 @@ import {
   IconDiamond,  IconFlame,} from '@tabler/icons-react';
 import { PremiumSkeletonGrid } from '../../components/PremiumSkeleton';
 import ManhwaCover from '../../components/ManhwaCover';
+import { isAdultSeries } from '@/utils/adultContent';
 import styles from './Home.module.css';
 import { normalizeImageUrl } from '../../utils/imageUtils';
 import { endpoint } from '../../config';

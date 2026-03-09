@@ -322,16 +322,6 @@ export default function NsfwClient({ initialSeries = [] }) {
     setInitialIAInput(incomingIAQuery);
   }, [incomingIAQuery]);
 
-  const handleFilterApply = useCallback((query) => {
-    if (chatRef.current?.typeText) {
-      chatRef.current.typeText(query, () => {
-        handleIASearch(query);
-      });
-    } else {
-      handleIASearch(query);
-    }
-  }, [handleIASearch]);
-
   const handlePageChange = useCallback((p) => {
     setPage(p);
     gridTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -524,6 +514,16 @@ export default function NsfwClient({ initialSeries = [] }) {
       setIaSearchLoading(false);
     }
   }, [adultCatalogById, adultCatalogBySlug, adultCatalogByTitle, adultSeries, adultSearchIndex, buscarConIACached]);
+
+  const handleFilterApply = useCallback((query) => {
+    if (chatRef.current?.typeText) {
+      chatRef.current.typeText(query, () => {
+        handleIASearch(query);
+      });
+    } else {
+      handleIASearch(query);
+    }
+  }, [handleIASearch]);
 
   // Carga client-side si no hubo datos SSR
   // Usa /spaces/manhwas que tiene chapterCount real de DigitalOcean Spaces
