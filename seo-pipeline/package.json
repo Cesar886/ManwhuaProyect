@@ -1,7 +1,7 @@
 {
   "name": "imperial-agent",
   "version": "2.0.0",
-  "description": "IMPERIAL-AGENT v2 — SEO/GEO Autonomous Agent para Manhwa Imperial",
+  "description": "IMPERIAL-AGENT v3 — SEO/GEO Autonomous Agent para Manhwa Imperial",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

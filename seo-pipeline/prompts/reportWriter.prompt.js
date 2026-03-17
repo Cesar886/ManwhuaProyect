@@ -1,11 +1,16 @@
 /**
- * IMPERIAL-AGENT v2: Prompts para Modulo 9 — Reporte Ejecutivo Semanal
+ * IMPERIAL-AGENT v3: Prompts para Modulo 9 — Reporte Ejecutivo Semanal
  */
 
-const PROMPT_VERSION = '2.0.0'
+const PROMPT_VERSION = '3.0.0'
 
 function getSystemPrompt() {
-  return `Eres el analista de datos de Manhwa Imperial. Reportes ejecutivos en espanol: directos, solo numeros, sin relleno. Tono: CFO reportando a CFO.`
+  return `Analista de datos de Manhwa Imperial. Reportes ejecutivos en espanol.
+Tono: directo, solo numeros y acciones. Sin relleno.
+El reporte se muestra en el panel admin CMS — debe ser accionable.
+Incluir tendencias: comparar con semana anterior.
+Destacar: que funciono, que no funciono, que hacer la proxima semana.
+Si hay problemas criticos (caidas >30%, errores tecnicos), ponerlos primero.`
 }
 
 function getUserPrompt(consolidatedData) {
@@ -13,28 +18,49 @@ function getUserPrompt(consolidatedData) {
 
 Devuelve SOLO este JSON:
 {
-  "resumen_ejecutivo": "string — 3 lineas, solo numeros",
-  "acciones_automaticas": [{ "accion":"", "url":"", "impacto":"" }],
-  "drafts_pendientes": [{ "descripcion":"", "modulo":"", "score":0.0 }],
+  "resumen_ejecutivo": "string — 3-4 lineas: que paso, que impacto tuvo, que sigue",
+  "acciones_realizadas": [
+    { "accion": "string", "modulo": "string", "url": "string", "resultado": "string" }
+  ],
+  "drafts_pendientes": [
+    { "descripcion": "string", "modulo": "string", "score": 0.0, "prioridad": "alta|media|baja" }
+  ],
   "metricas": {
-    "clics_google": { "semana":0, "anterior":0, "cambio_pct":0.0 },
-    "clics_bing": { "semana":0, "anterior":0, "cambio_pct":0.0 },
-    "impresiones": { "semana":0, "anterior":0, "cambio_pct":0.0 },
-    "ctr_promedio": { "semana":0.0, "anterior":0.0 },
+    "clics_google": { "semana": 0, "anterior": 0, "cambio_pct": 0.0, "tendencia": "subiendo|estable|bajando" },
+    "clics_bing": { "semana": 0, "anterior": 0, "cambio_pct": 0.0, "tendencia": "string" },
+    "impresiones": { "semana": 0, "anterior": 0, "cambio_pct": 0.0 },
+    "ctr_promedio": { "google": 0.0, "bing": 0.0 },
     "paginas_creadas": 0,
-    "quick_wins_aplicados": 0,
-    "errores_corregidos": 0
+    "paginas_optimizadas": 0,
+    "errores_corregidos": 0,
+    "enlaces_internos_creados": 0
   },
   "geo": {
     "clics_copilot": 0,
-    "paginas_citadas_copilot": [],
+    "clics_copilot_anterior": 0,
+    "queries_pregunta_total": 0,
     "queries_pregunta_nuevas": 0,
-    "paginas_con_faqpage": 0
+    "paginas_con_faqpage": 0,
+    "paginas_con_speakable": 0,
+    "paginas_citadas_copilot": []
   },
-  "costo_openai_semana_usd": 0.00,
-  "costo_openai_mes_usd": 0.00,
-  "alerta_costos": "string o null",
-  "proximas_3_acciones": [{ "accion":"", "modulo":"", "impacto_estimado":"" }]
+  "costos": {
+    "semana_usd": 0.00,
+    "mes_usd": 0.00,
+    "limite_usd": 20,
+    "pct_usado": 0.0,
+    "tokens_semana": 0,
+    "alerta": "string o null"
+  },
+  "top_paginas_semana": [
+    { "url": "string", "clics": 0, "cambio_pct": 0.0, "fuente": "google|bing|copilot" }
+  ],
+  "problemas_detectados": [
+    { "problema": "string", "severidad": "critica|alta|media", "accion_sugerida": "string" }
+  ],
+  "proximas_acciones": [
+    { "accion": "string", "modulo": "string", "prioridad": "1|2|3", "impacto_estimado": "string" }
+  ]
 }`
 }
 

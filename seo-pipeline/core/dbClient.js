@@ -1,10 +1,10 @@
 /**
- * IMPERIAL-AGENT v2: Cliente de Base de Datos — Auto-deteccion MySQL/MongoDB
+ * IMPERIAL-AGENT v3: Cliente de Base de Datos — Auto-deteccion MySQL/MongoDB
  *
  * Al arrancar detecta automaticamente el tipo de DB y mapea
  * tablas/colecciones relevantes para SEO.
  *
- * Regla v2: Siempre incluir updated_by = "IMPERIAL-AGENT-v2" al escribir.
+ * Regla v2: Siempre incluir updated_by = "IMPERIAL-AGENT-v3" al escribir.
  */
 
 const { AGENT } = require('../config/agentConfig')
@@ -21,7 +21,7 @@ let dbConnection = null
 let dbType = null
 let dbSchema = null
 
-const AGENT_TAG = AGENT.NAME // "IMPERIAL-AGENT-v2"
+const AGENT_TAG = AGENT.NAME // "IMPERIAL-AGENT-v3"
 
 // ── Inicializacion ──
 

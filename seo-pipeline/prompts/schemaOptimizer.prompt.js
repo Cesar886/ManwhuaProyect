@@ -1,45 +1,42 @@
 /**
- * IA-AGENT: Prompt versionado para optimización de Schema Markup
- * Versión: 1.0.0
+ * IMPERIAL-AGENT v3: Prompt para optimizacion de Schema Markup
  */
 
-const PROMPT_VERSION = '1.0.0'
+const PROMPT_VERSION = '3.0.0'
 
 function getSystemPrompt() {
-  return `Eres un experto en Schema Markup y Rich Snippets para sitios de manga/manhwa en español.
+  return `Experto en Schema Markup y Rich Snippets para manhwaimperial.site.
 
 Reglas:
-- Genera SOLO JSON-LD válido según schema.org
-- Usa tipos apropiados: ComicSeries, CreativeWork, ItemList, Review, FAQPage, BreadcrumbList
-- Incluye siempre: @context, @type, name, description
-- Para series: genre, author, aggregateRating (si hay datos), inLanguage: "es"
-- Para listas: itemListElement con position y url
-- Maximizar probabilidad de Rich Snippets en Google y Bing
-- NO inventar datos (ratings, autores) que no estén en el input`
+- Genera SOLO JSON-LD valido segun schema.org
+- Tipos apropiados: ComicSeries, CreativeWork, ItemList, Review, FAQPage, BreadcrumbList, HowTo, SpeakableSpecification
+- Incluir siempre: @context, @type, name, description, inLanguage: "es"
+- Para series: genre, author (si existe), aggregateRating (si hay datos), numberOfPages/chapters
+- Para listas: itemListElement con position, url, name
+- Para resenas: reviewRating con bestRating/worstRating, itemReviewed
+- Agregar dateModified siempre (senal de frescura para IAs)
+- Agregar SpeakableSpecification para paginas con respuesta rapida y FAQs
+- NO inventar datos (ratings, autores, fechas) que no esten en el input
+- Maximizar probabilidad de Rich Snippets en Google Y Bing`
 }
 
-function getUserPrompt({ url, ctr, position, currentSchema, pageType }) {
-  return `Esta página [${url}] tiene CTR de ${(ctr * 100).toFixed(2)}% en posición ${position}.
+function getUserPrompt({ url, ctr, position, currentSchema, pageType, title, meta, queries }) {
+  return `Pagina: ${url}
+CTR: ${(ctr * 100).toFixed(2)}% | Posicion: ${position}
+Title: "${title || '(sin title)'}"
+Meta: "${meta || '(sin meta)'}"
+Schema actual: ${currentSchema ? JSON.stringify(currentSchema) : '(sin schema)'}
+Tipo de pagina: ${pageType}
+${queries ? `Queries principales: ${JSON.stringify(queries)}` : ''}
 
-El schema actual es: ${currentSchema ? JSON.stringify(currentSchema) : '(sin schema)'}
-
-Tipo de página detectado: ${pageType}
-
-Genera un schema JSON-LD mejorado que maximice la probabilidad de Rich Snippets en Google y Bing.
-
-Campos obligatorios según tipo:
-- ComicSeries: name, description, genre, author, inLanguage
-- ItemList: name, itemListElement con position
-- Review: itemReviewed, reviewRating, author
-- FAQPage: mainEntity con Question/Answer
-
-Responde SOLO en JSON válido:
+Genera un schema JSON-LD mejorado. Responde SOLO en JSON:
 {
   "schema_jsonld": {},
-  "mejoras_aplicadas": ["..."],
-  "rich_snippet_target": "...",
+  "mejoras_aplicadas": ["string — que se agrego o cambio"],
+  "rich_snippet_target": "string — que tipo de rich snippet se busca",
+  "geo_signals": ["string — que schemas ayudan a ser citado por IAs"],
   "confidence_score": 0.0,
-  "razon": "..."
+  "razon": "string"
 }`
 }
 

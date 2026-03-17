@@ -1,15 +1,22 @@
 /**
  * DUAL-SEO: Pipeline de Notificación Automática Consolidada
  *
- * Envía reportes semanales consolidados (GSC + BWT) por:
- *   - Telegram Bot (si TELEGRAM_BOT_TOKEN está configurado)
- *   - Email SMTP (si SMTP_HOST está configurado)
+ * Guarda reportes semanales consolidados (GSC + BWT) en:
+ *   - ManhwaImperialAdmin/reports/ (CMS admin)
  *
- * Si ninguno está configurado, solo guarda el reporte en disco.
+ * Ya no usa Telegram ni Email — el admin CMS es el canal de reportes.
  */
 
-const axios = require('axios')
-const nodemailer = require('nodemailer')
+const fs = require('fs')
+const path = require('path')
+
+const ADMIN_REPORTS_DIR = '/home/daniel/ManhwaImperialAdmin/reports'
+
+function ensureAdminReportsDir() {
+  if (!fs.existsSync(ADMIN_REPORTS_DIR)) {
+    fs.mkdirSync(ADMIN_REPORTS_DIR, { recursive: true })
+  }
+}
 
 // DUAL-SEO: Genera el texto del reporte semanal consolidado (GSC + BWT)
 function generateReportText(data) {
@@ -128,69 +135,18 @@ function generateReportJson(data) {
   }
 }
 
-// DUAL-SEO: Enviar reporte por Telegram Bot
-async function sendTelegram(text) {
-  const token = process.env.TELEGRAM_BOT_TOKEN
-  const chatId = process.env.TELEGRAM_CHAT_ID
-
-  if (!token || !chatId) {
-    console.log('  ℹ Telegram no configurado (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)')
-    return false
-  }
-
-  try {
-    // Telegram tiene límite de 4096 chars, truncar si es necesario
-    const truncated = text.length > 4000 ? text.substring(0, 4000) + '\n...[truncado]' : text
-    await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, {
-      chat_id: chatId,
-      text: truncated,
-      parse_mode: 'Markdown',
-    })
-    console.log('  ✅ Reporte enviado por Telegram')
-    return true
-  } catch (err) {
-    console.error('  ❌ Error enviando Telegram:', err.message)
-    return false
-  }
+// Guardar reporte en el admin CMS
+function saveReportToAdmin(filename, data) {
+  ensureAdminReportsDir()
+  const filePath = path.join(ADMIN_REPORTS_DIR, filename)
+  const tmpPath = filePath + '.tmp'
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8')
+  fs.renameSync(tmpPath, filePath)
+  console.log(`  ✅ Reporte guardado en admin: ${filePath}`)
+  return true
 }
 
-// DUAL-SEO: Enviar reporte por Email SMTP
-async function sendEmail(text, subject = '📊 Reporte SEO DUAL Semanal - Manhwa Imperial') {
-  const host = process.env.SMTP_HOST
-  const user = process.env.SMTP_USER
-  const pass = process.env.SMTP_PASS
-  const to = process.env.SMTP_TO
-
-  if (!host || !user || !pass || !to) {
-    console.log('  ℹ Email no configurado (SMTP_HOST / SMTP_USER / SMTP_PASS / SMTP_TO)')
-    return false
-  }
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host,
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: false,
-      auth: { user, pass },
-    })
-
-    await transporter.sendMail({
-      from: `"SEO Pipeline DUAL - Manhwa Imperial" <${user}>`,
-      to,
-      subject,
-      text,
-      html: `<pre style="font-family: monospace; font-size: 14px;">${text}</pre>`,
-    })
-
-    console.log('  ✅ Reporte enviado por Email')
-    return true
-  } catch (err) {
-    console.error('  ❌ Error enviando Email:', err.message)
-    return false
-  }
-}
-
-// DUAL-SEO: Función principal — genera y envía reporte consolidado
+// DUAL-SEO: Función principal — genera y guarda reporte consolidado en admin CMS
 async function notify(data) {
   console.log('\n📬 Generando reporte semanal DUAL...')
 
@@ -199,11 +155,10 @@ async function notify(data) {
 
   console.log('\n' + text + '\n')
 
-  // Intentar enviar por ambos canales
-  await Promise.allSettled([
-    sendTelegram(text),
-    sendEmail(text),
-  ])
+  // Guardar en admin CMS
+  const fecha = new Date().toISOString().split('T')[0]
+  saveReportToAdmin(`reporte_semanal_${fecha}.json`, { ...json, texto: text })
+  saveReportToAdmin('reporte_semanal_latest.json', { ...json, texto: text })
 
   return json
 }

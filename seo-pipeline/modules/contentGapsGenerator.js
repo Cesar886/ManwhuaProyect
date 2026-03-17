@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Modulo 6 — Generador de Paginas Nuevas
+ * IMPERIAL-AGENT v3: Modulo 6 — Generador de Paginas Nuevas
  *
  * Top 5 gaps ALTA (o MEDIA si no hay ALTA).
  * GPT-4o genera pagina segun tipo: lista | obra | resena

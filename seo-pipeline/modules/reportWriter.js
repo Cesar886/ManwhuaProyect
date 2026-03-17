@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Modulo 9 — Reporte Ejecutivo Semanal
+ * IMPERIAL-AGENT v3: Modulo 9 — Reporte Ejecutivo Semanal
  *
  * GPT-4o genera reporte con formato v2:
  *   - resumen_ejecutivo (3 lineas, solo numeros)
@@ -10,13 +10,11 @@
  *   - costos openai
  *   - proximas_3_acciones
  *
- * Envio: Email HTML via nodemailer + Telegram <=280 chars
+ * Envio: Guardado en ManhwaImperialAdmin/reports/ (CMS admin)
  */
 
 const fs = require('fs')
 const path = require('path')
-const axios = require('axios')
-const nodemailer = require('nodemailer')
 const { AGENT } = require('../config/agentConfig')
 const { gptCall } = require('../core/gptClient')
 const { getActionsSummary, getDraftsSummary } = require('./autonomousExecutor')
@@ -24,6 +22,13 @@ const { getCostPercentage, getDrafts, readMemory } = require('../core/agentMemor
 const reportPrompt = require('../prompts/reportWriter.prompt')
 
 const REPORTS_DIR = path.resolve(process.env.REPORTS_DIR || './reports')
+const ADMIN_REPORTS_DIR = '/home/daniel/ManhwaImperialAdmin/reports'
+
+function ensureAdminReportsDir() {
+  if (!fs.existsSync(ADMIN_REPORTS_DIR)) {
+    fs.mkdirSync(ADMIN_REPORTS_DIR, { recursive: true })
+  }
+}
 
 /**
  * Recopilar datos consolidados de la semana
@@ -103,7 +108,7 @@ async function runReportWriter() {
   }
 
   const report = aiResponse.parsed
-  report.generado_por = 'IMPERIAL-AGENT-v2'
+  report.generado_por = 'IMPERIAL-AGENT-v3'
   report.tokens_used = aiResponse.tokens_used
   report.cost_usd = aiResponse.cost_usd
 
@@ -138,72 +143,29 @@ function generateBasicReport(weeklyData) {
 }
 
 /**
- * Enviar reporte por Telegram + Email
+ * Guardar reporte en ManhwaImperialAdmin/reports/ (CMS admin)
  */
 async function sendReport(report) {
-  // Telegram: max 280 chars
-  if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-    try {
-      let text = report.resumen_ejecutivo || 'Reporte semanal disponible.'
-      if (text.length > 280) text = text.slice(0, 277) + '...'
+  ensureAdminReportsDir()
+  const fecha = new Date().toISOString().split('T')[0]
 
-      await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        chat_id: process.env.TELEGRAM_CHAT_ID,
-        text: `IMPERIAL-AGENT v2 | Reporte Semanal\n\n${text}`,
-        parse_mode: 'HTML',
-      })
-      console.log('  [M9] Telegram enviado')
-    } catch (err) {
-      console.error(`  [M9] Error Telegram: ${err.message}`)
-    }
+  const reportData = {
+    ...report,
+    tipo: 'reporte_ejecutivo_semanal',
+    fecha_generacion: new Date().toISOString(),
   }
 
-  // Email HTML
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && (process.env.SMTP_TO || process.env.NOTIFICATION_EMAIL)) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: false,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      })
+  // Guardar con fecha y como latest
+  const filePath = path.join(ADMIN_REPORTS_DIR, `reporte_ejecutivo_${fecha}.json`)
+  const latestPath = path.join(ADMIN_REPORTS_DIR, 'reporte_ejecutivo_latest.json')
 
-      const htmlBody = buildEmailHtml(report)
-      const to = process.env.SMTP_TO || process.env.NOTIFICATION_EMAIL
-
-      await transporter.sendMail({
-        from: `"IMPERIAL-AGENT v2" <${process.env.SMTP_USER}>`,
-        to,
-        subject: `Reporte SEO Semanal — ${new Date().toISOString().split('T')[0]}`,
-        html: htmlBody,
-      })
-      console.log('  [M9] Email enviado')
-    } catch (err) {
-      console.error(`  [M9] Error Email: ${err.message}`)
-    }
+  for (const dest of [filePath, latestPath]) {
+    const tmpPath = dest + '.tmp'
+    fs.writeFileSync(tmpPath, JSON.stringify(reportData, null, 2), 'utf-8')
+    fs.renameSync(tmpPath, dest)
   }
-}
 
-function buildEmailHtml(report) {
-  return `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><style>
-body{font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px}
-h1{color:#333;border-bottom:2px solid #e74c3c;padding-bottom:10px}
-h2{color:#e74c3c}
-.metric{background:#f5f5f5;padding:10px;margin:5px 0;border-radius:4px}
-.alert{background:#fff3cd;padding:10px;border-radius:4px}
-</style></head>
-<body>
-<h1>IMPERIAL-AGENT v2 | Reporte Semanal</h1>
-<h2>Resumen</h2>
-<p>${report.resumen_ejecutivo || 'Sin datos'}</p>
-${report.metricas ? `<h2>Metricas</h2><pre>${JSON.stringify(report.metricas, null, 2)}</pre>` : ''}
-${report.geo ? `<h2>GEO</h2><pre>${JSON.stringify(report.geo, null, 2)}</pre>` : ''}
-${report.alerta_costos ? `<div class="alert"><strong>Alerta:</strong> ${report.alerta_costos}</div>` : ''}
-${report.proximas_3_acciones?.length ? `<h2>Proximas Acciones</h2><pre>${JSON.stringify(report.proximas_3_acciones, null, 2)}</pre>` : ''}
-<hr><p style="color:#999;font-size:12px">Generado por IMPERIAL-AGENT v2 | ${new Date().toISOString()}</p>
-</body></html>`
+  console.log(`  [M9] Reporte guardado en admin: ${filePath}`)
 }
 
 module.exports = { runReportWriter }

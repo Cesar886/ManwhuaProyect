@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Motor de Razonamiento IA
+ * IMPERIAL-AGENT v3: Motor de Razonamiento IA
  *
  * Soporta OpenAI (GPT-4o) y Anthropic (Claude).
  * Incluye retry exponencial, tracking de tokens y rate limiting.

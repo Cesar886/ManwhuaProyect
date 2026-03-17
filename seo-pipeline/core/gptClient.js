@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Cliente GPT-4o con control de costos
+ * IMPERIAL-AGENT v3: Cliente GPT-4o con control de costos
  *
  * Wrapper sobre aiReasoner con presupuesto mensual.
  * Al 80% -> pausar Modulo 6

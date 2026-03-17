@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Modulo 4 — Quick Wins Optimizer
+ * IMPERIAL-AGENT v3: Modulo 4 — Quick Wins Optimizer
  *
  * Fuente: Rango C — queries posicion 4-15, impresiones > 100
  * Cruzar GSC + BWT. Maximo 20 URLs por ejecucion semanal.

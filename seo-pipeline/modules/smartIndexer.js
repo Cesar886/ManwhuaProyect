@@ -1,8 +1,8 @@
 /**
- * IMPERIAL-AGENT v2: Modulo 8 — Indexacion Inteligente
+ * IMPERIAL-AGENT v3: Modulo 8 — Indexacion Inteligente
  *
  * Sin GPT. Detectar paginas con updated_at ultimos 7 dias
- * y updated_by = "IMPERIAL-AGENT-v2".
+ * y updated_by = "IMPERIAL-AGENT-v3".
  *
  * Por cada URL:
  *   1. Enviar a GSC Indexing API

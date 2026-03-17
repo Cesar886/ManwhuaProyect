@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Sistema de Memoria Persistente
+ * IMPERIAL-AGENT v3: Sistema de Memoria Persistente
  *
  * Guarda estado del agente entre ejecuciones:
  *   - db_schema detectado
@@ -23,7 +23,7 @@ const path = require('path')
 const MEMORY_PATH = path.resolve(__dirname, '..', 'data', 'agent_memory.json')
 
 const DEFAULT_MEMORY = {
-  version: '2.0.0',
+  version: '2.1.0',
   db_type: null,
   db_schema: null,
   semana_actual: null,
@@ -42,6 +42,13 @@ const DEFAULT_MEMORY = {
     llamadas: 0,
   },
   historial_costos: [],              // ultimas 52 semanas: { semana, costo_usd, tokens }
+  // CURATOR-AGENT v1
+  curator_queue: [],                 // URLs en cola para curar
+  paginas_curadas_semana: [],        // { url, slug, tipo, score, fecha }
+  paginas_curadas_historico: {},     // { url: { veces_curada, ultima_curacion, ctr_antes, ctr_despues, mejora_confirmada } }
+  // AB-TESTER v1
+  ab_tests_activos: [],              // { slug, url, start, tipo }
+  ab_tests_completados: [],          // { slug, winner, score, fecha }
 }
 
 // ── Lectura/Escritura ──

@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Modulo 5 — Content Gaps Detector Cross-Motor
+ * IMPERIAL-AGENT v3: Modulo 5 — Content Gaps Detector Cross-Motor
  *
  * Queries con > 50 impresiones sin pagina en DB.
  * Usa queries exactas de BWT (no anonimizadas).

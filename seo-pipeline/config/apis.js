@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Configuracion centralizada de APIs (GSC + BWT)
+ * IMPERIAL-AGENT v3: Configuracion centralizada de APIs (GSC + BWT)
  */
 
 const path = require('path')

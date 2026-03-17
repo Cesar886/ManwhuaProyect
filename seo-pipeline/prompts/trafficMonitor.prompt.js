@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Prompts para Modulo 2 — Monitor de Caida de Trafico
+ * IMPERIAL-AGENT v3: Prompts para Modulo 2 — Monitor de Caida de Trafico
  */
 
 const PROMPT_VERSION = '2.0.0'

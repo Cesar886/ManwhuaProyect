@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Modulo 2 — Monitor de Caida de Trafico Dual (GSC + BWT)
+ * IMPERIAL-AGENT v3: Modulo 2 — Monitor de Caida de Trafico Dual (GSC + BWT)
  *
  * Compara Rango A (ultimos 7 dias) vs Rango B (7 dias anteriores) por URL.
  *

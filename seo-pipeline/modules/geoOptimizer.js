@@ -1,5 +1,5 @@
 /**
- * IMPERIAL-AGENT v2: Modulo 7 — GEO Optimizer
+ * IMPERIAL-AGENT v3: Modulo 7 — GEO Optimizer
  *
  * OBJETIVO: Ser citado en ChatGPT, Copilot y Gemini.
  *

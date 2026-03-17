@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * IMPERIAL-AGENT v2 — SEO/GEO Autonomous Agent
+ * IMPERIAL-AGENT v3 — SEO/GEO Autonomous Agent
  * Manhwa Imperial (manhwaimperial.site)
  *
  * Ciclo semanal de 9 modulos:
@@ -49,6 +49,8 @@ const { runSchemaOptimizer } = require('./modules/schemaOptimizer')
 const { runReportWriter } = require('./modules/reportWriter')
 const { runGeoOptimizer, generateOrganizationSchema } = require('./modules/geoOptimizer')
 const { runSmartIndexer } = require('./modules/smartIndexer')
+const { runCuratorAgent } = require('./modules/11_curatorAgent')
+const { runAbTester } = require('./modules/12_abTester')
 const { getUsageSummary } = require('./modules/aiReasoner')
 
 // -- CORE --
@@ -64,6 +66,7 @@ const { notify, generateReportJson } = require('./notifications/notifier')
 // -- CONSTANTES --
 const REPORTS_DIR = path.resolve(process.env.REPORTS_DIR || './reports')
 const DATA_RAW_DIR = path.resolve('./data/raw')
+const ADMIN_REPORTS_DIR = '/home/daniel/ManhwaImperialAdmin/reports'
 const { AGENT } = require('./config/agentConfig')
 
 // == UTILIDADES ==
@@ -79,6 +82,20 @@ function saveReport(filename, data, dir = REPORTS_DIR) {
   fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8')
   fs.renameSync(tmpPath, filePath)
   console.log(`  [SAVE] ${filePath}`)
+
+  // Copiar también al admin CMS
+  if (dir === REPORTS_DIR) {
+    try {
+      ensureDir(ADMIN_REPORTS_DIR)
+      const adminPath = path.join(ADMIN_REPORTS_DIR, filename)
+      const adminTmp = adminPath + '.tmp'
+      fs.writeFileSync(adminTmp, JSON.stringify(data, null, 2), 'utf-8')
+      fs.renameSync(adminTmp, adminPath)
+      console.log(`  [ADMIN] ${adminPath}`)
+    } catch (err) {
+      console.error(`  [ADMIN] Error copiando reporte: ${err.message}`)
+    }
+  }
 }
 
 function parseArgs() {
@@ -113,7 +130,7 @@ function isBwtConfigured() {
   return !!process.env.BWT_API_KEY
 }
 
-// == PIPELINE IMPERIAL-AGENT v2 — 9 MODULOS ==
+// == PIPELINE IMPERIAL-AGENT v3 — 9 MODULOS ==
 
 async function runImperialAgent() {
   const fecha = new Date().toISOString().split('T')[0]
@@ -122,7 +139,7 @@ async function runImperialAgent() {
   const budget = getAllowedModules()
 
   console.log('==================================================')
-  console.log('  IMPERIAL-AGENT v2 — Manhwa Imperial')
+  console.log('  IMPERIAL-AGENT v3 — Manhwa Imperial')
   console.log('  SEO + GEO Autonomous Agent')
   console.log(`  ${fecha}`)
   console.log('==================================================\n')
@@ -292,7 +309,7 @@ async function runImperialAgent() {
   markExecution()
   await closeDB()
 
-  console.log('\n[DONE] IMPERIAL-AGENT v2 — Pipeline completado.')
+  console.log('\n[DONE] IMPERIAL-AGENT v3 — Pipeline completado.')
 }
 
 function buildReportData(results) {
@@ -316,7 +333,7 @@ async function runSingleModule(targetModule) {
   const aiReady = isAiConfigured()
 
   console.log('==================================================')
-  console.log('  IMPERIAL-AGENT v2 — Modulo Individual')
+  console.log('  IMPERIAL-AGENT v3 — Modulo Individual')
   console.log(`  ${new Date().toISOString().split('T')[0]}`)
   console.log('==================================================\n')
 
@@ -347,6 +364,8 @@ async function runSingleModule(targetModule) {
     optimizarSchemas: { fn: () => runSchemaOptimizer(), label: 'Schema Optimizer (IA)' },
     reporteIA: { fn: () => runReportWriter(), label: 'Report Writer (IA)' },
     geoOptimizer: { fn: () => runGeoOptimizer(), label: 'GEO Optimizer (IA)' },
+    curatorAgent: { fn: () => runCuratorAgent(), label: 'Curator Agent (IA)' },
+    abTester: { fn: () => runAbTester(), label: 'A/B Tester (IA)' },
   }
 
   if (targetModule === 'setup' || targetModule === 'detectDB') {
@@ -438,14 +457,16 @@ function startCron() {
   }
 
   console.log('==================================================')
-  console.log('  IMPERIAL-AGENT v2 — Modo CRON')
-  console.log('  Schedule: 0 4 * * 1 (Lunes 4:00 AM)')
+  console.log('  IMPERIAL-AGENT v3 + CURATOR + AB-TESTER — CRON')
+  console.log('  IMPERIAL: 0 4 * * 1 (Lunes 4:00 AM)')
+  console.log('  CURATOR:  0 4 * * 3 (Miercoles 4:00 AM)')
+  console.log('  AB-TEST:  0 4 * * 5 (Viernes 4:00 AM)')
   console.log('==================================================\n')
 
   console.log('[CRON] Esperando proxima ejecucion programada...\n')
 
   cron.schedule('0 4 * * 1', async () => {
-    console.log(`\n[CRON] Ejecucion iniciada: ${new Date().toISOString()}\n`)
+    console.log(`\n[CRON] Ejecucion IMPERIAL-AGENT iniciada: ${new Date().toISOString()}\n`)
     try {
       await runImperialAgent()
     } catch (err) {
@@ -455,8 +476,32 @@ function startCron() {
     timezone: 'America/Mexico_City',
   })
 
+  // CURATOR-AGENT v1: Miercoles 4 AM
+  cron.schedule('0 4 * * 3', async () => {
+    console.log(`\n[CRON] Ejecucion CURATOR-AGENT iniciada: ${new Date().toISOString()}\n`)
+    try {
+      await runCuratorAgent()
+    } catch (err) {
+      console.error(`\n[FATAL] Error en CURATOR-AGENT: ${err.message}`)
+    }
+  }, {
+    timezone: 'America/Mexico_City',
+  })
+
+  // AB-TESTER v1: Viernes 4 AM
+  cron.schedule('0 4 * * 5', async () => {
+    console.log(`\n[CRON] Ejecucion AB-TESTER iniciada: ${new Date().toISOString()}\n`)
+    try {
+      await runAbTester()
+    } catch (err) {
+      console.error(`\n[FATAL] Error en AB-TESTER: ${err.message}`)
+    }
+  }, {
+    timezone: 'America/Mexico_City',
+  })
+
   process.on('SIGINT', () => {
-    console.log('\n[STOP] IMPERIAL-AGENT v2 detenido.')
+    console.log('\n[STOP] IMPERIAL-AGENT v3 detenido.')
     process.exit(0)
   })
 }
