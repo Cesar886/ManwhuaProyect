@@ -1,31 +1,34 @@
 /**
- * DUAL-SEO: Detector de Content Gaps Cross-Motor (GSC + BWT)
+ * IMPERIAL-AGENT v2: Modulo 5 — Content Gaps Detector Cross-Motor
  *
- * Extiende el detector original fusionando queries de ambos motores.
+ * Queries con > 50 impresiones sin pagina en DB.
+ * Usa queries exactas de BWT (no anonimizadas).
  *
- * VENTAJA ÚNICA: Bing no anonimiza queries → detectas términos exactos
- * que Google oculta bajo "(not provided)".
+ * Clasificacion:
+ *   "mejores","top","lista","ranking" -> lista
+ *   nombre de obra especifica         -> obra
+ *   "resena","review","opinion"       -> resena
+ *   Sin clasificacion clara           -> lista
  *
- * Queries que aparecen SOLO en Bing = oportunidad ignorada por la mayoría
- * de competidores que solo usan GSC.
+ * Prioridad: ALTA > 400 imp | MEDIA 150-400 | BAJA < 150
+ * Tomar top 5 ALTA (o MEDIA si no hay ALTA).
  */
 
 const { queryAllRows, dateOffset } = require('./gscClient')
 const { getQueryStats, normalizeBwtRow } = require('./bwtClient')
+const { wasGapProcessedRecently } = require('../core/agentMemory')
+const { AGENT } = require('../config/agentConfig')
 
-// DUAL-SEO: Palabras que indican intención de lista/ranking
 const LISTA_SIGNALS = ['mejores', 'top', 'lista', 'ranking', 'recomendados', 'parecidos', 'similares']
-// DUAL-SEO: Palabras que indican intención de reseña
-const RESENA_SIGNALS = ['reseña', 'review', 'vale la pena', 'opinión', 'opinion', 'análisis', 'analisis']
+const RESENA_SIGNALS = ['resena', 'review', 'vale la pena', 'opinion', 'analisis']
 
 function classifyPageType(query) {
   const q = query.toLowerCase()
   if (LISTA_SIGNALS.some(s => q.includes(s))) return 'lista'
-  if (RESENA_SIGNALS.some(s => q.includes(s))) return 'reseña'
+  if (RESENA_SIGNALS.some(s => q.includes(s))) return 'resena'
   return 'obra'
 }
 
-// DUAL-SEO: Genera un slug a partir de la query para la URL sugerida
 function queryToSlug(query) {
   return query
     .toLowerCase()
@@ -37,28 +40,34 @@ function queryToSlug(query) {
     .substring(0, 60)
 }
 
-async function detectContentGapsCross() {
-  console.log('📝 Analizando Content Gaps Cross-Motor (GSC + BWT)...')
+// v2: Prioridad basada en spec exacta
+function classifyPriority(totalImp) {
+  if (totalImp >= AGENT.FILTERS.CG_ALTA_MIN_IMP) return 'ALTA'
+  if (totalImp >= AGENT.FILTERS.CG_MEDIA_MIN_IMP) return 'MEDIA'
+  return 'BAJA'
+}
 
-  // DUAL-SEO: Obtener queries de GSC
-  console.log('  → Consultando Google Search Console...')
+async function detectContentGapsCross() {
+  console.log('  [M5] Analizando Content Gaps Cross-Motor (GSC + BWT)...')
+
+  // GSC: ultimos 90 dias (Rango C)
   const gscRows = await queryAllRows({
     startDate: dateOffset(90),
     endDate: dateOffset(3),
     dimensions: ['query', 'page'],
   })
 
-  // DUAL-SEO: Obtener queries de BWT
-  console.log('  → Consultando Bing Webmaster Tools...')
+  // BWT: queries NO anonimizadas
   let bwtRows = []
   try {
     const queryData = await getQueryStats()
     bwtRows = queryData.map(normalizeBwtRow)
+    console.log(`  [M5] BWT: ${bwtRows.length} queries obtenidas`)
   } catch (err) {
-    console.warn(`  ⚠ BWT no disponible: ${err.message}. Continuando solo con GSC.`)
+    console.warn(`  [M5] BWT no disponible: ${err.message}. Solo GSC.`)
   }
 
-  // DUAL-SEO: Agrupar datos de GSC por query
+  // Agrupar GSC por query
   const gscQueryMap = new Map()
   for (const row of gscRows) {
     const query = row.keys[0].toLowerCase()
@@ -81,7 +90,7 @@ async function detectContentGapsCross() {
     entry.pages.add(page)
   }
 
-  // DUAL-SEO: Agrupar datos de BWT por query
+  // Agrupar BWT por query
   const bwtQueryMap = new Map()
   for (const row of bwtRows) {
     if (!row.query) continue
@@ -100,9 +109,8 @@ async function detectContentGapsCross() {
     if (row.position > 0) entry.positions.push(row.position)
   }
 
-  // DUAL-SEO: Unificar todas las queries de ambas fuentes
+  // Unificar queries
   const allQueries = new Set([...gscQueryMap.keys(), ...bwtQueryMap.keys()])
-
   const contentGaps = []
 
   for (const queryLower of allQueries) {
@@ -113,12 +121,14 @@ async function detectContentGapsCross() {
     const impBing = bwtData?.totalImpressions || 0
     const totalImp = impGoogle + impBing
 
-    // DUAL-SEO: Filtro mínimo de impresiones combinadas
-    if (totalImp < 50) continue
+    if (totalImp < AGENT.FILTERS.CG_MIN_IMPRESSIONS) continue
 
     const query = gscData?.originalQuery || bwtData?.originalQuery || queryLower
 
-    // DUAL-SEO: Verificar si alguna URL contiene la keyword en el slug
+    // v2: No procesar gaps ya procesados en ultimas 2 semanas
+    if (wasGapProcessedRecently(query, 14)) continue
+
+    // Verificar si hay pagina dedicada
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 3)
     const pages = gscData?.pages || new Set()
 
@@ -132,7 +142,6 @@ async function detectContentGapsCross() {
 
     if (hasDedicatedPage) continue
 
-    // Calcular posiciones promedio
     const avgPosGoogle = gscData?.positions.length
       ? gscData.positions.reduce((a, b) => a + b, 0) / gscData.positions.length
       : null
@@ -140,32 +149,19 @@ async function detectContentGapsCross() {
       ? bwtData.positions.reduce((a, b) => a + b, 0) / bwtData.positions.length
       : null
 
-    // DUAL-SEO: Determinar exclusividad
     const exclusivoBing = !gscData && !!bwtData
-    const exclusivoGoogle = !!gscData && !bwtData
-
-    // DUAL-SEO: Clasificar tipo de página y generar URL sugerida
     const tipoPagina = classifyPageType(query)
     const querySlug = queryToSlug(query)
+
     let rutaSugerida
     switch (tipoPagina) {
-      case 'lista':
-        rutaSugerida = `/blog/${querySlug}`
-        break
-      case 'reseña':
-        rutaSugerida = `/blog/resena-${querySlug}`
-        break
-      default:
-        rutaSugerida = `/manhwa/${querySlug}`
+      case 'lista': rutaSugerida = `/listas/${querySlug}`; break
+      case 'resena': rutaSugerida = `/blog/resena-${querySlug}`; break
+      default: rutaSugerida = `/manhwa/${querySlug}`
     }
 
-    // DUAL-SEO: Prioridad basada en impresiones y exclusividad
-    let prioridadContenido
-    if (totalImp > 500 || exclusivoBing) prioridadContenido = 'ALTA'
-    else if (totalImp > 200) prioridadContenido = 'MEDIA'
-    else prioridadContenido = 'BAJA'
-
-    // DUAL-SEO: Queries exclusivas de Bing tienen prioridad elevada (oportunidad ignorada)
+    // v2: Prioridad segun spec
+    let prioridadContenido = classifyPriority(totalImp)
     if (exclusivoBing && impBing > 50) prioridadContenido = 'ALTA'
 
     contentGaps.push({
@@ -175,15 +171,15 @@ async function detectContentGapsCross() {
       posicion_promedio_google: avgPosGoogle ? Math.round(avgPosGoogle * 10) / 10 : null,
       posicion_promedio_bing: avgPosBing ? Math.round(avgPosBing * 10) / 10 : null,
       exclusivo_bing: exclusivoBing,
-      exclusivo_google: exclusivoGoogle,
-      accion: `Crear ${rutaSugerida}`,
       tipo_pagina: tipoPagina,
       prioridad_contenido: prioridadContenido,
+      accion: `Crear ${rutaSugerida}`,
+      ruta_sugerida: rutaSugerida,
       urls_actuales: [...pages].slice(0, 3),
     })
   }
 
-  // DUAL-SEO: Ordenar por prioridad y luego por impresiones totales
+  // Ordenar por prioridad y impresiones
   const prioridadOrden = { ALTA: 0, MEDIA: 1, BAJA: 2 }
   contentGaps.sort((a, b) => {
     if (prioridadOrden[a.prioridad_contenido] !== prioridadOrden[b.prioridad_contenido]) {
@@ -192,8 +188,8 @@ async function detectContentGapsCross() {
     return (b.impresiones_google + b.impresiones_bing) - (a.impresiones_google + a.impresiones_bing)
   })
 
-  console.log(`  → ${contentGaps.length} Content Gaps cross-motor detectados`)
-  console.log(`  → ${contentGaps.filter(g => g.exclusivo_bing).length} exclusivos de Bing`)
+  console.log(`  [M5] ${contentGaps.length} Content Gaps detectados`)
+  console.log(`  [M5] ${contentGaps.filter(g => g.prioridad_contenido === 'ALTA').length} ALTA, ${contentGaps.filter(g => g.prioridad_contenido === 'MEDIA').length} MEDIA`)
   return contentGaps
 }
 

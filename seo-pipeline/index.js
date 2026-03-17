@@ -1,38 +1,23 @@
 #!/usr/bin/env node
 
 /**
- * IMPERIAL-AGENT v1 — SEO/GEO Autonomous Agent
+ * IMPERIAL-AGENT v2 — SEO/GEO Autonomous Agent
  * Manhwa Imperial (manhwaimperial.site)
  *
- * Orquesta 9 módulos en ciclo semanal:
- *   Módulo 1 → Recolección datos GSC + BWT
- *   Módulo 2 → Monitor de caída de tráfico
- *   Módulo 3 → Auditoría técnica BWT SEO Scanner
- *   Módulo 4 → Quick Wins — optimizar titles/meta/schema
- *   Módulo 5 → Content Gaps — detectar queries sin página
- *   Módulo 6 → Generador de páginas (top 5 gaps)
- *   Módulo 7 → GEO Optimizer — optimizar para IAs generativas
- *   Módulo 8 → Indexación inteligente
- *   Módulo 9 → Reporte ejecutivo semanal
+ * Ciclo semanal de 9 modulos:
+ *   FASE 1 (Recoleccion)  : M1 — GSC + BWT datos crudos
+ *   FASE 2 (Diagnostico)  : M2 — Monitor de caida | M3 — Auditoria tecnica
+ *   FASE 3 (Optimizacion) : M4 — Quick Wins titles/meta/schema
+ *   FASE 4 (Creacion)     : M5 — Content Gaps | M6 — Generador paginas
+ *   FASE 5 (GEO)          : M7 — GEO Optimizer para IAs generativas
+ *   FASE 6 (Distribucion) : M8 — Indexacion GSC + IndexNow | M9 — Reporte
  *
  * Uso:
- *   node index.js                                → Pipeline completo (9 módulos)
- *   node index.js --module=agenteFull            → Pipeline autónomo completo
- *   node index.js --module=geoOptimizer          → Solo GEO Optimizer (Módulo 7)
- *   node index.js --module=quickWinsUnificado    → Solo Quick Wins (Módulo 1+4)
- *   node index.js --module=contentGapsCross      → Solo Content Gaps (Módulo 5)
- *   node index.js --module=generarPaginas        → Solo generar páginas (Módulo 6)
- *   node index.js --module=smartIndexer          → Smart Indexer (Módulo 8)
- *   node index.js --module=reporte               → Solo reporte (Módulo 9)
- *   node index.js --cron                         → Iniciar con node-cron (lunes 4AM)
- *   node index.js --module=detectDB              → Solo detectar esquema de DB
- *
- * Los resultados se guardan en:
- *   ./data/raw/           → Datos crudos por semana
- *   ./reports/            → Reportes procesados
- *   ./logs/               → Log maestro y costos
- *   ./drafts/             → Contenido pendiente de revisión
- *   ./data/agent_memory.json → Memoria persistente del agente
+ *   node index.js                             → Pipeline completo
+ *   node index.js --module=agenteFull         → Pipeline completo
+ *   node index.js --module=setup              → Detectar DB y validar APIs
+ *   node index.js --module=<nombre>           → Modulo individual
+ *   node index.js --cron                      → Cron cada lunes 4AM
  */
 
 require('dotenv').config()
@@ -40,7 +25,7 @@ require('dotenv').config()
 const fs = require('fs')
 const path = require('path')
 
-// ── MÓDULOS DE ANÁLISIS (Capa 1) ──────────────────
+// -- MODULOS DE ANALISIS (Fase 1) --
 const { detectQuickWinsUnificado } = require('./modules/quickWinsUnificado')
 const { detectContentGapsCross } = require('./modules/contentGapsCross')
 const { detectMonitorCaidaDual } = require('./modules/monitorCaidaDual')
@@ -50,13 +35,13 @@ const { runAuditoriaTecnica } = require('./modules/auditoriaTecnica')
 const { analyzeBacklinkCompetidores } = require('./modules/backlinkCompetidores')
 const { detectAIOverview } = require('./modules/aiOverview')
 
-// ── MÓDULOS LEGACY (solo GSC) ─────────────────────
+// -- MODULOS LEGACY (solo GSC) --
 const { detectQuickWins } = require('./modules/quickWins')
 const { detectContentGaps } = require('./modules/contentGaps')
 const { detectPaginasCaida } = require('./modules/paginasCaida')
 const { analyzeCTR } = require('./modules/ctrAnalysis')
 
-// ── MÓDULOS AUTÓNOMOS CON IA (Capa 2+3) ──────────
+// -- MODULOS AUTONOMOS CON IA (Fase 2-5) --
 const { runQuickWinsOptimizer } = require('./modules/quickWinsOptimizer')
 const { runContentGapsGenerator } = require('./modules/contentGapsGenerator')
 const { runPriorityDecider, executePlan } = require('./modules/priorityDecider')
@@ -66,20 +51,22 @@ const { runGeoOptimizer, generateOrganizationSchema } = require('./modules/geoOp
 const { runSmartIndexer } = require('./modules/smartIndexer')
 const { getUsageSummary } = require('./modules/aiReasoner')
 
-// ── CORE ──────────────────────────────────────────
+// -- CORE --
 const { initDB, getRecentlyUpdatedPages, closeDB } = require('./core/dbClient')
-const { readMemory, getAllowedModules, cleanup, markExecution, getCostPercentage } = require('./core/agentMemory')
+const {
+  readMemory, ensureCurrentWeek, getAllowedModules, getCostPercentage,
+  cleanup, markExecution,
+} = require('./core/agentMemory')
 
-// ── NOTIFICACIONES ────────────────────────────────
+// -- NOTIFICACIONES --
 const { notify, generateReportJson } = require('./notifications/notifier')
 
-// ── CONSTANTES ────────────────────────────────────
+// -- CONSTANTES --
 const REPORTS_DIR = path.resolve(process.env.REPORTS_DIR || './reports')
 const DATA_RAW_DIR = path.resolve('./data/raw')
+const { AGENT } = require('./config/agentConfig')
 
-// ═══════════════════════════════════════════════════
-// UTILIDADES
-// ═══════════════════════════════════════════════════
+// == UTILIDADES ==
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
@@ -91,7 +78,7 @@ function saveReport(filename, data, dir = REPORTS_DIR) {
   const tmpPath = filePath + '.tmp'
   fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8')
   fs.renameSync(tmpPath, filePath)
-  console.log(`  💾 Guardado: ${filePath}`)
+  console.log(`  [SAVE] ${filePath}`)
 }
 
 function parseArgs() {
@@ -110,20 +97,23 @@ async function runModule(name, fn) {
   try {
     const result = await fn()
     const elapsed = ((Date.now() - start) / 1000).toFixed(1)
-    console.log(`  ⏱ ${name}: ${elapsed}s\n`)
+    console.log(`  [TIME] ${name}: ${elapsed}s\n`)
     return result
   } catch (err) {
-    console.error(`\n  ❌ Error en ${name}: ${err.message}`)
+    console.error(`\n  [ERROR] ${name}: ${err.message}`)
     return null
   }
 }
 
-function isBwtConfigured() { return !!process.env.BWT_API_KEY }
-function isAiConfigured() { return !!process.env.AI_API_KEY }
+function isAiConfigured() {
+  return !!(process.env.OPENAI_API_KEY || process.env.AI_API_KEY)
+}
 
-// ═══════════════════════════════════════════════════
-// PIPELINE IMPERIAL-AGENT v1 — 9 MÓDULOS
-// ═══════════════════════════════════════════════════
+function isBwtConfigured() {
+  return !!process.env.BWT_API_KEY
+}
+
+// == PIPELINE IMPERIAL-AGENT v2 — 9 MODULOS ==
 
 async function runImperialAgent() {
   const fecha = new Date().toISOString().split('T')[0]
@@ -131,37 +121,36 @@ async function runImperialAgent() {
   const aiReady = isAiConfigured()
   const budget = getAllowedModules()
 
-  console.log('╔══════════════════════════════════════════════════╗')
-  console.log('║  🏯 IMPERIAL-AGENT v1 — Manhwa Imperial          ║')
-  console.log('║  SEO + GEO Autonomous Agent                      ║')
-  console.log(`║  ${fecha}                                    ║`)
-  console.log('╚══════════════════════════════════════════════════╝\n')
+  console.log('==================================================')
+  console.log('  IMPERIAL-AGENT v2 — Manhwa Imperial')
+  console.log('  SEO + GEO Autonomous Agent')
+  console.log(`  ${fecha}`)
+  console.log('==================================================\n')
 
   // Estado del sistema
-  if (!bwtReady) console.warn('⚠ BWT_API_KEY no configurada. Módulos Bing en modo degradado.')
-  else console.log('✅ BWT API key detectada. Modo dual (GSC + BWT).')
+  if (!bwtReady) console.warn('[WARN] BWT_API_KEY no configurada. Modo degradado.')
+  else console.log('[OK] BWT API detectada. Modo dual (GSC + BWT).')
 
-  if (!aiReady) console.warn('⚠ AI_API_KEY no configurada. Módulos IA desactivados.')
+  if (!aiReady) console.warn('[WARN] OPENAI_API_KEY no configurada. Modulos IA desactivados.')
   else {
-    const usage = getUsageSummary()
     const cost = getCostPercentage()
-    console.log(`✅ IA configurada (${process.env.AI_PROVIDER || 'anthropic'}). Uso semanal: ${usage.weekly.usage_pct}`)
-    console.log(`💰 Presupuesto mensual: $${cost.acumulado.toFixed(2)}/$${cost.limite} (${cost.pct.toFixed(1)}%)`)
+    console.log(`[OK] OpenAI configurada. Presupuesto: $${cost.acumulado.toFixed(2)}/$${cost.limite} (${cost.pct.toFixed(1)}%)`)
   }
 
-  console.log(`📋 Módulos permitidos: ${budget.modules.join(', ')} (${budget.reason})`)
+  console.log(`[INFO] Modulos permitidos: ${budget.modules.join(', ')} (${budget.reason})`)
   console.log('')
 
-  // Detectar esquema de DB al arrancar
-  console.log('═══ INICIALIZACIÓN ═══\n')
+  // Inicializar semana y DB
+  ensureCurrentWeek()
+  console.log('== INICIALIZACION ==\n')
   await initDB()
   console.log('')
 
   const results = {}
 
-  // ─── PASO 1: MÓDULO 1 — RECOLECCIÓN DE DATOS ───
+  // -- FASE 1: RECOLECCION (sin GPT, puro datos) --
   if (budget.modules.includes(1)) {
-    console.log('═══ MÓDULO 1: RECOLECCIÓN DE DATOS (GSC + BWT) ═══\n')
+    console.log('== FASE 1: RECOLECCION DE DATOS (GSC + BWT) ==\n')
 
     const dataModules = [
       { key: 'quickWinsUnificado', fn: detectQuickWinsUnificado, file: 'quick_wins_unificado.json' },
@@ -180,13 +169,13 @@ async function runImperialAgent() {
       }
     }
 
-    // Guardar datos crudos de la semana
     saveReport(`semana_${fecha}.json`, results, DATA_RAW_DIR)
   }
 
-  // ─── PASO 2: MÓDULO 2 — MONITOR DE CAÍDA ───
+  // -- FASE 2: DIAGNOSTICO (GPT analiza anomalias) --
   if (budget.modules.includes(2)) {
-    console.log('═══ MÓDULO 2: MONITOR DE CAÍDA DE TRÁFICO ═══\n')
+    console.log('== FASE 2: DIAGNOSTICO ==\n')
+    console.log('-- Modulo 2: Monitor de Caida --\n')
     const caida = await runModule('monitorCaidaDual', detectMonitorCaidaDual)
     if (caida) {
       saveReport('monitor_caida_dual.json', caida)
@@ -194,9 +183,8 @@ async function runImperialAgent() {
     }
   }
 
-  // ─── PASO 3: MÓDULO 3 — AUDITORÍA TÉCNICA ───
   if (budget.modules.includes(3)) {
-    console.log('═══ MÓDULO 3: AUDITORÍA TÉCNICA (BWT SEO Scanner) ═══\n')
+    console.log('-- Modulo 3: Auditoria Tecnica (BWT) --\n')
     const auditoria = await runModule('auditoriaTecnica', runAuditoriaTecnica)
     if (auditoria) {
       saveReport('auditoria_tecnica.json', auditoria)
@@ -204,45 +192,44 @@ async function runImperialAgent() {
     }
   }
 
-  // ─── PASO 4: MÓDULO 4 — QUICK WINS OPTIMIZER ───
+  // -- FASE 3: OPTIMIZACION (GPT mejora lo existente) --
   if (budget.modules.includes(4) && aiReady) {
-    console.log('═══ MÓDULO 4: QUICK WINS — Optimizar Titles/Meta ═══\n')
+    console.log('== FASE 3: OPTIMIZACION ==\n')
+    console.log('-- Modulo 4: Quick Wins --\n')
     const titleResults = await runModule('quickWinsOptimizer', () =>
       runQuickWinsOptimizer(results.quickWinsUnificado)
     )
     if (titleResults) results.quickWinsOptimizer = titleResults
 
-    // Schema optimizer también
     const schemaResults = await runModule('schemaOptimizer', () =>
       runSchemaOptimizer(results.quickWinsUnificado)
     )
     if (schemaResults) results.schemaOptimizer = schemaResults
   }
 
-  // ─── PASO 5: MÓDULO 5 — CONTENT GAPS DETECTOR ───
+  // -- FASE 4: CREACION (GPT genera contenido nuevo) --
   if (budget.modules.includes(5)) {
-    // Content gaps ya se detectó en Módulo 1, aquí solo mostramos resumen
     if (results.contentGapsCross) {
       const gaps = results.contentGapsCross
       const alta = gaps.filter(g => g.prioridad_contenido === 'ALTA').length
       const media = gaps.filter(g => g.prioridad_contenido === 'MEDIA').length
-      console.log('═══ MÓDULO 5: CONTENT GAPS ═══\n')
-      console.log(`  → ${gaps.length} gaps detectados: ${alta} ALTA, ${media} MEDIA\n`)
+      console.log('== FASE 4: CREACION ==\n')
+      console.log(`-- Modulo 5: Content Gaps: ${gaps.length} gaps (${alta} ALTA, ${media} MEDIA) --\n`)
     }
   }
 
-  // ─── PASO 6: MÓDULO 6 — GENERADOR DE PÁGINAS ───
   if (budget.modules.includes(6) && aiReady) {
-    console.log('═══ MÓDULO 6: GENERADOR DE PÁGINAS (Top 5 Gaps) ═══\n')
+    console.log('-- Modulo 6: Generador de Paginas --\n')
     const pageResults = await runModule('contentGapsGenerator', () =>
       runContentGapsGenerator(results.contentGapsCross)
     )
     if (pageResults) results.contentGapsGenerator = pageResults
   }
 
-  // ─── PASO 7: MÓDULO 7 — GEO OPTIMIZER ───
+  // -- FASE 5: GEO (GPT optimiza para IAs generativas) --
   if (budget.modules.includes(7) && aiReady) {
-    console.log('═══ MÓDULO 7: GEO OPTIMIZER — IAs Generativas ═══\n')
+    console.log('== FASE 5: GEO ==\n')
+    console.log('-- Modulo 7: GEO Optimizer --\n')
     const geoResults = await runModule('geoOptimizer', () =>
       runGeoOptimizer({
         quickWins: results.quickWinsUnificado,
@@ -252,11 +239,12 @@ async function runImperialAgent() {
     if (geoResults) results.geoOptimizer = geoResults
   }
 
-  // ─── PASO 8: MÓDULO 8 — INDEXACIÓN INTELIGENTE ───
+  // -- FASE 6: DISTRIBUCION (sin GPT) --
   if (budget.modules.includes(8)) {
-    console.log('═══ MÓDULO 8: INDEXACIÓN INTELIGENTE ═══\n')
+    console.log('== FASE 6: DISTRIBUCION ==\n')
+    console.log('-- Modulo 8: Indexacion Inteligente --\n')
 
-    // Resubmitir páginas en caída
+    // Resubmitir paginas en caida
     if (results.monitorCaidaDual) {
       const indexResults = await runModule('smartIndexer', () =>
         runSmartIndexer(results.monitorCaidaDual)
@@ -267,24 +255,24 @@ async function runImperialAgent() {
       }
     }
 
-    // Indexar páginas nuevas/actualizadas de la DB
+    // Indexar paginas actualizadas por el agente
     try {
       const recentPages = await getRecentlyUpdatedPages(7)
       if (recentPages.length > 0) {
-        const siteUrl = process.env.GSC_SITE_URL || 'https://manhwaimperial.site'
+        const siteUrl = AGENT.SITE_URL
         const { smartIndexBatch } = require('./modules/smartIndexer')
         const items = recentPages.map(slug => ({
           url: `${siteUrl}/manhwa/${slug}`,
           reason: 'content_update',
         }))
-        console.log(`  → ${items.length} páginas actualizadas esta semana para indexar`)
-        await smartIndexBatch(items.slice(0, 50)) // Limitar a 50
+        console.log(`  [M8] ${items.length} paginas actualizadas por el agente`)
+        await smartIndexBatch(items.slice(0, 50))
       }
     } catch { /* DB no disponible */ }
   }
 
-  // ─── PASO 9: MÓDULO 9 — REPORTE EJECUTIVO ───
-  console.log('═══ MÓDULO 9: REPORTE EJECUTIVO SEMANAL ═══\n')
+  // -- Modulo 9: Reporte Ejecutivo --
+  console.log('-- Modulo 9: Reporte Ejecutivo Semanal --\n')
 
   if (budget.modules.includes(9) && aiReady) {
     await runModule('reportWriter', runReportWriter)
@@ -294,32 +282,25 @@ async function runImperialAgent() {
     saveReport('reporte_semanal_dual.json', reportJson)
   }
 
-  // ─── CIERRE ───
+  // -- CIERRE --
   if (aiReady) {
-    const usage = getUsageSummary()
     const cost = getCostPercentage()
-    console.log(`\n📊 Uso IA semanal: ${usage.weekly.tokens_used} tokens (${usage.weekly.usage_pct}) | $${usage.weekly.cost_usd}`)
-    console.log(`📊 Uso IA mensual: $${cost.acumulado.toFixed(4)} / $${cost.limite}`)
+    console.log(`\n[COST] Mes: $${cost.acumulado.toFixed(4)} / $${cost.limite} (${cost.pct.toFixed(1)}%)`)
   }
 
-  // Limpiar memoria antigua y registrar ejecución
   cleanup()
   markExecution()
   await closeDB()
 
-  console.log('\n✅ IMPERIAL-AGENT v1 — Pipeline completado.')
+  console.log('\n[DONE] IMPERIAL-AGENT v2 — Pipeline completado.')
 }
-
-// ═══════════════════════════════════════════════════
-// CONSTRUIR DATOS PARA REPORTE
-// ═══════════════════════════════════════════════════
 
 function buildReportData(results) {
   return {
-    quickWins: results.quickWinsUnificado || results.quickWins || [],
-    contentGaps: results.contentGapsCross || results.contentGaps || [],
-    paginasCaida: results.monitorCaidaDual || results.paginasCaida || [],
-    ctrAnalysis: results.ctrComparativo || results.ctrAnalysis || [],
+    quickWins: results.quickWinsUnificado || [],
+    contentGaps: results.contentGapsCross || [],
+    paginasCaida: results.monitorCaidaDual || [],
+    ctrAnalysis: results.ctrComparativo || [],
     aiOverview: results.aiOverview || [],
     copilotCannibalization: results.copilotCannibalization || [],
     auditoriaTecnica: results.auditoriaTecnica || [],
@@ -329,22 +310,20 @@ function buildReportData(results) {
   }
 }
 
-// ═══════════════════════════════════════════════════
-// EJECUCIÓN POR MÓDULO INDIVIDUAL
-// ═══════════════════════════════════════════════════
+// == EJECUCION POR MODULO INDIVIDUAL ==
 
 async function runSingleModule(targetModule) {
-  const bwtReady = isBwtConfigured()
   const aiReady = isAiConfigured()
 
-  console.log('╔══════════════════════════════════════════════════╗')
-  console.log('║  🏯 IMPERIAL-AGENT v1 — Módulo Individual        ║')
-  console.log(`║  ${new Date().toISOString().split('T')[0]}                                    ║`)
-  console.log('╚══════════════════════════════════════════════════╝\n')
+  console.log('==================================================')
+  console.log('  IMPERIAL-AGENT v2 — Modulo Individual')
+  console.log(`  ${new Date().toISOString().split('T')[0]}`)
+  console.log('==================================================\n')
+
+  ensureCurrentWeek()
 
   const results = {}
 
-  // Registro de módulos de análisis
   const analysisModules = {
     quickWinsUnificado: { fn: detectQuickWinsUnificado, file: 'quick_wins_unificado.json' },
     contentGapsCross: { fn: detectContentGapsCross, file: 'content_gaps_cross.json' },
@@ -361,25 +340,33 @@ async function runSingleModule(targetModule) {
     ctrAnalysis: { fn: analyzeCTR, file: 'ctr_por_tipo.json' },
   }
 
-  // Módulos IA
   const aiModules = {
-    optimizarTitles: { fn: () => runQuickWinsOptimizer(), label: 'Optimizar Titles (IA)' },
-    generarPaginas: { fn: () => runContentGapsGenerator(), label: 'Generar Páginas (IA)' },
-    decidirPrioridades: { fn: () => runPriorityDecider(), label: 'Decidir Prioridades (IA)' },
-    optimizarSchemas: { fn: () => runSchemaOptimizer(), label: 'Optimizar Schemas (IA)' },
-    reporteIA: { fn: () => runReportWriter(), label: 'Reporte Semanal (IA)' },
+    optimizarTitles: { fn: () => runQuickWinsOptimizer(), label: 'Quick Wins Optimizer (IA)' },
+    generarPaginas: { fn: () => runContentGapsGenerator(), label: 'Content Gaps Generator (IA)' },
+    decidirPrioridades: { fn: () => runPriorityDecider(), label: 'Priority Decider (IA)' },
+    optimizarSchemas: { fn: () => runSchemaOptimizer(), label: 'Schema Optimizer (IA)' },
+    reporteIA: { fn: () => runReportWriter(), label: 'Report Writer (IA)' },
     geoOptimizer: { fn: () => runGeoOptimizer(), label: 'GEO Optimizer (IA)' },
   }
 
-  if (targetModule === 'detectDB') {
-    console.log('🔍 Detectando esquema de base de datos...\n')
+  if (targetModule === 'setup' || targetModule === 'detectDB') {
+    console.log('[SETUP] Detectando esquema de base de datos...\n')
     await initDB()
     const { getSchema } = require('./core/dbClient')
     const schema = getSchema()
     if (schema) {
-      console.log('\n📋 Esquema detectado:')
+      console.log('\n[SCHEMA]')
       console.log(JSON.stringify(schema, null, 2))
     }
+
+    // Validar APIs
+    console.log('\n[APIS]')
+    console.log(`  GSC: ${process.env.GOOGLE_CREDENTIALS_PATH ? 'Configurado' : 'No configurado'}`)
+    console.log(`  BWT: ${isBwtConfigured() ? 'Configurado' : 'No configurado'}`)
+    console.log(`  OpenAI: ${isAiConfigured() ? 'Configurado' : 'No configurado'}`)
+    console.log(`  Telegram: ${process.env.TELEGRAM_BOT_TOKEN ? 'Configurado' : 'No configurado'}`)
+    console.log(`  Email: ${process.env.SMTP_HOST ? 'Configurado' : 'No configurado'}`)
+
     await closeDB()
     return
   }
@@ -390,7 +377,7 @@ async function runSingleModule(targetModule) {
 
   if (aiModules[targetModule]) {
     const mod = aiModules[targetModule]
-    console.log(`🤖 Ejecutando: ${mod.label}\n`)
+    console.log(`[IA] Ejecutando: ${mod.label}\n`)
     await runModule(targetModule, mod.fn)
     return
   }
@@ -403,7 +390,7 @@ async function runSingleModule(targetModule) {
   }
 
   if (targetModule === 'smartIndexer') {
-    console.log('🔄 Ejecutando Smart Indexer...\n')
+    console.log('[M8] Ejecutando Smart Indexer...\n')
     const caida = await runModule('monitorCaidaDual', detectMonitorCaidaDual)
     if (caida) saveReport('monitor_caida_dual.json', caida)
     const indexResults = await runModule('smartIndexer', () => runSmartIndexer(caida || []))
@@ -412,14 +399,14 @@ async function runSingleModule(targetModule) {
   }
 
   if (targetModule === 'reporte') {
-    console.log('📬 Generando reporte...\n')
+    console.log('[M9] Generando reporte...\n')
     for (const [key, mod] of Object.entries(analysisModules)) {
       const filePath = path.join(REPORTS_DIR, mod.file)
       if (fs.existsSync(filePath)) {
         try {
           results[key] = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-          console.log(`  ✅ Cargado: ${mod.file}`)
-        } catch { console.log(`  ⚠ Error: ${mod.file}`) }
+          console.log(`  [OK] ${mod.file}`)
+        } catch { console.log(`  [WARN] ${mod.file}`) }
       }
     }
     const reportData = buildReportData(results)
@@ -428,79 +415,68 @@ async function runSingleModule(targetModule) {
     return
   }
 
-  // Módulo desconocido
-  console.error(`❌ Módulo desconocido: ${targetModule}`)
+  // Modulo desconocido
+  console.error(`[ERROR] Modulo desconocido: ${targetModule}`)
   const allModules = [
     ...Object.keys(analysisModules),
     ...Object.keys(aiModules),
-    'smartIndexer', 'reporte', 'agenteFull', 'detectDB',
+    'smartIndexer', 'reporte', 'agenteFull', 'setup',
   ]
-  console.log(`   Módulos disponibles: ${allModules.join(', ')}`)
+  console.log(`  Disponibles: ${allModules.join(', ')}`)
   process.exit(1)
 }
 
-// ═══════════════════════════════════════════════════
-// MODO CRON — Cada lunes a las 4AM
-// ═══════════════════════════════════════════════════
+// == MODO CRON ==
 
 function startCron() {
   let cron
   try {
     cron = require('node-cron')
   } catch {
-    console.error('❌ node-cron no instalado. Ejecutar: npm install node-cron')
+    console.error('[ERROR] node-cron no instalado. Ejecutar: npm install node-cron')
     process.exit(1)
   }
 
-  console.log('╔══════════════════════════════════════════════════╗')
-  console.log('║  🏯 IMPERIAL-AGENT v1 — Modo CRON                ║')
-  console.log('║  Schedule: Lunes 4:00 AM                         ║')
-  console.log('╚══════════════════════════════════════════════════╝\n')
+  console.log('==================================================')
+  console.log('  IMPERIAL-AGENT v2 — Modo CRON')
+  console.log('  Schedule: 0 4 * * 1 (Lunes 4:00 AM)')
+  console.log('==================================================\n')
 
-  console.log('⏰ Esperando próxima ejecución programada...')
-  console.log('   Cron: 0 4 * * 1 (cada lunes a las 4AM)\n')
+  console.log('[CRON] Esperando proxima ejecucion programada...\n')
 
-  // Cada lunes a las 4AM
   cron.schedule('0 4 * * 1', async () => {
-    console.log(`\n🕐 Ejecución programada iniciada: ${new Date().toISOString()}\n`)
+    console.log(`\n[CRON] Ejecucion iniciada: ${new Date().toISOString()}\n`)
     try {
       await runImperialAgent()
     } catch (err) {
-      console.error(`\n💥 Error en ejecución programada: ${err.message}`)
+      console.error(`\n[FATAL] Error en ejecucion programada: ${err.message}`)
     }
   }, {
     timezone: 'America/Mexico_City',
   })
 
-  // Mantener proceso vivo
   process.on('SIGINT', () => {
-    console.log('\n👋 IMPERIAL-AGENT detenido.')
+    console.log('\n[STOP] IMPERIAL-AGENT v2 detenido.')
     process.exit(0)
   })
 }
 
-// ═══════════════════════════════════════════════════
-// PUNTO DE ENTRADA
-// ═══════════════════════════════════════════════════
+// == PUNTO DE ENTRADA ==
 
 async function main() {
   const args = parseArgs()
 
-  if (args.cron) {
-    return startCron()
-  }
+  if (args.cron) return startCron()
 
   const targetModule = args.module || null
 
-  if (targetModule) {
-    return runSingleModule(targetModule)
-  }
+  if (targetModule) return runSingleModule(targetModule)
 
-  // Sin argumentos: ejecutar pipeline completo
+  // Sin argumentos: pipeline completo
   return runImperialAgent()
 }
 
 main().catch(err => {
-  console.error('\n💥 Error fatal del pipeline:', err.message)
+  console.error('\n[FATAL] Error fatal del pipeline:', err.message)
   process.exit(1)
 })

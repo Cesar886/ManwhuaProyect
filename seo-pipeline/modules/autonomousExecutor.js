@@ -49,10 +49,17 @@ function writeJsonAtomic(filePath, data) {
   fs.renameSync(tmpPath, filePath)
 }
 
-// AUTO-EXEC: Añadir entrada al log maestro
-function logAction(entry) {
+// AUTO-EXEC: Anadir entrada al log maestro
+// v2: Soporta logAction('name', data) y logAction(entry)
+function logAction(nameOrEntry, data) {
   ensureDirs()
   const log = readJsonSafe(LOG_MAESTRO_PATH)
+  let entry
+  if (typeof nameOrEntry === 'string') {
+    entry = { accion: nameOrEntry, ...(data || {}) }
+  } else {
+    entry = nameOrEntry
+  }
   log.push({
     timestamp: new Date().toISOString(),
     ...entry,

@@ -1,73 +1,73 @@
 /**
- * IA-AGENT: Generador Autónomo de Páginas (Content Gaps)
+ * IMPERIAL-AGENT v2: Modulo 6 — Generador de Paginas Nuevas
  *
- * Flujo completo:
- *   CAPA 1 → Lee content_gaps_cross.json (datos de GSC + BWT)
- *   CAPA 2 → IA genera página completa según tipo (lista/obra/reseña)
- *   CAPA 3 → Publica si confidence ≥ 0.75, draft si < 0.75
+ * Top 5 gaps ALTA (o MEDIA si no hay ALTA).
+ * GPT-4o genera pagina segun tipo: lista | obra | resena
  *
- * Control de costos: Este módulo es el más costoso en tokens.
- * Se pausa automáticamente al 80% del límite semanal.
+ * >= 0.75 -> insertar en DB + enviar a IndexNow
+ * < 0.75  -> guardar en /drafts/ + notificar
+ *
+ * Este modulo es el mas costoso en tokens.
+ * Se pausa automaticamente al 80% del limite mensual.
  */
 
 const fs = require('fs')
 const path = require('path')
 const { AGENT } = require('../config/agentConfig')
-const { callAI, shouldPauseGeneration } = require('./aiReasoner')
-const { executePageCreation, logAction } = require('./autonomousExecutor')
+const { gptCall } = require('../core/gptClient')
+const { insertPage, slugExists } = require('../core/dbClient')
+const { markPageCreated, markGapProcessed, addDraft, getCostPercentage } = require('../core/agentMemory')
 const { smartIndex } = require('./smartIndexer')
+const { logAction } = require('./autonomousExecutor')
 const contentPrompt = require('../prompts/contentGenerator.prompt')
 
 const REPORTS_DIR = path.resolve(process.env.REPORTS_DIR || './reports')
+const DRAFTS_DIR = path.resolve('./drafts')
 
-/**
- * IA-AGENT: Ejecutar generación autónoma de páginas para content gaps
- *
- * @param {Array} [contentGapsData] - Datos de content gaps (si no se pasa, lee del archivo)
- * @returns {Promise<Object>} Resumen de generación
- */
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+}
+
 async function runContentGapsGenerator(contentGapsData) {
-  console.log('📄 Generador Autónomo de Páginas (IA)...\n')
+  console.log('  [M6] Generador de Paginas (IA)...\n')
 
-  // IA-AGENT: Verificar API key
-  if (!AGENT.AI_API_KEY) {
-    console.warn('  ⚠ AI_API_KEY no configurada. Módulo desactivado.')
-    return { status: 'disabled', reason: 'AI_API_KEY not set' }
+  if (!AGENT.OPENAI_API_KEY) {
+    console.warn('  [M6] OPENAI_API_KEY no configurada.')
+    return { status: 'disabled' }
   }
 
-  // IA-AGENT: Verificar control de costos
-  if (shouldPauseGeneration()) {
-    console.warn('  ⚠ Generación de páginas pausada: uso de tokens al 80%+ del límite semanal.')
-    console.warn('  → Solo quickWinsOptimizer (más barato) seguirá activo.')
-    return { status: 'paused', reason: 'Weekly token budget at 80%+' }
+  // Verificar control de costos (este modulo se pausa al 80%)
+  const budget = getCostPercentage()
+  if (budget.pct >= AGENT.PAUSE_AT_PCT) {
+    console.warn(`  [M6] Presupuesto al ${budget.pct.toFixed(1)}%. Modulo 6 pausado.`)
+    return { status: 'paused', reason: `Budget at ${budget.pct.toFixed(1)}%` }
   }
 
-  // CAPA 1: Obtener datos de content gaps
+  // Obtener datos de content gaps
   let contentGaps = contentGapsData
   if (!contentGaps) {
     const filePath = path.join(REPORTS_DIR, 'content_gaps_cross.json')
     if (!fs.existsSync(filePath)) {
-      console.warn('  ⚠ No se encontró content_gaps_cross.json. Ejecutar pipeline primero.')
-      return { status: 'no_data', reason: 'content_gaps_cross.json not found' }
+      console.warn('  [M6] No se encontro content_gaps_cross.json')
+      return { status: 'no_data' }
     }
     contentGaps = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
   }
 
-  // IA-AGENT: Filtrar y priorizar candidatos
-  const candidates = contentGaps
-    .filter(gap => {
-      const totalImp = (gap.impresiones_google || 0) + (gap.impresiones_bing || 0)
-      return totalImp >= AGENT.FILTERS.CONTENT_GAP_MIN_IMPRESSIONS &&
-             (gap.prioridad_contenido === 'ALTA' || gap.prioridad_contenido === 'MEDIA')
-    })
-    .slice(0, AGENT.LIMITS.MAX_PAGES_PER_RUN)
+  // v2: Top 5 ALTA, o MEDIA si no hay suficientes ALTA
+  const alta = contentGaps.filter(g => g.prioridad_contenido === 'ALTA')
+  const media = contentGaps.filter(g => g.prioridad_contenido === 'MEDIA')
+  let candidates = alta.slice(0, AGENT.LIMITS.MAX_PAGES_PER_RUN)
+  if (candidates.length < AGENT.LIMITS.MAX_PAGES_PER_RUN) {
+    candidates = [...candidates, ...media.slice(0, AGENT.LIMITS.MAX_PAGES_PER_RUN - candidates.length)]
+  }
 
   if (candidates.length === 0) {
-    console.log('  → No hay content gaps prioritarios para generar páginas.')
+    console.log('  [M6] No hay content gaps prioritarios.')
     return { status: 'no_candidates', generated: 0, drafted: 0 }
   }
 
-  console.log(`  → ${candidates.length} content gaps seleccionados para generación\n`)
+  console.log(`  [M6] ${candidates.length} gaps seleccionados\n`)
 
   const results = {
     status: 'completed',
@@ -84,83 +84,183 @@ async function runContentGapsGenerator(contentGapsData) {
   for (const gap of candidates) {
     const { query, tipo_pagina, impresiones_google, impresiones_bing } = gap
 
-    // IA-AGENT: Re-verificar presupuesto antes de cada generación (es costosa)
-    if (shouldPauseGeneration()) {
-      console.warn('  ⚠ Presupuesto al 80%+. Pausando generación de páginas restantes.')
+    // Re-verificar presupuesto antes de cada generacion
+    const currentBudget = getCostPercentage()
+    if (currentBudget.pct >= AGENT.PAUSE_AT_PCT) {
+      console.warn('  [M6] Presupuesto al limite. Pausando.')
       results.skipped += candidates.length - results.generated - results.drafted - results.failed
       break
     }
 
-    console.log(`  📝 Generando página [${tipo_pagina}]: "${query}"`)
+    console.log(`  [M6] Generando [${tipo_pagina}]: "${query}"`)
 
-    // CAPA 2: Llamar a la IA con prompt según tipo
-    const systemPrompt = contentPrompt.getSystemPrompt(tipo_pagina)
-    const userPrompt = contentPrompt.getUserPrompt(tipo_pagina, {
-      query,
-      impressions: impresiones_google || 0,
-      impressionsBing: impresiones_bing || 0,
-    })
+    // GPT-4o genera pagina
+    const aiResponse = await gptCall(
+      contentPrompt.getSystemPrompt(tipo_pagina),
+      contentPrompt.getUserPrompt(tipo_pagina, {
+        query,
+        g_imp: impresiones_google || 0,
+        b_imp: impresiones_bing || 0,
+        impressions: impresiones_google || 0,
+        impressionsBing: impresiones_bing || 0,
+      }),
+      { moduleNumber: 6, maxTokens: 6000 }
+    )
 
-    const aiResponse = await callAI(systemPrompt, userPrompt, { maxTokens: 6000 })
-
-    if (aiResponse.budget_exceeded) {
-      console.warn('  ⚠ Presupuesto semanal agotado.')
+    if (aiResponse.budget_blocked) {
+      console.warn('  [M6] Presupuesto bloqueado.')
       results.skipped++
       break
     }
 
-    if (!aiResponse.parsed || !aiResponse.parsed.contenido_html) {
-      console.error(`    ❌ IA no devolvió contenido válido para "${query}"`)
+    const parsed = aiResponse.parsed
+    if (!parsed || !parsed.slug) {
+      console.error(`  [M6] IA no devolvio contenido valido para "${query}"`)
       results.failed++
+      markGapProcessed(query, 'failed')
       continue
     }
 
-    results.total_tokens += aiResponse.tokens_used
-    results.total_cost_usd += aiResponse.cost_usd
+    results.total_tokens += aiResponse.tokens_used || 0
+    results.total_cost_usd += aiResponse.cost_usd || 0
 
-    // CAPA 3: Ejecutar (publicar o draft)
-    const execResult = await executePageCreation({
-      query,
-      tipoPagina: tipo_pagina,
-      aiResult: aiResponse.parsed,
-      tokensUsed: aiResponse.tokens_used,
-      costUsd: aiResponse.cost_usd,
-    })
+    const score = parsed.confidence_score || 0
 
-    if (execResult.action === 'published') {
-      results.generated++
-      if (execResult.url) {
-        results.urls_publicadas.push(execResult.url)
-        // AUTO-EXEC: Enviar URL nueva a IndexNow + Google para indexación rápida
-        try {
-          await smartIndex(execResult.url, 'new_page')
-          console.log(`    🔗 URL enviada a IndexNow + Google Indexing`)
-        } catch (err) {
-          console.warn(`    ⚠ Error indexando: ${err.message}`)
-        }
+    if (score >= AGENT.CONFIDENCE_THRESHOLD) {
+      // Verificar slug no duplicado
+      const exists = await slugExists(parsed.slug)
+      if (exists) {
+        console.warn(`  [M6] Slug "${parsed.slug}" ya existe en DB. Omitiendo.`)
+        results.failed++
+        markGapProcessed(query, 'slug_exists')
+        continue
       }
-    } else if (execResult.action === 'draft') {
-      results.drafted++
+
+      // Construir contenido HTML
+      const contenidoHtml = buildHtml(parsed, tipo_pagina)
+
+      // Insertar en DB
+      const dbResult = await insertPage({
+        slug: parsed.slug,
+        meta_title: parsed.meta_title,
+        meta_description: parsed.meta_description,
+        contenido_html: contenidoHtml,
+        schema_jsonld: parsed.schema_itemlist || parsed.schema_book || parsed.schema_review || parsed.schema_faqpage,
+      })
+
+      if (dbResult.success) {
+        const fullUrl = `${AGENT.SITE_URL}${parsed.slug}`
+        markPageCreated(parsed.slug, query)
+        markGapProcessed(query, 'published')
+        logAction('contentGaps_publish', { url: fullUrl, query, slug: parsed.slug, score })
+        results.generated++
+        results.urls_publicadas.push(fullUrl)
+        console.log(`    -> Publicado: ${fullUrl} (score: ${score})`)
+
+        // Indexar inmediatamente
+        try {
+          await smartIndex(fullUrl, 'new_page')
+          console.log(`    -> Enviado a IndexNow + Google`)
+        } catch (err) {
+          console.warn(`    -> Error indexando: ${err.message}`)
+        }
+      } else {
+        console.error(`    -> Error DB: ${dbResult.error}`)
+        results.failed++
+        markGapProcessed(query, 'db_error')
+      }
     } else {
-      results.failed++
+      // Guardar como draft
+      ensureDir(DRAFTS_DIR)
+      const draftPath = path.join(DRAFTS_DIR, `${tipo_pagina}_${Date.now()}.json`)
+      fs.writeFileSync(draftPath, JSON.stringify(parsed, null, 2), 'utf-8')
+
+      addDraft({
+        tipo: 'page_creation',
+        slug: parsed.slug,
+        query,
+        modulo: 'contentGaps',
+        score,
+      })
+      markGapProcessed(query, 'draft')
+      logAction('contentGaps_draft', { query, slug: parsed.slug, score })
+      results.drafted++
+      console.log(`    -> Draft: ${draftPath} (score: ${score})`)
     }
 
     results.details.push({
       query,
       tipo_pagina,
-      action: execResult.action,
-      confidence: aiResponse.parsed.confidence_score,
-      slug: aiResponse.parsed.slug,
+      action: score >= AGENT.CONFIDENCE_THRESHOLD ? 'published' : 'draft',
+      confidence: score,
+      slug: parsed.slug,
     })
 
-    // Pausa mayor entre generaciones (más tokens = más pausa)
+    // Pausa entre generaciones (costosas)
     await new Promise(r => setTimeout(r, 2000))
   }
 
-  console.log(`\n  📊 Resumen: ${results.generated} publicadas, ${results.drafted} drafts, ${results.failed} fallidas`)
-  console.log(`  💰 Tokens: ${results.total_tokens} | Costo: $${results.total_cost_usd.toFixed(4)}\n`)
-
+  console.log(`\n  [M6] Resumen: ${results.generated} publicadas, ${results.drafted} drafts, ${results.failed} fallidas`)
   return results
+}
+
+// Construir HTML a partir del resultado de GPT
+function buildHtml(parsed, tipo) {
+  let html = `<h1>${parsed.h1 || ''}</h1>\n`
+
+  if (parsed.respuesta_rapida) {
+    html += `<div class="respuesta-rapida"><p>${parsed.respuesta_rapida}</p></div>\n`
+  }
+
+  if (tipo === 'lista' && parsed.introduccion) {
+    html += `<p>${parsed.introduccion}</p>\n`
+    if (parsed.obras && Array.isArray(parsed.obras)) {
+      html += '<div class="obras-lista">\n'
+      parsed.obras.forEach((obra, i) => {
+        html += `<div class="obra-item">\n`
+        html += `  <h2>${i + 1}. ${obra.nombre}</h2>\n`
+        if (obra.genero) html += `  <p class="genero">${Array.isArray(obra.genero) ? obra.genero.join(', ') : obra.genero}</p>\n`
+        html += `  <p>${obra.descripcion || ''}</p>\n`
+        if (obra.puntuacion) html += `  <p class="puntuacion">${obra.puntuacion}/10</p>\n`
+        html += `</div>\n`
+      })
+      html += '</div>\n'
+    }
+  } else if (tipo === 'obra') {
+    if (parsed.sinopsis) html += `<div class="sinopsis"><h2>Sinopsis</h2><p>${parsed.sinopsis}</p></div>\n`
+    if (parsed.generos) html += `<p class="generos">Generos: ${Array.isArray(parsed.generos) ? parsed.generos.join(', ') : parsed.generos}</p>\n`
+    if (parsed.donde_leer_legal) html += `<div class="donde-leer"><h2>Donde Leer</h2><p>${parsed.donde_leer_legal}</p></div>\n`
+    if (parsed.manhwas_similares && Array.isArray(parsed.manhwas_similares)) {
+      html += '<div class="similares"><h2>Manhwas Similares</h2>\n'
+      parsed.manhwas_similares.forEach(s => {
+        html += `<p><strong>${s.nombre}</strong>: ${s.razon || ''}</p>\n`
+      })
+      html += '</div>\n'
+    }
+  } else if (tipo === 'resena') {
+    if (parsed.puntuaciones) {
+      html += '<div class="puntuaciones">\n'
+      html += `  <p>Global: ${parsed.puntuaciones.global}/10</p>\n`
+      html += `  <p>Historia: ${parsed.puntuaciones.historia}/10</p>\n`
+      html += `  <p>Arte: ${parsed.puntuaciones.arte}/10</p>\n`
+      html += `  <p>Personajes: ${parsed.puntuaciones.personajes}/10</p>\n`
+      html += `  <p>Ritmo: ${parsed.puntuaciones.ritmo}/10</p>\n`
+      html += '</div>\n'
+    }
+    if (parsed.veredicto) html += `<div class="veredicto"><h2>Veredicto</h2><p>${parsed.veredicto}</p></div>\n`
+    if (parsed.para_quien_es) html += `<div class="para-quien"><h2>Para Quien Es</h2><p>${parsed.para_quien_es}</p></div>\n`
+  }
+
+  // FAQs (comun a todos los tipos)
+  if (parsed.faqs && Array.isArray(parsed.faqs)) {
+    html += '<section class="faqs"><h2>Preguntas Frecuentes</h2>\n'
+    parsed.faqs.forEach(faq => {
+      html += `<div class="faq-item">\n  <h3>${faq.pregunta}</h3>\n  <p>${faq.respuesta}</p>\n</div>\n`
+    })
+    html += '</section>\n'
+  }
+
+  return html
 }
 
 module.exports = { runContentGapsGenerator }

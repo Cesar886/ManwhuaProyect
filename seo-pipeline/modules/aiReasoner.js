@@ -1,14 +1,8 @@
 /**
- * IA-AGENT: Motor de Razonamiento con IA — Capa 2 del Agente Autónomo
+ * IMPERIAL-AGENT v2: Motor de Razonamiento IA
  *
- * Envía prompts estructurados a la API de IA (Anthropic/OpenAI) y
- * devuelve respuestas parseadas con confidence_score.
- *
- * Funcionalidades:
- *   - Llamadas a API con retry exponencial
- *   - Tracking de tokens consumidos para control de costos
- *   - Parseo seguro de JSON desde respuestas de IA
- *   - Rate limiting interno para no exceder límites semanales
+ * Soporta OpenAI (GPT-4o) y Anthropic (Claude).
+ * Incluye retry exponencial, tracking de tokens y rate limiting.
  */
 
 const axios = require('axios')
@@ -16,33 +10,68 @@ const fs = require('fs')
 const path = require('path')
 const { AGENT } = require('../config/agentConfig')
 
-const COST_LOG_PATH = path.resolve(process.env.REPORTS_DIR || './reports', '..', 'logs', 'costo_ia_mensual.json')
-const WEEKLY_USAGE_PATH = path.resolve(process.env.REPORTS_DIR || './reports', '..', 'logs', 'uso_semanal_tokens.json')
+const COST_LOG_PATH = path.resolve(__dirname, '..', 'logs', 'costo_ia_mensual.json')
+const WEEKLY_USAGE_PATH = path.resolve(__dirname, '..', 'logs', 'uso_semanal_tokens.json')
 
-// IA-AGENT: Leer uso acumulado de tokens esta semana
+// Resolver API key y proveedor (v2 usa OPENAI_API_KEY, v1 usa AI_API_KEY)
+function getApiKey() {
+  return AGENT.OPENAI_API_KEY || process.env.AI_API_KEY || ''
+}
+
+function getProvider() {
+  if (process.env.AI_PROVIDER) return process.env.AI_PROVIDER
+  // v2 defaults to openai
+  return 'openai'
+}
+
+function getModel() {
+  return AGENT.OPENAI_MODEL || process.env.AI_MODEL || 'gpt-4o'
+}
+
+function getMaxTokens() {
+  return AGENT.OPENAI_MAX_TOKENS || parseInt(process.env.AI_MAX_TOKENS) || 4096
+}
+
+function getTemperature() {
+  return AGENT.OPENAI_TEMPERATURE ?? parseFloat(process.env.AI_TEMPERATURE) ?? 0.3
+}
+
+function getWeeklyTokenLimit() {
+  return parseInt(process.env.AI_WEEKLY_TOKEN_LIMIT) || 500000
+}
+
+function getCostPer1kTokens() {
+  return parseFloat(process.env.AI_COST_PER_1K_TOKENS) || 0.003
+}
+
+// Uso semanal de tokens
+function getWeekNumber() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), 0, 1)
+  const diff = now - start
+  return `${now.getFullYear()}-W${Math.ceil((diff / 86400000 + start.getDay() + 1) / 7)}`
+}
+
 function readWeeklyUsage() {
   try {
     if (fs.existsSync(WEEKLY_USAGE_PATH)) {
       const data = JSON.parse(fs.readFileSync(WEEKLY_USAGE_PATH, 'utf-8'))
-      // Resetear si la semana cambió
       const currentWeek = getWeekNumber()
       if (data.week !== currentWeek) {
         return { week: currentWeek, tokens_used: 0, cost_usd: 0, calls: 0 }
       }
       return data
     }
-  } catch { /* archivo corrupto */ }
+  } catch { /* corrupto */ }
   return { week: getWeekNumber(), tokens_used: 0, cost_usd: 0, calls: 0 }
 }
 
-// IA-AGENT: Guardar uso de tokens
 function saveWeeklyUsage(usage) {
   const dir = path.dirname(WEEKLY_USAGE_PATH)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(WEEKLY_USAGE_PATH, JSON.stringify(usage, null, 2), 'utf-8')
 }
 
-// IA-AGENT: Registrar costo mensual acumulado
 function logMonthlyCost(tokensUsed, costUsd) {
   const dir = path.dirname(COST_LOG_PATH)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
@@ -52,9 +81,9 @@ function logMonthlyCost(tokensUsed, costUsd) {
     if (fs.existsSync(COST_LOG_PATH)) {
       costLog = JSON.parse(fs.readFileSync(COST_LOG_PATH, 'utf-8'))
     }
-  } catch { /* nuevo archivo */ }
+  } catch { /* nuevo */ }
 
-  const month = new Date().toISOString().slice(0, 7) // YYYY-MM
+  const month = new Date().toISOString().slice(0, 7)
   let monthEntry = costLog.entries.find(e => e.month === month)
   if (!monthEntry) {
     monthEntry = { month, tokens: 0, cost_usd: 0, calls: 0 }
@@ -70,92 +99,72 @@ function logMonthlyCost(tokensUsed, costUsd) {
   fs.writeFileSync(COST_LOG_PATH, JSON.stringify(costLog, null, 2), 'utf-8')
 }
 
-function getWeekNumber() {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
-  const diff = now - start
-  return `${now.getFullYear()}-W${Math.ceil((diff / 86400000 + start.getDay() + 1) / 7)}`
-}
-
-// IA-AGENT: Verificar si se puede hacer una llamada (límite semanal)
 function canMakeCall(estimatedTokens = 2000) {
   const usage = readWeeklyUsage()
+  const limit = getWeeklyTokenLimit()
   const projectedUsage = usage.tokens_used + estimatedTokens
   return {
-    allowed: projectedUsage <= AGENT.WEEKLY_TOKEN_LIMIT,
-    usage_pct: (usage.tokens_used / AGENT.WEEKLY_TOKEN_LIMIT) * 100,
-    tokens_remaining: AGENT.WEEKLY_TOKEN_LIMIT - usage.tokens_used,
-    pause_generation: (usage.tokens_used / AGENT.WEEKLY_TOKEN_LIMIT) >= AGENT.COST_PAUSE_THRESHOLD,
+    allowed: projectedUsage <= limit,
+    usage_pct: (usage.tokens_used / limit) * 100,
+    tokens_remaining: limit - usage.tokens_used,
+    pause_generation: (usage.tokens_used / limit) >= 0.80,
   }
 }
 
-// IA-AGENT: Parsear JSON de respuesta de IA (tolerante a markdown code blocks)
+// Parsear JSON de respuesta IA (tolerante a markdown)
 function parseAiJson(text) {
-  // Intentar parsear directamente
-  try {
-    return JSON.parse(text)
-  } catch { /* intentar limpiar */ }
+  try { return JSON.parse(text) } catch { /* limpiar */ }
 
-  // Remover bloques de código markdown
   const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
   if (jsonMatch) {
-    try {
-      return JSON.parse(jsonMatch[1].trim())
-    } catch { /* continuar */ }
+    try { return JSON.parse(jsonMatch[1].trim()) } catch { /* continuar */ }
   }
 
-  // Buscar primer { ... último }
   const firstBrace = text.indexOf('{')
   const lastBrace = text.lastIndexOf('}')
   if (firstBrace !== -1 && lastBrace > firstBrace) {
-    try {
-      return JSON.parse(text.slice(firstBrace, lastBrace + 1))
-    } catch { /* falló */ }
+    try { return JSON.parse(text.slice(firstBrace, lastBrace + 1)) } catch { /* fallo */ }
   }
 
   return null
 }
 
 /**
- * IA-AGENT: Llamar a la API de IA con prompt estructurado
- *
- * @param {string} systemPrompt - Prompt de sistema
- * @param {string} userPrompt - Prompt de usuario
- * @param {Object} [options] - Opciones adicionales
- * @param {number} [options.maxTokens] - Máximo de tokens en la respuesta
- * @param {number} [options.temperature] - Temperatura (0-1)
- * @param {number} [options.retries] - Reintentos actuales (interno)
- * @returns {Promise<{parsed: Object|null, raw: string, tokens_used: number, cost_usd: number}>}
+ * Llamar a la API de IA con prompt estructurado
  */
 async function callAI(systemPrompt, userPrompt, options = {}) {
-  const maxTokens = options.maxTokens || AGENT.AI_MAX_TOKENS
-  const temperature = options.temperature ?? AGENT.AI_TEMPERATURE
+  const maxTokens = options.maxTokens || getMaxTokens()
+  const temperature = options.temperature ?? getTemperature()
   const retries = options.retries || 0
   const maxRetries = 3
 
-  // IA-AGENT: Verificar límite de tokens semanales
   const budget = canMakeCall(maxTokens)
   if (!budget.allowed) {
-    console.warn(`  ⚠ IA-AGENT: Límite semanal de tokens alcanzado (${budget.usage_pct.toFixed(1)}%). Llamada rechazada.`)
+    console.warn(`  [IA] Limite semanal de tokens alcanzado (${budget.usage_pct.toFixed(1)}%).`)
     return { parsed: null, raw: '', tokens_used: 0, cost_usd: 0, budget_exceeded: true }
   }
 
-  try {
-    let response
-    let tokensUsed = 0
-    let rawText = ''
+  const apiKey = getApiKey()
+  if (!apiKey) {
+    return { parsed: null, raw: '', tokens_used: 0, cost_usd: 0, error: 'No API key configured' }
+  }
 
-    if (AGENT.AI_PROVIDER === 'anthropic') {
-      // IA-AGENT: Llamada a Anthropic Messages API
-      response = await axios.post('https://api.anthropic.com/v1/messages', {
-        model: AGENT.AI_MODEL,
+  try {
+    let rawText = ''
+    let tokensUsed = 0
+    const provider = getProvider()
+    const model = getModel()
+
+    if (provider === 'anthropic') {
+      const response = await axios.post('https://api.anthropic.com/v1/messages', {
+        model,
         max_tokens: maxTokens,
         temperature,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       }, {
         headers: {
-          'x-api-key': AGENT.AI_API_KEY,
+          'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
@@ -165,10 +174,10 @@ async function callAI(systemPrompt, userPrompt, options = {}) {
       rawText = response.data.content?.[0]?.text || ''
       tokensUsed = (response.data.usage?.input_tokens || 0) + (response.data.usage?.output_tokens || 0)
 
-    } else if (AGENT.AI_PROVIDER === 'openai') {
-      // IA-AGENT: Llamada a OpenAI Chat Completions API
-      response = await axios.post('https://api.openai.com/v1/chat/completions', {
-        model: AGENT.AI_MODEL,
+    } else {
+      // OpenAI (default for v2)
+      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+        model,
         max_tokens: maxTokens,
         temperature,
         messages: [
@@ -177,7 +186,7 @@ async function callAI(systemPrompt, userPrompt, options = {}) {
         ],
       }, {
         headers: {
-          Authorization: `Bearer ${AGENT.AI_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         timeout: 60000,
@@ -185,12 +194,10 @@ async function callAI(systemPrompt, userPrompt, options = {}) {
 
       rawText = response.data.choices?.[0]?.message?.content || ''
       tokensUsed = response.data.usage?.total_tokens || 0
-    } else {
-      throw new Error(`IA-AGENT: Proveedor no soportado: ${AGENT.AI_PROVIDER}`)
     }
 
-    // IA-AGENT: Registrar uso de tokens
-    const costUsd = (tokensUsed / 1000) * AGENT.COST_PER_1K_TOKENS
+    // Registrar uso
+    const costUsd = (tokensUsed / 1000) * getCostPer1kTokens()
     const usage = readWeeklyUsage()
     usage.tokens_used += tokensUsed
     usage.cost_usd += costUsd
@@ -198,38 +205,30 @@ async function callAI(systemPrompt, userPrompt, options = {}) {
     saveWeeklyUsage(usage)
     logMonthlyCost(tokensUsed, costUsd)
 
-    // IA-AGENT: Parsear respuesta JSON
     const parsed = parseAiJson(rawText)
-
     return { parsed, raw: rawText, tokens_used: tokensUsed, cost_usd: costUsd }
 
   } catch (err) {
-    // IA-AGENT: Retry con backoff exponencial
     if (retries < maxRetries) {
       const waitMs = 1000 * Math.pow(2, retries)
-      console.warn(`  ⚠ IA-AGENT: Error en llamada (intento ${retries + 1}/${maxRetries}): ${err.message}. Reintentando en ${waitMs}ms...`)
+      console.warn(`  [IA] Error (intento ${retries + 1}/${maxRetries}): ${err.message}. Reintentando en ${waitMs}ms...`)
       await new Promise(r => setTimeout(r, waitMs))
       return callAI(systemPrompt, userPrompt, { ...options, retries: retries + 1 })
     }
 
-    console.error(`  ❌ IA-AGENT: Fallo tras ${maxRetries} reintentos: ${err.message}`)
+    console.error(`  [IA] Fallo tras ${maxRetries} reintentos: ${err.message}`)
     return { parsed: null, raw: '', tokens_used: 0, cost_usd: 0, error: err.message }
   }
 }
 
-/**
- * IA-AGENT: Verificar si la generación de páginas debe pausarse (control de costos)
- */
 function shouldPauseGeneration() {
   const budget = canMakeCall(0)
   return budget.pause_generation
 }
 
-/**
- * IA-AGENT: Obtener resumen de uso de tokens
- */
 function getUsageSummary() {
   const weekly = readWeeklyUsage()
+  const limit = getWeeklyTokenLimit()
   let monthly = { total_cost_usd: 0, total_tokens: 0 }
   try {
     if (fs.existsSync(COST_LOG_PATH)) {
@@ -240,14 +239,14 @@ function getUsageSummary() {
   return {
     weekly: {
       tokens_used: weekly.tokens_used,
-      tokens_limit: AGENT.WEEKLY_TOKEN_LIMIT,
-      usage_pct: ((weekly.tokens_used / AGENT.WEEKLY_TOKEN_LIMIT) * 100).toFixed(1) + '%',
-      cost_usd: weekly.cost_usd.toFixed(4),
+      tokens_limit: limit,
+      usage_pct: ((weekly.tokens_used / limit) * 100).toFixed(1) + '%',
+      cost_usd: (weekly.cost_usd || 0).toFixed(4),
       calls: weekly.calls,
     },
     monthly: {
       total_tokens: monthly.total_tokens,
-      total_cost_usd: monthly.total_cost_usd?.toFixed(4) || '0.0000',
+      total_cost_usd: (monthly.total_cost_usd || 0).toFixed(4),
     },
   }
 }

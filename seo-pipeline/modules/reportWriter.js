@@ -1,33 +1,41 @@
 /**
- * IA-AGENT: Redactor Autónomo del Reporte Semanal
+ * IMPERIAL-AGENT v2: Modulo 9 — Reporte Ejecutivo Semanal
  *
- * Recopila todos los datos de la semana (análisis + acciones del agente)
- * y la IA genera un reporte ejecutivo con predicciones.
+ * GPT-4o genera reporte con formato v2:
+ *   - resumen_ejecutivo (3 lineas, solo numeros)
+ *   - acciones_automaticas
+ *   - drafts_pendientes
+ *   - metricas (clics_google, clics_bing, impresiones, ctr, paginas, etc.)
+ *   - geo (clics_copilot, paginas_citadas, queries_pregunta)
+ *   - costos openai
+ *   - proximas_3_acciones
  *
- * Envío: Email HTML + Telegram resumido (280 chars)
+ * Envio: Email HTML via nodemailer + Telegram <=280 chars
  */
 
 const fs = require('fs')
 const path = require('path')
+const axios = require('axios')
+const nodemailer = require('nodemailer')
 const { AGENT } = require('../config/agentConfig')
-const { callAI, getUsageSummary } = require('./aiReasoner')
+const { gptCall } = require('../core/gptClient')
 const { getActionsSummary, getDraftsSummary } = require('./autonomousExecutor')
-const { notify } = require('../notifications/notifier')
+const { getCostPercentage, getDrafts, readMemory } = require('../core/agentMemory')
 const reportPrompt = require('../prompts/reportWriter.prompt')
 
 const REPORTS_DIR = path.resolve(process.env.REPORTS_DIR || './reports')
-const LOGS_DIR = path.resolve(__dirname, '..', 'logs')
 
 /**
- * IA-AGENT: Recopilar todos los datos de la semana para el reporte
+ * Recopilar datos consolidados de la semana
  */
 function collectWeeklyData() {
-  // Datos de análisis
   const analysisFiles = {
     quick_wins: 'quick_wins_unificado.json',
     content_gaps: 'content_gaps_cross.json',
     monitor_caida: 'monitor_caida_dual.json',
     ctr_comparativo: 'ctr_comparativo.json',
+    auditoria: 'auditoria_tecnica.json',
+    smart_indexer: 'smart_indexer_results.json',
   }
 
   const analysis = {}
@@ -36,7 +44,6 @@ function collectWeeklyData() {
     if (fs.existsSync(filePath)) {
       try {
         const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-        // Resumen: solo contar y top 3
         analysis[key] = {
           total: Array.isArray(data) ? data.length : 0,
           top_3: Array.isArray(data) ? data.slice(0, 3) : [],
@@ -45,124 +52,114 @@ function collectWeeklyData() {
     }
   }
 
-  // Datos de acciones del agente
   const actions = getActionsSummary()
   const drafts = getDraftsSummary()
-  const usage = getUsageSummary()
-
-  // Plan semanal si existe
-  const planPath = path.join(LOGS_DIR, 'plan_semanal.json')
-  let plan = null
-  if (fs.existsSync(planPath)) {
-    try { plan = JSON.parse(fs.readFileSync(planPath, 'utf-8')) } catch { /* */ }
-  }
+  const memory = readMemory()
+  const cost = getCostPercentage()
+  const pendingDrafts = getDrafts()
 
   return {
     fecha: new Date().toISOString(),
     analisis: analysis,
     acciones_agente: actions,
-    drafts_pendientes: drafts,
-    uso_ia: usage,
-    plan_actual: plan,
+    drafts_agente: drafts,
+    drafts_pendientes: pendingDrafts,
+    costos: {
+      semana_usd: memory.costo_openai_semana_usd || 0,
+      mes_usd: cost.acumulado,
+      limite_usd: cost.limite,
+      pct: cost.pct,
+    },
   }
 }
 
 /**
- * IA-AGENT: Generar y enviar reporte semanal con IA
- *
- * @returns {Promise<Object>} Reporte generado
+ * Generar y enviar reporte semanal
  */
 async function runReportWriter() {
-  console.log('📝 Redactor Autónomo de Reporte Semanal (IA)...\n')
+  console.log('  [M9] Reporte Ejecutivo Semanal...\n')
 
-  // Recopilar datos
   const weeklyData = collectWeeklyData()
 
-  // Si no hay API key de IA, generar reporte básico sin IA
-  if (!AGENT.AI_API_KEY) {
-    console.warn('  ⚠ AI_API_KEY no configurada. Generando reporte básico sin IA.')
+  if (!AGENT.OPENAI_API_KEY) {
+    console.warn('  [M9] OPENAI_API_KEY no configurada. Reporte basico.')
     const basicReport = generateBasicReport(weeklyData)
     await sendReport(basicReport)
     return { status: 'basic', report: basicReport }
   }
 
-  // CAPA 2: Pedir a la IA que redacte el reporte
-  const systemPrompt = reportPrompt.getSystemPrompt()
-  const userPrompt = reportPrompt.getUserPrompt(weeklyData)
-
-  const aiResponse = await callAI(systemPrompt, userPrompt, { maxTokens: 3000 })
+  // GPT-4o genera reporte v2
+  const aiResponse = await gptCall(
+    reportPrompt.getSystemPrompt(),
+    reportPrompt.getUserPrompt(weeklyData),
+    { moduleNumber: 9, maxTokens: 3000 }
+  )
 
   if (!aiResponse.parsed) {
-    console.warn('  ⚠ IA no devolvió reporte válido. Usando reporte básico.')
+    console.warn('  [M9] IA no devolvio reporte valido. Usando basico.')
     const basicReport = generateBasicReport(weeklyData)
     await sendReport(basicReport)
     return { status: 'fallback', report: basicReport }
   }
 
   const report = aiResponse.parsed
-  report.generado_por = 'ia'
+  report.generado_por = 'IMPERIAL-AGENT-v2'
   report.tokens_used = aiResponse.tokens_used
   report.cost_usd = aiResponse.cost_usd
 
   // Guardar reporte
-  const reportPath = path.join(REPORTS_DIR, 'reporte_semanal_ia.json')
+  const reportPath = path.join(REPORTS_DIR, 'reporte_semanal_v2.json')
   const tmpPath = reportPath + '.tmp'
   fs.writeFileSync(tmpPath, JSON.stringify(report, null, 2), 'utf-8')
   fs.renameSync(tmpPath, reportPath)
-  console.log(`  💾 Reporte guardado: ${reportPath}`)
+  console.log(`  [M9] Reporte guardado: ${reportPath}`)
 
-  // Enviar por Telegram y Email
   await sendReport(report)
-
   return { status: 'completed', report }
 }
 
 /**
- * IA-AGENT: Generar reporte básico sin IA (fallback)
+ * Reporte basico sin IA (fallback)
  */
 function generateBasicReport(weeklyData) {
-  const { acciones_agente, drafts_pendientes, uso_ia } = weeklyData
-
+  const { acciones_agente, costos } = weeklyData
   return {
-    resumen: `Semana ${new Date().toISOString().split('T')[0]}: ${acciones_agente.total_acciones_semana} acciones ejecutadas, ${acciones_agente.publicadas} publicadas, ${acciones_agente.drafts} drafts.`,
-    acciones_automaticas: [`${acciones_agente.publicadas} optimizaciones publicadas`, `${acciones_agente.drafts} guardadas como draft`],
-    drafts_pendientes: [`${drafts_pendientes.titles_pendientes} titles`, `${drafts_pendientes.paginas_pendientes} páginas`],
-    metricas_clave: {
-      acciones_semana: acciones_agente.total_acciones_semana,
-      tokens_usados: uso_ia.weekly?.tokens_used || 0,
-      costo_semanal_usd: uso_ia.weekly?.cost_usd || '0.0000',
-    },
-    prediccion_proxima_semana: 'No disponible sin IA.',
-    version_telegram: `📊 SEO Manhwa Imperial: ${acciones_agente.publicadas} optimizaciones, ${drafts_pendientes.titles_pendientes + drafts_pendientes.paginas_pendientes} drafts pendientes.`,
+    resumen_ejecutivo: `Semana ${new Date().toISOString().split('T')[0]}: ${acciones_agente?.total_acciones_semana || 0} acciones. Costo: $${(costos?.semana_usd || 0).toFixed(2)}.`,
+    acciones_automaticas: [],
+    drafts_pendientes: [],
+    metricas: {},
+    geo: {},
+    costo_openai_semana_usd: costos?.semana_usd || 0,
+    costo_openai_mes_usd: costos?.mes_usd || 0,
+    alerta_costos: costos?.pct >= 80 ? `Presupuesto al ${costos.pct.toFixed(1)}%` : null,
+    proximas_3_acciones: [],
     generado_por: 'fallback',
   }
 }
 
 /**
- * IA-AGENT: Enviar reporte por Telegram y Email
+ * Enviar reporte por Telegram + Email
  */
 async function sendReport(report) {
-  const axios = require('axios')
-  const nodemailer = require('nodemailer')
-
-  // Telegram: versión corta
+  // Telegram: max 280 chars
   if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
     try {
-      const text = report.version_telegram || report.resumen || 'Reporte semanal disponible.'
-      const truncated = text.length > 4000 ? text.slice(0, 4000) + '...' : text
+      let text = report.resumen_ejecutivo || 'Reporte semanal disponible.'
+      if (text.length > 280) text = text.slice(0, 277) + '...'
+
       await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         chat_id: process.env.TELEGRAM_CHAT_ID,
-        text: `📊 *Reporte SEO Semanal*\n\n${truncated}`,
-        parse_mode: 'Markdown',
+        text: `IMPERIAL-AGENT v2 | Reporte Semanal\n\n${text}`,
+        parse_mode: 'HTML',
       })
-      console.log('  ✅ Reporte enviado por Telegram')
+      console.log('  [M9] Telegram enviado')
     } catch (err) {
-      console.error(`  ❌ Error Telegram: ${err.message}`)
+      console.error(`  [M9] Error Telegram: ${err.message}`)
     }
   }
 
-  // Email: versión completa HTML
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.SMTP_TO) {
+  // Email HTML
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && (process.env.SMTP_TO || process.env.NOTIFICATION_EMAIL)) {
     try {
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -171,19 +168,42 @@ async function sendReport(report) {
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       })
 
-      const htmlBody = report.reporte_html || `<pre>${JSON.stringify(report, null, 2)}</pre>`
+      const htmlBody = buildEmailHtml(report)
+      const to = process.env.SMTP_TO || process.env.NOTIFICATION_EMAIL
 
       await transporter.sendMail({
-        from: `"SEO Agent - Manhwa Imperial" <${process.env.SMTP_USER}>`,
-        to: process.env.SMTP_TO,
-        subject: `📊 Reporte SEO Semanal IA — ${new Date().toISOString().split('T')[0]}`,
+        from: `"IMPERIAL-AGENT v2" <${process.env.SMTP_USER}>`,
+        to,
+        subject: `Reporte SEO Semanal — ${new Date().toISOString().split('T')[0]}`,
         html: htmlBody,
       })
-      console.log('  ✅ Reporte enviado por Email')
+      console.log('  [M9] Email enviado')
     } catch (err) {
-      console.error(`  ❌ Error Email: ${err.message}`)
+      console.error(`  [M9] Error Email: ${err.message}`)
     }
   }
+}
+
+function buildEmailHtml(report) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><style>
+body{font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px}
+h1{color:#333;border-bottom:2px solid #e74c3c;padding-bottom:10px}
+h2{color:#e74c3c}
+.metric{background:#f5f5f5;padding:10px;margin:5px 0;border-radius:4px}
+.alert{background:#fff3cd;padding:10px;border-radius:4px}
+</style></head>
+<body>
+<h1>IMPERIAL-AGENT v2 | Reporte Semanal</h1>
+<h2>Resumen</h2>
+<p>${report.resumen_ejecutivo || 'Sin datos'}</p>
+${report.metricas ? `<h2>Metricas</h2><pre>${JSON.stringify(report.metricas, null, 2)}</pre>` : ''}
+${report.geo ? `<h2>GEO</h2><pre>${JSON.stringify(report.geo, null, 2)}</pre>` : ''}
+${report.alerta_costos ? `<div class="alert"><strong>Alerta:</strong> ${report.alerta_costos}</div>` : ''}
+${report.proximas_3_acciones?.length ? `<h2>Proximas Acciones</h2><pre>${JSON.stringify(report.proximas_3_acciones, null, 2)}</pre>` : ''}
+<hr><p style="color:#999;font-size:12px">Generado por IMPERIAL-AGENT v2 | ${new Date().toISOString()}</p>
+</body></html>`
 }
 
 module.exports = { runReportWriter }
