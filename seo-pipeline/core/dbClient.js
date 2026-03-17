@@ -1,22 +1,19 @@
 /**
- * IMPERIAL-AGENT: Cliente de Base de Datos — Auto-detección MySQL/MongoDB
+ * IMPERIAL-AGENT v2: Cliente de Base de Datos — Auto-deteccion MySQL/MongoDB
  *
- * Al arrancar detecta automáticamente el tipo de DB y mapea
+ * Al arrancar detecta automaticamente el tipo de DB y mapea
  * tablas/colecciones relevantes para SEO.
  *
- * Funcionalidades:
- *   - Auto-detección MySQL vs MongoDB
- *   - Mapeo de esquema (title, meta_description, slug, content_html, schema_jsonld)
- *   - CRUD para páginas y metadatos SEO
- *   - Guarda esquema detectado en agent_memory.json
+ * Regla v2: Siempre incluir updated_by = "IMPERIAL-AGENT-v2" al escribir.
  */
+
+const { AGENT } = require('../config/agentConfig')
 
 let mysql = null
 let MongoClient = null
 
-// Intentar cargar drivers disponibles
-try { mysql = require('mysql2/promise') } catch { /* MySQL no instalado */ }
-try { ({ MongoClient } = require('mongodb')) } catch { /* MongoDB no instalado */ }
+try { mysql = require('mysql2/promise') } catch { /* no instalado */ }
+try { ({ MongoClient } = require('mongodb')) } catch { /* no instalado */ }
 
 const { readMemory, updateMemory } = require('./agentMemory')
 
@@ -24,9 +21,10 @@ let dbConnection = null
 let dbType = null
 let dbSchema = null
 
-/**
- * IMPERIAL-AGENT: Detectar tipo de DB y conectar
- */
+const AGENT_TAG = AGENT.NAME // "IMPERIAL-AGENT-v2"
+
+// ── Inicializacion ──
+
 async function initDB() {
   dbType = (process.env.DB_TYPE || 'mysql').toLowerCase()
 
@@ -35,15 +33,11 @@ async function initDB() {
   } else if (dbType === 'mongodb' && MongoClient) {
     return initMongoDB()
   } else {
-    console.warn(`  ⚠ DB_TYPE="${dbType}" no soportado o driver no instalado.`)
-    console.warn('  → Instalar: npm install mysql2  ó  npm install mongodb')
+    console.warn(`  [DB] DB_TYPE="${dbType}" no soportado o driver no instalado.`)
     return null
   }
 }
 
-/**
- * MySQL: Conectar y detectar esquema
- */
 async function initMySQL() {
   try {
     dbConnection = await mysql.createPool({
@@ -57,11 +51,9 @@ async function initMySQL() {
       charset: 'utf8mb4',
     })
 
-    // Detectar tablas relevantes
     const [tables] = await dbConnection.query('SHOW TABLES')
     const tableNames = tables.map(t => Object.values(t)[0])
 
-    // Buscar tablas de contenido SEO
     const seoTables = {}
     const candidates = {
       pages: ['pages', 'paginas', 'seo_pages', 'content_pages'],
@@ -75,7 +67,6 @@ async function initMySQL() {
       if (found) seoTables[key] = found
     }
 
-    // Detectar columnas de cada tabla encontrada
     const columnMap = {}
     for (const [key, tableName] of Object.entries(seoTables)) {
       const [columns] = await dbConnection.query(`DESCRIBE ${tableName}`)
@@ -89,26 +80,25 @@ async function initMySQL() {
           content_html: columns.find(c => /^(content|content_html|contenido|body|html)$/i.test(c.Field))?.Field,
           schema_jsonld: columns.find(c => /^(schema|schema_jsonld|json_ld|structured_data)$/i.test(c.Field))?.Field,
           updated_at: columns.find(c => /^(updated_at|updatedAt|modified_at|fecha_actualizacion)$/i.test(c.Field))?.Field,
+          updated_by: columns.find(c => /^(updated_by|updatedBy|modified_by)$/i.test(c.Field))?.Field,
         },
       }
     }
 
     dbSchema = { type: 'mysql', tables: seoTables, columns: columnMap }
     updateMemory('db_schema', dbSchema)
+    updateMemory('db_type', 'mysql')
 
-    console.log(`  ✅ MySQL conectado: ${process.env.DB_NAME}`)
-    console.log(`  → Tablas detectadas: ${Object.entries(seoTables).map(([k, v]) => `${k}=${v}`).join(', ')}`)
+    console.log(`  [DB] MySQL conectado: ${process.env.DB_NAME}`)
+    console.log(`  [DB] Tablas detectadas: ${Object.entries(seoTables).map(([k, v]) => `${k}=${v}`).join(', ')}`)
 
     return dbConnection
   } catch (err) {
-    console.error(`  ❌ Error MySQL: ${err.message}`)
+    console.error(`  [DB] Error MySQL: ${err.message}`)
     return null
   }
 }
 
-/**
- * MongoDB: Conectar y detectar esquema
- */
 async function initMongoDB() {
   try {
     const uri = process.env.MONGODB_URI ||
@@ -118,7 +108,6 @@ async function initMongoDB() {
     await client.connect()
     dbConnection = client.db(process.env.DB_NAME)
 
-    // Detectar colecciones
     const collections = await dbConnection.listCollections().toArray()
     const collNames = collections.map(c => c.name)
 
@@ -134,7 +123,6 @@ async function initMongoDB() {
       if (found) seoCollections[key] = found
     }
 
-    // Detectar campos de un documento sample
     const fieldMap = {}
     for (const [key, collName] of Object.entries(seoCollections)) {
       const sample = await dbConnection.collection(collName).findOne()
@@ -150,6 +138,7 @@ async function initMongoDB() {
             content_html: fields.find(f => /^(content|content_html|body)$/i.test(f)),
             schema_jsonld: fields.find(f => /^(schema|schema_jsonld|json_ld)$/i.test(f)),
             updated_at: fields.find(f => /^(updated_at|updatedAt|modified_at)$/i.test(f)),
+            updated_by: fields.find(f => /^(updated_by|updatedBy|modified_by)$/i.test(f)),
           },
         }
       }
@@ -157,20 +146,20 @@ async function initMongoDB() {
 
     dbSchema = { type: 'mongodb', collections: seoCollections, fields: fieldMap }
     updateMemory('db_schema', dbSchema)
+    updateMemory('db_type', 'mongodb')
 
-    console.log(`  ✅ MongoDB conectado: ${process.env.DB_NAME}`)
-    console.log(`  → Colecciones detectadas: ${Object.entries(seoCollections).map(([k, v]) => `${k}=${v}`).join(', ')}`)
+    console.log(`  [DB] MongoDB conectado: ${process.env.DB_NAME}`)
+    console.log(`  [DB] Colecciones: ${Object.entries(seoCollections).map(([k, v]) => `${k}=${v}`).join(', ')}`)
 
     return dbConnection
   } catch (err) {
-    console.error(`  ❌ Error MongoDB: ${err.message}`)
+    console.error(`  [DB] Error MongoDB: ${err.message}`)
     return null
   }
 }
 
-/**
- * IMPERIAL-AGENT: Obtener esquema detectado
- */
+// ── Consultas ──
+
 function getSchema() {
   if (dbSchema) return dbSchema
   const memory = readMemory()
@@ -178,7 +167,8 @@ function getSchema() {
 }
 
 /**
- * IMPERIAL-AGENT: Actualizar title y meta description en DB
+ * Actualizar title y meta description en DB
+ * Siempre incluye updated_by = AGENT_TAG y updated_at = NOW
  */
 async function updateMeta(slug, data) {
   const schema = getSchema()
@@ -188,32 +178,32 @@ async function updateMeta(slug, data) {
 
   try {
     if (schema.type === 'mysql') {
-      // Buscar en qué tabla está el slug
       for (const [, info] of Object.entries(schema.columns)) {
         const slugCol = info.detected.slug
-        const titleCol = info.detected.title
-        const metaCol = info.detected.meta_description
-        const updatedCol = info.detected.updated_at
-
         if (!slugCol) continue
 
         const updates = []
         const values = []
 
-        if (data.title && titleCol) {
-          updates.push(`${titleCol} = ?`)
+        if (data.title && info.detected.title) {
+          updates.push(`${info.detected.title} = ?`)
           values.push(data.title)
         }
-        if (data.meta_description && metaCol) {
-          updates.push(`${metaCol} = ?`)
+        if (data.meta_description && info.detected.meta_description) {
+          updates.push(`${info.detected.meta_description} = ?`)
           values.push(data.meta_description)
         }
         if (data.schema_jsonld && info.detected.schema_jsonld) {
           updates.push(`${info.detected.schema_jsonld} = ?`)
           values.push(typeof data.schema_jsonld === 'string' ? data.schema_jsonld : JSON.stringify(data.schema_jsonld))
         }
-        if (updatedCol) {
-          updates.push(`${updatedCol} = NOW()`)
+        // v2: Siempre updated_at y updated_by
+        if (info.detected.updated_at) {
+          updates.push(`${info.detected.updated_at} = NOW()`)
+        }
+        if (info.detected.updated_by) {
+          updates.push(`${info.detected.updated_by} = ?`)
+          values.push(AGENT_TAG)
         }
 
         if (updates.length === 0) continue
@@ -227,7 +217,7 @@ async function updateMeta(slug, data) {
           return { success: true, table: info.table, rows: result.affectedRows }
         }
       }
-      return { success: false, error: `Slug "${slug}" no encontrado en ninguna tabla` }
+      return { success: false, error: `Slug "${slug}" no encontrado` }
 
     } else if (schema.type === 'mongodb') {
       for (const [, info] of Object.entries(schema.fields)) {
@@ -238,7 +228,9 @@ async function updateMeta(slug, data) {
         if (data.title && info.detected.title) update[info.detected.title] = data.title
         if (data.meta_description && info.detected.meta_description) update[info.detected.meta_description] = data.meta_description
         if (data.schema_jsonld && info.detected.schema_jsonld) update[info.detected.schema_jsonld] = data.schema_jsonld
+        // v2: Siempre updated_at y updated_by
         if (info.detected.updated_at) update[info.detected.updated_at] = new Date()
+        if (info.detected.updated_by) update[info.detected.updated_by] = AGENT_TAG
 
         if (Object.keys(update).length === 0) continue
 
@@ -258,7 +250,8 @@ async function updateMeta(slug, data) {
 }
 
 /**
- * IMPERIAL-AGENT: Publicar nueva página en DB
+ * Insertar nueva pagina en DB
+ * Siempre incluye updated_by = AGENT_TAG
  */
 async function insertPage(pageData) {
   const schema = getSchema()
@@ -269,7 +262,7 @@ async function insertPage(pageData) {
   try {
     if (schema.type === 'mysql') {
       const tableInfo = schema.columns.pages || schema.columns.posts
-      if (!tableInfo) return { success: false, error: 'No se encontró tabla de páginas' }
+      if (!tableInfo) return { success: false, error: 'No se encontro tabla de paginas' }
 
       const row = {}
       if (tableInfo.detected.slug) row[tableInfo.detected.slug] = pageData.slug
@@ -277,6 +270,7 @@ async function insertPage(pageData) {
       if (tableInfo.detected.meta_description) row[tableInfo.detected.meta_description] = pageData.meta_description
       if (tableInfo.detected.content_html) row[tableInfo.detected.content_html] = pageData.contenido_html
       if (tableInfo.detected.schema_jsonld) row[tableInfo.detected.schema_jsonld] = typeof pageData.schema_jsonld === 'string' ? pageData.schema_jsonld : JSON.stringify(pageData.schema_jsonld)
+      if (tableInfo.detected.updated_by) row[tableInfo.detected.updated_by] = AGENT_TAG
 
       const cols = Object.keys(row)
       const placeholders = cols.map(() => '?').join(', ')
@@ -288,9 +282,12 @@ async function insertPage(pageData) {
 
     } else if (schema.type === 'mongodb') {
       const collInfo = schema.fields.pages || schema.fields.posts
-      if (!collInfo) return { success: false, error: 'No se encontró colección de páginas' }
+      if (!collInfo) return { success: false, error: 'No se encontro coleccion de paginas' }
 
-      const doc = { createdAt: new Date(), source: 'imperial-agent' }
+      const doc = {
+        createdAt: new Date(),
+        updated_by: AGENT_TAG,
+      }
       if (collInfo.detected.slug) doc[collInfo.detected.slug] = pageData.slug
       if (collInfo.detected.title) doc[collInfo.detected.title] = pageData.meta_title
       if (collInfo.detected.meta_description) doc[collInfo.detected.meta_description] = pageData.meta_description
@@ -306,7 +303,7 @@ async function insertPage(pageData) {
 }
 
 /**
- * IMPERIAL-AGENT: Verificar si un slug ya existe en la DB
+ * Verificar si un slug ya existe
  */
 async function slugExists(slug) {
   const schema = getSchema()
@@ -331,12 +328,12 @@ async function slugExists(slug) {
         if (doc) return true
       }
     }
-  } catch { /* error consultando */ }
+  } catch { /* error */ }
   return false
 }
 
 /**
- * IMPERIAL-AGENT: Obtener páginas actualizadas en los últimos N días
+ * Obtener paginas actualizadas recientemente por el agente
  */
 async function getRecentlyUpdatedPages(days = 7) {
   const schema = getSchema()
@@ -350,12 +347,19 @@ async function getRecentlyUpdatedPages(days = 7) {
       for (const [, info] of Object.entries(schema.columns)) {
         const updatedCol = info.detected.updated_at
         const slugCol = info.detected.slug
+        const updatedByCol = info.detected.updated_by
         if (!updatedCol || !slugCol) continue
 
-        const [rows] = await dbConnection.query(
-          `SELECT ${slugCol} as slug FROM ${info.table} WHERE ${updatedCol} >= ? ORDER BY ${updatedCol} DESC LIMIT 100`,
-          [since]
-        )
+        // Preferir filtrar por updated_by del agente
+        let query = `SELECT ${slugCol} as slug FROM ${info.table} WHERE ${updatedCol} >= ?`
+        const params = [since]
+        if (updatedByCol) {
+          query += ` AND ${updatedByCol} = ?`
+          params.push(AGENT_TAG)
+        }
+        query += ` ORDER BY ${updatedCol} DESC LIMIT 100`
+
+        const [rows] = await dbConnection.query(query, params)
         pages.push(...rows.map(r => r.slug))
       }
     } else if (schema.type === 'mongodb') {
@@ -364,8 +368,13 @@ async function getRecentlyUpdatedPages(days = 7) {
         const slugField = info.detected.slug
         if (!updatedField || !slugField) continue
 
+        const filter = { [updatedField]: { $gte: since } }
+        if (info.detected.updated_by) {
+          filter[info.detected.updated_by] = AGENT_TAG
+        }
+
         const docs = await dbConnection.collection(info.collection)
-          .find({ [updatedField]: { $gte: since } })
+          .find(filter)
           .project({ [slugField]: 1 })
           .limit(100)
           .toArray()
@@ -376,9 +385,6 @@ async function getRecentlyUpdatedPages(days = 7) {
   return pages
 }
 
-/**
- * IMPERIAL-AGENT: Cerrar conexión
- */
 async function closeDB() {
   if (!dbConnection) return
   try {

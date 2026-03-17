@@ -1,39 +1,36 @@
 /**
- * IA-AGENT: Prompt versionado para optimización de Titles y Meta Descriptions
- * Versión: 1.0.0
+ * IMPERIAL-AGENT v2: Prompts para Modulo 4 — Quick Wins Optimizer
  */
 
-const PROMPT_VERSION = '1.0.0'
+const PROMPT_VERSION = '2.0.0'
 
 function getSystemPrompt() {
-  return `Eres un experto en SEO copywriting para sitios de manhwa en español. Optimizas titles y meta descriptions para maximizar CTR en SERPs de Google y Bing.
+  return `Eres el SEO copywriter principal de Manhwa Imperial. Tu especialidad: titulos y descripciones que generan clics en buscadores hispanohablantes. Conoces el nicho de manhwa profundamente — referencias culturales, generos populares (sistema, regresion, necromancer, romance, dungeon), expectativas del lector latinoamericano.
 
 Reglas estrictas:
-- Title: máximo 60 caracteres, keyword principal al INICIO, con CTA implícito
-- Meta description: máximo 155 caracteres, verbo de acción, keyword secundaria
-- Nunca hagas keyword stuffing
-- El tono debe ser atractivo para lectores de manhwa hispanohablantes
-- Usa emojis SOLO si el nicho lo justifica (ej: ⭐ para ratings)
-- El title debe generar curiosidad o urgencia sin ser clickbait`
+- Sin keyword stuffing (maximo 1 vez la keyword exacta)
+- Verbos de accion al inicio de meta descriptions
+- Numeros y anos aumentan CTR cuando son relevantes
+- El title debe provocar curiosidad o urgencia`
 }
 
-function getUserPrompt({ url, position, keyword, impressions, ctr, currentTitle, currentMeta, positionBing }) {
-  const bingInfo = positionBing ? `\nEn Bing rankea en posición ${positionBing}.` : ''
-  return `La página [${url}] rankea en posición ${position} en Google para la query "${keyword}" con ${impressions} impresiones y CTR de ${(ctr * 100).toFixed(2)}%.${bingInfo}
+function getUserPrompt(data) {
+  return `URL: ${data.url}
+Query objetivo: "${data.keyword}"
+Posicion Google: ${data.gpos || data.position || 'N/A'} | Posicion Bing: ${data.bpos || data.positionBing || 'N/A'}
+Impresiones totales: ${data.imp || data.impressions || 0} | CTR actual: ${data.ctr ? (typeof data.ctr === 'number' && data.ctr < 1 ? (data.ctr * 100).toFixed(2) : data.ctr) : '0'}%
+Title actual: "${data.title_actual || data.currentTitle || '(sin title)'}"
+Meta actual: "${data.meta_actual || data.currentMeta || '(sin meta description)'}"
+Schema actual: ${JSON.stringify(data.schema_actual || null)}
+Tipo de pagina: ${data.tipo || 'general'}
 
-El title actual es: "${currentTitle || '(sin title)'}".
-La meta description actual es: "${currentMeta || '(sin meta description)'}".
-
-Genera:
-1. Nuevo title (máx. 60 chars) con la keyword principal al inicio y CTA implícito
-2. Nueva meta description (máx. 155 chars) con verbo de acción y keyword secundaria
-3. confidence_score: qué tan seguro estás (0.0-1.0) de que esta versión mejorará el CTR
-
-Responde SOLO en JSON válido:
+Devuelve SOLO este JSON:
 {
-  "title": "...",
-  "meta_description": "...",
-  "razon": "...",
+  "title": "string — max 60 chars",
+  "meta_description": "string — max 155 chars",
+  "schema_jsonld": {},
+  "cambios_clave": ["lista de cambios y razones"],
+  "impacto_estimado": "string",
   "confidence_score": 0.0
 }`
 }
