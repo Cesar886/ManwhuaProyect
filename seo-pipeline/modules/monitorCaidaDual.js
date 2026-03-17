@@ -1,71 +1,37 @@
 /**
- * DUAL-SEO: Monitor de Caída de Tráfico Dual (GSC + BWT)
+ * IMPERIAL-AGENT v2: Modulo 2 — Monitor de Caida de Trafico Dual (GSC + BWT)
  *
- * Compara últimos 7 días vs 7 anteriores en AMBAS fuentes.
+ * Compara Rango A (ultimos 7 dias) vs Rango B (7 dias anteriores) por URL.
  *
- * Diagnóstico diferenciado:
- *   - Caída en Google Y en Bing > 20% → problema de contenido/algoritmo
- *   - Caída solo en Google → posible penalización o cambio de algoritmo Google
- *   - Caída solo en Bing → posible bloqueo de Bingbot o cambio en Copilot
- *   - Caída en Google pero subida en Bing → oportunidad de pivot de tráfico
+ * Niveles de alerta:
+ *   Caida > 40% en Google Y Bing -> CRITICO
+ *   Caida > 20% solo en Google   -> MODERADO (Core Update)
+ *   Caida > 20% solo en Bing     -> MODERADO (Bingbot)
+ *   Caida Google + subida Bing   -> INFORMATIVO
+ *
+ * v2: GPT-4o diagnostica cada URL en alerta con causa raiz y accion.
  */
 
 const { queryAllRows, dateOffset } = require('./gscClient')
-const { getPageStats, normalizeBwtRow } = require('./bwtClient')
+const { getPageStats, getQueryStats, normalizeBwtRow } = require('./bwtClient')
+const { gptCall } = require('../core/gptClient')
+const trafficPrompt = require('../prompts/trafficMonitor.prompt')
 
-// DUAL-SEO: Generar diagnóstico basado en patrones de caída
-function generateDiagnostic(caidaGoogle, caidaBing) {
-  if (caidaGoogle > 20 && caidaBing > 20) {
-    return 'Caída en ambos motores. Problema de contenido, algoritmo generalizado o issue técnico del sitio.'
-  }
-  if (caidaGoogle > 20 && caidaBing <= 0) {
-    return 'Caída solo en Google, Bing estable/subiendo. Posible cambio de algoritmo Google o penalización.'
-  }
-  if (caidaGoogle <= 0 && caidaBing > 20) {
-    return 'Caída solo en Bing, Google estable. Posible bloqueo de Bingbot o cambio en Copilot/AI.'
-  }
-  if (caidaGoogle > 20 && caidaBing < -10) {
-    return 'Caída en Google pero SUBIDA en Bing. Oportunidad de pivot: reforzar presencia en Bing/Copilot.'
-  }
-  if (caidaGoogle > 20) {
-    return 'Caída principalmente en Google. Revisar Core Update reciente y calidad de contenido.'
-  }
-  if (caidaBing > 20) {
-    return 'Caída principalmente en Bing. Verificar accesibilidad para Bingbot y Schema markup.'
-  }
-  return 'Caída moderada. Monitorear tendencia en próximos días.'
-}
-
-// DUAL-SEO: Generar acción correctiva
-function generateAction(caidaGoogle, caidaBing, diagnostic) {
-  if (caidaGoogle > 40 && caidaBing > 40) {
-    return 'URGENTE: Verificar accesibilidad del sitio (DNS, SSL, server). Si OK, auditar contenido duplicado y thin content.'
-  }
-  if (caidaGoogle > 20 && caidaBing <= 0) {
-    return 'Revisar Google Search Console > Acciones manuales. Analizar Core Update. No tocar configuración de Bing.'
-  }
-  if (caidaBing > 20 && caidaGoogle <= 0) {
-    return 'Verificar robots.txt para Bingbot. Resubmitir via IndexNow. Revisar Bing Webmaster Tools > Diagnostics.'
-  }
-  if (caidaGoogle > 20 && caidaBing < -10) {
-    return 'Considerar optimizar más contenido para Bing/Copilot. Implementar IndexNow agresivo.'
-  }
-  return 'Refrescar contenido, mejorar internal linking y monitorear tendencia.'
-}
-
-// DUAL-SEO: Clasificar nivel de alerta
+// Clasificar nivel de alerta segun v2 spec
 function classifyAlert(caidaGoogle, caidaBing) {
-  const maxCaida = Math.max(caidaGoogle, caidaBing)
-  if (maxCaida > 40) return 'CRÍTICO'
-  if (maxCaida > 20) return 'MODERADO'
-  return 'INFORMATIVO'
+  if (caidaGoogle > 40 && caidaBing > 40) return 'CRITICO'
+  if (caidaGoogle > 40 || caidaBing > 40) return 'CRITICO'
+  if (caidaGoogle > 20 && caidaBing > 20) return 'CRITICO'
+  if (caidaGoogle > 20 && caidaBing <= 0) return 'MODERADO'
+  if (caidaBing > 20 && caidaGoogle <= 0) return 'MODERADO'
+  if (caidaGoogle > 20 && caidaBing < -10) return 'INFORMATIVO'
+  return 'MODERADO'
 }
 
 async function detectMonitorCaidaDual() {
-  console.log('📉 Monitoreando caídas de tráfico dual (GSC + BWT)...')
+  console.log('  [M2] Monitoreando caidas de trafico dual (GSC + BWT)...')
 
-  // GSC-SEO: Periodo reciente (últimos 7 días, con 3 días de delay)
-  console.log('  → Consultando GSC periodos comparativos...')
+  // GSC: Rango A (ultimos 7 dias, con 3 dias de delay) vs Rango B (7 anteriores)
   const [gscRecent, gscPrevious] = await Promise.all([
     queryAllRows({
       startDate: dateOffset(10),
@@ -79,24 +45,29 @@ async function detectMonitorCaidaDual() {
     }),
   ])
 
-  // GSC: Indexar por página
+  // Indexar GSC por pagina
   const gscRecentMap = new Map()
   for (const row of gscRecent) {
-    gscRecentMap.set(row.keys[0], { clicks: row.clicks, impressions: row.impressions })
+    gscRecentMap.set(row.keys[0], {
+      clicks: row.clicks,
+      impressions: row.impressions,
+      position: row.position,
+    })
   }
   const gscPreviousMap = new Map()
   for (const row of gscPrevious) {
-    gscPreviousMap.set(row.keys[0], { clicks: row.clicks, impressions: row.impressions })
+    gscPreviousMap.set(row.keys[0], {
+      clicks: row.clicks,
+      impressions: row.impressions,
+      position: row.position,
+    })
   }
 
-  // BWT-SEO: Obtener stats de páginas de Bing
-  // BWT no permite rango de fechas en getPageStats, usamos datos globales
+  // BWT: Obtener stats de paginas
   let bwtPageMap = new Map()
   try {
-    console.log('  → Consultando BWT stats de páginas...')
     const bwtPages = await getPageStats()
     const normalized = bwtPages.map(normalizeBwtRow)
-
     for (const row of normalized) {
       if (row.page) {
         bwtPageMap.set(row.page, {
@@ -106,66 +77,112 @@ async function detectMonitorCaidaDual() {
       }
     }
   } catch (err) {
-    console.warn(`  ⚠ BWT no disponible: ${err.message}. Análisis solo con GSC.`)
+    console.warn(`  [M2] BWT no disponible: ${err.message}. Analisis solo con GSC.`)
   }
 
   const paginasCaida = []
-
-  // DUAL-SEO: Analizar todas las páginas conocidas
   const allPages = new Set([...gscPreviousMap.keys(), ...gscRecentMap.keys()])
 
   for (const page of allPages) {
     const gscPrev = gscPreviousMap.get(page)
     const gscNow = gscRecentMap.get(page)
 
-    // Ignorar páginas con muy pocos datos
     if ((!gscPrev || gscPrev.clicks < 5) && (!gscNow || gscNow.clicks < 5)) continue
 
-    const clicsGoogleAntes = gscPrev?.clicks || 0
-    const clicsGoogleAhora = gscNow?.clicks || 0
+    const g_antes = gscPrev?.clicks || 0
+    const g_ahora = gscNow?.clicks || 0
+    const gpos_antes = gscPrev?.position || 0
+    const gpos_ahora = gscNow?.position || 0
+    const gimp_antes = gscPrev?.impressions || 0
+    const gimp_ahora = gscNow?.impressions || 0
 
-    // Calcular caída en Google
-    const caidaGooglePct = clicsGoogleAntes > 0
-      ? Math.round(((clicsGoogleAntes - clicsGoogleAhora) / clicsGoogleAntes) * 100)
+    const caidaGooglePct = g_antes > 0
+      ? Math.round(((g_antes - g_ahora) / g_antes) * 100)
       : 0
 
-    // BWT: Usar datos disponibles (sin comparación temporal directa por limitación de API)
+    // BWT: datos disponibles (sin comparacion temporal por limitacion API)
     const bwtData = bwtPageMap.get(page)
-    const caidaBingPct = 0 // BWT no ofrece comparación temporal directa
-    const clicsBing = bwtData?.clicks || 0
+    const b_ahora = bwtData?.clicks || 0
+    const bimp_ahora = bwtData?.impressions || 0
+    // Sin datos historicos de BWT, estimamos 0% de caida
+    const caidaBingPct = 0
 
-    // DUAL-SEO: Solo reportar si hay caída significativa en al menos un motor
+    // Solo reportar si hay caida significativa
     if (caidaGooglePct < 20) continue
 
-    const diagnostico = generateDiagnostic(caidaGooglePct, caidaBingPct)
-    const accion = generateAction(caidaGooglePct, caidaBingPct, diagnostico)
     const nivelAlerta = classifyAlert(caidaGooglePct, caidaBingPct)
 
     paginasCaida.push({
       page,
-      clics_google_antes: clicsGoogleAntes,
-      clics_google_ahora: clicsGoogleAhora,
-      caida_google_pct: caidaGooglePct,
-      clics_bing_actual: clicsBing,
-      caida_bing_pct: caidaBingPct,
-      diagnostico,
-      accion,
+      g_antes, g_ahora, g_pct: -caidaGooglePct,
+      gpos_antes: Math.round(gpos_antes * 10) / 10,
+      gpos_ahora: Math.round(gpos_ahora * 10) / 10,
+      gimp_antes, gimp_ahora,
+      b_antes: 0, b_ahora, b_pct: -caidaBingPct,
+      bpos_antes: 0, bpos_ahora: 0,
+      bimp_antes: 0, bimp_ahora,
       nivel_alerta: nivelAlerta,
     })
   }
 
-  // DUAL-SEO: Ordenar por severidad y magnitud de caída
-  const alertaOrden = { 'CRÍTICO': 0, 'MODERADO': 1, 'INFORMATIVO': 2 }
+  // Ordenar por severidad
+  const alertaOrden = { 'CRITICO': 0, 'MODERADO': 1, 'INFORMATIVO': 2 }
   paginasCaida.sort((a, b) => {
     if (alertaOrden[a.nivel_alerta] !== alertaOrden[b.nivel_alerta]) {
       return alertaOrden[a.nivel_alerta] - alertaOrden[b.nivel_alerta]
     }
-    return b.caida_google_pct - a.caida_google_pct
+    return Math.abs(a.g_pct) - Math.abs(b.g_pct)
   })
 
-  console.log(`  → ${paginasCaida.length} páginas en caída detectadas`)
-  console.log(`  → ${paginasCaida.filter(p => p.nivel_alerta === 'CRÍTICO').length} críticas`)
-  return paginasCaida
+  // v2: GPT-4o diagnostica cada URL en alerta
+  const diagnosed = []
+  for (const entry of paginasCaida.slice(0, 10)) { // Max 10 diagnosticos por ejecucion
+    try {
+      const result = await gptCall(
+        trafficPrompt.getSystemPrompt(),
+        trafficPrompt.getUserPrompt({
+          url: entry.page,
+          g_antes: entry.g_antes,
+          g_ahora: entry.g_ahora,
+          g_pct: entry.g_pct,
+          gpos_antes: entry.gpos_antes,
+          gpos_ahora: entry.gpos_ahora,
+          b_antes: entry.b_antes,
+          b_ahora: entry.b_ahora,
+          b_pct: entry.b_pct,
+          bpos_antes: entry.bpos_antes,
+          bpos_ahora: entry.bpos_ahora,
+          gimp_antes: entry.gimp_antes,
+          gimp_ahora: entry.gimp_ahora,
+          bimp_antes: entry.bimp_antes,
+          bimp_ahora: entry.bimp_ahora,
+        }),
+        { moduleNumber: 2 }
+      )
+
+      if (result.budget_blocked) {
+        console.warn('  [M2] Presupuesto bloqueado, omitiendo diagnosticos GPT.')
+        diagnosed.push({ ...entry, diagnostico_ia: null })
+        break
+      }
+
+      diagnosed.push({
+        ...entry,
+        diagnostico_ia: result.parsed || null,
+      })
+    } catch (err) {
+      diagnosed.push({ ...entry, diagnostico_ia: null, error: err.message })
+    }
+  }
+
+  // Agregar los no diagnosticados
+  for (const entry of paginasCaida.slice(10)) {
+    diagnosed.push({ ...entry, diagnostico_ia: null })
+  }
+
+  console.log(`  [M2] ${paginasCaida.length} paginas en caida detectadas`)
+  console.log(`  [M2] ${paginasCaida.filter(p => p.nivel_alerta === 'CRITICO').length} criticas`)
+  return diagnosed
 }
 
 module.exports = { detectMonitorCaidaDual }

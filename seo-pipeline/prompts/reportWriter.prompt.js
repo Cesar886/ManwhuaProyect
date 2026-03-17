@@ -1,50 +1,40 @@
 /**
- * IA-AGENT: Prompt versionado para redacción del reporte semanal
- * Versión: 1.0.0
+ * IMPERIAL-AGENT v2: Prompts para Modulo 9 — Reporte Ejecutivo Semanal
  */
 
-const PROMPT_VERSION = '1.0.0'
+const PROMPT_VERSION = '2.0.0'
 
 function getSystemPrompt() {
-  return `Eres un analista SEO que redacta reportes ejecutivos claros y accionables en español.
-
-Estilo:
-- Directo, sin relleno, como CFO hablando a otro CFO
-- Datos concretos, no generalidades
-- Cada punto debe ser accionable o informativo
-- Evita lenguaje técnico innecesario
-- Usa formato estructurado con secciones claras`
+  return `Eres el analista de datos de Manhwa Imperial. Reportes ejecutivos en espanol: directos, solo numeros, sin relleno. Tono: CFO reportando a CFO.`
 }
 
-function getUserPrompt(weeklyData) {
-  return `Con base en estos datos de la semana de Manhwa Imperial:
+function getUserPrompt(consolidatedData) {
+  return `${JSON.stringify(consolidatedData, null, 2)}
 
-${JSON.stringify(weeklyData, null, 2)}
-
-Redacta un reporte ejecutivo que incluya:
-
-1. resumen: 3 líneas de lo que pasó esta semana (datos concretos)
-2. acciones_automaticas: qué hizo el agente automáticamente (titles optimizados, páginas publicadas, schemas actualizados)
-3. drafts_pendientes: qué quedó en draft esperando revisión humana y por qué
-4. metricas_clave: clics totales, impresiones, CTR promedio, tendencia vs semana anterior
-5. prediccion_proxima_semana: impacto estimado de las acciones tomadas
-6. version_telegram: resumen de máximo 280 caracteres para notificación rápida
-
-Responde SOLO en JSON válido:
+Devuelve SOLO este JSON:
 {
-  "resumen": "...",
-  "acciones_automaticas": ["..."],
-  "drafts_pendientes": ["..."],
-  "metricas_clave": {
-    "clics_totales": 0,
-    "impresiones_totales": 0,
-    "ctr_promedio": 0.0,
-    "tendencia": "..."
+  "resumen_ejecutivo": "string — 3 lineas, solo numeros",
+  "acciones_automaticas": [{ "accion":"", "url":"", "impacto":"" }],
+  "drafts_pendientes": [{ "descripcion":"", "modulo":"", "score":0.0 }],
+  "metricas": {
+    "clics_google": { "semana":0, "anterior":0, "cambio_pct":0.0 },
+    "clics_bing": { "semana":0, "anterior":0, "cambio_pct":0.0 },
+    "impresiones": { "semana":0, "anterior":0, "cambio_pct":0.0 },
+    "ctr_promedio": { "semana":0.0, "anterior":0.0 },
+    "paginas_creadas": 0,
+    "quick_wins_aplicados": 0,
+    "errores_corregidos": 0
   },
-  "prediccion_proxima_semana": "...",
-  "version_telegram": "...",
-  "reporte_html": "...",
-  "confidence_score": 0.0
+  "geo": {
+    "clics_copilot": 0,
+    "paginas_citadas_copilot": [],
+    "queries_pregunta_nuevas": 0,
+    "paginas_con_faqpage": 0
+  },
+  "costo_openai_semana_usd": 0.00,
+  "costo_openai_mes_usd": 0.00,
+  "alerta_costos": "string o null",
+  "proximas_3_acciones": [{ "accion":"", "modulo":"", "impacto_estimado":"" }]
 }`
 }
 
