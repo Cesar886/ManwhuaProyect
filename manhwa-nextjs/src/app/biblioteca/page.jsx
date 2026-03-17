@@ -2,13 +2,16 @@ import { SERVER_API_BASE, SITE_URL } from '../../config'
 import { META_TEMPLATES } from '@/lib/seo/constants'
 import BibliotecaClient from './BibliotecaClient'
 import { filterAvailableSeries } from '@/utils/adultContent'
+// SEO: JSON-LD para CollectionPage y breadcrumbs
+import { generateBreadcrumbJsonLd, generateWebPageJsonLd } from '@/lib/seo/jsonld'
 
 export const metadata = {
   title: META_TEMPLATES.biblioteca.title,
   description: META_TEMPLATES.biblioteca.description,
   keywords: META_TEMPLATES.biblioteca.keywords,
+  // SEO: canonical relativo para consistencia con el resto del sitio (metadataBase lo resuelve)
   alternates: {
-    canonical: `${SITE_URL}/biblioteca`,
+    canonical: '/biblioteca',
   },
   openGraph: {
     title: META_TEMPLATES.biblioteca.title,
@@ -17,6 +20,20 @@ export const metadata = {
     url: '/biblioteca',
     siteName: 'Manhwa Imperial',
     locale: 'es_ES',
+    // SEO: og:image obligatoria para CTR en redes sociales
+    images: [{
+      url: '/og-image.png',
+      width: 1200,
+      height: 630,
+      alt: 'Biblioteca de Manhwas en Español - Manhwa Imperial',
+    }],
+  },
+  // SEO: Twitter Card faltante — necesaria para compartir en Twitter/X
+  twitter: {
+    card: 'summary_large_image',
+    title: META_TEMPLATES.biblioteca.title,
+    description: META_TEMPLATES.biblioteca.description,
+    images: ['/og-image.png'],
   },
 }
 
@@ -58,5 +75,31 @@ export default async function BibliotecaPage() {
   // Filtrar contenido adulto desde el servidor para que no aparezca en el SSR HTML
   const initialSeries = filterAvailableSeries(await getInitialSeries())
 
-  return <BibliotecaClient initialSeries={initialSeries} />
+  // SEO: JSON-LD schemas para crawlers
+  const breadcrumbJsonLd = generateBreadcrumbJsonLd([
+    { name: 'Inicio', url: '/home' },
+    { name: 'Biblioteca de Manhwas', url: '/biblioteca' },
+  ])
+  const webPageJsonLd = generateWebPageJsonLd(
+    'CollectionPage',
+    'Biblioteca de Manhwas en Español - Catálogo Completo',
+    'Explora nuestra biblioteca completa de manhwas en español. Miles de manhwas disponibles para leer gratis.',
+    '/biblioteca'
+  )
+
+  return (
+    <>
+      {/* SEO: Schema BreadcrumbList para migas de pan en Google */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      {/* SEO: Schema CollectionPage para identificar la biblioteca como colección */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageJsonLd) }}
+      />
+      <BibliotecaClient initialSeries={initialSeries} />
+    </>
+  )
 }

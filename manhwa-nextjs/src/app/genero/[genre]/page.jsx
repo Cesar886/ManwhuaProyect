@@ -54,11 +54,20 @@ export async function generateMetadata({ params }) {
       url: `/genero/${genre}`,
       siteName: SITE_NAME,
       locale: 'es_ES',
+      // SEO: og:image obligatoria para CTR en redes sociales
+      images: [{
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: `Manhwa de ${genreName} en Español - ${SITE_NAME}`,
+      }],
     },
     twitter: {
       card: 'summary_large_image',
       title: `Manhwa de ${genreName} | ${SITE_NAME}`,
       description: metaData.description,
+      // SEO: Twitter image obligatoria
+      images: ['/og-image.png'],
     },
   }
 }

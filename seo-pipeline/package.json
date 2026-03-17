@@ -1,0 +1,44 @@
+{
+  "name": "imperial-agent",
+  "version": "2.0.0",
+  "description": "IMPERIAL-AGENT v2 — SEO/GEO Autonomous Agent para Manhwa Imperial",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "agent": "node index.js --module=agenteFull",
+    "cron": "node index.js --cron",
+    "detect-db": "node index.js --module=detectDB",
+    "setup": "node index.js --module=setup",
+    "quick-wins": "node index.js --module=quickWinsUnificado",
+    "content-gaps": "node index.js --module=contentGapsCross",
+    "caidas": "node index.js --module=monitorCaidaDual",
+    "ctr": "node index.js --module=ctrComparativo",
+    "copilot": "node index.js --module=copilotCannibalization",
+    "auditoria": "node index.js --module=auditoriaTecnica",
+    "backlinks": "node index.js --module=backlinkCompetidores",
+    "ai-overview": "node index.js --module=aiOverview",
+    "indexer": "node index.js --module=smartIndexer",
+    "geo": "node index.js --module=geoOptimizer",
+    "reporte": "node index.js --module=reporte",
+    "ia:titles": "node index.js --module=optimizarTitles",
+    "ia:paginas": "node index.js --module=generarPaginas",
+    "ia:prioridades": "node index.js --module=decidirPrioridades",
+    "ia:schemas": "node index.js --module=optimizarSchemas",
+    "ia:reporte": "node index.js --module=reporteIA",
+    "ia:geo": "node index.js --module=geoOptimizer"
+  },
+  "dependencies": {
+    "axios": "^1.13.5",
+    "dotenv": "^16.3.1",
+    "google-auth-library": "^10.5.0",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.8"
+  },
+  "optionalDependencies": {
+    "mongodb": "^6.8.0",
+    "mysql2": "^3.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

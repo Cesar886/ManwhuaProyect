@@ -1,0 +1,10 @@
+node_modules/
+.env
+reports/*.json
+logs/*.json
+drafts/*.json
+data/raw/*.json
+data/agent_memory.json
+!logs/.gitkeep
+!drafts/.gitkeep
+!data/.gitkeep

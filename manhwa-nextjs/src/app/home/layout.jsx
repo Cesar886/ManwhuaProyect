@@ -23,11 +23,21 @@ export const metadata = {
     type: 'website',
     url: '/home',
     locale: 'es_ES',
+    // SEO: og:site_name y og:image obligatorios para CTR en redes sociales
+    siteName: 'Manhwa Imperial',
+    images: [{
+      url: '/og-image.png',
+      width: 1200,
+      height: 630,
+      alt: 'Manhwa Imperial - Leer Manhwa en Español Online Gratis',
+    }],
   },
   twitter: {
     card: 'summary_large_image',
     title: META_TEMPLATES.home.title,
     description: META_TEMPLATES.home.description,
+    // SEO: Twitter image obligatoria para summary_large_image
+    images: ['/og-image.png'],
   },
 }
 

@@ -114,9 +114,10 @@ export const metadata = {
       'max-snippet': -1,
     },
   },
-  verification: {
-    google: 'your-google-verification-code',
-  },
+  // SEO CRÍTICO ⚠: Reemplazar con código de verificación real de Google Search Console
+  // verification: {
+  //   google: 'TU-CÓDIGO-REAL-AQUÍ',
+  // },
 }
 
 export default function RootLayout({ children }) {
@@ -130,6 +131,9 @@ export default function RootLayout({ children }) {
         <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
         <meta name="impact-site-verification" content="a62d51e4-8267-4442-bba4-45de72b6c992" />
+        {/* SEO: hreflang señaliza idioma español a Google para búsquedas geolocalizadas */}
+        <link rel="alternate" hrefLang="es" href="https://manhwaimperial.site/" />
+        <link rel="alternate" hrefLang="x-default" href="https://manhwaimperial.site/" />
         {/* Preconnect + DNS prefetch for image CDN (chapter reader) */}
         <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />

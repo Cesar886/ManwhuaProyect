@@ -301,8 +301,9 @@ export default function HomeClient({ initialSeries = [] }) {
                 <div key={cat.query} className={styles.queryRow}>
                   <div className={styles.queryHeader}>
                     <h2 className={styles.queryName}>{cat.query}</h2>
+                    {/* SEO: Anchor text descriptivo — nunca "Ver más" solo */}
                     <Link href={`/busqueda-ia/${slug}`} className={styles.queryLink}>
-                      Ver más →
+                      Explorar manhwas de {cat.query.toLowerCase()} →
                     </Link>
                   </div>
                   <div className={styles.queryScroll}>
@@ -340,6 +341,15 @@ export default function HomeClient({ initialSeries = [] }) {
             })}
           </section>
         )}
+
+        {/* ================================================================== */}
+        {/* SEO: SECCIÓN "¿QUÉ ES UN MANHWA?" — Contenido educativo con      */}
+        {/* keywords long-tail para capturar tráfico informacional             */}
+        {/* ================================================================== */}
+        <section className={styles.whatIsManhwa}>
+          <h2 className={styles.sectionTitle}>{SEO_CONTENT.home.whatIsManhwa.title}</h2>
+          <p className={styles.seoIntro}>{SEO_CONTENT.home.whatIsManhwa.text}</p>
+        </section>
 
         {/* ================================================================== */}
         {/* TIP IA - Banner informativo sobre el buscador inteligente          */}

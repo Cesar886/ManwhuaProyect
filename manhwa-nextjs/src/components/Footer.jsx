@@ -30,11 +30,12 @@ const navColumns = [
     ],
   },
   {
+    // SEO: Anchor text descriptivo — cada link debe tener URL diferente o texto único
     title: 'Blog',
     links: [
-      { label: 'Blog de Manhwa', link: '/blog' },
-      { label: 'Guías para Principiantes', link: '/blog' },
-      { label: 'Comparativas', link: '/blog' },
+      { label: 'Artículos sobre Manhwa', link: '/blog' },
+      { label: 'Guías para leer Manhwa', link: '/blog#guias' },
+      { label: 'Comparativas de plataformas', link: '/blog#comparativas' },
     ],
   },
   {

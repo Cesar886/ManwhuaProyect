@@ -22,11 +22,21 @@ export const metadata = {
     type: 'website',
     url: '/populares',
     locale: 'es_ES',
+    // SEO: og:site_name y og:image obligatorios para visibilidad en redes
+    siteName: 'Manhwa Imperial',
+    images: [{
+      url: '/og-image.png',
+      width: 1200,
+      height: 630,
+      alt: 'Manhwas Populares - Rankings en Español | Manhwa Imperial',
+    }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Top Manhwas Populares | Manhwa Imperial',
     description: 'Ranking de los mejores manhwas en español. Descubre los más populares y trending.',
+    // SEO: Twitter image obligatoria
+    images: ['/og-image.png'],
   },
 }
 

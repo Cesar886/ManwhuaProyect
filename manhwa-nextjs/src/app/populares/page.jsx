@@ -1,6 +1,8 @@
 import PopularesClient from './PopularesClient'
 import { SERVER_API_BASE, SITE_URL } from '../../config'
 import { filterAvailableSeries } from '@/utils/adultContent'
+// SEO: JSON-LD para rankings (ItemList) y breadcrumbs
+import { generateItemListJsonLd, generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
 
 // ============================================================================
 // SERVER COMPONENT — Fetches real ranking data from backend endpoints
@@ -70,15 +72,34 @@ export default async function PopularesPage() {
         fetchSeriesList('/series/latest?limit=20'),
     ])
 
+    // SEO: JSON-LD schemas para rankings y navegación
+    const rankingJsonLd = generateItemListJsonLd('Manhwas Más Populares en Español', topRankings, 'ranking')
+    const breadcrumbJsonLd = generateBreadcrumbJsonLd([
+        { name: 'Inicio', url: '/home' },
+        { name: 'Manhwas Populares', url: '/populares' },
+    ])
+
     return (
-        <PopularesClient
-            topRankings={topRankings}
-            trending={trending}
-            topRated={topRated}
-            weeklyPopular={weeklyPopular}
-            monthlyPopular={monthlyPopular}
-            newReleases={newReleases}
-            latestUpdates={latestUpdates}
-        />
+        <>
+            {/* SEO: Schema ItemList para rich snippets de ranking en SERPs */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(rankingJsonLd) }}
+            />
+            {/* SEO: Schema BreadcrumbList para migas de pan en Google */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+            />
+            <PopularesClient
+                topRankings={topRankings}
+                trending={trending}
+                topRated={topRated}
+                weeklyPopular={weeklyPopular}
+                monthlyPopular={monthlyPopular}
+                newReleases={newReleases}
+                latestUpdates={latestUpdates}
+            />
+        </>
     )
 }

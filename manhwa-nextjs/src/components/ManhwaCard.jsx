@@ -54,8 +54,11 @@ export default function ManhwaCard({
   const contentType = manhwa.contentType || manhwa.content_type || 'manhwa';
   const typeLabel = contentType.charAt(0).toUpperCase() + contentType.slice(1).toLowerCase();
 
-  // SEO: Generar alt text narrativo con keywords y contexto para Visión de IA
-  const coverAlt = `Portada oficial del manhwa ${manhwa.title} - Serie de acción en español, ${manhwa.status === 'ongoing' ? 'en emisión' : manhwa.status || 'disponible'} en Manhwa Imperial`;
+  // SEO: Alt text dinámico con género real de la obra (no hardcodeado)
+  const genres = manhwa.genres?.map(g => typeof g === 'string' ? g : g?.name).filter(Boolean) || []
+  const genreText = genres.length > 0 ? genres.slice(0, 2).join(' y ') : typeLabel.toLowerCase()
+  const statusText = manhwa.status === 'ongoing' ? 'en emisión' : manhwa.status === 'completed' ? 'completo' : 'disponible'
+  const coverAlt = `Portada ${typeLabel.toLowerCase()} ${manhwa.title} - ${genreText} en español, ${statusText} en Manhwa Imperial`;
 
   return (
     <Card

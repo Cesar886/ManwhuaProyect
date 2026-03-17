@@ -47,6 +47,10 @@ export const GLOBAL_KEYWORDS = [
   'manhwa traducido',
   'manhwas nuevos',
   'manhwa actualizado',
+  // SEO: Keywords de nicho long-tail 2026
+  'mejores manhwas 2026',
+  'dónde leer manhwa legal en español',
+  'manhwa de romance con sistema de niveles',
 ]
 
 // ============================================================================
@@ -379,11 +383,12 @@ export const WEBSITE_DATA = {
   url: SITE_URL,
   description: META_TEMPLATES.home.description,
   inLanguage: 'es',
+  // SEO: URL de SearchAction consistente con jsonld.js (usar /buscar?q= para búsqueda IA)
   potentialAction: {
     '@type': 'SearchAction',
     target: {
       '@type': 'EntryPoint',
-      urlTemplate: `${SITE_URL}/biblioteca?search={search_term_string}`,
+      urlTemplate: `${SITE_URL}/buscar?q={search_term_string}`,
     },
     'query-input': 'required name=search_term_string',
   },
