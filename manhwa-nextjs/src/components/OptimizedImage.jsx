@@ -78,7 +78,7 @@ export default function OptimizedImage({
 
     // Generar srcset para diferentes tamaños
     const sizes = [400, 800, 1200, 1600];
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
 
     // URL de baja calidad para progressive loading
     const lowQuality = `${src}${separator}w=600&q=30&f=${config.format}&t=${timestamp}`;
@@ -173,6 +173,12 @@ export default function OptimizedImage({
 
   // Función para cargar imagen
   const loadImage = (url, isLowQuality) => {
+    if (!url) {
+      setLoadState('error');
+      onError?.();
+      return;
+    }
+
     const img = new Image();
 
     img.onload = () => {
@@ -188,8 +194,8 @@ export default function OptimizedImage({
     };
 
     img.onerror = () => {
-      // Intentar fallback a JPG
-      if (url.includes('webp')) {
+      // Intentar fallback a JPG si imageUrls existe y la URL era webp
+      if (url.includes('webp') && imageUrls?.fallbackJpg) {
         loadImage(imageUrls.fallbackJpg, false);
       } else {
         setLoadState('error');

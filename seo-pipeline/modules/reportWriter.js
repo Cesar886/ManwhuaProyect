@@ -22,7 +22,7 @@ const { getCostPercentage, getDrafts, readMemory } = require('../core/agentMemor
 const reportPrompt = require('../prompts/reportWriter.prompt')
 
 const REPORTS_DIR = path.resolve(process.env.REPORTS_DIR || './reports')
-const ADMIN_REPORTS_DIR = '/home/daniel/ManhwaImperialAdmin/reports'
+const ADMIN_REPORTS_DIR = process.env.ADMIN_REPORTS_DIR || AGENT.ADMIN_REPORTS_DIR
 
 function ensureAdminReportsDir() {
   if (!fs.existsSync(ADMIN_REPORTS_DIR)) {

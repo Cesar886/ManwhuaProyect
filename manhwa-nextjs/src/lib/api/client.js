@@ -21,6 +21,9 @@ const getAuthHeaders = (extra = {}) => ({
   ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
   ...extra,
 })
+// Default timeout: 15s for normal requests. Chapter images and uploads may need more.
+const DEFAULT_TIMEOUT_MS = 15000
+
 // Generic request with retry on network errors but DO NOT retry on 429
 // Rationale: retrying aggressively on 429 can make throttling worse.
 const requestWithRetry = async (input, init = {}, maxRetries = 3) => {
@@ -29,10 +32,31 @@ const requestWithRetry = async (input, init = {}, maxRetries = 3) => {
     attempt += 1
     let res
     try {
-      res = await fetch(input, init)
+      // AbortController timeout prevents hanging requests (e.g. server unresponsive)
+      const timeoutMs = init.timeout || DEFAULT_TIMEOUT_MS
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+      // Merge our signal with any existing signal from the caller
+      const mergedInit = { ...init, signal: controller.signal }
+      delete mergedInit.timeout
+
+      try {
+        res = await fetch(input, mergedInit)
+      } finally {
+        clearTimeout(timeoutId)
+      }
     } catch (e) {
-      // Network / fetch error: allow retry with exponential backoff up to maxRetries
-      if (attempt > maxRetries) throw e
+      // Convert AbortError to a more descriptive timeout error
+      if (e.name === 'AbortError') {
+        const err = new Error('La solicitud tardó demasiado. Verifica tu conexión.')
+        err.status = 408
+        err.isTimeout = true
+        if (attempt > maxRetries) throw err
+      } else {
+        // Network / fetch error: allow retry with exponential backoff up to maxRetries
+        if (attempt > maxRetries) throw e
+      }
       const waitMs = 500 * Math.pow(2, attempt - 1)
       await new Promise((r) => setTimeout(r, waitMs))
       continue

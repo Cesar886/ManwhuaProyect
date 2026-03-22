@@ -852,7 +852,7 @@ async function runCuratorAgent() {
 
   // Copiar al admin CMS
   try {
-    const adminDir = AGENT.ADMIN_REPORTS_DIR || '/home/daniel/ManhwaImperialAdmin/reports'
+    const adminDir = process.env.ADMIN_REPORTS_DIR || AGENT.ADMIN_REPORTS_DIR
     if (!fs.existsSync(adminDir)) fs.mkdirSync(adminDir, { recursive: true })
     const adminPath = path.join(adminDir, 'curator_report.json')
     fs.writeFileSync(adminPath, JSON.stringify(report, null, 2), 'utf-8')

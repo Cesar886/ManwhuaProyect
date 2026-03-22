@@ -21,16 +21,18 @@ export default function ChapterImage({ page, index, status, onLoad, onError, reg
   const [retries, setRetries] = useState(0);
   const [hasError, setHasError] = useState(false);
 
+  const pageUrl = page?.url || '';
+
   // Resetear estado de error/retry cuando cambia la URL (nuevo capítulo)
-  const prevUrl = useRef(page.url);
+  const prevUrl = useRef(pageUrl);
   useEffect(() => {
-    if (prevUrl.current !== page.url) {
-      prevUrl.current = page.url;
+    if (prevUrl.current !== pageUrl) {
+      prevUrl.current = pageUrl;
       setRetries(0);
       setHasError(false);
       setNaturalHeight(null);
     }
-  }, [page.url]);
+  }, [pageUrl]);
 
   // Registrar ref del contenedor en el hook padre
   useEffect(() => {
@@ -64,14 +66,14 @@ export default function ChapterImage({ page, index, status, onLoad, onError, reg
   const isLoaded = status === 'loaded' || status === 'error';
   const showImage = isLoading || isLoaded;
   // Añadir cache-bust solo en reintentos
-  const imgSrc = retries > 0 ? `${page.url}?r=${retries}` : page.url;
+  const imgSrc = pageUrl ? (retries > 0 ? `${pageUrl}?r=${retries}` : pageUrl) : '';
 
   return (
     <div
       ref={containerRef}
       data-image-index={index}
       className={styles.container}
-      style={naturalHeight ? { minHeight: 'auto', aspectRatio: `1 / ${naturalHeight}` } : undefined}
+      style={naturalHeight && isFinite(naturalHeight) && naturalHeight > 0 ? { minHeight: 'auto', aspectRatio: `1 / ${naturalHeight}` } : undefined}
     >
       {/* Placeholder: BlurhashCanvas si hay blurhash, sino skeleton shimmer */}
       {page.blurhash ? (
@@ -128,8 +130,23 @@ export default function ChapterImage({ page, index, status, onLoad, onError, reg
           fontSize: '13px',
           minHeight: '80px',
         }}>
-          <span style={{ fontSize: '24px', opacity: 0.5 }}>⚠</span>
+          <span style={{ fontSize: '24px', opacity: 0.5 }}>&#9888;</span>
           <span>Imagen {index + 1} no disponible</span>
+          <button
+            onClick={() => { setHasError(false); setRetries(0); }}
+            style={{
+              marginTop: '4px',
+              padding: '4px 12px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '6px',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            Reintentar
+          </button>
         </div>
       )}
     </div>

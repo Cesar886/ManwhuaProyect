@@ -76,8 +76,8 @@ const CoverImage = ({ src, alt, className, onLoad }) => {
       clearTimeout(timeoutRef.current);
     }
     // No actualizar estado aquí para evitar renders en cascada
-    // Si no hay src, mostrar placeholder inmediatamente
-    if (!src) {
+    // Si no hay src o no es string, mostrar placeholder inmediatamente
+    if (!src || typeof src !== 'string') {
       queueMicrotask(() => {
         setImageError(true);
         setIsLoading(false);
@@ -153,7 +153,7 @@ const CoverImage = ({ src, alt, className, onLoad }) => {
     return String(Math.abs(h));
   }, [src, retryCount]);
 
-  const separator = src && src.includes('?') ? '&' : '?';
+  const separator = (typeof src === 'string' && src.includes('?')) ? '&' : '?';
   const imageSrc = src ? `${src}${separator}t=${cacheBuster}${retryCount > 0 ? `&retry=${retryCount}` : ''}` : '';
 
   if (!src || imageError) {

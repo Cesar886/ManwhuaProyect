@@ -66,7 +66,7 @@ const { notify, generateReportJson } = require('./notifications/notifier')
 // -- CONSTANTES --
 const REPORTS_DIR = path.resolve(process.env.REPORTS_DIR || './reports')
 const DATA_RAW_DIR = path.resolve('./data/raw')
-const ADMIN_REPORTS_DIR = '/home/daniel/ManhwaImperialAdmin/reports'
+const ADMIN_REPORTS_DIR = process.env.ADMIN_REPORTS_DIR || AGENT.ADMIN_REPORTS_DIR
 const { AGENT } = require('./config/agentConfig')
 
 // == UTILIDADES ==

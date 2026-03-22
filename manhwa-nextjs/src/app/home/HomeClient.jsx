@@ -103,7 +103,11 @@ export default function HomeClient({ initialSeries = [] }) {
           headers: { 'Accept': 'application/json' },
         })
         if (!res.ok || cancelled) return
-        const { data } = await res.json()
+        let data
+        try {
+          const json = await res.json()
+          data = json?.data
+        } catch { return }
         if (!cancelled && Array.isArray(data) && data.length > 0) {
           setPopularCategories(data)
         }
@@ -235,7 +239,7 @@ export default function HomeClient({ initialSeries = [] }) {
           </div>
 
           <div className={styles.cardsRow}>
-            {filterAvailableSeries(series).slice(0, 12).map((series, index) => (
+            {(filterAvailableSeries(series) || []).slice(0, 12).map((series, index) => (
               <Link
                 href={`/manhwa/${series.slug}`}
                 key={series.slug}
@@ -307,7 +311,7 @@ export default function HomeClient({ initialSeries = [] }) {
                     </Link>
                   </div>
                   <div className={styles.queryScroll}>
-                    {cat.series.filter(s => !isAdultSeries(s)).map((item, i) => (
+                    {(cat.series || []).filter(s => !isAdultSeries(s)).map((item, i) => (
                       <Link
                         href={`/manhwa/${item.slug}`}
                         key={item.id || item.slug}

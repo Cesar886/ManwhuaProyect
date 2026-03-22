@@ -247,12 +247,14 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
 
     let lastKnownScrollPosition = 0;
     let ticking = false;
+    let scrollMounted = true;
 
     const handleScroll = () => {
       lastKnownScrollPosition = window.pageYOffset || document.documentElement.scrollTop || 0;
 
       if (!ticking) {
         rafIdRef.current = window.requestAnimationFrame(() => {
+          if (!scrollMounted) { ticking = false; return; }
           try {
             const currentProgress = calculateProgress();
 
@@ -282,6 +284,7 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
     }
 
     return () => {
+      scrollMounted = false;
       try {
         window.removeEventListener('scroll', handleScroll);
         if (rafIdRef.current) {

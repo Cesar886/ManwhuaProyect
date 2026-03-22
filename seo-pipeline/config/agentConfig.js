@@ -28,7 +28,7 @@ const AGENT = {
   CMS_API_KEY: process.env.CMS_API_KEY || '',
 
   // Admin CMS — destino de reportes
-  ADMIN_REPORTS_DIR: '/home/daniel/ManhwaImperialAdmin/reports',
+  ADMIN_REPORTS_DIR: process.env.ADMIN_REPORTS_DIR || '/home/daniel/ManhwaImperialAdmin/reports',
 
   // Limites por modulo
   LIMITS: {

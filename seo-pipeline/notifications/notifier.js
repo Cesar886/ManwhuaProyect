@@ -10,7 +10,8 @@
 const fs = require('fs')
 const path = require('path')
 
-const ADMIN_REPORTS_DIR = '/home/daniel/ManhwaImperialAdmin/reports'
+const { AGENT } = require('../config/agentConfig')
+const ADMIN_REPORTS_DIR = process.env.ADMIN_REPORTS_DIR || AGENT.ADMIN_REPORTS_DIR
 
 function ensureAdminReportsDir() {
   if (!fs.existsSync(ADMIN_REPORTS_DIR)) {

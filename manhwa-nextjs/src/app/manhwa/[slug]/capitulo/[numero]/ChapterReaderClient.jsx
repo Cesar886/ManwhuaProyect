@@ -547,17 +547,32 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           overflowX: 'hidden'
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={pages[currentPage]?.url}
-            alt={`Página ${currentPage + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Leer manhwa en español en Manhwa Imperial`}
-            style={{
-              width: 'auto',
-              height: 'auto',
-              maxWidth: '100%',
-              maxHeight: 'calc(100vh - 120px)',
-              objectFit: 'contain'
-            }}
-          />
+          {pages[currentPage]?.url ? (
+            <img
+              src={pages[currentPage].url}
+              alt={`Página ${currentPage + 1} del manhwa ${series?.title || (typeof slug === 'string' ? slug.replace(/-/g, ' ') : '')} Capítulo ${chapterNum} - Leer manhwa en español en Manhwa Imperial`}
+              style={{
+                width: 'auto',
+                height: 'auto',
+                maxWidth: '100%',
+                maxHeight: 'calc(100vh - 120px)',
+                objectFit: 'contain'
+              }}
+              onError={(e) => { e.target.style.opacity = '0.3'; }}
+            />
+          ) : (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
+              color: 'var(--dimmed-text, #888)',
+              fontSize: '14px',
+            }}>
+              <span style={{ fontSize: '32px', opacity: 0.5 }}>&#9888;</span>
+              <span>Imagen no disponible</span>
+            </div>
+          )}
         </div>
       )}
 
