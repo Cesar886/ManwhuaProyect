@@ -42,7 +42,7 @@ const NAVIGATION_TABS = [
   { label: 'Inicio', icon: IconHome, value: 'home', path: '/home' },
   { label: 'Biblioteca', icon: IconBooks, value: 'Biblioteca', path: '/biblioteca' },
   { label: 'Manga', icon: IconBook, value: 'Manga', path: '/mangas' },
-  { label: 'Populares', icon: IconTrendingUp, value: 'Populares', path: '/populares' },
+  // { label: 'Populares', icon: IconTrendingUp, value: 'Populares', path: '/populares' },
   { label: '18+', icon: IconFlame, value: '18+', path: '/nsfw' },
 ];
 

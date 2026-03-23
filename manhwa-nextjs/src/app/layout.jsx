@@ -190,6 +190,12 @@ export default function RootLayout({ children }) {
             __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}`
           }}
         />
+        {/* Adsterra Popunder */}
+        <Script
+          id="adsterra-popunder"
+          strategy="lazyOnload"
+          src="https://pl28961730.profitablecpmratenetwork.com/d4/8d/1b/d48d1bf823309efe8856634dc189f561.js"
+        />
         <NavigationProgress />
         <MantineProvider theme={imperialTheme} defaultColorScheme="light">
           <Notifications position="top-right" zIndex={1000} />

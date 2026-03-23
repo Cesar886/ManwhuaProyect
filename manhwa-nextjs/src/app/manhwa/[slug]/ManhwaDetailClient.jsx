@@ -28,6 +28,7 @@ import { normalizeImageUrl } from '../../../utils/imageUtils';
 import { Pill, Container, Skeleton, Group, Stack, Box, Badge as MantineBadge } from '@mantine/core';
 import ManhwaCover from '../../../components/ManhwaCover';
 import Header from '@/components/Header';
+import AdsterraNativeBanner from '../../../components/AdsterraNativeBanner';
 import SimilarManhwas from '../../../components/SimilarManhwas';
 import { slugifyQuery } from '@/hooks/useIA';
 import LinkedSynopsis from '../../../components/LinkedSynopsis';
@@ -1507,6 +1508,9 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
                 );
               })}
             </div>
+
+            {/* Adsterra Native Banner */}
+            <AdsterraNativeBanner />
 
             {filteredChapters.length === 0 && (
               <div className={styles.emptyState}>

@@ -16,6 +16,7 @@ import ReaderHeader from '../../../../../components/ReaderHeader';
 import { useReadingProgress } from '../../../../../hooks/useReadingProgress';
 import ReadingProgressBar from '../../../../../components/ReadingProgressBar';
 import ChapterRating from '../../../../../components/ChapterRating';
+import AdsterraNativeBanner from '../../../../../components/AdsterraNativeBanner';
 
 // Carga dinámica para evitar que el CSS de Mantine sea preloaded innecesariamente
 const Comentarios = dynamic(() => import('../../../../../components/Comentarios'), { ssr: false });
@@ -587,6 +588,9 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           chapterNum={chapterNum}
         />
       </div>
+
+      {/* Adsterra Native Banner */}
+      <AdsterraNativeBanner />
 
       {/* Chapter Navigation (New) */}
       <h2 style={{ position: 'absolute', width: '1px', height: '1px', padding: '0', margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: '0' }}>
