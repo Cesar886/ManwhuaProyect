@@ -14,17 +14,6 @@ const adStyles = `
     box-sizing: border-box;
   }
 
-  .ad-native-section .ad-native-label {
-    font-family: var(--font-outfit), 'Outfit', sans-serif;
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--mantine-color-dimmed, #9CA3AF);
-    margin-bottom: 0.75rem;
-    opacity: 0.5;
-  }
-
   .ad-native-section .ad-native-card {
     background: var(--card-bg-solid, rgba(24, 24, 32, 0.85));
     border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
@@ -151,6 +140,7 @@ const adStyles = `
 
     .ad-native-card #${AD_CONTAINER_ID} > div,
     .ad-native-card #${AD_CONTAINER_ID} > div > div {
+      grid-template-columns: repeat(2, 1fr) !important;
       gap: 0.5rem !important;
     }
 
@@ -186,6 +176,7 @@ const adStyles = `
 
     .ad-native-card #${AD_CONTAINER_ID} > div,
     .ad-native-card #${AD_CONTAINER_ID} > div > div {
+      grid-template-columns: repeat(2, 1fr) !important;
       gap: 0.35rem !important;
     }
 
@@ -201,8 +192,8 @@ const adStyles = `
     .ad-native-card #${AD_CONTAINER_ID} strong,
     .ad-native-card #${AD_CONTAINER_ID} b,
     .ad-native-card #${AD_CONTAINER_ID} a > div:first-child {
-      font-size: 0.6rem !important;
-      -webkit-line-clamp: 1 !important;
+      font-size: 0.65rem !important;
+      -webkit-line-clamp: 2 !important;
       margin-top: 0.25rem !important;
     }
 
@@ -262,7 +253,6 @@ export default function AdsterraNativeBanner() {
   return (
     <section className="ad-native-section">
       <style>{adStyles}</style>
-      <p className="ad-native-label">Te podría interesar</p>
       <div className="ad-native-card">
         <div id={AD_CONTAINER_ID} ref={containerRef} />
       </div>
