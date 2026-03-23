@@ -29,6 +29,7 @@ import { Pill, Container, Skeleton, Group, Stack, Box, Badge as MantineBadge } f
 import ManhwaCover from '../../../components/ManhwaCover';
 import Header from '@/components/Header';
 import AdsterraNativeBanner from '../../../components/AdsterraNativeBanner';
+import Script from 'next/script';
 import SimilarManhwas from '../../../components/SimilarManhwas';
 import { slugifyQuery } from '@/hooks/useIA';
 import LinkedSynopsis from '../../../components/LinkedSynopsis';
@@ -1511,6 +1512,12 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
 
             {/* Adsterra Native Banner */}
             <AdsterraNativeBanner />
+            {/* Adsterra Popunder - solo en páginas de contenido */}
+            <Script
+              id="adsterra-popunder"
+              strategy="lazyOnload"
+              src="https://pl28961730.profitablecpmratenetwork.com/d4/8d/1b/d48d1bf823309efe8856634dc189f561.js"
+            />
 
             {filteredChapters.length === 0 && (
               <div className={styles.emptyState}>

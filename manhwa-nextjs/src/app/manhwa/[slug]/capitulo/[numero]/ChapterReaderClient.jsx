@@ -17,6 +17,7 @@ import { useReadingProgress } from '../../../../../hooks/useReadingProgress';
 import ReadingProgressBar from '../../../../../components/ReadingProgressBar';
 import ChapterRating from '../../../../../components/ChapterRating';
 import AdsterraNativeBanner from '../../../../../components/AdsterraNativeBanner';
+import Script from 'next/script';
 
 // Carga dinámica para evitar que el CSS de Mantine sea preloaded innecesariamente
 const Comentarios = dynamic(() => import('../../../../../components/Comentarios'), { ssr: false });
@@ -589,9 +590,6 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
         />
       </div>
 
-      {/* Adsterra Native Banner */}
-      <AdsterraNativeBanner />
-
       {/* Chapter Navigation (New) */}
       <h2 style={{ position: 'absolute', width: '1px', height: '1px', padding: '0', margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: '0' }}>
         Navegación de Capítulos de {series?.title || slug.replace(/-/g, ' ')}
@@ -605,6 +603,15 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           seriesBasePath={seriesBasePath}
         />
       </div>
+
+      {/* Adsterra Native Banner - debajo de navegación */}
+      <AdsterraNativeBanner />
+      {/* Adsterra Popunder - solo en páginas de contenido */}
+      <Script
+        id="adsterra-popunder"
+        strategy="lazyOnload"
+        src="https://pl28961730.profitablecpmratenetwork.com/d4/8d/1b/d48d1bf823309efe8856634dc189f561.js"
+      />
 
       {/* Comentarios Section - Nivel H2 para sección principal */}
       <div style={{

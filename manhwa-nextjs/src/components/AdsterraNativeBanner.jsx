@@ -18,8 +18,8 @@ export default function AdsterraNativeBanner() {
   }, []);
 
   return (
-    <div style={{ maxWidth: '900px', margin: '1.5rem auto', padding: '0 1rem' }}>
-      <div id="container-72b3b145adb1b54525609f8133622419" ref={containerRef} />
+    <div style={{ maxWidth: '900px', width: '100%', margin: '1.5rem auto', padding: '0 1rem', overflow: 'hidden', boxSizing: 'border-box' }}>
+      <div id="container-72b3b145adb1b54525609f8133622419" ref={containerRef} style={{ maxWidth: '100%', overflow: 'hidden', transform: 'scale(1)', transformOrigin: 'top center' }} />
     </div>
   );
 }
