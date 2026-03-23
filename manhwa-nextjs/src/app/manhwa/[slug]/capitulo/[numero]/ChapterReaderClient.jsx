@@ -610,7 +610,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
       <Script
         id="adsterra-popunder"
         strategy="lazyOnload"
-        src="https://pl28961730.profitablecpmratenetwork.com/d4/8d/1b/d48d1bf823309efe8856634dc189f561.js"
+        src="https://landslidegraphsystems.com/d4/8d/1b/d48d1bf823309efe8856634dc189f561.js"
       />
 
       {/* Comentarios Section - Nivel H2 para sección principal */}
