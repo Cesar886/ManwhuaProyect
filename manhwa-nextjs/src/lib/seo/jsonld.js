@@ -235,6 +235,11 @@ export function generateComicSeriesJsonLd(series) {
     const ratingValue = Math.min(5, Math.max(1, rawRating / 2))
     jsonLd.aggregateRating = {
       '@type': 'AggregateRating',
+      itemReviewed: {
+        '@type': ['ComicSeries', 'CreativeWorkSeries'],
+        '@id': `${SITE_URL}/manhwa/${series.slug}#series`,
+        name: title,
+      },
       ratingValue: ratingValue.toFixed(1),
       bestRating: '5',
       worstRating: '1',
@@ -401,6 +406,11 @@ export function generateChapterJsonLd(series, chapterNum, pageCount = null, chap
     if (rawRating > 0 && ratingCount > 0) {
       jsonLd.aggregateRating = {
         '@type': 'AggregateRating',
+        itemReviewed: {
+          '@type': ['ComicIssue', 'Episode'],
+          '@id': `${SITE_URL}/manhwa/${series.slug}/capitulo/${chapterNum}#chapter`,
+          name: `${title} Capítulo ${chapterNum}`,
+        },
         ratingValue: rawRating.toFixed(1),
         bestRating: '5',
         worstRating: '1',
