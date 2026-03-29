@@ -1082,21 +1082,18 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
                   </Link>
                 )}
 
-                {/* Puntuación inline — SEO: microdata AggregateRating visible para Google */}
+                {/* Puntuación inline — visual only, structured data is in JSON-LD */}
                 {(parseFloat(series?.rating || series?.stats?.rating || 0) > 0) && (
                   <span
                     className={`${styles.heroMetaItem} ${styles.heroRating}`}
-                    itemScope
-                    itemType="https://schema.org/AggregateRating"
                   >
-                    <meta itemProp="worstRating" content="1" />
                     <IconStar size={13} className={styles.starIconHero} />
-                    <span itemProp="ratingValue">
+                    <span>
                       {(parseFloat(series?.rating || series?.stats?.rating || 0) / 2).toFixed(1)}
                     </span>
                     <span className={styles.heroRatingSub}>
-                      / <span itemProp="bestRating">5</span>{' '}
-                      (<span itemProp="ratingCount">{parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10)}</span>{' '}
+                      / <span>5</span>{' '}
+                      (<span>{parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10)}</span>{' '}
                       {parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10) === 1 ? 'voto' : 'votos'})
                     </span>
                   </span>

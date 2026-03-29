@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Grid,
@@ -27,10 +27,11 @@ import {
   useMantineColorScheme,
   Flex,
   rem,
-  Transition,
-  RingProgress,
+  TextInput,
+  Textarea,
 } from '@mantine/core';
 import { useMediaQuery, useHover } from '@mantine/hooks';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   IconBook,
   IconHeart,
@@ -39,7 +40,6 @@ import {
   IconCalendar,
   IconClock,
   IconMapPin,
-  IconLink,
   IconCamera,
   IconMail,
   IconChartBar,
@@ -49,14 +49,19 @@ import {
   IconShare,
   IconSettings,
   IconPencil,
-  IconAt,
   IconSparkles,
   IconCrown,
   IconStarFilled,
   IconArrowUpRight,
 } from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { getCurrentUser } from '@/api/client';
+import { getBookmarks } from '@/api/requests';
+import { getRecentProgress } from '@/api/progress';
 import styles from '@/app/user-profile/UserProfile.module.css';
+import Link from 'next/link';
+import Header from '@/components/Header';
 
 // ============================================
 // COMPONENTES AUXILIARES PREMIUM
@@ -389,6 +394,7 @@ const ProfileSkeleton = ({ isDark, isMobile }) => (
 export default function UserProfile() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
+  const { updateProfile } = useAuth();
 
   const isMobile = useMediaQuery('(max-width: 48em)');
   const isTablet = useMediaQuery('(min-width: 48em) and (max-width: 64em)');
@@ -400,26 +406,55 @@ export default function UserProfile() {
   const [openAvatarPicker, setOpenAvatarPicker] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [activeTab, setActiveTab] = useState('collections');
+  const [bookmarks, setBookmarks] = useState([]);
+  const [bookmarksLoading, setBookmarksLoading] = useState(false);
+  const [recentReads, setRecentReads] = useState([]);
+  const [recentLoading, setRecentLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    import('@/api/client').then(mod => {
-      const api = mod.default;
-      api.get('upload', 'default-avatars')
-        .then(res => setAvatars(res?.data?.avatars || res?.avatars || []))
-        .catch(() => setAvatars([]));
-    });
-  }, []);
+  // Edit profile modal state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ display_name: '', bio: '', location: '' });
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     getCurrentUser()
       .then(res => {
         const data = res?.data?.user || res?.user || res?.data || res;
-        if (data) setUser(data);
+        if (data) {
+          setUser(data);
+          setAvatarSrc(data.avatar_url || data.avatar || null);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  // Fetch bookmarks when tab changes to bookmarks
+  useEffect(() => {
+    if (activeTab === 'bookmarks' && bookmarks.length === 0 && !bookmarksLoading) {
+      setBookmarksLoading(true);
+      getBookmarks({ limit: 12, sort: 'updated_at', order: 'desc' })
+        .then(res => {
+          const items = res?.data?.bookmarks || res?.bookmarks || res?.data || [];
+          setBookmarks(Array.isArray(items) ? items : []);
+        })
+        .catch(() => setBookmarks([]))
+        .finally(() => setBookmarksLoading(false));
+    }
+  }, [activeTab]);
+
+  // Fetch recent reading activity when tab changes to activity
+  useEffect(() => {
+    if (activeTab === 'activity' && recentReads.length === 0 && !recentLoading) {
+      setRecentLoading(true);
+      getRecentProgress(15)
+        .then(data => setRecentReads(Array.isArray(data) ? data : []))
+        .catch(() => setRecentReads([]))
+        .finally(() => setRecentLoading(false));
+    }
+  }, [activeTab]);
 
   const getInitials = () => {
     if (!user) return 'U';
@@ -428,6 +463,69 @@ export default function UserProfile() {
     if (parts.length === 0) return 'U';
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
+  };
+
+  const openEditModal = useCallback(() => {
+    if (!user) return;
+    setEditForm({
+      display_name: user.display_name || user.name || user.username || '',
+      bio: user.bio || '',
+      location: user.location || '',
+    });
+    setEditOpen(true);
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setEditSaving(true);
+    try {
+      const userId = user.id || user._id;
+      await updateProfile(userId, {
+        display_name: editForm.display_name.trim(),
+        bio: editForm.bio.trim(),
+        location: editForm.location.trim(),
+      });
+      setUser(prev => ({
+        ...prev,
+        display_name: editForm.display_name.trim(),
+        bio: editForm.bio.trim(),
+        location: editForm.location.trim(),
+      }));
+      setEditOpen(false);
+      notifications.show({ title: 'Perfil actualizado', message: 'Tus cambios se guardaron correctamente', color: 'cyan', icon: <IconCheck size={16} /> });
+    } catch {
+      notifications.show({ title: 'Error', message: 'No se pudo actualizar tu perfil', color: 'red' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const name = user?.display_name || user?.name || user?.username || 'Usuario';
+    const profileUrl = `${window.location.origin}/perfil`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Perfil de ${name} - Manhwa Imperial`, url: profileUrl });
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(profileUrl);
+      setCopied(true);
+      notifications.show({ title: 'Enlace copiado', message: 'El enlace de tu perfil se copió al portapapeles', color: 'cyan', icon: <IconCheck size={16} /> });
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const formatTimeAgo = (dateStr) => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Ahora mismo';
+    if (mins < 60) return `Hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Hace ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `Hace ${days}d`;
+    return new Date(dateStr).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
   };
 
   if (loading) return <ProfileSkeleton isDark={isDark} isMobile={isMobile} />;
@@ -459,14 +557,6 @@ export default function UserProfile() {
   const userJoinDate = user.created_at || user.createdAt || new Date().toISOString();
   const userRole = user.role || 'reader';
 
-  const avatarProfile = (
-    <Avatar
-      name={userName}
-      color="initials"
-      allowedInitialsColors={['blue', 'red', 'cyan', 'indigo', 'pink', 'violet']}
-    />
-  );
-
   const stats = {
     followers: user.followers_count || user.stats?.followers || 0,
     following: user.following_count || user.stats?.following || 0,
@@ -478,7 +568,6 @@ export default function UserProfile() {
   };
 
   const collections = user.collections || [];
-  const activity = user.activity || [];
 
   const formatNum = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
 
@@ -495,16 +584,40 @@ export default function UserProfile() {
 
   const avatarSize = isMobile ? 100 : isTablet ? 120 : 140;
 
+  const bannerUrl = user.banner_url || user.banner || null;
+
   return (
     <Box className={`${styles.pageContainer} ${isDark ? styles.darkMode : styles.lightMode}`}>
-      <Container size="lg" px={isMobile ? 'sm' : 'md'} pt={isMobile ? 'md' : 'xl'}>
+      <Container size="lg" px={isMobile ? 'sm' : 'md'} py="sm">
+        <Header />
+      </Container>
+      <Container size="lg" px={isMobile ? 'sm' : 'md'} pt={0}>
 
-        {/* HEADER CARD */}
+        {/* COVER BANNER */}
+        <Box className={styles.coverBanner} style={{ position: 'relative', overflow: 'hidden', borderRadius: `0 0 ${rem(24)} ${rem(24)}` }}>
+          {bannerUrl ? (
+            <Image
+              src={bannerUrl}
+              alt="Banner de perfil"
+              h={isMobile ? 140 : isTablet ? 180 : 220}
+              style={{ objectFit: 'cover', width: '100%' }}
+            />
+          ) : (
+            <Box
+              h={isMobile ? 140 : isTablet ? 180 : 220}
+              className={styles.coverBannerGradient}
+            />
+          )}
+          <Box className={styles.coverBannerOverlay} />
+        </Box>
+
+        {/* HEADER CARD - solapado con el banner */}
         <Paper
           p={isMobile ? 'lg' : 'xl'}
           radius={rem(24)}
           mb="xl"
           className={styles.headerCard}
+          style={{ marginTop: isMobile ? -50 : -60, position: 'relative', zIndex: 2 }}
         >
           <Box className={styles.headerDecoration1} />
           <Box className={styles.headerDecoration2} />
@@ -552,11 +665,11 @@ export default function UserProfile() {
               </Group>
 
               <Group gap="sm" justify="center" w="100%">
-                <PremiumButton leftSection={<IconPencil size={16} />} style={{ flex: 1, maxWidth: 140 }} isDark={isDark}>
+                <PremiumButton leftSection={<IconPencil size={16} />} style={{ flex: 1, maxWidth: 140 }} isDark={isDark} onClick={openEditModal}>
                   Editar
                 </PremiumButton>
-                <PremiumButton variant="outline" leftSection={<IconShare size={16} />} style={{ flex: 1, maxWidth: 140 }} isDark={isDark}>
-                  Compartir
+                <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} style={{ flex: 1, maxWidth: 140 }} isDark={isDark} onClick={handleShare}>
+                  {copied ? 'Copiado' : 'Compartir'}
                 </PremiumButton>
               </Group>
             </Stack>
@@ -620,8 +733,10 @@ export default function UserProfile() {
                   <InlineStat value={formatNum(stats.chapters)} label="Capítulos" isDark={isDark} />
                 </Group>
                 <Group gap="sm">
-                  <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark}>Editar perfil</PremiumButton>
-                  <PremiumButton variant="outline" leftSection={<IconShare size={16} />} isDark={isDark}>Compartir</PremiumButton>
+                  <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark} onClick={openEditModal}>Editar perfil</PremiumButton>
+                  <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} isDark={isDark} onClick={handleShare}>
+                    {copied ? 'Copiado' : 'Compartir'}
+                  </PremiumButton>
                   <ActionIcon variant="subtle" color="gray" size="lg" radius="xl" className={styles.settingsButton}>
                     <IconSettings size={20} />
                   </ActionIcon>
@@ -689,8 +804,10 @@ export default function UserProfile() {
               </Group>
 
               <Stack gap="sm" align="flex-end">
-                <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark}>Editar perfil</PremiumButton>
-                <PremiumButton variant="outline" leftSection={<IconShare size={16} />} isDark={isDark}>Compartir</PremiumButton>
+                <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark} onClick={openEditModal}>Editar perfil</PremiumButton>
+                <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} isDark={isDark} onClick={handleShare}>
+                  {copied ? 'Copiado' : 'Compartir'}
+                </PremiumButton>
                 <Tooltip label="Configuración" withArrow position="left">
                   <ActionIcon variant="light" color="gray" size="lg" radius="xl" mt="xs" className={styles.settingsButton}>
                     <IconSettings size={20} />
@@ -814,10 +931,10 @@ export default function UserProfile() {
               {isMobile ? stats.collections : `Colecciones (${stats.collections})`}
             </Tabs.Tab>
             <Tabs.Tab value="bookmarks" leftSection={<IconBookmark size={16} />} px={isMobile ? 'md' : 'lg'}>
-              {isMobile ? '' : 'Guardados'}
+              {isMobile ? '' : `Guardados${bookmarks.length ? ` (${bookmarks.length})` : ''}`}
             </Tabs.Tab>
             <Tabs.Tab value="activity" leftSection={<IconClock size={16} />} px={isMobile ? 'md' : 'lg'}>
-              {isMobile ? '' : 'Actividad'}
+              {isMobile ? '' : 'Historial'}
             </Tabs.Tab>
           </Tabs.List>
 
@@ -843,30 +960,142 @@ export default function UserProfile() {
           </Tabs.Panel>
 
           <Tabs.Panel value="bookmarks">
-            <Paper p="xl" radius="xl" ta="center" className={`${styles.emptyState} ${isDark ? styles.darkMode : styles.lightMode}`}>
-              <ThemeIcon size={70} radius="xl" variant="light" color="violet" mb="lg" className={styles.emptyStateIcon}>
-                <IconBookmark size={35} stroke={1.5} />
-              </ThemeIcon>
-              <Text fw={600} size="lg" mb="xs" className={styles.emptyStateTitle}>No tienes guardados</Text>
-              <Text c="dimmed" size="sm" maw={300} mx="auto" className={styles.emptyStateText}>
-                Guarda capítulos y series para leerlos más tarde
-              </Text>
-            </Paper>
+            {bookmarksLoading ? (
+              <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing={isMobile ? 'sm' : 'md'}>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Paper key={i} p="md" radius="xl" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`}>
+                    <Skeleton height={160} radius="lg" mb="sm" />
+                    <Skeleton height={14} width="70%" radius="xl" mb={6} />
+                    <Skeleton height={10} width="40%" radius="xl" />
+                  </Paper>
+                ))}
+              </SimpleGrid>
+            ) : bookmarks.length > 0 ? (
+              <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing={isMobile ? 'sm' : 'md'}>
+                {bookmarks.map((bm) => {
+                  const series = bm.series || bm;
+                  const slug = series.slug || series.id;
+                  const title = series.title || series.name || 'Sin título';
+                  const cover = series.cover || series.coverImage || series.image || '';
+                  const status = bm.status || 'reading';
+                  const statusLabels = { reading: 'Leyendo', completed: 'Completado', 'on-hold': 'En pausa', dropped: 'Abandonado', 'plan-to-read': 'Por leer' };
+                  const statusColors = { reading: 'cyan', completed: 'green', 'on-hold': 'yellow', dropped: 'red', 'plan-to-read': 'violet' };
+
+                  return (
+                    <Link key={bm.id || slug} href={`/manhwa/${slug}`} style={{ textDecoration: 'none' }}>
+                      <Card p={0} radius="xl" className={`${styles.collectionCard} ${isDark ? styles.darkMode : styles.lightMode}`}>
+                        <Box style={{ position: 'relative', overflow: 'hidden' }}>
+                          <Image
+                            src={cover}
+                            alt={title}
+                            height={isMobile ? 160 : 200}
+                            style={{ objectFit: 'cover' }}
+                            fallbackSrc="/placeholder-cover.webp"
+                          />
+                          <Box className={styles.collectionCardOverlay} />
+                          <Badge
+                            color={statusColors[status] || 'gray'}
+                            variant="filled"
+                            size="sm"
+                            style={{ position: 'absolute', top: 10, right: 10, boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
+                          >
+                            {statusLabels[status] || status}
+                          </Badge>
+                          {bm.isFavorite && (
+                            <ThemeIcon
+                              size={24}
+                              radius="xl"
+                              color="pink"
+                              variant="filled"
+                              style={{ position: 'absolute', top: 10, left: 10, boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
+                            >
+                              <IconHeart size={12} />
+                            </ThemeIcon>
+                          )}
+                        </Box>
+                        <Stack p="sm" gap={4}>
+                          <Text size="sm" fw={700} lineClamp={1}>{title}</Text>
+                          {bm.lastReadChapter && (
+                            <Text size="xs" c="dimmed">Cap. {bm.lastReadChapter}</Text>
+                          )}
+                        </Stack>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </SimpleGrid>
+            ) : (
+              <Paper p="xl" radius="xl" ta="center" className={`${styles.emptyState} ${isDark ? styles.darkMode : styles.lightMode}`}>
+                <ThemeIcon size={70} radius="xl" variant="light" color="violet" mb="lg" className={styles.emptyStateIcon}>
+                  <IconBookmark size={35} stroke={1.5} />
+                </ThemeIcon>
+                <Text fw={600} size="lg" mb="xs" className={styles.emptyStateTitle}>No tienes guardados</Text>
+                <Text c="dimmed" size="sm" maw={300} mx="auto" className={styles.emptyStateText}>
+                  Guarda series para leerlas más tarde desde la página de cualquier manhwa
+                </Text>
+                <Link href="/biblioteca" style={{ textDecoration: 'none' }}>
+                  <PremiumButton leftSection={<IconBook size={16} />} isDark={isDark} mt="lg">
+                    Explorar biblioteca
+                  </PremiumButton>
+                </Link>
+              </Paper>
+            )}
           </Tabs.Panel>
 
           <Tabs.Panel value="activity">
             <Paper p={isMobile ? 'md' : 'xl'} radius="xl" className={`${styles.activityCard} ${isDark ? styles.darkMode : styles.lightMode}`}>
-              {activity.length > 0 ? (
-                <Timeline active={-1} bulletSize={28} lineWidth={2} color="cyan" classNames={{ itemBullet: styles.timelineBullet }}>
-                  {activity.map((item, i) => (
-                    <Timeline.Item
-                      key={i}
-                      bullet={<IconClock size={14} />}
-                      title={<Text size="sm" fw={600} className={styles.timelineTitle}>{item.action || 'Actividad'}</Text>}
-                    >
-                      <Text size="xs" c="dimmed" className={styles.timelineDate}>{item.date || ''}</Text>
-                    </Timeline.Item>
+              {recentLoading ? (
+                <Stack gap="md">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Group key={i} gap="md" wrap="nowrap">
+                      <Skeleton height={28} width={28} circle />
+                      <Stack gap={4} style={{ flex: 1 }}>
+                        <Skeleton height={14} width="60%" radius="xl" />
+                        <Skeleton height={10} width="30%" radius="xl" />
+                      </Stack>
+                    </Group>
                   ))}
+                </Stack>
+              ) : recentReads.length > 0 ? (
+                <Timeline active={-1} bulletSize={28} lineWidth={2} color="cyan" classNames={{ itemBullet: styles.timelineBullet }}>
+                  {recentReads.map((item, i) => {
+                    const slug = item.slug || item.seriesSlug || '';
+                    const title = item.seriesTitle || item.title || slug;
+                    const chapter = item.chapterNum || item.chapter;
+                    const progress = item.progress || 0;
+                    const date = item.updatedAt || item.syncedAt || item.createdAt;
+
+                    return (
+                      <Timeline.Item
+                        key={i}
+                        bullet={progress >= 100 ? <IconCheck size={14} /> : <IconBook size={14} />}
+                        title={
+                          <Group gap="xs" wrap="nowrap">
+                            <Link href={`/manhwa/${slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                              <Text size="sm" fw={600} className={styles.timelineTitle} style={{ cursor: 'pointer' }}>
+                                {title}
+                              </Text>
+                            </Link>
+                            {chapter && (
+                              <Badge size="xs" variant="light" color="cyan">Cap. {chapter}</Badge>
+                            )}
+                            {progress >= 100 && (
+                              <Badge size="xs" variant="light" color="green">Completado</Badge>
+                            )}
+                          </Group>
+                        }
+                      >
+                        <Group gap="xs">
+                          <Text size="xs" c="dimmed" className={styles.timelineDate}>
+                            {formatTimeAgo(date)}
+                          </Text>
+                          {progress > 0 && progress < 100 && (
+                            <Progress value={progress} color="cyan" size="xs" radius="xl" w={60} />
+                          )}
+                        </Group>
+                      </Timeline.Item>
+                    );
+                  })}
                 </Timeline>
               ) : (
                 <Center py="xl">
@@ -875,7 +1104,9 @@ export default function UserProfile() {
                       <IconClock size={30} stroke={1.5} />
                     </ThemeIcon>
                     <Text fw={600} size="lg" className={styles.emptyStateTitle}>Sin actividad reciente</Text>
-                    <Text c="dimmed" size="sm">Tu actividad de lectura aparecerá aquí</Text>
+                    <Text c="dimmed" size="sm" ta="center" maw={280}>
+                      Empieza a leer manhwas y tu historial aparecerá aquí
+                    </Text>
                   </Stack>
                 </Center>
               )}
@@ -910,6 +1141,7 @@ export default function UserProfile() {
           ) : avatars.map((a, i) => {
             const AvatarCard = () => {
               const { hovered, ref } = useHover();
+              const isSelected = avatarSrc === a;
               return (
                 <Card
                   ref={ref}
@@ -918,27 +1150,219 @@ export default function UserProfile() {
                   radius="lg"
                   className={styles.avatarPickerItem}
                   style={{
-                    border: `2px solid ${hovered ? 'var(--mantine-color-cyan-5)' : 'transparent'}`,
+                    border: `2px solid ${isSelected ? 'var(--mantine-color-cyan-5)' : hovered ? 'var(--mantine-color-cyan-5)' : 'transparent'}`,
                     transform: hovered ? 'scale(1.05)' : 'scale(1)',
-                    boxShadow: hovered ? '0 8px 25px rgba(6, 182, 212, 0.3)' : 'none',
+                    boxShadow: isSelected
+                      ? '0 4px 15px rgba(6, 182, 212, 0.4)'
+                      : hovered ? '0 8px 25px rgba(6, 182, 212, 0.3)' : 'none',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   }}
                   onClick={async () => {
                     try {
                       const { default: api } = await import('@/api/client');
                       await api.put('users', 'avatar', { avatarUrl: a });
+                      setAvatarSrc(a);
                       setOpenAvatarPicker(false);
                       setUser(prev => ({ ...prev, avatar_url: a }));
-                    } catch (e) { console.error(e); }
+                      notifications.show({ title: 'Avatar actualizado', message: 'Tu avatar se ha cambiado correctamente', color: 'cyan' });
+                    } catch (e) {
+                      console.error(e);
+                      notifications.show({ title: 'Error', message: 'No se pudo cambiar el avatar', color: 'red' });
+                    }
                   }}
                 >
-                  {avatarProfile}
+                  <Avatar src={a} size="100%" radius="md" alt={`Avatar opción ${i + 1}`}>
+                    {getInitials()}
+                  </Avatar>
+                  {isSelected && (
+                    <ThemeIcon
+                      size={20}
+                      radius="xl"
+                      color="cyan"
+                      style={{ position: 'absolute', top: 4, right: 4 }}
+                    >
+                      <IconCheck size={12} />
+                    </ThemeIcon>
+                  )}
                 </Card>
               );
             };
             return <AvatarCard key={i} />;
           })}
         </SimpleGrid>
+      </Modal>
+
+      {/* MODAL EDITAR PERFIL */}
+      <Modal
+        opened={editOpen}
+        onClose={() => setEditOpen(false)}
+        title={
+          <Group gap="xs">
+            <ThemeIcon size="md" radius="xl" variant="gradient" gradient={{ from: 'cyan', to: 'teal' }}>
+              <IconPencil size={14} />
+            </ThemeIcon>
+            <Text fw={700} size="lg">Editar perfil</Text>
+          </Group>
+        }
+        centered
+        radius="xl"
+        size={isMobile ? 'full' : 'lg'}
+        overlayProps={{ backgroundOpacity: 0.6, blur: 10 }}
+        classNames={{
+          content: `${styles.modalContent} ${isDark ? styles.darkMode : styles.lightMode}`,
+          header: styles.modalHeader,
+        }}
+        styles={{
+          body: { padding: isMobile ? rem(16) : rem(24) },
+        }}
+      >
+        <Stack gap="xl">
+          {/* Preview del avatar + nombre */}
+          <Paper
+            p="lg"
+            radius="xl"
+            style={{
+              background: isDark
+                ? 'linear-gradient(145deg, rgba(6,182,212,0.08) 0%, rgba(139,92,246,0.06) 100%)'
+                : 'linear-gradient(145deg, rgba(6,182,212,0.06) 0%, rgba(139,92,246,0.04) 100%)',
+              border: `1px solid ${isDark ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.2)'}`,
+            }}
+          >
+            <Group gap="lg" align="center">
+              <Box pos="relative">
+                <Avatar
+                  src={avatarSrc}
+                  size={isMobile ? 64 : 80}
+                  radius="50%"
+                  style={{
+                    boxShadow: '0 6px 24px rgba(6,182,212,0.25)',
+                    border: `3px solid ${isDark ? 'rgba(6,182,212,0.4)' : 'rgba(6,182,212,0.5)'}`,
+                  }}
+                >
+                  {getInitials()}
+                </Avatar>
+                <Tooltip label="Cambiar avatar" withArrow>
+                  <ActionIcon
+                    variant="gradient"
+                    gradient={{ from: 'cyan', to: 'teal' }}
+                    size="sm"
+                    radius="xl"
+                    pos="absolute"
+                    bottom={-2}
+                    right={-2}
+                    onClick={() => { setEditOpen(false); setTimeout(() => setOpenAvatarPicker(true), 200); }}
+                    style={{ border: `2px solid ${isDark ? '#1e293b' : '#fff'}`, zIndex: 2 }}
+                  >
+                    <IconCamera size={12} />
+                  </ActionIcon>
+                </Tooltip>
+              </Box>
+              <Stack gap={4} style={{ flex: 1 }}>
+                <Text size={isMobile ? 'md' : 'lg'} fw={700} className={styles.gradientText} lineClamp={1}>
+                  {editForm.display_name || 'Tu nombre'}
+                </Text>
+                <Text size="sm" c="dimmed">@{userUsername}</Text>
+              </Stack>
+            </Group>
+          </Paper>
+
+          {/* Campos del formulario */}
+          <Stack gap="md">
+            <TextInput
+              label={<Text size="sm" fw={600} mb={4}>Nombre para mostrar</Text>}
+              placeholder="¿Cómo te llamas?"
+              value={editForm.display_name}
+              onChange={(e) => setEditForm(prev => ({ ...prev, display_name: e.currentTarget.value }))}
+              maxLength={50}
+              radius="xl"
+              size="md"
+              leftSection={<IconUsers size={16} style={{ opacity: 0.5 }} />}
+              error={editForm.display_name.trim().length === 0 ? 'El nombre no puede estar vacío' : null}
+              styles={{
+                input: {
+                  background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                  border: `1.5px solid ${isDark ? 'rgba(148,163,184,0.15)' : 'rgba(0,0,0,0.08)'}`,
+                  transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                  '&:focus': { borderColor: 'var(--mantine-color-cyan-5)' },
+                },
+              }}
+            />
+
+            <Box>
+              <Textarea
+                label={<Text size="sm" fw={600} mb={4}>Biografía</Text>}
+                placeholder="Cuéntale al mundo sobre ti, tus manhwas favoritos..."
+                value={editForm.bio}
+                onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.currentTarget.value }))}
+                maxLength={200}
+                minRows={3}
+                maxRows={5}
+                autosize
+                radius="lg"
+                size="md"
+                styles={{
+                  input: {
+                    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                    border: `1.5px solid ${isDark ? 'rgba(148,163,184,0.15)' : 'rgba(0,0,0,0.08)'}`,
+                    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                  },
+                }}
+              />
+              <Group justify="flex-end" mt={6}>
+                <Text
+                  size="xs"
+                  c={editForm.bio.length > 180 ? 'orange' : 'dimmed'}
+                  fw={editForm.bio.length > 180 ? 600 : 400}
+                >
+                  {editForm.bio.length}/200
+                </Text>
+              </Group>
+            </Box>
+
+            <TextInput
+              label={<Text size="sm" fw={600} mb={4}>Ubicación</Text>}
+              placeholder="Ciudad, País"
+              value={editForm.location}
+              onChange={(e) => setEditForm(prev => ({ ...prev, location: e.currentTarget.value }))}
+              maxLength={60}
+              radius="xl"
+              size="md"
+              leftSection={<IconMapPin size={16} style={{ opacity: 0.5 }} />}
+              styles={{
+                input: {
+                  background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                  border: `1.5px solid ${isDark ? 'rgba(148,163,184,0.15)' : 'rgba(0,0,0,0.08)'}`,
+                  transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                },
+              }}
+            />
+          </Stack>
+
+          {/* Botones de acción */}
+          <Group justify="flex-end" gap="sm" mt="xs">
+            <Button
+              variant="default"
+              radius="xl"
+              size="md"
+              onClick={() => setEditOpen(false)}
+              style={{
+                border: `1px solid ${isDark ? 'rgba(148,163,184,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              }}
+            >
+              Cancelar
+            </Button>
+            <PremiumButton
+              isDark={isDark}
+              onClick={handleSaveProfile}
+              loading={editSaving}
+              disabled={!editForm.display_name.trim()}
+              leftSection={!editSaving ? <IconCheck size={16} /> : undefined}
+              size="md"
+            >
+              Guardar cambios
+            </PremiumButton>
+          </Group>
+        </Stack>
       </Modal>
     </Box>
   );

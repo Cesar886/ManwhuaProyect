@@ -168,17 +168,17 @@ export function generateComicSeriesJsonLd(series) {
   const title = series.title || 'Manhwa'
   const genres = series.genres?.map(g => typeof g === 'string' ? g : g.name).filter(Boolean) || []
   const chapterCount = series.chapters?.length || series.chapterCount || 0
+  const seriesUrl = `${SITE_URL}/manhwa/${series.slug}`
 
-  // Tipo dual: ComicSeries (semántico) + CreativeWorkSeries (soportado por Google para review snippets).
-  // Google acepta aggregateRating en CreativeWorkSeries pero no en ComicSeries solo.
-  const jsonLd = {
-    '@context': 'https://schema.org',
+  // --- Nodo principal: ComicSeries + CreativeWorkSeries ---
+  // Google acepta aggregateRating en CreativeWorkSeries (listado oficial de review snippets).
+  const seriesNode = {
     '@type': ['ComicSeries', 'CreativeWorkSeries'],
-    '@id': `${SITE_URL}/manhwa/${series.slug}#series`,
+    '@id': `${seriesUrl}#series`,
     name: title,
     alternateName: series.alternativeTitles || [],
     headline: `Leer ${title} Manhwa en Español`,
-    url: `${SITE_URL}/manhwa/${series.slug}`,
+    url: seriesUrl,
     description: series.synopsis || series.description || `Lee ${title} manhwa completo en español gratis. Disfruta de este manhwa en ${SITE_NAME}.`,
     inLanguage: 'es',
     genre: genres,
@@ -186,18 +186,22 @@ export function generateComicSeriesJsonLd(series) {
   }
 
   // Imagen de portada
-  if (series.coverUrl || series.cover) {
-    jsonLd.image = {
+  const coverSrc = series.coverUrl || series.cover
+  if (coverSrc) {
+    seriesNode.image = {
       '@type': 'ImageObject',
-      url: series.coverUrl || series.cover,
+      '@id': `${seriesUrl}#image`,
+      url: coverSrc,
       width: 460,
       height: 640,
+      caption: `Portada de ${title} - Manhwa en Español`,
     }
+    seriesNode.thumbnailUrl = coverSrc
   }
 
   // Autor
   if (series.author) {
-    jsonLd.author = {
+    seriesNode.author = {
       '@type': 'Person',
       name: typeof series.author === 'string' ? series.author : series.author.name,
     }
@@ -205,7 +209,7 @@ export function generateComicSeriesJsonLd(series) {
 
   // Ilustrador (si es diferente del autor)
   if (series.artist && series.artist !== series.author) {
-    jsonLd.illustrator = {
+    seriesNode.illustrator = {
       '@type': 'Person',
       name: typeof series.artist === 'string' ? series.artist : series.artist.name,
     }
@@ -213,7 +217,7 @@ export function generateComicSeriesJsonLd(series) {
 
   // Número de capítulos
   if (chapterCount > 0) {
-    jsonLd.numberOfIssues = chapterCount
+    seriesNode.numberOfIssues = chapterCount
   }
 
   // Estado de la serie
@@ -224,46 +228,40 @@ export function generateComicSeriesJsonLd(series) {
       'paused': 'On Hold',
       'cancelled': 'Cancelled',
     }
-    jsonLd.creativeWorkStatus = statusMap[series.status] || series.status
+    seriesNode.creativeWorkStatus = statusMap[series.status] || series.status
   }
 
-  // Rating - Solo incluir si hay votos reales (Google penaliza ratings sin votos)
+  // Rating — mínimo 3 votos para que Google lo considere confiable
   const ratingCount = parseInt(series.ratingCount) || 0
   const rawRating = parseFloat(series.rating) || 0
-  if (rawRating > 0 && ratingCount > 0) {
-    // Backend almacena en escala 1-10, convertir a 1-5 para el Schema
+  if (rawRating > 0 && ratingCount >= 3) {
     const ratingValue = Math.min(5, Math.max(1, rawRating / 2))
-    jsonLd.aggregateRating = {
+    seriesNode.aggregateRating = {
       '@type': 'AggregateRating',
-      itemReviewed: {
-        '@type': ['ComicSeries', 'CreativeWorkSeries'],
-        '@id': `${SITE_URL}/manhwa/${series.slug}#series`,
-        name: title,
-      },
       ratingValue: ratingValue.toFixed(1),
       bestRating: '5',
       worstRating: '1',
       ratingCount: String(ratingCount),
+      reviewCount: String(ratingCount),
     }
   }
 
-  // Fechas
+  // Fechas — formato ISO completo (Google rechaza solo el año)
   if (series.releaseYear || series.createdAt) {
-    jsonLd.datePublished = series.releaseYear ? String(series.releaseYear) : new Date(series.createdAt).toISOString().split('T')[0]
+    seriesNode.datePublished = series.createdAt
+      ? new Date(series.createdAt).toISOString().split('T')[0]
+      : `${series.releaseYear}-01-01`
   }
   if (series.updatedAt) {
-    jsonLd.dateModified = new Date(series.updatedAt).toISOString()
+    seriesNode.dateModified = new Date(series.updatedAt).toISOString()
   }
 
   // Publisher
-  jsonLd.publisher = {
+  seriesNode.publisher = {
     '@id': `${SITE_URL}/#organization`,
   }
 
-  // sameAs: Conectar la serie con bases de datos globales de entidades
-  // Permite a la IA saber que "este manhwa en nuestro sitio" es la misma entidad
-  // que está en MyAnimeList, AniList, Anime-Planet o Wikipedia.
-  // Solo se incluye si el backend provee las URLs directas (sin inferirlas).
+  // sameAs: Conectar la serie con bases de datos globales
   const externalLinks = []
   if (series.malUrl) externalLinks.push(series.malUrl)
   if (series.anilistUrl) externalLinks.push(series.anilistUrl)
@@ -276,10 +274,29 @@ export function generateComicSeriesJsonLd(series) {
     })
   }
   if (externalLinks.length > 0) {
-    jsonLd.sameAs = externalLinks
+    seriesNode.sameAs = externalLinks
   }
 
-  return jsonLd
+  // --- @graph: WebPage + Series conectados ---
+  // Google procesa mejor la relación WebPage → mainEntity → CreativeWorkSeries
+  // y asocia el aggregateRating al contenido de la página de forma inequívoca.
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        '@id': `${seriesUrl}#webpage`,
+        url: seriesUrl,
+        name: `Leer ${title} Manhwa Online Gratis en Español`,
+        isPartOf: { '@id': `${SITE_URL}/#website` },
+        about: { '@id': `${seriesUrl}#series` },
+        mainEntity: { '@id': `${seriesUrl}#series` },
+        inLanguage: 'es',
+        ...(series.updatedAt ? { dateModified: new Date(series.updatedAt).toISOString() } : {}),
+      },
+      seriesNode,
+    ],
+  }
 }
 
 // ============================================================================
@@ -399,22 +416,18 @@ export function generateChapterJsonLd(series, chapterNum, pageCount = null, chap
     jsonLd.datePublished = new Date(chapter.publishedAt).toISOString()
   }
 
-  // Rating específico del capítulo — válido gracias al tipo Episode
+  // Rating específico del capítulo — mínimo 3 votos, con reviewCount
   if (chapterRating) {
     const ratingCount = parseInt(chapterRating.ratingCount) || 0
     const rawRating = parseFloat(chapterRating.rating) || 0
-    if (rawRating > 0 && ratingCount > 0) {
+    if (rawRating > 0 && ratingCount >= 3) {
       jsonLd.aggregateRating = {
         '@type': 'AggregateRating',
-        itemReviewed: {
-          '@type': ['ComicIssue', 'Episode'],
-          '@id': `${SITE_URL}/manhwa/${series.slug}/capitulo/${chapterNum}#chapter`,
-          name: `${title} Capítulo ${chapterNum}`,
-        },
         ratingValue: rawRating.toFixed(1),
         bestRating: '5',
         worstRating: '1',
         ratingCount: String(ratingCount),
+        reviewCount: String(ratingCount),
       }
     }
   }
