@@ -1032,6 +1032,195 @@ const updatePartialUser = async (req, res, next) => {
     }
 };
 
+/**
+ * Obtener calificaciones del usuario (series + capítulos)
+ * GET /api/users/:username/ratings
+ */
+const getUserRatings = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const offset = (page - 1) * limit;
+
+        const userResult = await query(
+            'SELECT id, visitor_id FROM users WHERE username = $1 AND deleted_at IS NULL',
+            [username.toLowerCase()]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        const userId = userResult.rows[0].id;
+        const visitorId = userResult.rows[0].visitor_id;
+
+        // 1. Obtener ratings de SERIES (tabla ratings)
+        const seriesRatings = await query(
+            `SELECT r.id, r.score, r.review, r.created_at, r.updated_at,
+                    s.id as series_id, s.title as series_title, s.slug as series_slug, 
+                    s.cover_url, 'series' as rating_type, NULL as chapter_number
+             FROM ratings r
+             JOIN series s ON r.series_id = s.id
+             WHERE r.user_id = $1
+             ORDER BY r.updated_at DESC`,
+            [userId]
+        );
+
+        // 2. Obtener ratings de CAPÍTULOS (tabla chapter_votes) si tiene visitor_id
+        let chapterRatings = { rows: [] };
+        if (visitorId) {
+            chapterRatings = await query(
+                `SELECT cv.id, cv.rating * 2 as score, NULL as review, cv.created_at, cv.updated_at,
+                        s.id as series_id, s.title as series_title, cv.series_slug as series_slug,
+                        s.cover_url, 'chapter' as rating_type, cv.chapter_number
+                 FROM chapter_votes cv
+                 JOIN series s ON s.slug = cv.series_slug
+                 WHERE cv.visitor_id = $1
+                 ORDER BY cv.updated_at DESC`,
+                [visitorId]
+            );
+        }
+
+        // Combinar y ordenar por fecha
+        const allRatings = [...seriesRatings.rows, ...chapterRatings.rows]
+            .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+            .slice(offset, offset + limit);
+
+        const total = seriesRatings.rows.length + chapterRatings.rows.length;
+
+        res.json({
+            success: true,
+            data: {
+                ratings: allRatings.map(r => ({
+                    id: r.id,
+                    score: r.score,
+                    review: r.review,
+                    ratingType: r.rating_type,
+                    chapterNumber: r.chapter_number,
+                    createdAt: r.created_at,
+                    updatedAt: r.updated_at,
+                    series: {
+                        id: r.series_id,
+                        title: r.series_title,
+                        slug: r.series_slug,
+                        coverUrl: r.cover_url
+                    }
+                })),
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Obtener comentarios del usuario
+ * GET /api/users/:username/comments
+ */
+const getUserComments = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const offset = (page - 1) * limit;
+
+        const userResult = await query(
+            'SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL',
+            [username.toLowerCase()]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        const userId = userResult.rows[0].id;
+
+        // Obtener comentarios con información del contexto
+        const result = await query(
+            `SELECT c.id, c.content, c.target_type, c.target_id, c.rating,
+                    c.is_spoiler, c.likes_count, c.dislikes_count, c.replies_count,
+                    c.created_at, c.is_edited, c.edited_at,
+                    CASE 
+                        WHEN c.target_type = 'series' THEN s.title
+                        WHEN c.target_type = 'chapter' THEN CONCAT(s2.title, ' - Cap. ', ch.number)
+                        ELSE NULL
+                    END as target_title,
+                    CASE 
+                        WHEN c.target_type = 'series' THEN s.slug
+                        WHEN c.target_type = 'chapter' THEN s2.slug
+                        ELSE NULL
+                    END as series_slug,
+                    CASE 
+                        WHEN c.target_type = 'series' THEN s.cover_url
+                        WHEN c.target_type = 'chapter' THEN s2.cover_url
+                        ELSE NULL
+                    END as cover_url,
+                    ch.number as chapter_number
+             FROM comments c
+             LEFT JOIN series s ON c.target_type = 'series' AND c.target_id = s.id
+             LEFT JOIN chapters ch ON c.target_type = 'chapter' AND c.target_id = ch.id
+             LEFT JOIN series s2 ON ch.series_id = s2.id
+             WHERE c.user_id = $1 AND c.status = 'visible'
+             ORDER BY c.created_at DESC
+             LIMIT $2 OFFSET $3`,
+            [userId, limit, offset]
+        );
+
+        // Contar total
+        const countResult = await query(
+            "SELECT COUNT(*) FROM comments WHERE user_id = $1 AND status = 'visible'",
+            [userId]
+        );
+
+        const total = parseInt(countResult.rows[0].count);
+
+        res.json({
+            success: true,
+            data: {
+                comments: result.rows.map(c => ({
+                    id: c.id,
+                    content: c.content,
+                    targetType: c.target_type,
+                    targetId: c.target_id,
+                    targetTitle: c.target_title,
+                    seriesSlug: c.series_slug,
+                    coverUrl: c.cover_url,
+                    chapterNumber: c.chapter_number,
+                    rating: c.rating,
+                    isSpoiler: c.is_spoiler,
+                    likesCount: c.likes_count,
+                    dislikesCount: c.dislikes_count,
+                    repliesCount: c.replies_count,
+                    createdAt: c.created_at,
+                    isEdited: c.is_edited,
+                    editedAt: c.edited_at
+                })),
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getProfile,
     checkUsername,
@@ -1046,6 +1235,8 @@ module.exports = {
     getUserFollowing,
     getUserCollections,
     getUserActivity,
+    getUserRatings,
+    getUserComments,
     getReadingHistory,
     getBookmarks,
     clearHistory,

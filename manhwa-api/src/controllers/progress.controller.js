@@ -51,11 +51,12 @@ const saveProgress = async (req, res, next) => {
         const chapterId = chapterResult.rows[0].id;
 
         // UPSERT: insertar o actualizar en una sola operación atómica
+        // IMPORTANTE: first_read_at se preserva en UPDATE para calcular rachas correctamente
         const result = await query(
             `INSERT INTO reading_history
                 (user_id, series_id, chapter_id, scroll_position, progress_percentage,
-                 total_pages, is_completed, device_id, synced_at, read_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+                 total_pages, is_completed, device_id, synced_at, read_at, first_read_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
              ON CONFLICT (user_id, chapter_id)
              DO UPDATE SET
                 scroll_position = EXCLUDED.scroll_position,
@@ -68,6 +69,7 @@ const saveProgress = async (req, res, next) => {
                 device_id = EXCLUDED.device_id,
                 synced_at = NOW(),
                 read_at = NOW()
+                -- first_read_at is intentionally NOT updated to preserve original read date
              RETURNING *`,
             [userId, seriesId, chapterId, scrollPosition, progress, totalPages, isCompleted, deviceId]
         );
@@ -295,6 +297,7 @@ const deleteProgress = async (req, res, next) => {
 /**
  * Obtener racha de lectura del usuario
  * GET /api/progress/streak
+ * Usa first_read_at para cálculo preciso (no se puede manipular re-abriendo capítulos)
  */
 const getStreak = async (req, res, next) => {
     try {
@@ -302,7 +305,8 @@ const getStreak = async (req, res, next) => {
 
         const result = await query(
             `WITH reading_days AS (
-               SELECT DISTINCT (read_at AT TIME ZONE 'UTC')::date AS day
+               -- Usar first_read_at (inmutable) en lugar de read_at para evitar manipulación
+               SELECT DISTINCT (COALESCE(first_read_at, read_at) AT TIME ZONE 'UTC')::date AS day
                FROM reading_history
                WHERE user_id = $1
              ),

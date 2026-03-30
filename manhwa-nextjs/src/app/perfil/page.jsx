@@ -37,10 +37,8 @@ import {
   IconCalendar,
   IconMapPin,
   IconCamera,
-  IconMail,
   IconFlame,
   IconShare,
-  IconSettings,
   IconPencil,
   IconSparkles,
   IconCrown,
@@ -56,6 +54,9 @@ import {
   IconShield,
   IconSword,
   IconDiamond,
+  IconThumbUp,
+  IconThumbDown,
+  IconMessageCircle,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { getCurrentUser } from '@/api/client';
@@ -68,32 +69,41 @@ import Header from '@/components/Header';
 // COMPONENTES AUXILIARES PREMIUM
 // ============================================
 
-// Stat inline compacto con efecto premium
-const InlineStat = ({ value, label, isDark }) => {
+// Métrica del header principal (sin background)
+const ProfileMetric = ({ icon: Icon, label, value, compact = false }) => {
   const { hovered, ref } = useHover();
 
   return (
     <Stack
-      gap={2}
-      align="center"
       ref={ref}
-      className={styles.inlineStat}
+      gap={compact ? 6 : 8}
+      align="center"
       style={{
-        cursor: 'default',
-        transition: 'transform 0.3s ease',
-        transform: hovered ? 'scale(1.05)' : 'scale(1)',
+        transition: 'all 0.3s ease',
+        opacity: hovered ? 1 : 0.92,
       }}
     >
-      <Text
-        fw={700}
-        size="xl"
-        lh={1.2}
-        className={hovered ? styles.shimmerText : ''}
-        style={!hovered ? { color: isDark ? '#fff' : '#1e293b' } : {}}
+      <ThemeIcon
+        size={compact ? 38 : 44}
+        radius="xl"
+        variant="subtle"
+        color="gray"
+        style={{
+          opacity: 0.6,
+          transition: 'all 0.3s ease',
+          transform: hovered ? 'scale(1.08)' : 'scale(1)',
+        }}
       >
-        {value}
-      </Text>
-      <Text size="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.5px' }}>{label}</Text>
+        <Icon size={compact ? 19 : 22} stroke={1.8} />
+      </ThemeIcon>
+      <Stack gap={3} align="center" style={{ minWidth: 0 }}>
+        <Text fw={800} size={compact ? 'xl' : rem(28)} lh={1} style={{ letterSpacing: '-0.03em' }}>
+          {value}
+        </Text>
+        <Text size="xs" c="dimmed" fw={600} tt="uppercase" style={{ letterSpacing: '0.8px', opacity: 0.65 }}>
+          {label}
+        </Text>
+      </Stack>
     </Stack>
   );
 };
@@ -415,6 +425,13 @@ export default function UserProfile() {
   const [editForm, setEditForm] = useState({ display_name: '', bio: '', location: '' });
   const [editSaving, setEditSaving] = useState(false);
 
+  // Community interactions state
+  const [userRatings, setUserRatings] = useState([]);
+  const [ratingsLoading, setRatingsLoading] = useState(true);
+  const [userComments, setUserComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [communityTab, setCommunityTab] = useState('ratings'); // 'ratings' | 'comments'
+
   useEffect(() => {
     setLoading(true);
     getCurrentUser()
@@ -445,6 +462,43 @@ export default function UserProfile() {
       }))
       .catch(() => setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 }));
   }, []);
+
+  // Fetch user ratings and comments when user is loaded
+  useEffect(() => {
+    if (!user?.username) return;
+
+    const fetchCommunityData = async () => {
+      try {
+        const { default: api } = await import('@/api/client');
+        
+        // Fetch ratings
+        const ratingsRes = await api.get('users', `${user.username}/ratings?limit=10`);
+        const ratingsData = ratingsRes?.data?.ratings || ratingsRes?.ratings || [];
+        setUserRatings(Array.isArray(ratingsData) ? ratingsData : []);
+      } catch (e) {
+        console.error('Error fetching ratings:', e);
+        setUserRatings([]);
+      } finally {
+        setRatingsLoading(false);
+      }
+
+      try {
+        const { default: api } = await import('@/api/client');
+        
+        // Fetch comments
+        const commentsRes = await api.get('users', `${user.username}/comments?limit=10`);
+        const commentsData = commentsRes?.data?.comments || commentsRes?.comments || [];
+        setUserComments(Array.isArray(commentsData) ? commentsData : []);
+      } catch (e) {
+        console.error('Error fetching comments:', e);
+        setUserComments([]);
+      } finally {
+        setCommentsLoading(false);
+      }
+    };
+
+    fetchCommunityData();
+  }, [user?.username]);
 
   const getInitials = () => {
     if (!user) return 'U';
@@ -559,6 +613,7 @@ export default function UserProfile() {
   };
 
   const collections = user.collections || [];
+  const joinedDateLabel = new Date(userJoinDate).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
 
   const formatNum = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
 
@@ -575,24 +630,10 @@ export default function UserProfile() {
 
   const avatarSize = isMobile ? 100 : 140;
 
-  const bannerUrl = user.banner_url || user.banner || null;
-
   return (
     <Box className={`${styles.pageContainer} ${isDark ? styles.darkMode : styles.lightMode}`}>
-      <Container size="lg" px={isMobile ? 'sm' : 'md'} py="sm">
-        <Header />
-      </Container>
-      <Container size="lg" px={isMobile ? 'sm' : 'md'} pt={0}>
-
-        {/* COVER BANNER */}
-        <Box className={styles.coverBanner} style={{ position: 'relative', overflow: 'hidden', borderRadius: `0 0 ${rem(24)} ${rem(24)}` }}>
-          {bannerUrl ? (
-            <Image src={bannerUrl} alt="Banner de perfil" h={isMobile ? 160 : 240} style={{ objectFit: 'cover', width: '100%' }} />
-          ) : (
-            <Box h={isMobile ? 160 : 240} className={styles.coverBannerGradient} />
-          )}
-          <Box className={styles.coverBannerOverlay} />
-        </Box>
+      <Header />
+      <Container size="lg" px={isMobile ? 'sm' : 'md'} pt={isMobile ? 90 : 110}>
 
         {/* HEADER CARD */}
         <Paper
@@ -600,71 +641,69 @@ export default function UserProfile() {
           radius={rem(24)}
           mb="xl"
           className={styles.headerCard}
-          style={{ marginTop: isMobile ? -56 : -80, position: 'relative', zIndex: 2 }}
+          style={{ position: 'relative', zIndex: 2 }}
         >
           <Box className={styles.headerDecoration1} />
           <Box className={styles.headerDecoration2} />
 
           {/* MOBILE */}
           {isMobile ? (
-            <Stack align="center" gap="md" style={{ position: 'relative', zIndex: 1 }}>
-              <PremiumAvatar src={avatarSrc} size={100} initials={getInitials()} streak={streak} onCameraClick={() => setOpenAvatarPicker(true)} isDark={isDark} />
-              <Stack gap={4} align="center">
-                <Group gap="xs" justify="center" wrap="nowrap">
-                  <Text fw={800} size="xl" className={styles.gradientText}>{userName}</Text>
-                  <Badge variant="gradient" gradient={role.gradient} size="sm" leftSection={<RoleIcon size={10} />} className={styles.roleBadge}>{role.label}</Badge>
+            <Stack align="center" gap="lg" style={{ position: 'relative', zIndex: 1 }}>
+              <PremiumAvatar src={avatarSrc} size={110} initials={getInitials()} streak={streak} onCameraClick={() => setOpenAvatarPicker(true)} isDark={isDark} />
+              <Stack gap={8} align="center">
+                <Stack gap={4} align="center">
+                  <Text fw={800} size={rem(26)} lh={1.1} className={styles.gradientText} ta="center">{userName}</Text>
+                  <Badge variant="light" color="gray" size="sm" leftSection={<RoleIcon size={10} />} className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}>{role.label}</Badge>
+                </Stack>
+                <Group gap={8} justify="center" wrap="wrap">
+                  <Badge variant="light" color="gray" radius="xl" className={styles.profileMetaBadge}>@{userUsername}</Badge>
+                  <Badge variant="light" color="gray" radius="xl" leftSection={<IconCalendar size={10} />} className={styles.profileMetaBadge}>
+                    Se unió en {joinedDateLabel}
+                  </Badge>
                 </Group>
-                <Text size="xs" c="dimmed" fw={500}>@{userUsername}</Text>
               </Stack>
               {userBio !== 'Sin biografía' && (
-                <Text size="sm" c="dimmed" ta="center" maw={300} lh={1.5} style={{ opacity: 0.85 }}>{userBio}</Text>
+                <Text size="sm" c="dimmed" ta="center" maw={320} lh={1.6} style={{ opacity: 0.75 }}>{userBio}</Text>
               )}
-              <Group gap={rem(24)} justify="center" py="xs" wrap="nowrap">
-                <InlineStat value={formatNum(stats.chapters)} label="Caps. leídos" isDark={isDark} />
-                <Box className={styles.statDivider} />
-                <InlineStat value={streak} label="Racha" isDark={isDark} />
+              <Group gap={rem(48)} justify="center" mt="md" className={styles.headerStatsGrid}>
+                <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" compact />
+                <ProfileMetric icon={IconFlame} value={formatNum(streak)} label="Racha" compact />
               </Group>
               <Group gap="xs" w="100%">
                 <PremiumButton leftSection={<IconPencil size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={openEditModal}>Editar</PremiumButton>
                 <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={15} /> : <IconShare size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={handleShare}>
                   {copied ? 'Copiado' : 'Compartir'}
                 </PremiumButton>
-                <Tooltip label="Configuración" withArrow>
-                  <ActionIcon variant="light" color="gray" size="lg" radius="xl" className={styles.settingsButton}><IconSettings size={18} /></ActionIcon>
-                </Tooltip>
               </Group>
             </Stack>
           ) : (
             /* DESKTOP + TABLET */
             <Group gap="xl" align="flex-start" wrap="nowrap" style={{ position: 'relative', zIndex: 1 }}>
               <PremiumAvatar src={avatarSrc} size={avatarSize} initials={getInitials()} streak={streak} onCameraClick={() => setOpenAvatarPicker(true)} isDark={isDark} />
-              <Stack gap="sm" style={{ flex: 1, minWidth: 0 }}>
-                <Group gap="sm" wrap="wrap">
-                  <Text fw={800} size={rem(30)} lh={1.1} className={styles.gradientText}>{userName}</Text>
-                  <Badge variant="gradient" gradient={role.gradient} size="lg" leftSection={<RoleIcon size={13} />} className={styles.roleBadge}>{role.label}</Badge>
-                </Group>
-                <Text size="sm" c="dimmed" fw={500}>@{userUsername}</Text>
-                {userBio !== 'Sin biografía' && (
-                  <Text size="sm" maw={520} lh={1.6} style={{ opacity: 0.85 }}>{userBio}</Text>
-                )}
-                <Group gap="lg" mt={2} wrap="wrap">
-                  {userLocation && (
-                    <Group gap={6}>
-                      <ThemeIcon size="xs" variant="light" color="cyan" radius="xl"><IconMapPin size={10} /></ThemeIcon>
-                      <Text size="sm" c="dimmed">{userLocation}</Text>
-                    </Group>
-                  )}
-                  <Group gap={6}>
-                    <ThemeIcon size="xs" variant="light" color="violet" radius="xl"><IconCalendar size={10} /></ThemeIcon>
-                    <Text size="sm" c="dimmed">
-                      Se unió en {new Date(userJoinDate).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
-                    </Text>
+              <Stack gap="md" style={{ flex: 1, minWidth: 0 }}>
+                <Stack gap={6}>
+                  <Group gap="sm" wrap="wrap" align="center">
+                    <Text fw={800} size={rem(32)} lh={1.05} className={styles.gradientText}>{userName}</Text>
+                    <Badge variant="light" color="gray" size="md" leftSection={<RoleIcon size={12} />} className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}>{role.label}</Badge>
                   </Group>
-                </Group>
-                <Group gap={rem(40)} mt="md">
-                  <InlineStat value={formatNum(stats.chapters)} label="Caps. leídos" isDark={isDark} />
-                  <Box className={styles.statDivider} />
-                  <InlineStat value={streak} label="Racha" isDark={isDark} />
+                  <Group gap={8} wrap="wrap" className={styles.profileMetaGroup}>
+                    <Badge variant="light" color="gray" radius="xl" className={styles.profileMetaBadge}>@{userUsername}</Badge>
+                    <Badge variant="light" color="gray" radius="xl" leftSection={<IconCalendar size={10} />} className={styles.profileMetaBadge}>
+                      Se unió en {joinedDateLabel}
+                    </Badge>
+                    {userLocation && (
+                      <Badge variant="light" color="gray" radius="xl" leftSection={<IconMapPin size={10} />} className={styles.profileMetaBadge}>
+                        {userLocation}
+                      </Badge>
+                    )}
+                  </Group>
+                </Stack>
+                {userBio !== 'Sin biografía' && (
+                  <Text size="sm" maw={540} lh={1.65} style={{ opacity: 0.75 }}>{userBio}</Text>
+                )}
+                <Group gap={rem(56)} mt="lg" className={styles.headerStatsGrid}>
+                  <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" />
+                  <ProfileMetric icon={IconFlame} value={formatNum(streak)} label="Racha" />
                 </Group>
               </Stack>
               <Stack gap="sm" align="flex-end" style={{ flexShrink: 0 }}>
@@ -672,9 +711,6 @@ export default function UserProfile() {
                 <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} isDark={isDark} onClick={handleShare}>
                   {copied ? 'Copiado' : 'Compartir'}
                 </PremiumButton>
-                <Tooltip label="Configuración" withArrow position="left">
-                  <ActionIcon variant="light" color="gray" size="lg" radius="xl" mt={4} className={styles.settingsButton}><IconSettings size={20} /></ActionIcon>
-                </Tooltip>
               </Stack>
             </Group>
           )}
@@ -714,7 +750,7 @@ export default function UserProfile() {
                 {recentReads.slice(0, 6).map((item, i) => {
                   const slug = item.series?.slug || item.slug || '';
                   const title = item.series?.title || item.title || slug;
-                  const chapter = item.chapter?.number ?? item.chapterNum;
+                  const chapter = item.chapter?.number;
                   const progress = item.progress || 0;
                   const cover = item.series?.coverUrl || item.series?.cover_url || '';
                   return (
@@ -757,7 +793,7 @@ export default function UserProfile() {
         </Paper>
 
         {/* GAMIFICACIÓN */}
-        <Grid gutter={isMobile ? 'sm' : 'lg'} mb="xl" align="stretch">
+        <Grid gutter={isMobile ? 'md' : 'xl'} mb="xl" align="stretch">
 
           {/* NIVEL DE USUARIO */}
           <Grid.Col span={{ base: 12, md: 5 }}>
@@ -846,6 +882,192 @@ export default function UserProfile() {
             </Paper>
           </Grid.Col>
         </Grid>
+
+        {/* HISTORIAL DE INTERACCIONES (COMUNIDAD) */}
+        <Paper p={isMobile ? 'md' : 'xl'} radius="xl" mb="xl" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
+          <Box style={{ position: 'absolute', top: -50, right: -50, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <Box style={{ position: 'absolute', bottom: -40, left: -40, width: 150, height: 150, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
+            {/* Header con tabs */}
+            <Group justify="space-between" align="center" wrap="nowrap">
+              <Group gap="sm">
+                <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'cyan', deg: 135 }}>
+                  <IconMessageCircle size={18} />
+                </ThemeIcon>
+                <Text fw={700} size={isMobile ? 'md' : 'lg'}>Actividad en la Comunidad</Text>
+              </Group>
+            </Group>
+
+            {/* Tabs de navegación */}
+            <Group gap="xs">
+              <Button
+                variant={communityTab === 'ratings' ? 'filled' : 'subtle'}
+                color={communityTab === 'ratings' ? 'violet' : 'gray'}
+                size="sm"
+                radius="xl"
+                leftSection={<IconStarFilled size={14} />}
+                onClick={() => setCommunityTab('ratings')}
+              >
+                Mis Calificaciones ({userRatings.length})
+              </Button>
+              <Button
+                variant={communityTab === 'comments' ? 'filled' : 'subtle'}
+                color={communityTab === 'comments' ? 'cyan' : 'gray'}
+                size="sm"
+                radius="xl"
+                leftSection={<IconMessage size={14} />}
+                onClick={() => setCommunityTab('comments')}
+              >
+                Mis Comentarios ({userComments.length})
+              </Button>
+            </Group>
+
+            {/* Contenido según tab */}
+            {communityTab === 'ratings' ? (
+              // TAB: Calificaciones
+              ratingsLoading ? (
+                <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="sm">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} height={90} radius="lg" />
+                  ))}
+                </SimpleGrid>
+              ) : userRatings.length === 0 ? (
+                <Center py="xl">
+                  <Stack align="center" gap="xs">
+                    <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+                      <IconStarFilled size={24} style={{ opacity: 0.4 }} />
+                    </ThemeIcon>
+                    <Text c="dimmed" size="sm">Aún no has calificado ninguna obra</Text>
+                    <Button component={Link} href="/mangas" variant="light" color="violet" size="xs" radius="xl">
+                      Explorar manhwas
+                    </Button>
+                  </Stack>
+                </Center>
+              ) : (
+                <Stack gap="sm">
+                  {userRatings.slice(0, 5).map((rating) => (
+                    <Link key={rating.id} href={`/manhwa/${rating.series?.slug}`} style={{ textDecoration: 'none' }}>
+                      <Paper p="sm" radius="lg" withBorder style={{ border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, transition: 'all 0.2s', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }} className={styles.ratingCard}>
+                        <Group gap="sm" wrap="nowrap">
+                          <Box style={{ width: 50, height: 70, borderRadius: rem(8), overflow: 'hidden', flexShrink: 0 }}>
+                            {rating.series?.coverUrl ? (
+                              <Image src={rating.series.coverUrl} alt={rating.series?.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <Box style={{ width: '100%', height: '100%', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <IconBook size={20} style={{ opacity: 0.3 }} />
+                              </Box>
+                            )}
+                          </Box>
+                          <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                            <Group gap={6} wrap="nowrap">
+                              <Text size="sm" fw={600} lineClamp={1}>{rating.series?.title || 'Sin título'}</Text>
+                              {rating.ratingType === 'chapter' && (
+                                <Badge size="xs" variant="light" color="cyan">Cap. {rating.chapterNumber}</Badge>
+                              )}
+                            </Group>
+                            <Group gap={4}>
+                              {[...Array(5)].map((_, i) => (
+                                <IconStarFilled
+                                  key={i}
+                                  size={14}
+                                  style={{ color: i < Math.round(rating.score / 2) ? 'var(--mantine-color-yellow-5)' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') }}
+                                />
+                              ))}
+                              <Text size="xs" c="dimmed" ml={4}>{rating.score}/10</Text>
+                            </Group>
+                            {rating.review && (
+                              <Text size="xs" c="dimmed" lineClamp={1} style={{ fontStyle: 'italic' }}>&ldquo;{rating.review}&rdquo;</Text>
+                            )}
+                          </Stack>
+                          <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                            {new Date(rating.createdAt).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
+                          </Text>
+                        </Group>
+                      </Paper>
+                    </Link>
+                  ))}
+                  {userRatings.length > 5 && (
+                    <Text size="xs" c="dimmed" ta="center">+ {userRatings.length - 5} calificaciones más</Text>
+                  )}
+                </Stack>
+              )
+            ) : (
+              // TAB: Comentarios
+              commentsLoading ? (
+                <Stack gap="sm">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} height={80} radius="lg" />
+                  ))}
+                </Stack>
+              ) : userComments.length === 0 ? (
+                <Center py="xl">
+                  <Stack align="center" gap="xs">
+                    <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+                      <IconMessage size={24} style={{ opacity: 0.4 }} />
+                    </ThemeIcon>
+                    <Text c="dimmed" size="sm">Aún no has comentado en ninguna obra</Text>
+                    <Button component={Link} href="/mangas" variant="light" color="cyan" size="xs" radius="xl">
+                      Explorar mangas
+                    </Button>
+                  </Stack>
+                </Center>
+              ) : (
+                <Stack gap="sm">
+                  {userComments.slice(0, 5).map((comment) => (
+                    <Link key={comment.id} href={comment.seriesSlug ? `/manhwa/${comment.seriesSlug}${comment.chapterNumber ? `/${comment.chapterNumber}` : ''}` : '#'} style={{ textDecoration: 'none' }}>
+                      <Paper p="sm" radius="lg" withBorder style={{ border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, transition: 'all 0.2s', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }} className={styles.commentCard}>
+                        <Stack gap="xs">
+                          <Group justify="space-between" wrap="nowrap">
+                            <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                              {comment.coverUrl && (
+                                <Box style={{ width: 32, height: 44, borderRadius: rem(6), overflow: 'hidden', flexShrink: 0 }}>
+                                  <Image src={comment.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </Box>
+                              )}
+                              <Stack gap={2} style={{ minWidth: 0 }}>
+                                <Text size="xs" fw={600} lineClamp={1}>{comment.targetTitle || 'Comentario'}</Text>
+                                <Badge size="xs" variant="light" color={comment.targetType === 'chapter' ? 'cyan' : 'violet'}>
+                                  {comment.targetType === 'chapter' ? `Cap. ${comment.chapterNumber}` : 'Serie'}
+                                </Badge>
+                              </Stack>
+                            </Group>
+                            <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                              {new Date(comment.createdAt).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
+                            </Text>
+                          </Group>
+                          <Text size="sm" lineClamp={2} style={{ opacity: 0.85 }}>
+                            {comment.isSpoiler ? (
+                              <Badge size="xs" color="orange" variant="light">Spoiler oculto</Badge>
+                            ) : comment.content}
+                          </Text>
+                          <Group gap="md">
+                            <Group gap={4}>
+                              <IconThumbUp size={12} style={{ opacity: 0.5 }} />
+                              <Text size="xs" c="dimmed">{comment.likesCount || 0}</Text>
+                            </Group>
+                            <Group gap={4}>
+                              <IconThumbDown size={12} style={{ opacity: 0.5 }} />
+                              <Text size="xs" c="dimmed">{comment.dislikesCount || 0}</Text>
+                            </Group>
+                            {comment.repliesCount > 0 && (
+                              <Group gap={4}>
+                                <IconMessageCircle size={12} style={{ opacity: 0.5 }} />
+                                <Text size="xs" c="dimmed">{comment.repliesCount} respuestas</Text>
+                              </Group>
+                            )}
+                          </Group>
+                        </Stack>
+                      </Paper>
+                    </Link>
+                  ))}
+                  {userComments.length > 5 && (
+                    <Text size="xs" c="dimmed" ta="center">+ {userComments.length - 5} comentarios más</Text>
+                  )}
+                </Stack>
+              )
+            )}
+          </Stack>
+        </Paper>
 
       </Container>
 

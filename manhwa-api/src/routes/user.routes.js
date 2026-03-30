@@ -70,6 +70,8 @@ router.patch('/:id', authenticate, userController.updatePartialUser);
 router.get('/:username', requireApiKeyOrAuth, optionalAuth, validate(usernameParam), userController.getProfile);
 router.get('/:username/collections', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserCollections);
 router.get('/:username/activity', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserActivity);
+router.get('/:username/ratings', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserRatings);
+router.get('/:username/comments', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserComments);
 router.get('/:username/followers', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowers);
 router.get('/:username/following', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowing);
 
