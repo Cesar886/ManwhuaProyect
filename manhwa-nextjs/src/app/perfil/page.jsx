@@ -60,7 +60,8 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { getCurrentUser } from '@/api/client';
-import { getRecentProgress, getStreak } from '@/api/progress';
+import { getRecentProgress, getStreak, getStreakStreamUrl } from '@/api/progress';
+import { StreakFlame, VitrinaLogros } from '@/components/achievements';
 import styles from '@/app/user-profile/UserProfile.module.css';
 import Link from 'next/link';
 import Header from '@/components/Header';
@@ -70,8 +71,16 @@ import Header from '@/components/Header';
 // ============================================
 
 // Métrica del header principal (sin background)
-const ProfileMetric = ({ icon: Icon, label, value, compact = false }) => {
+const ProfileMetric = ({ icon: Icon, label, value, compact = false, color = 'gray', premium = false }) => {
   const { hovered, ref } = useHover();
+
+  const colorConfig = {
+    cyan:   { from: 'cyan',   to: 'teal',   rgb: '6, 182, 212',   textFrom: 'var(--mantine-color-cyan-4)',   textTo: 'var(--mantine-color-teal-5)' },
+    orange: { from: 'orange', to: 'red',    rgb: '249, 115, 22',  textFrom: 'var(--mantine-color-orange-4)', textTo: 'var(--mantine-color-red-5)'  },
+    gray:   { from: 'gray',   to: 'dark',   rgb: '148, 163, 184', textFrom: null, textTo: null },
+  };
+  const c = colorConfig[color] || colorConfig.gray;
+  const isColored = color !== 'gray';
 
   return (
     <Stack
@@ -81,28 +90,49 @@ const ProfileMetric = ({ icon: Icon, label, value, compact = false }) => {
       style={{
         transition: 'all 0.3s ease',
         opacity: hovered ? 1 : 0.92,
+        position: 'relative',
       }}
     >
       <ThemeIcon
         size={compact ? 38 : 44}
         radius="xl"
-        variant="subtle"
-        color="gray"
+        variant={isColored ? 'gradient' : 'subtle'}
+        gradient={isColored ? { from: c.from, to: c.to, deg: 135 } : undefined}
+        color={!isColored ? 'gray' : undefined}
         style={{
-          opacity: 0.6,
           transition: 'all 0.3s ease',
-          transform: hovered ? 'scale(1.08)' : 'scale(1)',
+          transform: hovered ? 'scale(1.12)' : 'scale(1)',
+          boxShadow: isColored ? `0 4px 18px rgba(${c.rgb}, ${hovered ? 0.55 : 0.35})` : undefined,
+          opacity: isColored ? 1 : 0.6,
         }}
       >
         <Icon size={compact ? 19 : 22} stroke={1.8} />
       </ThemeIcon>
       <Stack gap={3} align="center" style={{ minWidth: 0 }}>
-        <Text fw={800} size={compact ? 'xl' : rem(28)} lh={1} style={{ letterSpacing: '-0.03em' }}>
+        <Text
+          fw={800}
+          size={compact ? 'xl' : rem(28)}
+          lh={1}
+          style={{
+            letterSpacing: '-0.03em',
+            ...(isColored ? {
+              background: `linear-gradient(135deg, ${c.textFrom} 0%, ${c.textTo} 100%)`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            } : {}),
+          }}
+        >
           {value}
         </Text>
-        <Text size="xs" c="dimmed" fw={600} tt="uppercase" style={{ letterSpacing: '0.8px', opacity: 0.65 }}>
-          {label}
-        </Text>
+        <Group gap={4} align="center" wrap="nowrap">
+          <Text size="xs" c="dimmed" fw={600} tt="uppercase" style={{ letterSpacing: '0.8px', opacity: 0.65 }}>
+            {label}
+          </Text>
+          {premium && (
+            <IconCrown size={10} style={{ color: 'var(--mantine-color-yellow-4)', opacity: 0.9, flexShrink: 0 }} />
+          )}
+        </Group>
       </Stack>
     </Stack>
   );
@@ -360,7 +390,7 @@ const PremiumAvatar = ({ src, size, initials, streak, onCameraClick, isDark }) =
             variant="gradient"
             gradient={{ from: 'orange', to: 'red', deg: 135 }}
             size="md"
-            leftSection={<IconFlame size={12} />}
+            leftSection={<StreakFlame streak={streak} iconOnly />}
             pos="absolute"
             top={-8}
             right={-12}
@@ -461,6 +491,31 @@ export default function UserProfile() {
         totalDaysRead: data?.totalDaysRead || 0,
       }))
       .catch(() => setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 }));
+  }, []);
+
+  // SSE — actualizaciones de racha en tiempo real
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const url = getStreakStreamUrl();
+    const es = new EventSource(url, { withCredentials: true });
+
+    es.addEventListener('streak-update', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setStreakData({
+          streak: data?.streak || 0,
+          maxStreak: data?.maxStreak || 0,
+          readToday: data?.readToday || false,
+          chaptersRead: data?.chaptersRead || 0,
+          totalDaysRead: data?.totalDaysRead || 0,
+        });
+      } catch (_) { /* noop */ }
+    });
+
+    es.onerror = () => { es.close(); };
+
+    return () => { es.close(); };
   }, []);
 
   // Fetch user ratings and comments when user is loaded
@@ -653,7 +708,7 @@ export default function UserProfile() {
               <Stack gap={8} align="center">
                 <Stack gap={4} align="center">
                   <Text fw={800} size={rem(26)} lh={1.1} className={styles.gradientText} ta="center">{userName}</Text>
-                  <Badge variant="light" color="gray" size="sm" leftSection={<RoleIcon size={10} />} className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}>{role.label}</Badge>
+                  <Badge variant="gradient" gradient={{ from: role.gradient.from, to: role.gradient.to, deg: 135 }} size="sm" leftSection={<RoleIcon size={10} />} className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}>{role.label}</Badge>
                 </Stack>
                 <Group gap={8} justify="center" wrap="wrap">
                   <Badge variant="light" color="gray" radius="xl" className={styles.profileMetaBadge}>@{userUsername}</Badge>
@@ -666,8 +721,8 @@ export default function UserProfile() {
                 <Text size="sm" c="dimmed" ta="center" maw={320} lh={1.6} style={{ opacity: 0.75 }}>{userBio}</Text>
               )}
               <Group gap={rem(48)} justify="center" mt="md" className={styles.headerStatsGrid}>
-                <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" compact />
-                <ProfileMetric icon={IconFlame} value={formatNum(streak)} label="Racha" compact />
+                <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" compact color="cyan" />
+                <StreakFlame streak={streak} compact />
               </Group>
               <Group gap="xs" w="100%">
                 <PremiumButton leftSection={<IconPencil size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={openEditModal}>Editar</PremiumButton>
@@ -684,7 +739,7 @@ export default function UserProfile() {
                 <Stack gap={6}>
                   <Group gap="sm" wrap="wrap" align="center">
                     <Text fw={800} size={rem(32)} lh={1.05} className={styles.gradientText}>{userName}</Text>
-                    <Badge variant="light" color="gray" size="md" leftSection={<RoleIcon size={12} />} className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}>{role.label}</Badge>
+                    <Badge variant="gradient" gradient={{ from: role.gradient.from, to: role.gradient.to, deg: 135 }} size="md" leftSection={<RoleIcon size={12} />} className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}>{role.label}</Badge>
                   </Group>
                   <Group gap={8} wrap="wrap" className={styles.profileMetaGroup}>
                     <Badge variant="light" color="gray" radius="xl" className={styles.profileMetaBadge}>@{userUsername}</Badge>
@@ -702,8 +757,8 @@ export default function UserProfile() {
                   <Text size="sm" maw={540} lh={1.65} style={{ opacity: 0.75 }}>{userBio}</Text>
                 )}
                 <Group gap={rem(56)} mt="lg" className={styles.headerStatsGrid}>
-                  <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" />
-                  <ProfileMetric icon={IconFlame} value={formatNum(streak)} label="Racha" />
+                  <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" color="cyan" />
+                  <StreakFlame streak={streak} />
                 </Group>
               </Stack>
               <Stack gap="sm" align="flex-end" style={{ flexShrink: 0 }}>
@@ -840,46 +895,7 @@ export default function UserProfile() {
 
           {/* VITRINA DE INSIGNIAS */}
           <Grid.Col span={{ base: 12, md: 7 }}>
-            <Paper p={isMobile ? 'md' : 'xl'} radius="xl" h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
-              <Box style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
-              <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
-                <Group justify="space-between" align="center" wrap="nowrap">
-                  <Group gap="sm">
-                    <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'cyan', to: 'violet', deg: 135 }}><IconTrophy size={18} /></ThemeIcon>
-                    <Text fw={700} size={isMobile ? 'md' : 'lg'}>Vitrina de Insignias</Text>
-                  </Group>
-                  <Badge variant="gradient" gradient={{ from: 'cyan', to: 'violet' }} size="sm" leftSection={<IconSparkles size={10} />}>Próximamente</Badge>
-                </Group>
-                <SimpleGrid cols={isMobile ? 3 : 6} spacing={isMobile ? 'xs' : 'sm'}>
-                  {[
-                    { label: 'Lector\nNocturno', icon: IconMoon, color: 'violet', desc: 'Lee de madrugada' },
-                    { label: 'Crítico', icon: IconMessage, color: 'cyan', desc: '10 comentarios' },
-                    { label: 'Devorador', icon: IconFlame, color: 'orange', desc: '100 capítulos' },
-                    { label: 'Veloz', icon: IconBolt, color: 'yellow', desc: 'Lee 5 caps en 1h' },
-                    { label: 'Guardián', icon: IconShield, color: 'teal', desc: 'Racha de 30 días' },
-                    { label: 'Diamante', icon: IconDiamond, color: 'blue', desc: '1000 capítulos' },
-                  ].map((badge) => {
-                    const BadgeIcon = badge.icon;
-                    return (
-                      <Tooltip key={badge.label} label={badge.desc} withArrow position="top">
-                        <Stack align="center" gap={6} style={{ cursor: 'default', padding: rem(isMobile ? 6 : 10), borderRadius: rem(12), background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
-                          <Box style={{ position: 'relative' }}>
-                            <ThemeIcon size={isMobile ? 40 : 52} radius="xl" variant="light" color="gray" style={{ opacity: 0.3, filter: 'grayscale(1)' }}>
-                              <BadgeIcon size={isMobile ? 20 : 26} />
-                            </ThemeIcon>
-                            <ThemeIcon size={18} radius="xl" color="dark" variant="filled" style={{ position: 'absolute', bottom: -3, right: -3, opacity: 0.6, background: isDark ? 'rgba(15,23,42,0.9)' : 'rgba(100,100,100,0.8)' }}>
-                              <IconLock size={10} />
-                            </ThemeIcon>
-                          </Box>
-                          <Text size="xs" c="dimmed" ta="center" lh={1.2} style={{ opacity: 0.5, whiteSpace: 'pre-line' }}>{badge.label}</Text>
-                        </Stack>
-                      </Tooltip>
-                    );
-                  })}
-                </SimpleGrid>
-                <Text size="xs" c="dimmed" ta="center" style={{ opacity: 0.6 }}>Las insignias se desbloquearán automáticamente según tu actividad</Text>
-              </Stack>
-            </Paper>
+            <VitrinaLogros streak={streak} isDark={isDark} isMobile={isMobile} />
           </Grid.Col>
         </Grid>
 

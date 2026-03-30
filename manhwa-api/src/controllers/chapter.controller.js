@@ -230,23 +230,42 @@ const getChapterComments = async (req, res, next) => {
             [chapter.id, limit, offset]
         );
 
-        res.json({
-            success: true,
-            data: {
-                comments: result.rows.map(c => ({
+        // Importar función de estadísticas
+        const { getUserBadgeStats } = require('./progress.controller');
+        
+        // Enriquecer comentarios con estadísticas de badges
+        const enrichedComments = await Promise.all(
+            result.rows.map(async (c) => {
+                const badgeStats = await getUserBadgeStats(c.user_id);
+                
+                return {
                     id: c.id,
                     content: c.content,
                     author: {
+                        id: c.user_id,
                         username: c.username,
                         displayName: c.display_name,
                         avatarUrl: c.avatar_url,
-                        role: c.user_role
+                        role: c.user_role,
+                        // Estadísticas para badges
+                        streak: badgeStats.streak,
+                        totalChapters: badgeStats.totalChapters,
+                        comments: badgeStats.comments,
+                        nightReads: badgeStats.nightReads,
+                        maxChaptersPerHour: badgeStats.maxChaptersPerHour
                     },
                     likes: c.likes_count,
                     repliesCount: c.replies_count,
                     isSpoiler: c.is_spoiler,
                     createdAt: c.created_at
-                })),
+                };
+            })
+        );
+
+        res.json({
+            success: true,
+            data: {
+                comments: enrichedComments,
                 pagination: {
                     page,
                     limit,

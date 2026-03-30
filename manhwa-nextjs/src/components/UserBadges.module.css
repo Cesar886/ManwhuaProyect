@@ -1,0 +1,87 @@
+/* UserBadges.module.css
+   Badges que se muestran en el borde superior de las tarjetas de comentario.
+   El efecto "borde partido" se consigue centrando la píldora verticalmente
+   sobre el borde del card (top = –mitad de la altura de la píldora). */
+
+/* ── Contenedor absoluto: centrado en el borde superior del card ── */
+.badgesContainer {
+  position: absolute;
+  /* La píldora mide ~26px; la centramos en el borde de 1px: –13px */
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  pointer-events: auto;
+  /* Evita que el ancho del contenedor desborde la card */
+  white-space: nowrap;
+}
+
+/* ── Píldora de badges ── */
+.badgesGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--subtle-bg);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color-subtle);
+  /* Sombra exterior hacia abajo + sutil glow para que se vea "sobre" el borde */
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.10),
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 0 0 2px var(--subtle-bg); /* halo del color del fondo que "borra" el borde bajo la píldora */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: badgeFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.badgesGroup:hover {
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.14),
+    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 0 0 2px var(--subtle-bg);
+  transform: translateY(-1px);
+}
+
+/* ── Badge individual ── */
+.badgeWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+  cursor: default;
+}
+
+.badgeWrapper:hover {
+  transform: scale(1.18);
+}
+
+/* ── Animación de entrada ── */
+@keyframes badgeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Delays escalonados por item */
+.badgeWrapper:nth-child(1) { animation: badgeFadeIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) 0.00s both; }
+.badgeWrapper:nth-child(2) { animation: badgeFadeIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) 0.06s both; }
+.badgeWrapper:nth-child(3) { animation: badgeFadeIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) 0.12s both; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .badgesContainer {
+    top: -12px;
+  }
+
+  .badgesGroup {
+    padding: 3px 8px;
+    gap: 5px;
+  }
+}

@@ -65,6 +65,9 @@ router.get('/recent', progressController.getRecentProgress);
 // Obtener racha de lectura del usuario
 router.get('/streak', progressController.getStreak);
 
+// SSE — stream de actualizaciones de racha en tiempo real
+router.get('/stream', progressController.streamStreak);
+
 // Guardar/actualizar progreso de lectura
 router.post('/', validate(saveProgressValidation), progressController.saveProgress);
 

@@ -7,6 +7,7 @@ import { IconMessage, IconSend, IconCheck, IconAlertCircle, IconThumbUp, IconThu
 import api from '../api/client'
 import { endpoint } from '../config'
 import { getRequestComments as apiGetRequestComments } from '../api/requests'
+import UserBadges from './UserBadges'
 
 // Componente de Paginación personalizado para evitar conflictos con Next.js 15
 function CustomPagination({ value, onChange, total, size = "sm" }) {
@@ -1521,14 +1522,26 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     const indentation = 12 + (depth * 20)
 
     return (
-      <div style={{ marginLeft: indentation, marginTop: 8 }}>
+      <div style={{ marginLeft: indentation, marginTop: 20 }}>
         {replies.map(r => (
-          <div key={r.id} ref={(el) => { try { if (el) commentNodesRef.current[String(r.id)] = el; else delete commentNodesRef.current[String(r.id)]; } catch { /* noop */ } }} style={{ willChange: 'transform', marginBottom: 8 }}>
+          <div key={r.id} ref={(el) => { try { if (el) commentNodesRef.current[String(r.id)] = el; else delete commentNodesRef.current[String(r.id)]; } catch { /* noop */ } }} style={{ willChange: 'transform', marginBottom: 18, position: 'relative' }}>
+            <UserBadges
+              userStats={{
+                streak: r.author?.streak || 0,
+                totalChapters: r.author?.totalChapters || 0,
+                comments: r.author?.comments || 0,
+                nightReads: r.author?.nightReads || 0,
+                maxChaptersPerHour: r.author?.maxChaptersPerHour || 0,
+              }}
+              maxBadges={3}
+              size="compact"
+              showTooltip={true}
+            />
             <Card p={8} radius="md" style={{
               background: 'rgba(0,0,0,0.02)',
               border: '1px solid var(--border-color-subtle)',
               borderLeft: `3px solid rgba(var(--accent-cyan), ${Math.max(0.2, 0.7 - depth * 0.12)})`,
-              position: 'relative'
+              position: 'relative',
             }}>
               {/* Acción: menú pegado arriba a la derecha en replies */}
               <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 5 }}>
@@ -2859,8 +2872,21 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 <div
                   key={c.id}
                   ref={(el) => { try { if (el) commentNodesRef.current[String(c.id)] = el; else delete commentNodesRef.current[String(c.id)]; } catch { /* noop */ } }}
-                  style={{ willChange: 'transform' }}
+                  style={{ willChange: 'transform', position: 'relative' }}
                 >
+                  {/* Badges FUERA del Card para que overflow:hidden de Mantine no los recorte */}
+                  <UserBadges
+                    userStats={{
+                      streak: c.author?.streak || 0,
+                      totalChapters: c.author?.totalChapters || 0,
+                      comments: c.author?.comments || 0,
+                      nightReads: c.author?.nightReads || 0,
+                      maxChaptersPerHour: c.author?.maxChaptersPerHour || 0,
+                    }}
+                    maxBadges={3}
+                    size="compact"
+                    showTooltip={true}
+                  />
                   <Card
                     p={0}
                     radius="lg"
@@ -2868,11 +2894,11 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                       background: 'linear-gradient(135deg, var(--subtle-bg) 0%, rgba(var(--accent-cyan), 0.01) 100%)',
                       border: `1px solid var(--border-color-subtle)`,
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      overflow: 'hidden',
-                      animation: `fadeInUp 0.4s ease ${index * 0.05}s both`
+                      animation: `fadeInUp 0.4s ease ${index * 0.05}s both`,
                     }}
                     className="comment-card"
                   >
+                    
                     <div style={{ padding: 10, position: 'relative' }}>
                       {/* Acción: menú pegado arriba a la derecha */}
                       <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 6 }}>

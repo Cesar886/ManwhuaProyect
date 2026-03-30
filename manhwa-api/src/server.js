@@ -46,8 +46,11 @@ const app = express();
 // Permitir confianza solo en el primer proxy (más seguro)
 app.set('trust proxy', 1);
 
-// Lista de clientes SSE conectados
+// Lista de clientes SSE conectados (comentarios)
 app.locals.sseClients = []
+
+// Lista de clientes SSE para actualizaciones de racha (por usuario)
+app.locals.streakClients = []
 
 // ============================================
 // CONFIGURACIÓN DE SEGURIDAD
@@ -343,7 +346,8 @@ app.get('/api/health/detailed', authenticate, requireRole('admin'), async (req, 
             },
             sse: {
                 spacesClients: app.locals.spacesClients?.length || 0,
-                commentClients: app.locals.sseClients?.length || 0
+                commentClients: app.locals.sseClients?.length || 0,
+                streakClients: app.locals.streakClients?.length || 0
             }
         });
     } catch (error) {
@@ -456,6 +460,15 @@ const startServer = async () => {
                         return true;
                     });
                     zombiesRemoved += beforeCount - app.locals.sseClients.length;
+                }
+
+                if (app.locals.streakClients?.length > 0) {
+                    const beforeCount = app.locals.streakClients.length;
+                    app.locals.streakClients = app.locals.streakClients.filter(client => {
+                        const age = now - (client.connectedAt || now);
+                        return age <= SSE_CLIENT_TIMEOUT;
+                    });
+                    zombiesRemoved += beforeCount - app.locals.streakClients.length;
                 }
 
                 try {

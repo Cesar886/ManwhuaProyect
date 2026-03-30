@@ -1,0 +1,116 @@
+/* Logros.module.css — StreakFlame + VitrinaLogros */
+
+/* ============================================================
+   KEYFRAMES
+   ============================================================ */
+
+@keyframes flameGroup {
+  0%, 100% { transform: scaleY(1)    scaleX(1);    }
+  22%       { transform: scaleY(1.05) scaleX(0.97); }
+  48%       { transform: scaleY(0.97) scaleX(1.02); }
+  72%       { transform: scaleY(1.03) scaleX(0.98); }
+}
+
+@keyframes corePulse {
+  0%, 100% { opacity: 0.95; transform: scaleY(1)    scaleX(1);    }
+  30%       { opacity: 0.82; transform: scaleY(1.07) scaleX(0.95); }
+  65%       { opacity: 0.90; transform: scaleY(0.95) scaleX(1.04); }
+}
+
+@keyframes glowBasePulse {
+  0%, 100% { opacity: 0.4; transform: scaleX(1);    }
+  50%       { opacity: 0.8; transform: scaleX(1.35); }
+}
+
+@keyframes sparkFloat {
+  0%   { transform: translateY(0)     translateX(0)              scale(1);    opacity: 0.9; }
+  50%  { opacity: 0.55; }
+  100% { transform: translateY(-58px) translateX(var(--dx, 0px)) scale(0.08); opacity: 0;   }
+}
+
+@keyframes numShimmer {
+  0%, 100% { filter: brightness(1);    }
+  50%       { filter: brightness(1.35); }
+}
+
+/* ============================================================
+   STREAKFLAME — contenedor
+   ============================================================ */
+
+.flameContainer {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            8px;
+  user-select:    none;
+  cursor:         default;
+}
+
+.compact {
+  gap: 5px;
+}
+
+/* ── Elementos SVG animados ── */
+
+.flameGroup {
+  transform-origin: 50% 88%;
+  animation: flameGroup 1.9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.core {
+  transform-box:    fill-box;
+  transform-origin: 50% 80%;
+  animation: corePulse 1.0s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.glowBase {
+  animation: glowBasePulse 2.2s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.spark {
+  animation:        sparkFloat ease-out infinite;
+  transform-box:    fill-box;
+  transform-origin: center center;
+  will-change:      transform, opacity;
+}
+
+/* ── Label: número + "Racha" ── */
+
+.flameLabel {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            2px;
+}
+
+.num {
+  display:        block;
+  font-size:      1.65rem;
+  font-weight:    800;
+  line-height:    1;
+  letter-spacing: -0.04em;
+  animation:      numShimmer 2.8s ease-in-out infinite;
+}
+
+.numCompact {
+  display:        block;
+  font-size:      1.2rem;
+  font-weight:    800;
+  line-height:    1;
+  letter-spacing: -0.04em;
+  animation:      numShimmer 2.8s ease-in-out infinite;
+}
+
+.sublabel {
+  display:        flex;
+  align-items:    center;
+  gap:            3px;
+  font-size:      0.62rem;
+  font-weight:    600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color:          rgba(148, 163, 184, 0.65);
+}

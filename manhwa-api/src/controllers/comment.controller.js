@@ -160,10 +160,15 @@ const getCommentReplies = async (req, res, next) => {
             [id, limit, req.user?.id || null, offset]
         );
         
-        res.json({
-            success: true,
-            data: {
-                replies: result.rows.map(c => ({
+        // Importar función de estadísticas
+        const { getUserBadgeStats } = require('./progress.controller');
+        
+        // Enriquecer respuestas con estadísticas de badges
+        const enrichedReplies = await Promise.all(
+            result.rows.map(async (c) => {
+                const badgeStats = await getUserBadgeStats(c.user_id);
+                
+                return {
                     id: c.id,
                     content: c.content,
                     author: {
@@ -171,7 +176,13 @@ const getCommentReplies = async (req, res, next) => {
                         username: c.username,
                         displayName: c.display_name,
                         avatarUrl: c.avatar_url,
-                        role: c.user_role
+                        role: c.user_role,
+                        // Estadísticas para badges
+                        streak: badgeStats.streak,
+                        totalChapters: badgeStats.totalChapters,
+                        comments: badgeStats.comments,
+                        nightReads: badgeStats.nightReads,
+                        maxChaptersPerHour: badgeStats.maxChaptersPerHour
                     },
                     likes: c.likes_count,
                     dislikes: c.dislikes_count,
@@ -179,7 +190,14 @@ const getCommentReplies = async (req, res, next) => {
                     userLiked: c.user_liked,
                     userDisliked: c.user_disliked,
                     createdAt: c.created_at
-                })),
+                };
+            })
+        );
+        
+        res.json({
+            success: true,
+            data: {
+                replies: enrichedReplies,
                 pagination: {
                     page,
                     limit,

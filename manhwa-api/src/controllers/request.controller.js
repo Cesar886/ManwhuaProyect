@@ -570,30 +570,33 @@ const getRequestComments = async (req, res, next) => {
             [id, limit, offset]
         );
         
-        // Obtener encuestas para cada comentario
+        // Importar función de estadísticas de badges (igual que en series/chapter controller)
+        const { getUserBadgeStats } = require('./progress.controller');
+
+        // Obtener encuestas y badge stats para cada comentario
         const comments = await Promise.all(result.rows.map(async (c) => {
             let poll = null;
-            
+
             try {
                 const pollResult = await query(
                     `SELECT cp.id as poll_id, cp.question, cp.total_votes,
                             (SELECT option_id FROM poll_votes WHERE poll_id = cp.id AND user_id = $2) as user_voted_option_id
-                     FROM comment_polls cp 
+                     FROM comment_polls cp
                      WHERE cp.comment_id = $1`,
                     [c.id, req.user?.id || null]
                 );
-                
+
                 if (pollResult.rows.length > 0) {
                     const pollInfo = pollResult.rows[0];
                     const pollId = pollInfo.poll_id;
-                    
+
                     const optionsResult = await query(
                         'SELECT id, option_text, option_order, vote_count FROM poll_options WHERE poll_id = $1 ORDER BY option_order ASC',
                         [pollId]
                     );
-                    
+
                     const userVoted = !!pollInfo.user_voted_option_id;
-                    
+
                     poll = {
                         id: pollId,
                         question: pollInfo.question,
@@ -605,7 +608,7 @@ const getRequestComments = async (req, res, next) => {
                             text: opt.option_text,
                             order: opt.option_order,
                             vote_count: userVoted ? opt.vote_count : null,
-                            percentage: userVoted && pollInfo.total_votes > 0 
+                            percentage: userVoted && pollInfo.total_votes > 0
                                 ? Math.round((opt.vote_count / pollInfo.total_votes) * 100)
                                 : null
                         }))
@@ -614,15 +617,24 @@ const getRequestComments = async (req, res, next) => {
             } catch (pollErr) {
                 console.warn('Error obteniendo encuesta del comentario', c.id, pollErr);
             }
-            
+
+            const badgeStats = await getUserBadgeStats(c.user_id);
+
             return {
                 id: c.id,
                 content: c.content,
                 author: {
+                    id: c.user_id,
                     username: c.username,
                     displayName: c.display_name,
                     avatarUrl: c.avatar_url,
-                    role: c.user_role
+                    role: c.user_role,
+                    // Estadísticas para badges (igual que series/chapter)
+                    streak: badgeStats.streak,
+                    totalChapters: badgeStats.totalChapters,
+                    comments: badgeStats.comments,
+                    nightReads: badgeStats.nightReads,
+                    maxChaptersPerHour: badgeStats.maxChaptersPerHour
                 },
                 likes: c.likes_count,
                 dislikes: c.dislikes_count,

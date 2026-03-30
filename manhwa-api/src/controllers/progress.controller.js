@@ -112,6 +112,20 @@ const saveProgress = async (req, res, next) => {
                 }
             }
         });
+
+        // Emitir actualización de racha en tiempo real al usuario (fire-and-forget)
+        calculateStreakForUser(userId)
+            .then((streakData) => {
+                const clients = req.app.locals.streakClients || [];
+                const userClients = clients.filter(c => c.userId === userId);
+                if (userClients.length === 0) return;
+
+                const payload = `data: ${JSON.stringify(streakData)}\n\n`;
+                for (const client of userClients) {
+                    try { client.res.write(`event: streak-update\n${payload}`); } catch (_) { /* noop */ }
+                }
+            })
+            .catch(() => { /* noop — no afecta la respuesta ya enviada */ });
     } catch (error) {
         next(error);
     }
@@ -295,95 +309,138 @@ const deleteProgress = async (req, res, next) => {
 };
 
 /**
+ * Helper interno — calcula la racha de un usuario sin pasar por HTTP
+ * @param {string|number} userId
+ * @returns {Promise<Object>} Datos de racha
+ */
+const calculateStreakForUser = async (userId) => {
+    const result = await query(
+        `WITH reading_days AS (
+           SELECT DISTINCT (COALESCE(first_read_at, read_at) AT TIME ZONE 'UTC')::date AS day
+           FROM reading_history
+           WHERE user_id = $1
+         ),
+         today AS (
+           SELECT (NOW() AT TIME ZONE 'UTC')::date AS d
+         ),
+         numbered AS (
+           SELECT day,
+             day + ROW_NUMBER() OVER (ORDER BY day DESC) * INTERVAL '1 day' AS grp
+           FROM reading_days
+         ),
+         most_recent_grp AS (
+           SELECT grp FROM numbered ORDER BY day DESC LIMIT 1
+         ),
+         streak_calc AS (
+           SELECT
+             COUNT(*) AS current_streak,
+             MIN(day) AS streak_start,
+             MAX(day) AS streak_end
+           FROM numbered
+           WHERE grp = (SELECT grp FROM most_recent_grp)
+         ),
+         today_check AS (
+           SELECT EXISTS (
+             SELECT 1 FROM reading_days, today
+             WHERE reading_days.day >= today.d - INTERVAL '1 day'
+           ) AS is_active
+         ),
+         all_streaks AS (
+           SELECT grp, COUNT(*) AS streak_len
+           FROM numbered
+           GROUP BY grp
+         ),
+         stats AS (
+           SELECT
+             COUNT(*) AS total_days_read,
+             (SELECT COALESCE(MAX(streak_len), 0) FROM all_streaks) AS max_streak
+           FROM reading_days
+         ),
+         read_today AS (
+           SELECT EXISTS (
+             SELECT 1 FROM reading_days, today
+             WHERE reading_days.day = today.d
+           ) AS did_read
+         )
+         SELECT
+           sc.current_streak,
+           tc.is_active,
+           sc.streak_start,
+           sc.streak_end,
+           s.total_days_read,
+           s.max_streak,
+           rt.did_read AS read_today,
+           (SELECT COUNT(*) FROM reading_history WHERE user_id = $1) AS chapters_read
+         FROM streak_calc sc, today_check tc, stats s, read_today rt`,
+        [userId]
+    );
+
+    const row = result.rows[0];
+    const streak = row?.is_active ? parseInt(row.current_streak) || 0 : 0;
+    const maxStreak = Math.max(parseInt(row?.max_streak) || 0, streak);
+
+    return {
+        streak,
+        maxStreak,
+        readToday: row?.read_today || false,
+        totalDaysRead: parseInt(row?.total_days_read) || 0,
+        chaptersRead: parseInt(row?.chapters_read) || 0,
+        streakStart: streak > 0 ? row?.streak_start : null,
+        lastReadAt: row?.streak_end || null,
+    };
+};
+
+/**
  * Obtener racha de lectura del usuario
  * GET /api/progress/streak
  * Usa first_read_at para cálculo preciso (no se puede manipular re-abriendo capítulos)
  */
 const getStreak = async (req, res, next) => {
     try {
-        const userId = req.user.id;
-
-        const result = await query(
-            `WITH reading_days AS (
-               -- Usar first_read_at (inmutable) en lugar de read_at para evitar manipulación
-               SELECT DISTINCT (COALESCE(first_read_at, read_at) AT TIME ZONE 'UTC')::date AS day
-               FROM reading_history
-               WHERE user_id = $1
-             ),
-             today AS (
-               SELECT (NOW() AT TIME ZONE 'UTC')::date AS d
-             ),
-             numbered AS (
-               SELECT day,
-                 day + ROW_NUMBER() OVER (ORDER BY day DESC) * INTERVAL '1 day' AS grp
-               FROM reading_days
-             ),
-             most_recent_grp AS (
-               SELECT grp FROM numbered ORDER BY day DESC LIMIT 1
-             ),
-             streak_calc AS (
-               SELECT
-                 COUNT(*) AS current_streak,
-                 MIN(day) AS streak_start,
-                 MAX(day) AS streak_end
-               FROM numbered
-               WHERE grp = (SELECT grp FROM most_recent_grp)
-             ),
-             today_check AS (
-               SELECT EXISTS (
-                 SELECT 1 FROM reading_days, today
-                 WHERE reading_days.day >= today.d - INTERVAL '1 day'
-               ) AS is_active
-             ),
-             all_streaks AS (
-               SELECT grp, COUNT(*) AS streak_len
-               FROM numbered
-               GROUP BY grp
-             ),
-             stats AS (
-               SELECT
-                 COUNT(*) AS total_days_read,
-                 (SELECT COALESCE(MAX(streak_len), 0) FROM all_streaks) AS max_streak
-               FROM reading_days
-             ),
-             read_today AS (
-               SELECT EXISTS (
-                 SELECT 1 FROM reading_days, today
-                 WHERE reading_days.day = today.d
-               ) AS did_read
-             )
-             SELECT
-               sc.current_streak,
-               tc.is_active,
-               sc.streak_start,
-               sc.streak_end,
-               s.total_days_read,
-               s.max_streak,
-               rt.did_read AS read_today,
-               (SELECT COUNT(*) FROM reading_history WHERE user_id = $1) AS chapters_read
-             FROM streak_calc sc, today_check tc, stats s, read_today rt`,
-            [userId]
-        );
-
-        const row = result.rows[0];
-        const streak = row?.is_active ? parseInt(row.current_streak) || 0 : 0;
-        const maxStreak = Math.max(parseInt(row?.max_streak) || 0, streak);
-
-        res.json({
-            success: true,
-            data: {
-                streak,
-                maxStreak,
-                readToday: row?.read_today || false,
-                totalDaysRead: parseInt(row?.total_days_read) || 0,
-                chaptersRead: parseInt(row?.chapters_read) || 0,
-                streakStart: streak > 0 ? row?.streak_start : null,
-                lastReadAt: row?.streak_end || null
-            }
-        });
+        const data = await calculateStreakForUser(req.user.id);
+        res.json({ success: true, data });
     } catch (error) {
         next(error);
     }
+};
+
+/**
+ * SSE — stream de actualizaciones de racha en tiempo real
+ * GET /api/progress/stream
+ */
+const streamStreak = (req, res) => {
+    const MAX_STREAK_CLIENTS = 500;
+    const clients = req.app.locals.streakClients;
+
+    if (clients.length >= MAX_STREAK_CLIENTS) {
+        return res.status(503).json({ success: false, message: 'Demasiadas conexiones activas' });
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Heartbeat cada 30s para mantener la conexión viva
+    res.write(': connected\n\n');
+
+    const heartbeat = setInterval(() => {
+        try { res.write(': heartbeat\n\n'); } catch (_) { /* noop */ }
+    }, 30000);
+
+    const client = {
+        id: Date.now() + Math.random(),
+        userId: req.user.id,
+        res,
+        connectedAt: Date.now(),
+    };
+    clients.push(client);
+
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        try {
+            req.app.locals.streakClients = req.app.locals.streakClients.filter(c => c !== client);
+        } catch (_) { /* noop */ }
+    });
 };
 
 /**
@@ -414,6 +471,132 @@ module.exports = {
     syncProgress,
     getRecentProgress,
     getStreak,
+    streamStreak,
     deleteProgress,
     clearAllProgress
+};
+
+/**
+ * Obtener estadísticas del usuario para badges (uso interno)
+ * Esta función es llamada por otros controladores para enriquecer datos de usuario
+ */
+const getUserBadgeStats = async (userId) => {
+    try {
+        if (!userId) {
+            return {
+                streak: 0,
+                totalChapters: 0,
+                comments: 0,
+                nightReads: 0,
+                maxChaptersPerHour: 0
+            };
+        }
+
+        const result = await query(
+            `WITH 
+            -- Racha actual
+            reading_days AS (
+                SELECT DISTINCT (COALESCE(first_read_at, read_at) AT TIME ZONE 'UTC')::date AS day
+                FROM reading_history
+                WHERE user_id = $1
+            ),
+            today AS (
+                SELECT (NOW() AT TIME ZONE 'UTC')::date AS d
+            ),
+            numbered AS (
+                SELECT day,
+                    day + ROW_NUMBER() OVER (ORDER BY day DESC) * INTERVAL '1 day' AS grp
+                FROM reading_days
+            ),
+            most_recent_grp AS (
+                SELECT grp FROM numbered ORDER BY day DESC LIMIT 1
+            ),
+            streak_calc AS (
+                SELECT COUNT(*) AS current_streak
+                FROM numbered
+                WHERE grp = (SELECT grp FROM most_recent_grp)
+            ),
+            today_check AS (
+                SELECT EXISTS (
+                    SELECT 1 FROM reading_days, today
+                    WHERE reading_days.day >= today.d - INTERVAL '1 day'
+                ) AS is_active
+            ),
+            
+            -- Total de capítulos únicos leídos
+            total_chapters AS (
+                SELECT COUNT(DISTINCT chapter_id) as count
+                FROM reading_history
+                WHERE user_id = $1
+            ),
+            
+            -- Total de comentarios
+            total_comments AS (
+                SELECT COUNT(*) as count
+                FROM comments
+                WHERE user_id = $1 AND status = 'visible'
+            ),
+            
+            -- Lecturas nocturnas (00:00 - 05:00)
+            night_reads AS (
+                SELECT COUNT(*) as count
+                FROM reading_history
+                WHERE user_id = $1
+                AND EXTRACT(HOUR FROM (read_at AT TIME ZONE 'UTC')) >= 0
+                AND EXTRACT(HOUR FROM (read_at AT TIME ZONE 'UTC')) < 5
+            ),
+            
+            -- Máximo de capítulos en 1 hora
+            max_per_hour AS (
+                SELECT COALESCE(MAX(hourly_count), 0) as count
+                FROM (
+                    SELECT COUNT(*) as hourly_count
+                    FROM reading_history
+                    WHERE user_id = $1
+                    GROUP BY DATE_TRUNC('hour', read_at)
+                ) subq
+            )
+            
+            SELECT 
+                CASE WHEN tc.is_active THEN sc.current_streak ELSE 0 END as streak,
+                tch.count as total_chapters,
+                tco.count as comments,
+                nr.count as night_reads,
+                mph.count as max_chapters_per_hour
+            FROM streak_calc sc, today_check tc, total_chapters tch, 
+                 total_comments tco, night_reads nr, max_per_hour mph`,
+            [userId]
+        );
+
+        const row = result.rows[0];
+        
+        return {
+            streak: parseInt(row?.streak) || 0,
+            totalChapters: parseInt(row?.total_chapters) || 0,
+            comments: parseInt(row?.comments) || 0,
+            nightReads: parseInt(row?.night_reads) || 0,
+            maxChaptersPerHour: parseInt(row?.max_chapters_per_hour) || 0
+        };
+    } catch (error) {
+        console.error('Error getting user badge stats:', error);
+        return {
+            streak: 0,
+            totalChapters: 0,
+            comments: 0,
+            nightReads: 0,
+            maxChaptersPerHour: 0
+        };
+    }
+};
+
+module.exports = {
+    saveProgress,
+    getProgress,
+    syncProgress,
+    getRecentProgress,
+    getStreak,
+    streamStreak,
+    deleteProgress,
+    clearAllProgress,
+    getUserBadgeStats  // Exportar para uso en otros controladores
 };

@@ -1,0 +1,132 @@
+/* StreakFlame.module.css */
+
+/* ============================================================
+   KEYFRAMES
+   ============================================================ */
+
+/* Llama completa: micro-parpadeo macro encima de la turbulencia */
+@keyframes flameGroup {
+  0%, 100% { transform: scaleY(1)    scaleX(1);    }
+  22%       { transform: scaleY(1.05) scaleX(0.97); }
+  48%       { transform: scaleY(0.97) scaleX(1.02); }
+  72%       { transform: scaleY(1.03) scaleX(0.98); }
+}
+
+/* Núcleo: pulso rápido — la parte más caliente */
+@keyframes corePulse {
+  0%, 100% { opacity: 0.95; transform: scaleY(1)    scaleX(1);    }
+  30%       { opacity: 0.82; transform: scaleY(1.07) scaleX(0.95); }
+  65%       { opacity: 0.90; transform: scaleY(0.95) scaleX(1.04); }
+}
+
+/* Glow base: resplandor pulsante al pie */
+@keyframes glowBasePulse {
+  0%, 100% { opacity: 0.4; transform: scaleX(1);    }
+  50%       { opacity: 0.8; transform: scaleX(1.35); }
+}
+
+/* Chispas: ascienden y se desvanecen */
+@keyframes sparkFloat {
+  0%   { transform: translateY(0)     translateX(0)              scale(1);    opacity: 0.9; }
+  50%  { opacity: 0.55; }
+  100% { transform: translateY(-58px) translateX(var(--dx, 0px)) scale(0.08); opacity: 0;   }
+}
+
+/* Número: brillo cíclico sutil */
+@keyframes numShimmer {
+  0%, 100% { filter: brightness(1);    }
+  50%       { filter: brightness(1.35); }
+}
+
+/* ============================================================
+   CONTENEDOR
+   ============================================================ */
+
+.container {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            8px;
+  user-select:    none;
+  cursor:         default;
+  position:       relative;
+}
+
+.compact {
+  gap: 5px;
+}
+
+/* ============================================================
+   LLAMA — elementos SVG vía clases globales (:global)
+   Los paths/ellipses del SVG inline reciben estas clases.
+   ============================================================ */
+
+.flameGroup {
+  /* transform-origin apuntando a la base de la llama */
+  transform-origin: 50% 88%;
+  animation: flameGroup 1.9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.core {
+  transform-box:    fill-box;
+  transform-origin: 50% 80%;
+  animation: corePulse 1.0s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.glowBase {
+  animation: glowBasePulse 2.2s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+/* ============================================================
+   CHISPAS
+   ============================================================ */
+
+.spark {
+  animation:        sparkFloat ease-out infinite;
+  transform-box:    fill-box;
+  transform-origin: center center;
+  will-change:      transform, opacity;
+}
+
+/* ============================================================
+   LABEL (número + "Racha")
+   ============================================================ */
+
+.label {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            2px;
+}
+
+.num {
+  display:        block;
+  font-size:      1.65rem;
+  font-weight:    800;
+  line-height:    1;
+  letter-spacing: -0.04em;
+  animation:      numShimmer 2.8s ease-in-out infinite;
+}
+
+.numCompact {
+  display:        block;
+  font-size:      1.2rem;
+  font-weight:    800;
+  line-height:    1;
+  letter-spacing: -0.04em;
+  animation:      numShimmer 2.8s ease-in-out infinite;
+}
+
+.sublabel {
+  display:        flex;
+  align-items:    center;
+  gap:            3px;
+  font-size:      0.62rem;
+  font-weight:    600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color:          rgba(148, 163, 184, 0.65);
+}

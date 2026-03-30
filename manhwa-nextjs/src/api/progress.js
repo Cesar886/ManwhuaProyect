@@ -8,6 +8,7 @@
 
 import { api } from './client';
 import { createLogger, storage, validateApiResponse, withErrorHandler } from '../utils/errorHandler';
+import { ENDPOINTS } from '../config';
 
 const logger = createLogger('ProgressAPI');
 
@@ -272,12 +273,18 @@ export const getStreak = withErrorHandler(
   }
 );
 
+/**
+ * URL del endpoint SSE para actualizaciones de racha en tiempo real
+ */
+export const getStreakStreamUrl = () => `${ENDPOINTS.progress}/stream`;
+
 export default {
   saveProgress,
   getProgress,
   syncProgress,
   getRecentProgress,
   getStreak,
+  getStreakStreamUrl,
   deleteProgress,
   clearAllProgress,
   getDeviceId,
