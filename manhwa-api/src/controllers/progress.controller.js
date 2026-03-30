@@ -23,7 +23,7 @@ const saveProgress = async (req, res, next) => {
 
         const userId = req.user.id;
 
-        // Buscar series_id y chapter_id
+        // Buscar serie
         const seriesResult = await query(
             'SELECT id FROM series WHERE slug = $1 AND deleted_at IS NULL',
             [slug]
@@ -38,56 +38,41 @@ const saveProgress = async (req, res, next) => {
 
         const seriesId = seriesResult.rows[0].id;
 
-        // Buscar capítulo
+        // Obtener o crear capítulo (los capítulos se sirven desde Spaces,
+        // pero necesitamos un registro en la BD para el FK de reading_history)
         const chapterResult = await query(
-            'SELECT id FROM chapters WHERE series_id = $1 AND number = $2 AND deleted_at IS NULL',
-            [seriesId, chapterNum]
+            `INSERT INTO chapters (series_id, number, title, slug, is_published)
+             VALUES ($1, $2, $3, $4, true)
+             ON CONFLICT (series_id, number) DO UPDATE SET series_id = chapters.series_id
+             RETURNING id`,
+            [seriesId, chapterNum, `Capítulo ${chapterNum}`, `capitulo-${chapterNum}`]
         );
-
-        if (chapterResult.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Capítulo no encontrado'
-            });
-        }
 
         const chapterId = chapterResult.rows[0].id;
 
-        // Verificar si ya existe un registro de progreso
-        const existingResult = await query(
-            'SELECT id, synced_at FROM reading_history WHERE user_id = $1 AND series_id = $2 AND chapter_id = $3',
-            [userId, seriesId, chapterId]
+        // UPSERT: insertar o actualizar en una sola operación atómica
+        const result = await query(
+            `INSERT INTO reading_history
+                (user_id, series_id, chapter_id, scroll_position, progress_percentage,
+                 total_pages, is_completed, device_id, synced_at, read_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+             ON CONFLICT (user_id, chapter_id)
+             DO UPDATE SET
+                scroll_position = EXCLUDED.scroll_position,
+                progress_percentage = EXCLUDED.progress_percentage,
+                total_pages = EXCLUDED.total_pages,
+                is_completed = CASE
+                    WHEN reading_history.is_completed THEN true
+                    ELSE EXCLUDED.is_completed
+                END,
+                device_id = EXCLUDED.device_id,
+                synced_at = NOW(),
+                read_at = NOW()
+             RETURNING *`,
+            [userId, seriesId, chapterId, scrollPosition, progress, totalPages, isCompleted, deviceId]
         );
 
-        let result;
-        if (existingResult.rows.length > 0) {
-            // Actualizar progreso existente
-            result = await query(
-                `UPDATE reading_history
-                 SET scroll_position = $1,
-                     progress_percentage = $2,
-                     total_pages = $3,
-                     is_completed = $4,
-                     device_id = $5,
-                     synced_at = NOW(),
-                     read_at = NOW()
-                 WHERE user_id = $6 AND series_id = $7 AND chapter_id = $8
-                 RETURNING *`,
-                [scrollPosition, progress, totalPages, isCompleted, deviceId, userId, seriesId, chapterId]
-            );
-        } else {
-            // Crear nuevo registro de progreso
-            result = await query(
-                `INSERT INTO reading_history
-                 (user_id, series_id, chapter_id, scroll_position, progress_percentage,
-                  total_pages, is_completed, device_id, synced_at, read_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-                 RETURNING *`,
-                [userId, seriesId, chapterId, scrollPosition, progress, totalPages, isCompleted, deviceId]
-            );
-        }
-
-        // Actualizar bookmark si existe
+        // Actualizar bookmark (UPSERT)
         await query(
             `INSERT INTO bookmarks (user_id, series_id, last_read_chapter_id, last_read_page, last_read_at)
              VALUES ($1, $2, $3, $4, NOW())
@@ -120,11 +105,10 @@ const saveProgress = async (req, res, next) => {
                     scrollPosition,
                     progress,
                     totalPages,
-                    isCompleted,
+                    isCompleted: result.rows[0].is_completed,
                     syncedAt: result.rows[0].synced_at
                 }
-            },
-            message: 'Progreso guardado correctamente'
+            }
         });
     } catch (error) {
         next(error);
@@ -147,33 +131,30 @@ const getProgress = async (req, res, next) => {
              JOIN series s ON rh.series_id = s.id
              JOIN chapters c ON rh.chapter_id = c.id
              WHERE rh.user_id = $1 AND s.slug = $2 AND c.number = $3
-               AND s.deleted_at IS NULL AND c.deleted_at IS NULL`,
-            [userId, slug, parseInt(chapterNum)]
+               AND s.deleted_at IS NULL`,
+            [userId, slug, parseFloat(chapterNum)]
         );
 
         if (result.rows.length === 0) {
             return res.json({
                 success: true,
-                data: {
-                    progress: null
-                },
-                message: 'No hay progreso guardado para este capítulo'
+                data: { progress: null }
             });
         }
 
-        const progress = result.rows[0];
+        const p = result.rows[0];
 
         res.json({
             success: true,
             data: {
                 progress: {
-                    scrollPosition: progress.scroll_position,
-                    progress: parseFloat(progress.progress_percentage),
-                    totalPages: progress.total_pages,
-                    isCompleted: progress.is_completed,
-                    syncedAt: progress.synced_at,
-                    readAt: progress.read_at,
-                    deviceId: progress.device_id
+                    scrollPosition: p.scroll_position,
+                    progress: parseFloat(p.progress_percentage),
+                    totalPages: p.total_pages,
+                    isCompleted: p.is_completed,
+                    syncedAt: p.synced_at,
+                    readAt: p.read_at,
+                    deviceId: p.device_id
                 }
             }
         });
@@ -199,7 +180,7 @@ const syncProgress = async (req, res, next) => {
              JOIN series s ON rh.series_id = s.id
              JOIN chapters c ON rh.chapter_id = c.id
              WHERE rh.user_id = $1
-               AND s.deleted_at IS NULL AND c.deleted_at IS NULL
+               AND s.deleted_at IS NULL
              ORDER BY rh.synced_at DESC
              LIMIT $2`,
             [userId, limit]
@@ -236,17 +217,22 @@ const getRecentProgress = async (req, res, next) => {
         const userId = req.user.id;
         const limit = Math.min(parseInt(req.query.limit) || 10, 50);
 
+        // Subquery para obtener el capítulo más reciente de cada serie,
+        // luego ordenar por fecha y limitar
         const result = await query(
-            `SELECT DISTINCT ON (rh.series_id)
+            `SELECT sub.* FROM (
+                SELECT DISTINCT ON (rh.series_id)
                     s.id as series_id, s.slug, s.title, s.cover_url,
                     c.id as chapter_id, c.number as chapter_num, c.title as chapter_title,
                     rh.scroll_position, rh.progress_percentage, rh.is_completed, rh.read_at
-             FROM reading_history rh
-             JOIN series s ON rh.series_id = s.id
-             JOIN chapters c ON rh.chapter_id = c.id
-             WHERE rh.user_id = $1
-               AND s.deleted_at IS NULL AND c.deleted_at IS NULL
-             ORDER BY rh.series_id, rh.read_at DESC
+                FROM reading_history rh
+                JOIN series s ON rh.series_id = s.id
+                JOIN chapters c ON rh.chapter_id = c.id
+                WHERE rh.user_id = $1
+                  AND s.deleted_at IS NULL
+                ORDER BY rh.series_id, rh.read_at DESC
+             ) sub
+             ORDER BY sub.read_at DESC
              LIMIT $2`,
             [userId, limit]
         );
@@ -294,12 +280,102 @@ const deleteProgress = async (req, res, next) => {
                AND rh.user_id = $1
                AND s.slug = $2
                AND c.number = $3`,
-            [userId, slug, parseInt(chapterNum)]
+            [userId, slug, parseFloat(chapterNum)]
         );
 
         res.json({
             success: true,
             message: 'Progreso eliminado'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Obtener racha de lectura del usuario
+ * GET /api/progress/streak
+ */
+const getStreak = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        const result = await query(
+            `WITH reading_days AS (
+               SELECT DISTINCT (read_at AT TIME ZONE 'UTC')::date AS day
+               FROM reading_history
+               WHERE user_id = $1
+             ),
+             today AS (
+               SELECT (NOW() AT TIME ZONE 'UTC')::date AS d
+             ),
+             numbered AS (
+               SELECT day,
+                 day + ROW_NUMBER() OVER (ORDER BY day DESC) * INTERVAL '1 day' AS grp
+               FROM reading_days
+             ),
+             most_recent_grp AS (
+               SELECT grp FROM numbered ORDER BY day DESC LIMIT 1
+             ),
+             streak_calc AS (
+               SELECT
+                 COUNT(*) AS current_streak,
+                 MIN(day) AS streak_start,
+                 MAX(day) AS streak_end
+               FROM numbered
+               WHERE grp = (SELECT grp FROM most_recent_grp)
+             ),
+             today_check AS (
+               SELECT EXISTS (
+                 SELECT 1 FROM reading_days, today
+                 WHERE reading_days.day >= today.d - INTERVAL '1 day'
+               ) AS is_active
+             ),
+             all_streaks AS (
+               SELECT grp, COUNT(*) AS streak_len
+               FROM numbered
+               GROUP BY grp
+             ),
+             stats AS (
+               SELECT
+                 COUNT(*) AS total_days_read,
+                 (SELECT COALESCE(MAX(streak_len), 0) FROM all_streaks) AS max_streak
+               FROM reading_days
+             ),
+             read_today AS (
+               SELECT EXISTS (
+                 SELECT 1 FROM reading_days, today
+                 WHERE reading_days.day = today.d
+               ) AS did_read
+             )
+             SELECT
+               sc.current_streak,
+               tc.is_active,
+               sc.streak_start,
+               sc.streak_end,
+               s.total_days_read,
+               s.max_streak,
+               rt.did_read AS read_today,
+               (SELECT COUNT(*) FROM reading_history WHERE user_id = $1) AS chapters_read
+             FROM streak_calc sc, today_check tc, stats s, read_today rt`,
+            [userId]
+        );
+
+        const row = result.rows[0];
+        const streak = row?.is_active ? parseInt(row.current_streak) || 0 : 0;
+        const maxStreak = Math.max(parseInt(row?.max_streak) || 0, streak);
+
+        res.json({
+            success: true,
+            data: {
+                streak,
+                maxStreak,
+                readToday: row?.read_today || false,
+                totalDaysRead: parseInt(row?.total_days_read) || 0,
+                chaptersRead: parseInt(row?.chapters_read) || 0,
+                streakStart: streak > 0 ? row?.streak_start : null,
+                lastReadAt: row?.streak_end || null
+            }
         });
     } catch (error) {
         next(error);
@@ -333,6 +409,7 @@ module.exports = {
     getProgress,
     syncProgress,
     getRecentProgress,
+    getStreak,
     deleteProgress,
     clearAllProgress
 };

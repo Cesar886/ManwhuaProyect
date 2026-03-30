@@ -5,8 +5,8 @@ import { saveProgress as saveProgressAPI, getProgress as getProgressAPI, getDevi
 import { useAuth } from '../contexts/AuthContext';
 
 /**
- * Hook ultra-optimizado para progreso de lectura persistente
- * Sin console logs - Manejo de errores silencioso
+ * Hook para progreso de lectura persistente
+ * Guarda en localStorage + backend (si autenticado)
  */
 export function useReadingProgress(slug, chapterNum, totalPages = 0) {
   const { user } = useAuth();
@@ -18,10 +18,20 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
 
   const saveTimeoutRef = useRef(null);
   const lastSavedPosition = useRef(0);
+  const lastSyncedProgress = useRef(0);
   const deviceIdRef = useRef(null);
-  const syncQueueRef = useRef([]);
-  const isProcessingSyncRef = useRef(false);
+  const pendingSyncRef = useRef(null);
   const rafIdRef = useRef(null);
+  const userRef = useRef(user);
+  const slugRef = useRef(slug);
+  const chapterNumRef = useRef(chapterNum);
+  const totalPagesRef = useRef(totalPages);
+
+  // Mantener refs actualizadas
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { slugRef.current = slug; }, [slug]);
+  useEffect(() => { chapterNumRef.current = chapterNum; }, [chapterNum]);
+  useEffect(() => { totalPagesRef.current = totalPages; }, [totalPages]);
 
   const storageKey = useMemo(
     () => `reading_progress_${slug}_${chapterNum}`,
@@ -38,26 +48,46 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
     if (typeof window !== 'undefined' && !deviceIdRef.current) {
       try {
         deviceIdRef.current = getDeviceId();
-      } catch {
-        // Silently fail
-      }
+      } catch { /* ignore */ }
     }
   }, []);
 
   // Cargar estado de "leído"
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
     try {
       const saved = localStorage.getItem(readKey);
       if (saved) {
         const data = JSON.parse(saved);
         setIsChapterReadState(!!data?.read);
       }
-    } catch {
-      // Silently fail
-    }
+    } catch { /* ignore */ }
   }, [readKey]);
+
+  /**
+   * Enviar progreso al backend
+   */
+  const syncToBackend = useCallback(async (data) => {
+    if (!userRef.current) return;
+
+    const chNum = parseFloat(data.chapterNum);
+    if (!data.slug || !chNum || chNum < 0.1) return;
+
+    setIsSyncing(true);
+    try {
+      await saveProgressAPI({
+        slug: data.slug,
+        chapterNum: chNum,
+        scrollPosition: data.position || 0,
+        progress: data.progress || 0,
+        totalPages: data.totalPages || 0,
+        isCompleted: data.progress >= 90,
+        deviceId: deviceIdRef.current,
+      });
+      lastSyncedProgress.current = data.progress || 0;
+    } catch { /* error handled in saveProgressAPI */ }
+    finally { setIsSyncing(false); }
+  }, []);
 
   /**
    * Cargar progreso (backend primero, luego localStorage)
@@ -76,73 +106,23 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
               timestamp: backendProgress.syncedAt ? new Date(backendProgress.syncedAt).getTime() : Date.now(),
               totalPages: backendProgress.totalPages || 0,
             };
-
             try {
               localStorage.setItem(storageKey, JSON.stringify(progressData));
-            } catch {
-              // Silently fail if localStorage is full
-            }
-
+            } catch { /* ignore */ }
             return progressData;
           }
-        } catch {
-          // Silently fall back to localStorage
-        }
+        } catch { /* fall back to localStorage */ }
       }
 
       const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch {
-      // Silently fail
-    }
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
 
     return null;
   }, [user, slug, chapterNum, storageKey]);
 
   /**
-   * Procesar cola de sincronización
-   */
-  const processSyncQueue = useCallback(async () => {
-    if (isProcessingSyncRef.current || syncQueueRef.current.length === 0 || !user) {
-      return;
-    }
-
-    isProcessingSyncRef.current = true;
-    setIsSyncing(true);
-
-    try {
-      const lastItem = syncQueueRef.current[syncQueueRef.current.length - 1];
-      syncQueueRef.current = [];
-
-      const parsedChapterNum = parseInt(lastItem.chapterNum);
-      if (!parsedChapterNum || parsedChapterNum < 1) {
-        return;
-      }
-      await saveProgressAPI({
-        slug: lastItem.slug,
-        chapterNum: parsedChapterNum,
-        scrollPosition: lastItem.position || 0,
-        progress: lastItem.progress || 0,
-        totalPages: lastItem.totalPages || 0,
-        isCompleted: lastItem.progress >= 90,
-        deviceId: deviceIdRef.current,
-      });
-    } catch {
-      // Silently fail - data is already in localStorage
-    } finally {
-      isProcessingSyncRef.current = false;
-      setIsSyncing(false);
-
-      if (syncQueueRef.current.length > 0) {
-        setTimeout(() => processSyncQueue(), 100);
-      }
-    }
-  }, [user]);
-
-  /**
-   * Guardar progreso
+   * Guardar progreso (local + cola de sync)
    */
   const saveProgressLocal = useCallback((position, progressPercent) => {
     if (typeof window === 'undefined') return;
@@ -169,43 +149,39 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
           localStorage.setItem(storageKey, JSON.stringify(data));
           lastSavedPosition.current = position;
 
-          if (user) {
-            syncQueueRef.current.push({
-              slug,
-              chapterNum,
-              position,
-              progress: progressPercent,
-              totalPages,
-            });
-            processSyncQueue();
+          // Preparar sync al backend
+          pendingSyncRef.current = {
+            slug,
+            chapterNum,
+            position,
+            progress: progressPercent,
+            totalPages,
+          };
+
+          // Sync al backend: cada 5% de avance o si completó
+          const progressDiff = Math.abs(progressPercent - lastSyncedProgress.current);
+          if (userRef.current && (progressDiff >= 5 || progressPercent >= 90)) {
+            syncToBackend(pendingSyncRef.current);
+            pendingSyncRef.current = null;
           }
-        } catch {
-          // Silently fail
-        }
-      }, 1000);
-    } catch {
-      // Silently fail
-    }
-  }, [storageKey, totalPages, user, slug, chapterNum, processSyncQueue]);
+        } catch { /* ignore */ }
+      }, 800);
+    } catch { /* ignore */ }
+  }, [storageKey, totalPages, slug, chapterNum, syncToBackend]);
 
   /**
    * Calcular progreso
    */
   const calculateProgress = useCallback(() => {
     if (typeof window === 'undefined') return 0;
-
     try {
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
       const scrollHeight = document.documentElement.scrollHeight || 1;
       const clientHeight = window.innerHeight || 1;
       const maxScroll = scrollHeight - clientHeight;
-
       if (maxScroll <= 0) return 0;
-
       return Math.min(100, Math.max(0, (scrollTop / maxScroll) * 100));
-    } catch {
-      return 0;
-    }
+    } catch { return 0; }
   }, []);
 
   /**
@@ -213,16 +189,10 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
    */
   const markAsRead = useCallback(() => {
     if (isChapterReadState) return;
-
     try {
-      localStorage.setItem(readKey, JSON.stringify({
-        read: true,
-        timestamp: Date.now(),
-      }));
+      localStorage.setItem(readKey, JSON.stringify({ read: true, timestamp: Date.now() }));
       setIsChapterReadState(true);
-    } catch {
-      // Silently fail
-    }
+    } catch { /* ignore */ }
   }, [readKey, isChapterReadState]);
 
   /**
@@ -234,10 +204,25 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
       setProgress(0);
       setScrollPosition(0);
       setHasRestoredPosition(false);
-    } catch {
-      // Silently fail
-    }
+    } catch { /* ignore */ }
   }, [storageKey]);
+
+  /**
+   * Flush: enviar cualquier progreso pendiente al backend
+   */
+  const flushSync = useCallback(() => {
+    // Limpiar timeout pendiente y guardar en localStorage inmediatamente
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    // Si hay datos pendientes, enviar al backend
+    if (pendingSyncRef.current && userRef.current) {
+      syncToBackend(pendingSyncRef.current);
+      pendingSyncRef.current = null;
+    }
+  }, [syncToBackend]);
 
   /**
    * Listener de scroll optimizado
@@ -257,7 +242,6 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
           if (!scrollMounted) { ticking = false; return; }
           try {
             const currentProgress = calculateProgress();
-
             setScrollPosition(lastKnownScrollPosition);
             setProgress(currentProgress);
             saveProgressLocal(lastKnownScrollPosition, currentProgress);
@@ -265,13 +249,9 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
             if (currentProgress >= 90) {
               markAsRead();
             }
-          } catch {
-            // Silently fail
-          }
-
+          } catch { /* ignore */ }
           ticking = false;
         });
-
         ticking = true;
       }
     };
@@ -279,25 +259,73 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
     try {
       window.addEventListener('scroll', handleScroll, { passive: true });
       handleScroll();
-    } catch {
-      // Silently fail
-    }
+    } catch { /* ignore */ }
 
     return () => {
       scrollMounted = false;
       try {
         window.removeEventListener('scroll', handleScroll);
-        if (rafIdRef.current) {
-          window.cancelAnimationFrame(rafIdRef.current);
-        }
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-        }
-      } catch {
-        // Silently fail
-      }
+        if (rafIdRef.current) window.cancelAnimationFrame(rafIdRef.current);
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      } catch { /* ignore */ }
     };
   }, [calculateProgress, saveProgressLocal, markAsRead]);
+
+  /**
+   * Al desmontar o cambiar de capítulo: flush progreso pendiente al backend
+   */
+  useEffect(() => {
+    return () => {
+      // Flush en el cleanup del effect
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      // Guardar lo que haya pendiente
+      if (pendingSyncRef.current && userRef.current) {
+        // Usar sendBeacon para garantizar envío incluso al cerrar página
+        try {
+          const payload = {
+            slug: pendingSyncRef.current.slug,
+            chapterNum: parseFloat(pendingSyncRef.current.chapterNum),
+            scrollPosition: pendingSyncRef.current.position || 0,
+            progress: pendingSyncRef.current.progress || 0,
+            totalPages: pendingSyncRef.current.totalPages || 0,
+            isCompleted: (pendingSyncRef.current.progress || 0) >= 90,
+            deviceId: deviceIdRef.current,
+          };
+          // Fire-and-forget sync
+          saveProgressAPI(payload).catch(() => {});
+        } catch { /* ignore */ }
+        pendingSyncRef.current = null;
+      }
+    };
+  }, [slug, chapterNum]);
+
+  /**
+   * Usar visibilitychange + beforeunload para flush
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushSync();
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      flushSync();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [flushSync]);
 
   /**
    * Restaurar posición
@@ -318,18 +346,11 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
 
         setTimeout(() => {
           if (!mounted) return;
-
           try {
-            window.scrollTo({
-              top: saved.position,
-              behavior: 'instant',
-            });
+            window.scrollTo({ top: saved.position, behavior: 'instant' });
             setScrollPosition(saved.position);
             setProgress(saved.progress || 0);
-          } catch {
-            // Silently fail
-          }
-
+          } catch { /* ignore */ }
           setHasRestoredPosition(true);
         }, 150);
       } catch {
@@ -339,9 +360,7 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
 
     restore();
 
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [slug, chapterNum, loadProgress, hasRestoredPosition]);
 
   return {

@@ -253,11 +253,31 @@ export const clearAllProgress = withErrorHandler(
   }
 );
 
+export const getStreak = withErrorHandler(
+  async () => {
+    const response = await api.get('progress', 'streak');
+    const data = response?.data;
+    return {
+      streak: data?.streak || 0,
+      maxStreak: data?.maxStreak || 0,
+      readToday: data?.readToday || false,
+      totalDaysRead: data?.totalDaysRead || 0,
+      chaptersRead: data?.chaptersRead || 0,
+      lastReadAt: data?.lastReadAt || null,
+    };
+  },
+  {
+    context: 'getStreak',
+    fallbackValue: { streak: 0, maxStreak: 0, readToday: false, totalDaysRead: 0, chaptersRead: 0, lastReadAt: null },
+  }
+);
+
 export default {
   saveProgress,
   getProgress,
   syncProgress,
   getRecentProgress,
+  getStreak,
   deleteProgress,
   clearAllProgress,
   getDeviceId,

@@ -49,8 +49,8 @@ const NAVIGATION_TABS = [
 // Items del menú del usuario (fuera del componente)
 const USER_MENU_ITEMS = [
   { icon: IconUser, label: 'Mi Perfil', color: 'blue', action: 'perfil' },
-  { icon: IconHeart, label: 'Mis Favoritos', color: 'yellow', action: 'favoritos' },
-  { icon: IconSettings, label: 'Configuración', color: 'gray', action: 'configuracion', divider: true },
+  // { icon: IconHeart, label: 'Mis Favoritos', color: 'yellow', action: 'favoritos' },
+  // { icon: IconSettings, label: 'Configuración', color: 'gray', action: 'configuracion', divider: true },
   { icon: IconLogout, label: 'Cerrar Sesión', color: 'red', action: 'cerrar_sesion' },
 ];
 
@@ -111,13 +111,32 @@ function Header({ colorScheme, toggleColorScheme }) {
     displayName: user.displayName || user.display_name || user.username || user.name || (user.id ? String(user.id) : ''),
     email: user.email || user.mail || '',
     level: user.level || 0,
+    createdAt: user.createdAt || user.created_at || null,
   } : null, [user]);
+
+  const memberSinceText = useMemo(() => {
+    if (!uiUser?.createdAt) return null
+    const created = new Date(uiUser.createdAt)
+    if (isNaN(created.getTime())) return null
+    const now = new Date()
+    const diffMs = now - created
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    if (diffDays < 1) return 'Miembro desde hoy'
+    if (diffDays === 1) return 'Miembro desde ayer'
+    if (diffDays < 30) return `Miembro desde hace ${diffDays} días`
+    const diffMonths = Math.floor(diffDays / 30)
+    if (diffMonths < 12) return `Miembro desde hace ${diffMonths} ${diffMonths === 1 ? 'mes' : 'meses'}`
+    const diffYears = Math.floor(diffMonths / 12)
+    const remainMonths = diffMonths % 12
+    if (remainMonths === 0) return `Miembro desde hace ${diffYears} ${diffYears === 1 ? 'año' : 'años'}`
+    return `Miembro desde hace ${diffYears} ${diffYears === 1 ? 'año' : 'años'} y ${remainMonths} ${remainMonths === 1 ? 'mes' : 'meses'}`
+  }, [uiUser?.createdAt]);
 
   // Stable handler for user menu actions
   const handleUserAction = useMemo(() => ({
     perfil: () => router.push('/perfil'),
-    favoritos: () => router.push('/colecciones?tab=favoritos'),
-    configuracion: () => router.push('/configuracion'),
+    // favoritos: () => router.push('/colecciones?tab=favoritos'),
+    // configuracion: () => router.push('/configuracion'),
     cerrar_sesion: async () => {
       try { await doLogout(); } catch (e) { console.warn('Logout failed', e); }
       router.push('/');
@@ -263,9 +282,11 @@ function Header({ colorScheme, toggleColorScheme }) {
                           </div>
                           <Badge color="cyan">{uiUser.level}</Badge>
                         </Group>
-                        <Text size="xs" c="dimmed">
-                          Miembro desde hace 6 meses
-                        </Text>
+                        {memberSinceText && (
+                          <Text size="xs" c="dimmed">
+                            {memberSinceText}
+                          </Text>
+                        )}
                       </Box>
 
                       {/* Menu Items */}

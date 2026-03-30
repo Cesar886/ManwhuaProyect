@@ -20,7 +20,7 @@ const saveProgressValidation = [
         .notEmpty()
         .withMessage('Slug del manhwa requerido'),
     body('chapterNum')
-        .isInt({ min: 1 })
+        .isFloat({ min: 0.1 })
         .withMessage('Número de capítulo inválido'),
     body('scrollPosition')
         .optional()
@@ -51,22 +51,25 @@ const getProgressValidation = [
         .notEmpty()
         .withMessage('Slug requerido'),
     param('chapterNum')
-        .isInt({ min: 1 })
+        .isFloat({ min: 0.1 })
         .withMessage('Número de capítulo inválido')
 ];
 
-// Rutas
-// Guardar/actualizar progreso de lectura
-router.post('/', validate(saveProgressValidation), progressController.saveProgress);
-
-// Obtener progreso de un capítulo específico
-router.get('/:slug/:chapterNum', validate(getProgressValidation), progressController.getProgress);
-
+// Rutas — las rutas fijas van ANTES de las parametrizadas
 // Obtener todo el progreso del usuario (para sincronización inicial)
 router.get('/sync', progressController.syncProgress);
 
 // Obtener últimos capítulos leídos (para "Continuar leyendo")
 router.get('/recent', progressController.getRecentProgress);
+
+// Obtener racha de lectura del usuario
+router.get('/streak', progressController.getStreak);
+
+// Guardar/actualizar progreso de lectura
+router.post('/', validate(saveProgressValidation), progressController.saveProgress);
+
+// Obtener progreso de un capítulo específico
+router.get('/:slug/:chapterNum', validate(getProgressValidation), progressController.getProgress);
 
 // Eliminar progreso de un capítulo específico
 router.delete('/:slug/:chapterNum', validate(getProgressValidation), progressController.deleteProgress);

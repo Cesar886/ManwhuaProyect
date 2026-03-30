@@ -14,9 +14,7 @@ import {
   ActionIcon,
   SimpleGrid,
   Avatar,
-  Tabs,
   Progress,
-  Timeline,
   Modal,
   Skeleton,
   Badge,
@@ -36,16 +34,11 @@ import {
   IconBook,
   IconHeart,
   IconUsers,
-  IconEye,
   IconCalendar,
-  IconClock,
   IconMapPin,
   IconCamera,
   IconMail,
-  IconChartBar,
-  IconTrophy,
   IconFlame,
-  IconBookmark,
   IconShare,
   IconSettings,
   IconPencil,
@@ -53,12 +46,20 @@ import {
   IconCrown,
   IconStarFilled,
   IconArrowUpRight,
+  IconCheck,
+  IconTrophy,
+  IconLock,
+  IconStar,
+  IconMoon,
+  IconMessage,
+  IconBolt,
+  IconShield,
+  IconSword,
+  IconDiamond,
 } from '@tabler/icons-react';
-import { IconCheck } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { getCurrentUser } from '@/api/client';
-import { getBookmarks } from '@/api/requests';
-import { getRecentProgress } from '@/api/progress';
+import { getRecentProgress, getStreak } from '@/api/progress';
 import styles from '@/app/user-profile/UserProfile.module.css';
 import Link from 'next/link';
 import Header from '@/components/Header';
@@ -397,20 +398,17 @@ export default function UserProfile() {
   const { updateProfile } = useAuth();
 
   const isMobile = useMediaQuery('(max-width: 48em)');
-  const isTablet = useMediaQuery('(min-width: 48em) and (max-width: 64em)');
-  const isDesktop = !isMobile && !isTablet;
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [avatars, setAvatars] = useState([]);
   const [openAvatarPicker, setOpenAvatarPicker] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
-  const [activeTab, setActiveTab] = useState('collections');
-  const [bookmarks, setBookmarks] = useState([]);
-  const [bookmarksLoading, setBookmarksLoading] = useState(false);
-  const [recentReads, setRecentReads] = useState([]);
-  const [recentLoading, setRecentLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [recentReads, setRecentReads] = useState([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [streakData, setStreakData] = useState({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 });
+  const streak = streakData.streak;
 
   // Edit profile modal state
   const [editOpen, setEditOpen] = useState(false);
@@ -431,30 +429,22 @@ export default function UserProfile() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Fetch bookmarks when tab changes to bookmarks
   useEffect(() => {
-    if (activeTab === 'bookmarks' && bookmarks.length === 0 && !bookmarksLoading) {
-      setBookmarksLoading(true);
-      getBookmarks({ limit: 12, sort: 'updated_at', order: 'desc' })
-        .then(res => {
-          const items = res?.data?.bookmarks || res?.bookmarks || res?.data || [];
-          setBookmarks(Array.isArray(items) ? items : []);
-        })
-        .catch(() => setBookmarks([]))
-        .finally(() => setBookmarksLoading(false));
-    }
-  }, [activeTab]);
+    getRecentProgress(6)
+      .then(data => setRecentReads(Array.isArray(data) ? data : []))
+      .catch(() => setRecentReads([]))
+      .finally(() => setRecentLoading(false));
 
-  // Fetch recent reading activity when tab changes to activity
-  useEffect(() => {
-    if (activeTab === 'activity' && recentReads.length === 0 && !recentLoading) {
-      setRecentLoading(true);
-      getRecentProgress(15)
-        .then(data => setRecentReads(Array.isArray(data) ? data : []))
-        .catch(() => setRecentReads([]))
-        .finally(() => setRecentLoading(false));
-    }
-  }, [activeTab]);
+    getStreak()
+      .then(data => setStreakData({
+        streak: data?.streak || 0,
+        maxStreak: data?.maxStreak || 0,
+        readToday: data?.readToday || false,
+        chaptersRead: data?.chaptersRead || 0,
+        totalDaysRead: data?.totalDaysRead || 0,
+      }))
+      .catch(() => setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 }));
+  }, []);
 
   const getInitials = () => {
     if (!user) return 'U';
@@ -563,8 +553,9 @@ export default function UserProfile() {
     collections: user.collections_count || user.stats?.collections || 0,
     likes: user.likes_count || user.stats?.likes || 0,
     views: user.views_count || user.stats?.views || 0,
-    chapters: user.chapters_read || 0,
-    streak: user.current_streak || 0,
+    chapters: streakData.chaptersRead || user.chapters_read || user.reading_count || 0,
+    streak,
+    bookmarks: user.bookmarks_count || user.stats?.bookmarks || 0,
   };
 
   const collections = user.collections || [];
@@ -582,7 +573,7 @@ export default function UserProfile() {
   const role = roleBadges[userRole] || roleBadges.reader;
   const RoleIcon = role.icon;
 
-  const avatarSize = isMobile ? 100 : isTablet ? 120 : 140;
+  const avatarSize = isMobile ? 100 : 140;
 
   const bannerUrl = user.banner_url || user.banner || null;
 
@@ -596,523 +587,266 @@ export default function UserProfile() {
         {/* COVER BANNER */}
         <Box className={styles.coverBanner} style={{ position: 'relative', overflow: 'hidden', borderRadius: `0 0 ${rem(24)} ${rem(24)}` }}>
           {bannerUrl ? (
-            <Image
-              src={bannerUrl}
-              alt="Banner de perfil"
-              h={isMobile ? 140 : isTablet ? 180 : 220}
-              style={{ objectFit: 'cover', width: '100%' }}
-            />
+            <Image src={bannerUrl} alt="Banner de perfil" h={isMobile ? 160 : 240} style={{ objectFit: 'cover', width: '100%' }} />
           ) : (
-            <Box
-              h={isMobile ? 140 : isTablet ? 180 : 220}
-              className={styles.coverBannerGradient}
-            />
+            <Box h={isMobile ? 160 : 240} className={styles.coverBannerGradient} />
           )}
           <Box className={styles.coverBannerOverlay} />
         </Box>
 
-        {/* HEADER CARD - solapado con el banner */}
+        {/* HEADER CARD */}
         <Paper
-          p={isMobile ? 'lg' : 'xl'}
+          p={isMobile ? 'md' : 'xl'}
           radius={rem(24)}
           mb="xl"
           className={styles.headerCard}
-          style={{ marginTop: isMobile ? -50 : -60, position: 'relative', zIndex: 2 }}
+          style={{ marginTop: isMobile ? -56 : -80, position: 'relative', zIndex: 2 }}
         >
           <Box className={styles.headerDecoration1} />
           <Box className={styles.headerDecoration2} />
 
-          {/* MOBILE LAYOUT */}
-          {isMobile && (
-            <Stack align="center" gap="lg" style={{ position: 'relative', zIndex: 1 }}>
-              <PremiumAvatar
-                src={avatarSrc}
-                size={avatarSize}
-                initials={getInitials()}
-                streak={stats.streak}
-                onCameraClick={() => setOpenAvatarPicker(true)}
-                isDark={isDark}
-              />
-
-              <Stack gap={6} align="center">
+          {/* MOBILE */}
+          {isMobile ? (
+            <Stack align="center" gap="md" style={{ position: 'relative', zIndex: 1 }}>
+              <PremiumAvatar src={avatarSrc} size={100} initials={getInitials()} streak={streak} onCameraClick={() => setOpenAvatarPicker(true)} isDark={isDark} />
+              <Stack gap={4} align="center">
                 <Group gap="xs" justify="center" wrap="nowrap">
-                  <Text fw={800} size="xl" className={styles.gradientText}>
-                    {userName}
-                  </Text>
-                  <Badge
-                    variant="gradient"
-                    gradient={role.gradient}
-                    size="sm"
-                    leftSection={<RoleIcon size={10} />}
-                    className={styles.roleBadge}
-                  >
-                    {role.label}
-                  </Badge>
+                  <Text fw={800} size="xl" className={styles.gradientText}>{userName}</Text>
+                  <Badge variant="gradient" gradient={role.gradient} size="sm" leftSection={<RoleIcon size={10} />} className={styles.roleBadge}>{role.label}</Badge>
                 </Group>
-                <Text size="sm" c="dimmed" fw={500}>@{userUsername}</Text>
+                <Text size="xs" c="dimmed" fw={500}>@{userUsername}</Text>
               </Stack>
-
-              <Text size="sm" c="dimmed" ta="center" maw={300} lh={1.5} style={{ opacity: 0.9 }}>
-                {userBio}
-              </Text>
-
-              <Group gap={rem(32)} justify="center" py="xs">
-                <InlineStat value={formatNum(stats.followers)} label="Seguidores" isDark={isDark} />
+              {userBio !== 'Sin biografía' && (
+                <Text size="sm" c="dimmed" ta="center" maw={300} lh={1.5} style={{ opacity: 0.85 }}>{userBio}</Text>
+              )}
+              <Group gap={rem(24)} justify="center" py="xs" wrap="nowrap">
+                <InlineStat value={formatNum(stats.chapters)} label="Caps. leídos" isDark={isDark} />
                 <Box className={styles.statDivider} />
-                <InlineStat value={formatNum(stats.following)} label="Siguiendo" isDark={isDark} />
-                <Box className={styles.statDivider} />
-                <InlineStat value={formatNum(stats.chapters)} label="Capítulos" isDark={isDark} />
+                <InlineStat value={streak} label="Racha" isDark={isDark} />
               </Group>
-
-              <Group gap="sm" justify="center" w="100%">
-                <PremiumButton leftSection={<IconPencil size={16} />} style={{ flex: 1, maxWidth: 140 }} isDark={isDark} onClick={openEditModal}>
-                  Editar
-                </PremiumButton>
-                <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} style={{ flex: 1, maxWidth: 140 }} isDark={isDark} onClick={handleShare}>
+              <Group gap="xs" w="100%">
+                <PremiumButton leftSection={<IconPencil size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={openEditModal}>Editar</PremiumButton>
+                <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={15} /> : <IconShare size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={handleShare}>
                   {copied ? 'Copiado' : 'Compartir'}
                 </PremiumButton>
+                <Tooltip label="Configuración" withArrow>
+                  <ActionIcon variant="light" color="gray" size="lg" radius="xl" className={styles.settingsButton}><IconSettings size={18} /></ActionIcon>
+                </Tooltip>
               </Group>
             </Stack>
-          )}
-
-          {/* TABLET LAYOUT */}
-          {isTablet && (
-            <Stack gap="xl" style={{ position: 'relative', zIndex: 1 }}>
-              <Group gap="xl" align="flex-start">
-                <PremiumAvatar
-                  src={avatarSrc}
-                  size={avatarSize}
-                  initials={getInitials()}
-                  streak={stats.streak}
-                  onCameraClick={() => setOpenAvatarPicker(true)}
-                  isDark={isDark}
-                />
-
-                <Stack gap="sm" style={{ flex: 1 }}>
-                  <Group gap="sm">
-                    <Text fw={800} size={rem(28)} className={styles.gradientText}>
-                      {userName}
-                    </Text>
-                    <Badge
-                      variant="gradient"
-                      gradient={role.gradient}
-                      size="md"
-                      leftSection={<RoleIcon size={12} />}
-                      className={styles.roleBadge}
-                    >
-                      {role.label}
-                    </Badge>
-                  </Group>
-                  <Text size="md" c="dimmed" fw={500}>@{userUsername}</Text>
-                  <Text size="sm" style={{ opacity: 0.85 }} maw={450} lh={1.5}>{userBio}</Text>
-                  <Group gap="lg" mt={4}>
-                    {userLocation && (
-                      <Group gap={6}>
-                        <ThemeIcon size="xs" variant="light" color="cyan" radius="xl">
-                          <IconMapPin size={10} />
-                        </ThemeIcon>
-                        <Text size="sm" c="dimmed">{userLocation}</Text>
-                      </Group>
-                    )}
+          ) : (
+            /* DESKTOP + TABLET */
+            <Group gap="xl" align="flex-start" wrap="nowrap" style={{ position: 'relative', zIndex: 1 }}>
+              <PremiumAvatar src={avatarSrc} size={avatarSize} initials={getInitials()} streak={streak} onCameraClick={() => setOpenAvatarPicker(true)} isDark={isDark} />
+              <Stack gap="sm" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="sm" wrap="wrap">
+                  <Text fw={800} size={rem(30)} lh={1.1} className={styles.gradientText}>{userName}</Text>
+                  <Badge variant="gradient" gradient={role.gradient} size="lg" leftSection={<RoleIcon size={13} />} className={styles.roleBadge}>{role.label}</Badge>
+                </Group>
+                <Text size="sm" c="dimmed" fw={500}>@{userUsername}</Text>
+                {userBio !== 'Sin biografía' && (
+                  <Text size="sm" maw={520} lh={1.6} style={{ opacity: 0.85 }}>{userBio}</Text>
+                )}
+                <Group gap="lg" mt={2} wrap="wrap">
+                  {userLocation && (
                     <Group gap={6}>
-                      <ThemeIcon size="xs" variant="light" color="violet" radius="xl">
-                        <IconCalendar size={10} />
-                      </ThemeIcon>
-                      <Text size="sm" c="dimmed">
-                        Desde {new Date(userJoinDate).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })}
-                      </Text>
+                      <ThemeIcon size="xs" variant="light" color="cyan" radius="xl"><IconMapPin size={10} /></ThemeIcon>
+                      <Text size="sm" c="dimmed">{userLocation}</Text>
                     </Group>
-                  </Group>
-                </Stack>
-              </Group>
-
-              <Group justify="space-between" align="center">
-                <Group gap={rem(48)}>
-                  <InlineStat value={formatNum(stats.followers)} label="Seguidores" isDark={isDark} />
-                  <InlineStat value={formatNum(stats.following)} label="Siguiendo" isDark={isDark} />
-                  <InlineStat value={formatNum(stats.chapters)} label="Capítulos" isDark={isDark} />
-                </Group>
-                <Group gap="sm">
-                  <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark} onClick={openEditModal}>Editar perfil</PremiumButton>
-                  <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} isDark={isDark} onClick={handleShare}>
-                    {copied ? 'Copiado' : 'Compartir'}
-                  </PremiumButton>
-                  <ActionIcon variant="subtle" color="gray" size="lg" radius="xl" className={styles.settingsButton}>
-                    <IconSettings size={20} />
-                  </ActionIcon>
-                </Group>
-              </Group>
-            </Stack>
-          )}
-
-          {/* DESKTOP LAYOUT */}
-          {isDesktop && (
-            <Flex justify="space-between" align="flex-start" gap="xl" style={{ position: 'relative', zIndex: 1 }}>
-              <Group gap="xl" align="flex-start" style={{ flex: 1 }}>
-                <PremiumAvatar
-                  src={avatarSrc}
-                  size={avatarSize}
-                  initials={getInitials()}
-                  streak={stats.streak}
-                  onCameraClick={() => setOpenAvatarPicker(true)}
-                  isDark={isDark}
-                />
-
-                <Stack gap="sm" style={{ flex: 1 }}>
-                  <Group gap="md">
-                    <Text fw={800} size={rem(32)} lh={1.2} className={styles.gradientText}>
-                      {userName}
+                  )}
+                  <Group gap={6}>
+                    <ThemeIcon size="xs" variant="light" color="violet" radius="xl"><IconCalendar size={10} /></ThemeIcon>
+                    <Text size="sm" c="dimmed">
+                      Se unió en {new Date(userJoinDate).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
                     </Text>
-                    <Badge
-                      variant="gradient"
-                      gradient={role.gradient}
-                      size="lg"
-                      leftSection={<RoleIcon size={14} />}
-                      className={styles.roleBadge}
-                    >
-                      {role.label}
-                    </Badge>
                   </Group>
-                  <Text size="md" c="dimmed" fw={500}>@{userUsername}</Text>
-                  <Text size="md" maw={500} style={{ opacity: 0.85 }} lh={1.6}>{userBio}</Text>
-
-                  <Group gap="xl" mt="sm">
-                    {userLocation && (
-                      <Group gap={8}>
-                        <ThemeIcon size="sm" variant="light" color="cyan" radius="xl">
-                          <IconMapPin size={12} />
-                        </ThemeIcon>
-                        <Text size="sm" c="dimmed">{userLocation}</Text>
-                      </Group>
-                    )}
-                    <Group gap={8}>
-                      <ThemeIcon size="sm" variant="light" color="violet" radius="xl">
-                        <IconCalendar size={12} />
-                      </ThemeIcon>
-                      <Text size="sm" c="dimmed">
-                        Se unió en {new Date(userJoinDate).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
-                      </Text>
-                    </Group>
-                  </Group>
-
-                  <Group gap={rem(48)} mt="lg">
-                    <InlineStat value={formatNum(stats.followers)} label="Seguidores" isDark={isDark} />
-                    <InlineStat value={formatNum(stats.following)} label="Siguiendo" isDark={isDark} />
-                    <InlineStat value={formatNum(stats.chapters)} label="Capítulos" isDark={isDark} />
-                  </Group>
-                </Stack>
-              </Group>
-
-              <Stack gap="sm" align="flex-end">
+                </Group>
+                <Group gap={rem(40)} mt="md">
+                  <InlineStat value={formatNum(stats.chapters)} label="Caps. leídos" isDark={isDark} />
+                  <Box className={styles.statDivider} />
+                  <InlineStat value={streak} label="Racha" isDark={isDark} />
+                </Group>
+              </Stack>
+              <Stack gap="sm" align="flex-end" style={{ flexShrink: 0 }}>
                 <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark} onClick={openEditModal}>Editar perfil</PremiumButton>
                 <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} isDark={isDark} onClick={handleShare}>
                   {copied ? 'Copiado' : 'Compartir'}
                 </PremiumButton>
                 <Tooltip label="Configuración" withArrow position="left">
-                  <ActionIcon variant="light" color="gray" size="lg" radius="xl" mt="xs" className={styles.settingsButton}>
-                    <IconSettings size={20} />
-                  </ActionIcon>
+                  <ActionIcon variant="light" color="gray" size="lg" radius="xl" mt={4} className={styles.settingsButton}><IconSettings size={20} /></ActionIcon>
                 </Tooltip>
               </Stack>
-            </Flex>
+            </Group>
           )}
         </Paper>
 
-        {/* STATS CARDS - MEJORADAS */}
-        <SimpleGrid
-          cols={{ base: 2, sm: 4 }}
-          spacing={isMobile ? 'md' : 'lg'}
-          mb="xl"
-          className={styles.statsGrid}
-        >
-          <StatCard icon={IconBook} label="Colecciones" value={stats.collections} color="cyan" subtext="creadas" isDark={isDark} compact={isMobile} />
-          <StatCard icon={IconHeart} label="Likes" value={formatNum(stats.likes)} color="pink" isDark={isDark} compact={isMobile} />
-          <StatCard icon={IconEye} label="Vistas" value={formatNum(stats.views)} color="violet" isDark={isDark} compact={isMobile} />
-          <StatCard icon={IconTrophy} label="Logros" value="0" color="yellow" subtext="próximamente" isDark={isDark} compact={isMobile} />
-        </SimpleGrid>
 
-        {/* INFO CARDS */}
-        <Grid gutter={isMobile ? 'md' : 'lg'} mb="xl">
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Paper p={isMobile ? 'md' : 'lg'} radius="xl" h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`}>
-              <Group gap="xs" mb="lg">
+        {/* CONTINUAR LEYENDO */}
+        <Paper p={isMobile ? 'md' : 'xl'} radius="xl" mb="xl" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
+          <Box style={{ position: 'absolute', top: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
+            <Group justify="space-between" align="center">
+              <Group gap="sm">
                 <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'cyan', to: 'teal', deg: 135 }}>
-                  <IconUsers size={18} />
+                  <IconBook size={18} />
                 </ThemeIcon>
-                <Text fw={700} size="lg">Información</Text>
+                <Text fw={700} size={isMobile ? 'md' : 'lg'}>Continuar Leyendo</Text>
               </Group>
-              <Stack gap="md">
-                {userEmail && (
-                  <Group justify="space-between" wrap="nowrap">
-                    <Group gap="xs">
-                      <ThemeIcon size="xs" variant="light" color="cyan" radius="xl">
-                        <IconMail size={10} />
-                      </ThemeIcon>
-                      <Text size="sm" c="dimmed">Correo</Text>
-                    </Group>
-                    <Text size="sm" fw={600} truncate maw={isMobile ? 140 : 200}>{userEmail}</Text>
-                  </Group>
-                )}
-                <Group justify="space-between">
-                  <Group gap="xs">
-                    <ThemeIcon size="xs" variant="light" color="violet" radius="xl">
-                      <IconCalendar size={10} />
-                    </ThemeIcon>
-                    <Text size="sm" c="dimmed">Miembro desde</Text>
-                  </Group>
-                  <Text size="sm" fw={600}>
-                    {new Date(userJoinDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </Text>
+              <Link href="/biblioteca" style={{ textDecoration: 'none' }}>
+                <Group gap={4}>
+                  <Text size="sm" c="cyan" fw={600}>Ver todo</Text>
+                  <IconArrowUpRight size={16} style={{ color: 'var(--mantine-color-cyan-5)' }} />
                 </Group>
-                <Group justify="space-between">
-                  <Group gap="xs">
-                    <ThemeIcon size="xs" variant="light" color="orange" radius="xl">
-                      <IconFlame size={10} />
-                    </ThemeIcon>
-                    <Text size="sm" c="dimmed">Racha actual</Text>
-                  </Group>
-                  <Badge
-                    variant="gradient"
-                    gradient={stats.streak > 0 ? { from: 'orange', to: 'red' } : { from: 'gray', to: 'dark' }}
-                    size="md"
-                  >
-                    {stats.streak} días
-                  </Badge>
-                </Group>
-              </Stack>
-            </Paper>
-          </Grid.Col>
-
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Paper p={isMobile ? 'md' : 'lg'} radius="xl" h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`}>
-              <Group gap="xs" mb="lg">
-                <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'grape', deg: 135 }}>
-                  <IconChartBar size={18} />
-                </ThemeIcon>
-                <Text fw={700} size="lg">Progreso</Text>
-              </Group>
-              <Stack gap="lg">
-                <Box>
-                  <Group justify="space-between" mb={8}>
-                    <Text size="sm" fw={500}>Likes recibidos</Text>
-                    <Text size="xs" c="dimmed" fw={600}>{formatNum(stats.likes)}</Text>
-                  </Group>
-                  <Progress value={Math.min((stats.likes / 100) * 100, 100)} color="pink" size="md" radius="xl" className={styles.progressBar} />
-                </Box>
-                <Box>
-                  <Group justify="space-between" mb={8}>
-                    <Text size="sm" fw={500}>Capítulos leídos</Text>
-                    <Text size="xs" c="dimmed" fw={600}>{formatNum(stats.chapters)}</Text>
-                  </Group>
-                  <Progress value={Math.min((stats.chapters / 1000) * 100, 100)} color="cyan" size="md" radius="xl" className={styles.progressBar} />
-                </Box>
-                <Box>
-                  <Group justify="space-between" mb={8}>
-                    <Text size="sm" fw={500}>Colecciones</Text>
-                    <Text size="xs" c="dimmed" fw={600}>{stats.collections}/5</Text>
-                  </Group>
-                  <Progress value={(stats.collections / 5) * 100} color="teal" size="md" radius="xl" className={styles.progressBar} />
-                </Box>
-              </Stack>
-            </Paper>
-          </Grid.Col>
-        </Grid>
-
-        {/* TABS PREMIUM */}
-        <Tabs
-          value={activeTab}
-          onChange={setActiveTab}
-          variant="pills"
-          radius="xl"
-          classNames={{ tab: styles.tab, tabLabel: styles.tabLabel }}
-        >
-          <Tabs.List mb="xl" justify={isMobile ? 'center' : 'flex-start'} className={styles.tabsContainer}>
-            <Tabs.Tab value="collections" leftSection={<IconBook size={16} />} px={isMobile ? 'md' : 'lg'}>
-              {isMobile ? stats.collections : `Colecciones (${stats.collections})`}
-            </Tabs.Tab>
-            <Tabs.Tab value="bookmarks" leftSection={<IconBookmark size={16} />} px={isMobile ? 'md' : 'lg'}>
-              {isMobile ? '' : `Guardados${bookmarks.length ? ` (${bookmarks.length})` : ''}`}
-            </Tabs.Tab>
-            <Tabs.Tab value="activity" leftSection={<IconClock size={16} />} px={isMobile ? 'md' : 'lg'}>
-              {isMobile ? '' : 'Historial'}
-            </Tabs.Tab>
-          </Tabs.List>
-
-          <Tabs.Panel value="collections">
-            {collections.length > 0 ? (
-              <SimpleGrid cols={{ base: 2, sm: 2, md: 3, lg: 4 }} spacing={isMobile ? 'sm' : 'md'}>
-                {collections.map(c => <CollectionCardPreview key={c.id} collection={c} isDark={isDark} />)}
-              </SimpleGrid>
-            ) : (
-              <Paper p="xl" radius="xl" ta="center" className={`${styles.emptyState} ${isDark ? styles.darkMode : styles.lightMode}`}>
-                <ThemeIcon size={70} radius="xl" variant="light" color="cyan" mb="lg" className={styles.emptyStateIcon}>
-                  <IconBook size={35} stroke={1.5} />
-                </ThemeIcon>
-                <Text fw={600} size="lg" mb="xs" className={styles.emptyStateTitle}>No tienes colecciones</Text>
-                <Text c="dimmed" size="sm" mb="xl" maw={300} mx="auto" className={styles.emptyStateText}>
-                  Crea tu primera colección para organizar tus manhwas favoritos
-                </Text>
-                <PremiumButton leftSection={<IconSparkles size={16} />} isDark={isDark}>
-                  Crear colección
-                </PremiumButton>
-              </Paper>
-            )}
-          </Tabs.Panel>
-
-          <Tabs.Panel value="bookmarks">
-            {bookmarksLoading ? (
-              <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing={isMobile ? 'sm' : 'md'}>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Paper key={i} p="md" radius="xl" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`}>
-                    <Skeleton height={160} radius="lg" mb="sm" />
-                    <Skeleton height={14} width="70%" radius="xl" mb={6} />
-                    <Skeleton height={10} width="40%" radius="xl" />
-                  </Paper>
+              </Link>
+            </Group>
+            {recentLoading ? (
+              <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Stack key={i} gap="xs">
+                    <Skeleton height={isMobile ? 120 : 160} radius="lg" />
+                    <Skeleton height={10} width="80%" radius="xl" />
+                    <Skeleton height={8} width="50%" radius="xl" />
+                  </Stack>
                 ))}
               </SimpleGrid>
-            ) : bookmarks.length > 0 ? (
-              <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing={isMobile ? 'sm' : 'md'}>
-                {bookmarks.map((bm) => {
-                  const series = bm.series || bm;
-                  const slug = series.slug || series.id;
-                  const title = series.title || series.name || 'Sin título';
-                  const cover = series.cover || series.coverImage || series.image || '';
-                  const status = bm.status || 'reading';
-                  const statusLabels = { reading: 'Leyendo', completed: 'Completado', 'on-hold': 'En pausa', dropped: 'Abandonado', 'plan-to-read': 'Por leer' };
-                  const statusColors = { reading: 'cyan', completed: 'green', 'on-hold': 'yellow', dropped: 'red', 'plan-to-read': 'violet' };
-
+            ) : recentReads.length > 0 ? (
+              <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'}>
+                {recentReads.slice(0, 6).map((item, i) => {
+                  const slug = item.series?.slug || item.slug || '';
+                  const title = item.series?.title || item.title || slug;
+                  const chapter = item.chapter?.number ?? item.chapterNum;
+                  const progress = item.progress || 0;
+                  const cover = item.series?.coverUrl || item.series?.cover_url || '';
                   return (
-                    <Link key={bm.id || slug} href={`/manhwa/${slug}`} style={{ textDecoration: 'none' }}>
-                      <Card p={0} radius="xl" className={`${styles.collectionCard} ${isDark ? styles.darkMode : styles.lightMode}`}>
-                        <Box style={{ position: 'relative', overflow: 'hidden' }}>
-                          <Image
-                            src={cover}
-                            alt={title}
-                            height={isMobile ? 160 : 200}
-                            style={{ objectFit: 'cover' }}
-                            fallbackSrc="/placeholder-cover.webp"
-                          />
-                          <Box className={styles.collectionCardOverlay} />
-                          <Badge
-                            color={statusColors[status] || 'gray'}
-                            variant="filled"
-                            size="sm"
-                            style={{ position: 'absolute', top: 10, right: 10, boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
-                          >
-                            {statusLabels[status] || status}
-                          </Badge>
-                          {bm.isFavorite && (
-                            <ThemeIcon
-                              size={24}
-                              radius="xl"
-                              color="pink"
-                              variant="filled"
-                              style={{ position: 'absolute', top: 10, left: 10, boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
-                            >
-                              <IconHeart size={12} />
-                            </ThemeIcon>
+                    <Link key={i} href={slug ? `/manhwa/${slug}` : '#'} style={{ textDecoration: 'none' }}>
+                      <Stack gap={6}>
+                        <Box style={{ position: 'relative', borderRadius: rem(12), overflow: 'hidden', aspectRatio: '2/3' }}>
+                          {cover ? (
+                            <Image src={cover} alt={title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <Box style={{ width: '100%', height: '100%', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <IconBook size={24} style={{ opacity: 0.3 }} />
+                            </Box>
+                          )}
+                          <Box style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: rem(6), background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)' }}>
+                            <Progress value={progress} color="cyan" size="xs" radius="xl" />
+                          </Box>
+                          {chapter && (
+                            <Badge size="xs" variant="filled" color="dark" style={{ position: 'absolute', top: 6, right: 6, opacity: 0.85, fontSize: rem(9) }}>
+                              Cap.{chapter}
+                            </Badge>
                           )}
                         </Box>
-                        <Stack p="sm" gap={4}>
-                          <Text size="sm" fw={700} lineClamp={1}>{title}</Text>
-                          {bm.lastReadChapter && (
-                            <Text size="xs" c="dimmed">Cap. {bm.lastReadChapter}</Text>
-                          )}
-                        </Stack>
-                      </Card>
+                        <Text size="xs" fw={600} lineClamp={2} lh={1.3}>{title}</Text>
+                      </Stack>
                     </Link>
                   );
                 })}
               </SimpleGrid>
             ) : (
-              <Paper p="xl" radius="xl" ta="center" className={`${styles.emptyState} ${isDark ? styles.darkMode : styles.lightMode}`}>
-                <ThemeIcon size={70} radius="xl" variant="light" color="violet" mb="lg" className={styles.emptyStateIcon}>
-                  <IconBookmark size={35} stroke={1.5} />
-                </ThemeIcon>
-                <Text fw={600} size="lg" mb="xs" className={styles.emptyStateTitle}>No tienes guardados</Text>
-                <Text c="dimmed" size="sm" maw={300} mx="auto" className={styles.emptyStateText}>
-                  Guarda series para leerlas más tarde desde la página de cualquier manhwa
-                </Text>
-                <Link href="/biblioteca" style={{ textDecoration: 'none' }}>
-                  <PremiumButton leftSection={<IconBook size={16} />} isDark={isDark} mt="lg">
-                    Explorar biblioteca
-                  </PremiumButton>
-                </Link>
-              </Paper>
-            )}
-          </Tabs.Panel>
-
-          <Tabs.Panel value="activity">
-            <Paper p={isMobile ? 'md' : 'xl'} radius="xl" className={`${styles.activityCard} ${isDark ? styles.darkMode : styles.lightMode}`}>
-              {recentLoading ? (
-                <Stack gap="md">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Group key={i} gap="md" wrap="nowrap">
-                      <Skeleton height={28} width={28} circle />
-                      <Stack gap={4} style={{ flex: 1 }}>
-                        <Skeleton height={14} width="60%" radius="xl" />
-                        <Skeleton height={10} width="30%" radius="xl" />
-                      </Stack>
-                    </Group>
-                  ))}
+              <Center py="xl">
+                <Stack align="center" gap="sm">
+                  <ThemeIcon size={56} radius="xl" variant="light" color="cyan" style={{ opacity: 0.5 }}>
+                    <IconBook size={28} stroke={1.5} />
+                  </ThemeIcon>
+                  <Text size="sm" c="dimmed" ta="center">Empieza a leer y tu progreso aparecerá aquí</Text>
                 </Stack>
-              ) : recentReads.length > 0 ? (
-                <Timeline active={-1} bulletSize={28} lineWidth={2} color="cyan" classNames={{ itemBullet: styles.timelineBullet }}>
-                  {recentReads.map((item, i) => {
-                    const slug = item.slug || item.seriesSlug || '';
-                    const title = item.seriesTitle || item.title || slug;
-                    const chapter = item.chapterNum || item.chapter;
-                    const progress = item.progress || 0;
-                    const date = item.updatedAt || item.syncedAt || item.createdAt;
+              </Center>
+            )}
+          </Stack>
+        </Paper>
 
+        {/* GAMIFICACIÓN */}
+        <Grid gutter={isMobile ? 'sm' : 'lg'} mb="xl" align="stretch">
+
+          {/* NIVEL DE USUARIO */}
+          <Grid.Col span={{ base: 12, md: 5 }}>
+            <Paper p={isMobile ? 'md' : 'xl'} radius="xl" h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
+              <Box style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(234,179,8,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              <Box style={{ position: 'absolute', bottom: -30, left: -30, width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
+                <Group justify="space-between" align="center" wrap="nowrap">
+                  <Group gap="sm">
+                    <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'yellow', to: 'orange', deg: 135 }}><IconStar size={18} /></ThemeIcon>
+                    <Text fw={700} size={isMobile ? 'md' : 'lg'}>Nivel de Usuario</Text>
+                  </Group>
+                  <Badge variant="gradient" gradient={{ from: 'yellow', to: 'orange' }} size="sm" leftSection={<IconSparkles size={10} />}>Próximamente</Badge>
+                </Group>
+                <Group gap="md" align="center" wrap="nowrap">
+                  <Box style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, flexShrink: 0, borderRadius: '50%', background: isDark ? 'linear-gradient(135deg, rgba(234,179,8,0.2), rgba(249,115,22,0.2))' : 'linear-gradient(135deg, rgba(234,179,8,0.15), rgba(249,115,22,0.15))', border: '2px solid rgba(234,179,8,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+                    <Text fw={800} size="xl" style={{ color: 'var(--mantine-color-yellow-5)' }}>?</Text>
+                  </Box>
+                  <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                    <Text fw={600} size="sm" c="dimmed">Novato → Guerrero → Héroe → Leyenda</Text>
+                    <Progress value={35} color="yellow" size="md" radius="xl" style={{ opacity: 0.4 }} />
+                    <Text size="xs" c="dimmed">Sistema de XP por lectura en desarrollo</Text>
+                  </Stack>
+                </Group>
+                <SimpleGrid cols={4} spacing="xs">
+                  {[
+                    { label: 'Novato', icon: IconBook, color: 'gray' },
+                    { label: 'Guerrero', icon: IconSword, color: 'cyan' },
+                    { label: 'Héroe', icon: IconShield, color: 'violet' },
+                    { label: 'Leyenda', icon: IconCrown, color: 'yellow' },
+                  ].map((lvl) => {
+                    const LvlIcon = lvl.icon;
                     return (
-                      <Timeline.Item
-                        key={i}
-                        bullet={progress >= 100 ? <IconCheck size={14} /> : <IconBook size={14} />}
-                        title={
-                          <Group gap="xs" wrap="nowrap">
-                            <Link href={`/manhwa/${slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                              <Text size="sm" fw={600} className={styles.timelineTitle} style={{ cursor: 'pointer' }}>
-                                {title}
-                              </Text>
-                            </Link>
-                            {chapter && (
-                              <Badge size="xs" variant="light" color="cyan">Cap. {chapter}</Badge>
-                            )}
-                            {progress >= 100 && (
-                              <Badge size="xs" variant="light" color="green">Completado</Badge>
-                            )}
-                          </Group>
-                        }
-                      >
-                        <Group gap="xs">
-                          <Text size="xs" c="dimmed" className={styles.timelineDate}>
-                            {formatTimeAgo(date)}
-                          </Text>
-                          {progress > 0 && progress < 100 && (
-                            <Progress value={progress} color="cyan" size="xs" radius="xl" w={60} />
-                          )}
-                        </Group>
-                      </Timeline.Item>
+                      <Stack key={lvl.label} align="center" gap={4} style={{ opacity: 0.4 }}>
+                        <ThemeIcon size={isMobile ? 'sm' : 'md'} radius="xl" variant="light" color={lvl.color}><LvlIcon size={isMobile ? 12 : 14} /></ThemeIcon>
+                        <Text size="xs" c="dimmed" ta="center" lh={1.2}>{lvl.label}</Text>
+                      </Stack>
                     );
                   })}
-                </Timeline>
-              ) : (
-                <Center py="xl">
-                  <Stack align="center" gap="sm">
-                    <ThemeIcon size={60} radius="xl" variant="light" color="gray">
-                      <IconClock size={30} stroke={1.5} />
-                    </ThemeIcon>
-                    <Text fw={600} size="lg" className={styles.emptyStateTitle}>Sin actividad reciente</Text>
-                    <Text c="dimmed" size="sm" ta="center" maw={280}>
-                      Empieza a leer manhwas y tu historial aparecerá aquí
-                    </Text>
-                  </Stack>
-                </Center>
-              )}
+                </SimpleGrid>
+              </Stack>
             </Paper>
-          </Tabs.Panel>
-        </Tabs>
+          </Grid.Col>
+
+          {/* VITRINA DE INSIGNIAS */}
+          <Grid.Col span={{ base: 12, md: 7 }}>
+            <Paper p={isMobile ? 'md' : 'xl'} radius="xl" h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
+              <Box style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
+                <Group justify="space-between" align="center" wrap="nowrap">
+                  <Group gap="sm">
+                    <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'cyan', to: 'violet', deg: 135 }}><IconTrophy size={18} /></ThemeIcon>
+                    <Text fw={700} size={isMobile ? 'md' : 'lg'}>Vitrina de Insignias</Text>
+                  </Group>
+                  <Badge variant="gradient" gradient={{ from: 'cyan', to: 'violet' }} size="sm" leftSection={<IconSparkles size={10} />}>Próximamente</Badge>
+                </Group>
+                <SimpleGrid cols={isMobile ? 3 : 6} spacing={isMobile ? 'xs' : 'sm'}>
+                  {[
+                    { label: 'Lector\nNocturno', icon: IconMoon, color: 'violet', desc: 'Lee de madrugada' },
+                    { label: 'Crítico', icon: IconMessage, color: 'cyan', desc: '10 comentarios' },
+                    { label: 'Devorador', icon: IconFlame, color: 'orange', desc: '100 capítulos' },
+                    { label: 'Veloz', icon: IconBolt, color: 'yellow', desc: 'Lee 5 caps en 1h' },
+                    { label: 'Guardián', icon: IconShield, color: 'teal', desc: 'Racha de 30 días' },
+                    { label: 'Diamante', icon: IconDiamond, color: 'blue', desc: '1000 capítulos' },
+                  ].map((badge) => {
+                    const BadgeIcon = badge.icon;
+                    return (
+                      <Tooltip key={badge.label} label={badge.desc} withArrow position="top">
+                        <Stack align="center" gap={6} style={{ cursor: 'default', padding: rem(isMobile ? 6 : 10), borderRadius: rem(12), background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+                          <Box style={{ position: 'relative' }}>
+                            <ThemeIcon size={isMobile ? 40 : 52} radius="xl" variant="light" color="gray" style={{ opacity: 0.3, filter: 'grayscale(1)' }}>
+                              <BadgeIcon size={isMobile ? 20 : 26} />
+                            </ThemeIcon>
+                            <ThemeIcon size={18} radius="xl" color="dark" variant="filled" style={{ position: 'absolute', bottom: -3, right: -3, opacity: 0.6, background: isDark ? 'rgba(15,23,42,0.9)' : 'rgba(100,100,100,0.8)' }}>
+                              <IconLock size={10} />
+                            </ThemeIcon>
+                          </Box>
+                          <Text size="xs" c="dimmed" ta="center" lh={1.2} style={{ opacity: 0.5, whiteSpace: 'pre-line' }}>{badge.label}</Text>
+                        </Stack>
+                      </Tooltip>
+                    );
+                  })}
+                </SimpleGrid>
+                <Text size="xs" c="dimmed" ta="center" style={{ opacity: 0.6 }}>Las insignias se desbloquearán automáticamente según tu actividad</Text>
+              </Stack>
+            </Paper>
+          </Grid.Col>
+        </Grid>
+
       </Container>
 
       {/* MODAL AVATARES */}
