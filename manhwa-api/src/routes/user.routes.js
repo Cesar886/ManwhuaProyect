@@ -92,6 +92,9 @@ router.get('/me/history', userController.getReadingHistory);
 router.get('/me/bookmarks', userController.getBookmarks);
 router.delete('/me/history', userController.clearHistory);
 
+// XP y nivel del usuario actual
+router.get('/me/xp', userController.getUserXp);
+
 // Admin: gestionar usuarios
 router.get('/', requirePermission('admin:users'), userController.listUsers);
 router.put('/:username/role', requirePermission('users:manage_roles'), userController.updateUserRole);

@@ -4,6 +4,33 @@
 
 const { query, transaction } = require('../config/database');
 const { hasPermission } = require('../config/roles');
+const { getUserBadgeStats } = require('./progress.controller');
+
+/**
+ * Construye el objeto author con badge stats para respuestas.
+ * Nunca lanza — devuelve stats en 0 si falla.
+ */
+const buildAuthorWithBadges = async (user, dbRow = null) => {
+    let badgeStats = { streak: 0, totalChapters: 0, comments: 0, nightReads: 0, maxChaptersPerHour: 0 };
+    const userId = user?.id ?? dbRow?.user_id ?? null;
+    if (userId) {
+        try {
+            badgeStats = await getUserBadgeStats(userId);
+        } catch (_) { /* stats en 0 — no crítico */ }
+    }
+    return {
+        id: userId,
+        username: user?.username ?? dbRow?.username ?? null,
+        displayName: user?.displayName ?? user?.display_name ?? dbRow?.display_name ?? null,
+        avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? dbRow?.avatar_url ?? null,
+        role: user?.role ?? dbRow?.user_role ?? null,
+        streak: badgeStats.streak,
+        totalChapters: badgeStats.totalChapters,
+        comments: badgeStats.comments,
+        nightReads: badgeStats.nightReads,
+        maxChaptersPerHour: badgeStats.maxChaptersPerHour
+    };
+};
 
 /**
  * Obtener un comentario
@@ -85,6 +112,8 @@ const getComment = async (req, res, next) => {
             }
         }
         
+        const author = await buildAuthorWithBadges(null, comment);
+
         res.json({
             success: true,
             data: {
@@ -92,13 +121,7 @@ const getComment = async (req, res, next) => {
                     id: comment.id,
                     content: comment.content,
                     rating: comment.rating,
-                    author: {
-                        id: comment.user_id,
-                        username: comment.username,
-                        displayName: comment.display_name,
-                        avatarUrl: comment.avatar_url,
-                        role: comment.user_role
-                    },
+                    author,
                     targetType: comment.target_type,
                     targetId: comment.target_id,
                     parentId: comment.parent_id,
@@ -160,30 +183,15 @@ const getCommentReplies = async (req, res, next) => {
             [id, limit, req.user?.id || null, offset]
         );
         
-        // Importar función de estadísticas
-        const { getUserBadgeStats } = require('./progress.controller');
-        
         // Enriquecer respuestas con estadísticas de badges
         const enrichedReplies = await Promise.all(
             result.rows.map(async (c) => {
-                const badgeStats = await getUserBadgeStats(c.user_id);
-                
+                const author = await buildAuthorWithBadges(null, c);
+
                 return {
                     id: c.id,
                     content: c.content,
-                    author: {
-                        id: c.user_id,
-                        username: c.username,
-                        displayName: c.display_name,
-                        avatarUrl: c.avatar_url,
-                        role: c.user_role,
-                        // Estadísticas para badges
-                        streak: badgeStats.streak,
-                        totalChapters: badgeStats.totalChapters,
-                        comments: badgeStats.comments,
-                        nightReads: badgeStats.nightReads,
-                        maxChaptersPerHour: badgeStats.maxChaptersPerHour
-                    },
+                    author,
                     likes: c.likes_count,
                     dislikes: c.dislikes_count,
                     isSpoiler: c.is_spoiler,
@@ -433,6 +441,8 @@ const createComment = async (req, res, next) => {
             console.warn('Error sending comment webhook', e && e.message)
         }
         
+        const authorWithBadges = await buildAuthorWithBadges(req.user);
+
         res.status(201).json({
             success: true,
             message: 'Comentario creado',
@@ -443,7 +453,8 @@ const createComment = async (req, res, next) => {
                     rating: comment.rating,
                     isSpoiler: comment.is_spoiler,
                     poll: pollData,
-                    createdAt: comment.created_at
+                    createdAt: comment.created_at,
+                    author: authorWithBadges
                 }
             }
         });
@@ -458,12 +469,7 @@ const createComment = async (req, res, next) => {
                 targetId,
                 isSpoiler: !!comment.is_spoiler,
                 createdAt: comment.created_at,
-                author: {
-                    id: req.user.id,
-                    username: req.user.username,
-                    displayName: req.user.displayName || req.user.username,
-                    avatarUrl: req.user.avatarUrl || null
-                }
+                author: authorWithBadges
             })
             clients.forEach(c => {
                 try {

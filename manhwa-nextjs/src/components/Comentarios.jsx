@@ -140,6 +140,26 @@ const formatTimeAgo = (input) => {
   }
 }
 
+/**
+ * Construye el author para el optimistic update usando la respuesta del servidor.
+ * Si el servidor devuelve author con badge stats, los usa; si no, cae al fallback del user.
+ */
+const buildOptimisticAuthor = (createdAuthor, fallbackUser) => {
+  const base = createdAuthor || {}
+  return {
+    id: base.id ?? fallbackUser?.id ?? null,
+    username: base.username ?? fallbackUser?.username ?? null,
+    displayName: base.displayName ?? fallbackUser?.displayName ?? fallbackUser?.username ?? null,
+    avatarUrl: base.avatarUrl ?? fallbackUser?.avatarUrl ?? null,
+    role: base.role ?? fallbackUser?.role ?? null,
+    streak: base.streak ?? 0,
+    totalChapters: base.totalChapters ?? 0,
+    comments: base.comments ?? 0,
+    nightReads: base.nightReads ?? 0,
+    maxChaptersPerHour: base.maxChaptersPerHour ?? 0,
+  }
+}
+
 // Normalizar objeto de comentario recibido desde la API
 const normalizeApiComment = (c) => {
   if (!c || typeof c !== 'object') return c
@@ -1199,11 +1219,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         newComment = {
           id: created.id ?? created._id,
           content: created.content,
-          author: {
-            id: user?.id,
-            displayName: user?.displayName || user?.username,
-            username: user?.username,
-          },
+          author: buildOptimisticAuthor(created.author, user),
           createdAt: created.createdAt || new Date().toISOString(),
           isSpoiler: !!created.isSpoiler,
           likesCount: 0
@@ -1524,7 +1540,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     return (
       <div style={{ marginLeft: indentation, marginTop: 20 }}>
         {replies.map(r => (
-          <div key={r.id} ref={(el) => { try { if (el) commentNodesRef.current[String(r.id)] = el; else delete commentNodesRef.current[String(r.id)]; } catch { /* noop */ } }} style={{ willChange: 'transform', marginBottom: 18, position: 'relative' }}>
+          <div key={r.id} ref={(el) => { try { if (el) commentNodesRef.current[String(r.id)] = el; else delete commentNodesRef.current[String(r.id)]; } catch { /* noop */ } }} style={{ willChange: 'transform', marginTop: 18, marginBottom: 10, position: 'relative' }}>
             <UserBadges
               userStats={{
                 streak: r.author?.streak || 0,
@@ -1732,16 +1748,11 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           } catch { /* noop */ }
           // Solo procesar si el evento corresponde a este request
           if (data && data.targetType === 'request' && String(data.targetId) === String(detailRequest.id)) {
-            const author = data.author || (user ? {
-              id: user.id,
-              username: user.username,
-              displayName: user.displayName || user.username,
-            } : { displayName: 'Anon' })
-
+            const sseAuthorFallback = user || (data.userId ? { id: data.userId } : null)
             const newC = {
               id: data.id,
               content: data.content,
-              author,
+              author: buildOptimisticAuthor(data.author, sseAuthorFallback),
               createdAt: data.createdAt,
               isSpoiler: !!data.isSpoiler,
               likesCount: 0
@@ -2151,11 +2162,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         const newComment = {
           id: created.id,
           content: created.content,
-          author: {
-            id: user?.id,
-            displayName: user?.displayName || user?.username,
-            username: user?.username,
-          },
+          author: buildOptimisticAuthor(created.author, user),
           createdAt: created.createdAt || new Date().toISOString(),
           isSpoiler: !!created.isSpoiler,
           poll: created.poll || null,
@@ -2872,9 +2879,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 <div
                   key={c.id}
                   ref={(el) => { try { if (el) commentNodesRef.current[String(c.id)] = el; else delete commentNodesRef.current[String(c.id)]; } catch { /* noop */ } }}
-                  style={{ willChange: 'transform', position: 'relative' }}
+                  style={{ willChange: 'transform', position: 'relative', marginTop: index === 0 ? 20 : 20 }}
                 >
-                  {/* Badges FUERA del Card para que overflow:hidden de Mantine no los recorte */}
                   <UserBadges
                     userStats={{
                       streak: c.author?.streak || 0,

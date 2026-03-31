@@ -3,7 +3,8 @@
  * Maneja la sincronización del progreso entre dispositivos
  */
 
-const { query } = require('../config/database');
+const { query, transaction } = require('../config/database');
+const { validateXpGrant, checkLevelUp, XP_CONFIG } = require('../utils/xpSystem');
 
 /**
  * Guardar o actualizar progreso de lectura
@@ -87,15 +88,45 @@ const saveProgress = async (req, res, next) => {
             [userId, seriesId, chapterId, Math.floor(progress)]
         );
 
-        // Registrar dispositivo si se proporciona
+        // Registrar dispositivo si se proporciona (fallo no crítico)
         if (deviceId) {
-            await query(
-                `INSERT INTO user_devices (user_id, device_id, last_sync_at)
-                 VALUES ($1, $2, NOW())
-                 ON CONFLICT (user_id, device_id)
-                 DO UPDATE SET last_sync_at = NOW()`,
-                [userId, deviceId]
-            );
+            try {
+                await query(
+                    `INSERT INTO user_devices (user_id, device_id, last_sync_at)
+                     VALUES ($1, $2, NOW())
+                     ON CONFLICT (user_id, device_id)
+                     DO UPDATE SET last_sync_at = NOW()`,
+                    [userId, deviceId]
+                );
+            } catch (deviceErr) {
+                // No crítico: no interrumpir el guardado del progreso
+            }
+        }
+
+        // ============================================
+        // SISTEMA DE XP - DIFICULTAD EXTREMA
+        // ============================================
+        let xpGranted = null;
+        let levelUpInfo = null;
+
+        // Solo otorgar XP si el capítulo fue completado
+        if (isCompleted) {
+            try {
+                const xpResult = await grantXpForChapterCompletion({
+                    userId,
+                    chapterId,
+                    firstReadAt: result.rows[0].first_read_at,
+                    wasAlreadyCompleted: result.rows[0].is_completed && result.rowCount === 0, // Ya existía completado
+                    seriesSlug: slug,
+                    chapterNum
+                });
+
+                xpGranted = xpResult.xpGranted;
+                levelUpInfo = xpResult.levelUpInfo;
+            } catch (xpError) {
+                // No crítico: el progreso ya se guardó, el XP es secundario
+                console.warn('⚠️ Error otorgando XP:', xpError.message);
+            }
         }
 
         res.json({
@@ -109,7 +140,16 @@ const saveProgress = async (req, res, next) => {
                     totalPages,
                     isCompleted: result.rows[0].is_completed,
                     syncedAt: result.rows[0].synced_at
-                }
+                },
+                // Información de XP si se otorgó
+                ...(xpGranted !== null && {
+                    xp: {
+                        granted: xpGranted,
+                        levelUp: levelUpInfo?.leveledUp || false,
+                        newLevel: levelUpInfo?.newLevel,
+                        levelName: levelUpInfo?.levelName
+                    }
+                })
             }
         });
 
@@ -488,7 +528,8 @@ const getUserBadgeStats = async (userId) => {
                 totalChapters: 0,
                 comments: 0,
                 nightReads: 0,
-                maxChaptersPerHour: 0
+                maxChaptersPerHour: 0,
+                ratings: 0,
             };
         }
 
@@ -537,15 +578,15 @@ const getUserBadgeStats = async (userId) => {
                 WHERE user_id = $1 AND status = 'visible'
             ),
             
-            -- Lecturas nocturnas (00:00 - 05:00)
+            -- Noches distintas de lectura (00:00 - 05:00 UTC)
+            -- Cuenta fechas únicas donde el usuario leyó en madrugada
             night_reads AS (
-                SELECT COUNT(*) as count
+                SELECT COUNT(DISTINCT (read_at AT TIME ZONE 'UTC')::date) as count
                 FROM reading_history
                 WHERE user_id = $1
-                AND EXTRACT(HOUR FROM (read_at AT TIME ZONE 'UTC')) >= 0
-                AND EXTRACT(HOUR FROM (read_at AT TIME ZONE 'UTC')) < 5
+                AND EXTRACT(HOUR FROM (read_at AT TIME ZONE 'UTC')) BETWEEN 0 AND 4
             ),
-            
+
             -- Máximo de capítulos en 1 hora
             max_per_hour AS (
                 SELECT COALESCE(MAX(hourly_count), 0) as count
@@ -555,27 +596,36 @@ const getUserBadgeStats = async (userId) => {
                     WHERE user_id = $1
                     GROUP BY DATE_TRUNC('hour', read_at)
                 ) subq
+            ),
+
+            -- Total de calificaciones del usuario (logro Primera Estrella)
+            total_ratings AS (
+                SELECT COUNT(*) as count
+                FROM chapter_votes
+                WHERE user_id = $1
             )
-            
-            SELECT 
+
+            SELECT
                 CASE WHEN tc.is_active THEN sc.current_streak ELSE 0 END as streak,
                 tch.count as total_chapters,
                 tco.count as comments,
                 nr.count as night_reads,
-                mph.count as max_chapters_per_hour
-            FROM streak_calc sc, today_check tc, total_chapters tch, 
-                 total_comments tco, night_reads nr, max_per_hour mph`,
+                mph.count as max_chapters_per_hour,
+                tr.count as ratings
+            FROM streak_calc sc, today_check tc, total_chapters tch,
+                 total_comments tco, night_reads nr, max_per_hour mph, total_ratings tr`,
             [userId]
         );
 
         const row = result.rows[0];
-        
+
         return {
             streak: parseInt(row?.streak) || 0,
             totalChapters: parseInt(row?.total_chapters) || 0,
             comments: parseInt(row?.comments) || 0,
             nightReads: parseInt(row?.night_reads) || 0,
-            maxChaptersPerHour: parseInt(row?.max_chapters_per_hour) || 0
+            maxChaptersPerHour: parseInt(row?.max_chapters_per_hour) || 0,
+            ratings: parseInt(row?.ratings) || 0,
         };
     } catch (error) {
         console.error('Error getting user badge stats:', error);
@@ -584,9 +634,136 @@ const getUserBadgeStats = async (userId) => {
             totalChapters: 0,
             comments: 0,
             nightReads: 0,
-            maxChaptersPerHour: 0
+            maxChaptersPerHour: 0,
+            ratings: 0,
         };
     }
+};
+
+/**
+ * Otorgar XP por completar un capítulo
+ * Sistema de validación EXTREMADAMENTE restrictivo para evitar spam y farming
+ * 
+ * @param {object} params
+ * @param {string} params.userId - ID del usuario
+ * @param {string} params.chapterId - ID del capítulo
+ * @param {Date} params.firstReadAt - Timestamp de primera lectura
+ * @param {boolean} params.wasAlreadyCompleted - Si ya había completado antes
+ * @param {string} params.seriesSlug - Slug de la serie
+ * @param {number} params.chapterNum - Número de capítulo
+ * @returns {Promise<object>} { xpGranted, levelUpInfo }
+ */
+const grantXpForChapterCompletion = async ({ 
+    userId, 
+    chapterId, 
+    firstReadAt, 
+    wasAlreadyCompleted,
+    seriesSlug,
+    chapterNum 
+}) => {
+    // Usar transacción para garantizar consistencia
+    return await transaction(async (client) => {
+        // 1. Obtener XP y nivel actual del usuario
+        const userResult = await client.query(
+            'SELECT experience, level FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            throw new Error('Usuario no encontrado');
+        }
+        
+        const currentXp = userResult.rows[0].experience || 0;
+        const currentLevel = userResult.rows[0].level || 1;
+        
+        // 2. Calcular tiempo que pasó leyendo (desde first_read_at hasta ahora)
+        const now = new Date();
+        const firstRead = new Date(firstReadAt);
+        const timeSpentSeconds = Math.floor((now - firstRead) / 1000);
+        
+        // 3. Obtener XP ganado hoy
+        const dailyXpResult = await client.query(
+            `SELECT COALESCE(SUM(xp_earned), 0) as daily_xp
+             FROM user_xp_daily
+             WHERE user_id = $1 AND date = CURRENT_DATE`,
+            [userId]
+        );
+        
+        const dailyXpEarned = parseInt(dailyXpResult.rows[0]?.daily_xp) || 0;
+        
+        // 4. Validar si se puede otorgar XP (anti-spam + límites)
+        const validation = validateXpGrant({
+            dailyXpEarned,
+            timeSpentSeconds,
+            alreadyCompleted: wasAlreadyCompleted
+        });
+        
+        // Si no se puede otorgar, retornar sin XP
+        if (!validation.canGrant) {
+            console.log(`⚠️ XP no otorgado para usuario ${userId}: ${validation.reason}`);
+            return {
+                xpGranted: 0,
+                levelUpInfo: null,
+                reason: validation.reason
+            };
+        }
+        
+        const xpToGrant = validation.xpToGrant;
+        
+        // 5. Actualizar experience y level del usuario
+        const newXp = currentXp + xpToGrant;
+        const levelUpCheck = checkLevelUp(currentXp, newXp);
+        
+        await client.query(
+            `UPDATE users 
+             SET experience = $1, 
+                 level = $2,
+                 updated_at = NOW()
+             WHERE id = $3`,
+            [newXp, levelUpCheck.newLevel, userId]
+        );
+        
+        // 6. Registrar en historial de XP (auditoría)
+        await client.query(
+            `INSERT INTO user_xp_history 
+                (user_id, chapter_id, xp_gained, reason, metadata)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+                userId,
+                chapterId,
+                xpToGrant,
+                'chapter_complete',
+                JSON.stringify({
+                    seriesSlug,
+                    chapterNum,
+                    timeSpentSeconds,
+                    dailyXpBefore: dailyXpEarned
+                })
+            ]
+        );
+        
+        // 7. Actualizar contador diario (UPSERT)
+        await client.query(
+            `INSERT INTO user_xp_daily (user_id, date, xp_earned, chapters_read)
+             VALUES ($1, CURRENT_DATE, $2, 1)
+             ON CONFLICT (user_id, date)
+             DO UPDATE SET
+                 xp_earned = user_xp_daily.xp_earned + $2,
+                 chapters_read = user_xp_daily.chapters_read + 1,
+                 updated_at = NOW()`,
+            [userId, xpToGrant]
+        );
+        
+        // 8. Log para monitoreo
+        console.log(`✅ XP otorgado: ${xpToGrant} XP para usuario ${userId} | Total: ${newXp} XP | Nivel: ${levelUpCheck.newLevel}${levelUpCheck.leveledUp ? ' 🎉 LEVEL UP!' : ''}`);
+        
+        return {
+            xpGranted: xpToGrant,
+            levelUpInfo: levelUpCheck,
+            newTotalXp: newXp,
+            dailyXpTotal: dailyXpEarned + xpToGrant
+        };
+    });
 };
 
 module.exports = {
@@ -598,5 +775,6 @@ module.exports = {
     streamStreak,
     deleteProgress,
     clearAllProgress,
-    getUserBadgeStats  // Exportar para uso en otros controladores
+    getUserBadgeStats,  // Exportar para uso en otros controladores
+    grantXpForChapterCompletion  // Exportar para testing
 };

@@ -40,6 +40,7 @@ const createChapterValidation = [
 // la ruta genérica con requireApiKeyOrAuth las eclipse.
 router.post('/:seriesSlug/:chapterNum/rate',
     voteLimiter,
+    optionalAuth,
     validate([
         param('seriesSlug').trim().notEmpty().withMessage('Slug de serie requerido'),
         param('chapterNum').isFloat({ min: 0 }).withMessage('Número de capítulo inválido'),

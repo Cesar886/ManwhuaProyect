@@ -1,8 +1,7 @@
 'use client';
 
 import { Tooltip } from '@mantine/core';
-import { StreakFlame } from '@/components/achievements/Logros';
-import { ACHIEVEMENT_CATALOG } from '@/components/achievements/Achievements';
+import { StreakFlame, ACHIEVEMENT_CATALOG } from '@/components/achievements/Achievements';
 import styles from './UserBadges.module.css';
 
 /* ============================================================
@@ -57,13 +56,13 @@ export function selectTopBadges(userStats = {}, maxBadges = 3) {
 function BadgeIcon({ badge, size = 'compact', showTooltip = true }) {
   const Icon = badge.icon;
 
-  // Renderizado especial para racha
+  // Renderizado especial para racha — llama pequeña sobre el borde del card
   if (badge.id === 'streak') {
     const element = (
-      <div className={styles.badgeWrapper}>
-        <StreakFlame 
-          streak={badge.stats.streak} 
-          iconOnly 
+      <div className={`${styles.badgeWrapper} ${styles.streakBadge}`}>
+        <StreakFlame
+          streak={badge.stats.streak}
+          iconOnly
         />
       </div>
     );
@@ -71,7 +70,7 @@ function BadgeIcon({ badge, size = 'compact', showTooltip = true }) {
     if (!showTooltip) return element;
 
     return (
-      <Tooltip 
+      <Tooltip
         label={`🔥 Racha de ${badge.stats.streak} día${badge.stats.streak !== 1 ? 's' : ''}`}
         withArrow
         position="top"
@@ -82,8 +81,8 @@ function BadgeIcon({ badge, size = 'compact', showTooltip = true }) {
   }
 
   // Otros badges
-  const iconSize = size === 'compact' ? 16 : 20;
-  const containerSize = size === 'compact' ? 24 : 32;
+  const iconSize = size === 'compact' ? 13 : 20;
+  const containerSize = size === 'compact' ? 20 : 32;
 
   const element = (
     <div 
@@ -96,7 +95,7 @@ function BadgeIcon({ badge, size = 'compact', showTooltip = true }) {
         alignItems: 'center',
         justifyContent: 'center',
         background: `var(--mantine-color-${badge.color}-1)`,
-        border: `2px solid var(--mantine-color-${badge.color}-3)`,
+        border: `1px solid var(--mantine-color-${badge.color}-3)`,
       }}
     >
       <Icon size={iconSize} color={`var(--mantine-color-${badge.color}-7)`} />

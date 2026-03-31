@@ -597,14 +597,16 @@ const rateChapter = async (req, res, next) => {
         }
 
         const chapterNumParsed = parseFloat(chapterNum);
+        const userId = req.user?.id || null;
 
-        // Upsert: insertar o actualizar voto
+        // Upsert: insertar o actualizar voto. Guardar user_id si el usuario está autenticado.
         await query(
-            `INSERT INTO chapter_votes (series_slug, chapter_number, visitor_id, rating)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO chapter_votes (series_slug, chapter_number, visitor_id, rating, user_id)
+             VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT (series_slug, chapter_number, visitor_id)
-             DO UPDATE SET rating = $4, updated_at = NOW()`,
-            [seriesSlug, chapterNumParsed, visitorId, rating]
+             DO UPDATE SET rating = $4, updated_at = NOW(),
+                           user_id = COALESCE(chapter_votes.user_id, $5)`,
+            [seriesSlug, chapterNumParsed, visitorId, rating, userId]
         );
 
         // Sistema de cuarentena: detectar picos de votos
