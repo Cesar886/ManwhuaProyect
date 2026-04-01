@@ -46,14 +46,10 @@ export function useChapterReaders(slug, numero) {
                     try {
                         const d = JSON.parse(e.data);
                         
-                        console.log('📨 [SSE] Datos recibidos:', d);
-                        
                         // Validar estructura de datos
                         if (d && typeof d === 'object') {
                             const readers = Array.isArray(d.readers) ? d.readers : [];
                             const count = typeof d.count === 'number' ? d.count : readers.length;
-                            
-                            console.log('👥 [SSE] Lectores en payload:', readers.map(r => `${r.username} (${r.userId})`));
                             
                             // Filtrar lectores válidos
                             const validReaders = readers.filter(r => 
@@ -77,15 +73,22 @@ export function useChapterReaders(slug, numero) {
                     setIsConnected(false);
                     es.close();
                     
-                    // Intentar reconectar con backoff exponencial
+                    // Detectar si es error de autenticación
+                    if (err?.status === 401 || err?.type === 'error') {
+                        console.warn('[ChapterReaders] ⛔ Error de autenticación (401) - usuario debe estar logueado');
+                        // No reintentar si es error de autenticación
+                        setData({ count: 0, readers: [] });
+                        return;
+                    }
+                    
+                    // Intentar reconectar con backoff exponencial para otros errores
                     reconnectAttempts.current++;
                     const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
                     
                     if (reconnectAttempts.current <= 5) {
-                        console.log(`[ChapterReaders] Reconectando en ${delay}ms (intento ${reconnectAttempts.current})`);
                         reconnectTimeoutRef.current = setTimeout(connect, delay);
                     } else {
-                        console.error('[ChapterReaders] Max intentos de reconexión alcanzados');
+                        setData({ count: 0, readers: [] });
                     }
                 };
 

@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate, optionalAuth } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
 /** Notifica a todos los watchers de un userId su nuevo estado */
 function broadcastPresence(app, userId, isOnline) {
@@ -100,17 +100,28 @@ router.get('/:userId/watch', (req, res) => {
    LECTORES DE CAPÍTULO EN TIEMPO REAL
    ============================================================ */
 
-/** Serializa el set de lectores de un capítulo para enviar por SSE */
-function buildReadersPayload(app, key) {
-    const set = app.locals.chapterReaders.get(key);
+/** Serializa el set de lectores para enviar por SSE (deduplicado por usuario) */
+function buildReadersPayloadFromSet(set) {
     if (!set || set.size === 0) return { count: 0, readers: [] };
-    const readers = [...set].map(r => ({
-        userId:      r.userId,
-        username:    r.username,
-        displayName: r.displayName,
-        avatarUrl:   r.avatarUrl || null,
-    }));
+    const uniqueReaders = new Map();
+    for (const r of set) {
+        const userKey = String(r.userId || r.username || '');
+        if (!userKey || uniqueReaders.has(userKey)) continue;
+        uniqueReaders.set(userKey, {
+            userId:      r.userId,
+            username:    r.username,
+            displayName: r.displayName,
+            avatarUrl:   r.avatarUrl || null,
+        });
+    }
+    const readers = [...uniqueReaders.values()];
     return { count: readers.length, readers };
+}
+
+/** Serializa lectores desde un map de presencia y una key */
+function buildReadersPayload(app, mapName, key) {
+    const set = app.locals[mapName]?.get(key);
+    return buildReadersPayloadFromSet(set);
 }
 
 /** Envía el estado actual al cliente SSE dado */
@@ -125,28 +136,20 @@ function sendReadersTo(res, payload) {
 }
 
 /** Broadcast a todos los lectores del mismo capítulo */
-function broadcastChapterReaders(app, key) {
-    const payload = buildReadersPayload(app, key);
-    const set = app.locals.chapterReaders.get(key);
+function broadcastReaders(app, mapName, key) {
+    const payload = buildReadersPayload(app, mapName, key);
+    const set = app.locals[mapName]?.get(key);
     if (!set) return;
-    
-    console.log(`[ChapterReaders] 📢 Broadcasting a ${set.size} conexiones`);
-    console.log(`[ChapterReaders] 📦 Payload:`, payload.readers.map(r => r.username));
-    
+
     const deadConnections = [];
-    let sent = 0;
     for (const r of set) {
         if (r.res.writableEnded) {
             deadConnections.push(r);
         } else {
             sendReadersTo(r.res, payload);
-            sent++;
-            console.log(`[ChapterReaders] ✉️ Enviado a: ${r.username}`);
         }
     }
-    
-    console.log(`[ChapterReaders] ✅ Broadcast completado: ${sent} enviados, ${deadConnections.length} muertos`);
-    
+
     // Limpiar conexiones muertas
     if (deadConnections.length > 0) {
         for (const dead of deadConnections) {
@@ -155,13 +158,22 @@ function broadcastChapterReaders(app, key) {
     }
 }
 
+function broadcastChapterReaders(app, key) {
+    broadcastReaders(app, 'chapterReaders', key);
+}
+
+function broadcastManhwaReaders(app, slug) {
+    broadcastReaders(app, 'manhwaReaders', slug);
+}
+
 /**
  * GET /api/presence/chapter/:slug/:numero/stream
  * SSE — emite en tiempo real quién está leyendo este capítulo.
- * Usuarios autenticados se añaden a la lista; anónimos solo escuchan.
+ * Solo usuarios autenticados pueden conectarse y ver lectores.
  */
-router.get('/chapter/:slug/:numero/stream', optionalAuth, (req, res) => {
+router.get('/chapter/:slug/:numero/stream', authenticate, (req, res) => {
     const app = req.app;
+    const slug = req.params.slug;
     const key = `${req.params.slug}_${req.params.numero}`;
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -171,7 +183,7 @@ router.get('/chapter/:slug/:numero/stream', optionalAuth, (req, res) => {
     res.flushHeaders(); // Enviar headers inmediatamente
 
     // Enviar estado actual inmediatamente
-    sendReadersTo(res, buildReadersPayload(app, key));
+    sendReadersTo(res, buildReadersPayload(app, 'chapterReaders', key));
 
     let reader = null;
 
@@ -195,16 +207,16 @@ router.get('/chapter/:slug/:numero/stream', optionalAuth, (req, res) => {
             };
             
             app.locals.chapterReaders.get(key).add(reader);
-            
-            console.log(`[ChapterReaders] ✅ Usuario agregado: ${reader.username} → ${key}`);
-            console.log(`[ChapterReaders] 📊 Total lectores ahora: ${app.locals.chapterReaders.get(key).size}`);
-            console.log(`[ChapterReaders] 📋 Lista actual:`, [...app.locals.chapterReaders.get(key)].map(r => r.username));
-            
+
+            if (!app.locals.manhwaReaders.has(slug)) {
+                app.locals.manhwaReaders.set(slug, new Set());
+            }
+            app.locals.manhwaReaders.get(slug).add(reader);
+
             // Notificar a todos (incluido el recién llegado)
             broadcastChapterReaders(app, key);
+            broadcastManhwaReaders(app, slug);
         }
-    } else {
-        console.log(`[ChapterReaders] Anónimo conectado → ${key}`);
     }
 
     // Heartbeat cada 25s para mantener conexión viva
@@ -213,7 +225,6 @@ router.get('/chapter/:slug/:numero/stream', optionalAuth, (req, res) => {
             res.write(': ping\n\n'); 
         } catch (err) { 
             clearInterval(heartbeat);
-            console.warn(`[ChapterReaders] Heartbeat failed → ${key}`);
         }
     }, 25000);
 
@@ -230,7 +241,51 @@ router.get('/chapter/:slug/:numero/stream', optionalAuth, (req, res) => {
                     broadcastChapterReaders(app, key);
                 }
             }
+
+            const manhwaSet = app.locals.manhwaReaders.get(slug);
+            if (manhwaSet) {
+                manhwaSet.delete(reader);
+                if (manhwaSet.size === 0) {
+                    app.locals.manhwaReaders.delete(slug);
+                } else {
+                    broadcastManhwaReaders(app, slug);
+                }
+            }
         }
+    });
+});
+
+/**
+ * GET /api/presence/manhwa/:slug/stream
+ * SSE — emite en tiempo real quién está leyendo este manhwa (solo lectores de capítulos).
+ * Solo escucha, NO agrega al usuario a la lista — los lectores vienen de capítulos que el usuario abre.
+ * Solo usuarios autenticados pueden conectarse.
+ */
+router.get('/manhwa/:slug/stream', authenticate, (req, res) => {
+    const app = req.app;
+    const slug = req.params.slug;
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    // Enviar estado actual inmediatamente
+    sendReadersTo(res, buildReadersPayload(app, 'manhwaReaders', slug));
+
+    // Heartbeat cada 25s para mantener conexión viva
+    const heartbeat = setInterval(() => {
+        try {
+            res.write(': ping\n\n');
+        } catch (_) {
+            clearInterval(heartbeat);
+        }
+    }, 25000);
+
+    // Solo se cierra la conexión cuando el cliente se desconecta
+    req.on('close', () => {
+        clearInterval(heartbeat);
     });
 });
 

@@ -60,6 +60,8 @@ app.locals.onlineUsers = new Map()
 app.locals.presenceWatchers = []
 // Lectores por capítulo: Map<"slug_numero", Set<reader>>
 app.locals.chapterReaders = new Map()
+// Lectores por manhwa (detalle + capítulos): Map<"slug", Set<reader>>
+app.locals.manhwaReaders = new Map()
 
 // ============================================
 // CONFIGURACIÓN DE SEGURIDAD
@@ -503,6 +505,23 @@ const startServer = async () => {
                         }
                         if (set.size === 0) {
                             app.locals.chapterReaders.delete(key);
+                        }
+                        zombiesRemoved += before - set.size;
+                    }
+                }
+
+                // Limpieza de lectores de manhwa zombies
+                if (app.locals.manhwaReaders?.size > 0) {
+                    for (const [key, set] of app.locals.manhwaReaders.entries()) {
+                        const before = set.size;
+                        for (const r of set) {
+                            const age = now - (r.connectedAt || now);
+                            if (age > SSE_CLIENT_TIMEOUT) {
+                                set.delete(r);
+                            }
+                        }
+                        if (set.size === 0) {
+                            app.locals.manhwaReaders.delete(key);
                         }
                         zombiesRemoved += before - set.size;
                     }

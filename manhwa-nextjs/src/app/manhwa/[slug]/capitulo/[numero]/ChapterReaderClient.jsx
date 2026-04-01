@@ -91,54 +91,44 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   // Lectores en tiempo real del capítulo actual (excluye al usuario actual)
   const { readers: allReaders, isConnected } = useChapterReaders(slug, chapterNum);
   
-  // Filtrar al usuario actual de forma más robusta
+  // Filtrar: mostrar solo otros usuarios (no al usuario actual)
+  // Solo usuarios autenticados pueden ver this feature
   const readers = React.useMemo(() => {
     if (!Array.isArray(allReaders)) return [];
     
-    console.log('🔍 [Debug] Usuario actual:', user?.username, 'ID:', user?.id);
-    console.log('📋 [Debug] Lectores recibidos:', allReaders.map(r => `${r.username} (ID: ${r.userId})`));
-    
-    // Si no hay usuario autenticado, mostrar todos los lectores
-    if (!user) {
-      console.log('⚠️ [Debug] No hay usuario, mostrando todos');
-      return allReaders;
+    // Si no hay usuario autenticado, no mostrar nada
+    if (!user?.id) {
+      return [];
     }
     
-    const filtered = allReaders.filter(r => {
-      // Asegurar que el lector tenga identificador
-      if (!r || (!r.userId && !r.username)) {
-        console.log('❌ [Debug] Rechazado (sin ID):', r);
+    // Filtrar lectores válidos - excluye al usuario actual
+    const filtered = allReaders.filter(reader => {
+      // Validar que el lector sea válido
+      if (!reader || typeof reader !== 'object') {
         return false;
       }
       
-      // Convertir ambos a string para comparación segura
-      const readerUserId = String(r.userId);
-      const currentUserId = String(user?.id);
-      
-      console.log('🔎 [Debug] Comparando:', {
-        lector: r.username,
-        readerUserId,
-        currentUserId,
-        sonIguales: readerUserId === currentUserId
-      });
-      
-      // Filtrar por ID (más confiable)
-      if (user?.id && r.userId && readerUserId === currentUserId) {
-        console.log('🚫 [Debug] RECHAZADO (es mi ID):', r.username);
+      // Validar que tenga al menos ID o username
+      if (!reader.userId && !reader.username) {
         return false;
       }
       
-      // Filtrar por username (fallback)
-      if (user?.username && r.username && r.username === user.username) {
-        console.log('🚫 [Debug] RECHAZADO (es mi username):', r.username);
+      // Comparar por ID (más confiable)
+      if (reader.userId && user.id) {
+        const isSameUser = Number(reader.userId) === Number(user.id);
+        if (isSameUser) {
+          return false;
+        }
+      }
+      
+      // Comparar por username como fallback
+      if (reader.username && user.username && reader.username === user.username) {
         return false;
       }
       
-      console.log('✅ [Debug] ACEPTADO:', r.username);
       return true;
     });
     
-    console.log('🎯 [Debug] Resultado final:', filtered.map(r => r.username));
     return filtered;
   }, [allReaders, user]);
   
@@ -669,7 +659,6 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
                 // Generar un key único más robusto
                 const uniqueKey = r.userId || r.username || `reader-${i}`;
                 const displayName = r.displayName || r.username || 'Usuario';
-                const initials = displayName.substring(0, 2).toUpperCase();
                 
                 return (
                   <Tooltip
@@ -692,18 +681,18 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
                   >
                     <Avatar
                       src={r.avatarUrl}
-                      alt={displayName}
+                      name={displayName}
                       size={48}
                       radius="xl"
+                      color="initials"
+                      allowedInitialsColors={['cyan', 'pink', 'violet', 'yellow', 'orange', 'teal']}
                       style={{ 
                         cursor: 'default',
                         border: '2px solid rgba(255,255,255,0.1)',
                         transition: 'transform 0.2s ease',
-                        backgroundColor: r.avatarUrl ? 'transparent' : undefined
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                       }}
-                    >
-                      {!r.avatarUrl && initials}
-                    </Avatar>
+                    />
                   </Tooltip>
                 );
               })}

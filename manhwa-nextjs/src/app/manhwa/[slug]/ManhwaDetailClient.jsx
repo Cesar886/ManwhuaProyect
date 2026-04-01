@@ -25,13 +25,14 @@ import styles from './ManhwaDetail.module.css';
 import SeriesEditModalV2 from '../../../components/SeriesEditModalV2';
 import Comentarios from '../../../components/Comentarios';
 import { normalizeImageUrl } from '../../../utils/imageUtils';
-import { Pill, Container, Skeleton, Group, Stack, Box, Badge as MantineBadge } from '@mantine/core';
+import { Pill, Container, Skeleton, Group, Stack, Box, Avatar, Badge as MantineBadge } from '@mantine/core';
 import ManhwaCover from '../../../components/ManhwaCover';
 import Header from '@/components/Header';
 import AdsterraNativeBanner from '../../../components/AdsterraNativeBanner';
 import Script from 'next/script';
 import SimilarManhwas from '../../../components/SimilarManhwas';
 import { slugifyQuery } from '@/hooks/useIA';
+import { useManhwaReaders } from '../../../hooks/useManhwaReaders';
 import LinkedSynopsis from '../../../components/LinkedSynopsis';
 import SeriesRating from '../../../components/SeriesRating';
 // SEO: Constantes para contenido optimizado
@@ -415,8 +416,35 @@ const RelatedSeriesCard = ({ series, basePath = '/manhwa' }) => (
 export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
   const params = useParams();
   const slug = params?.slug;
-  const { series: hookSeries, loading, error, refetch } = useSeriesDetail(slug, initialSeries);
   const { user, openLogin } = useAuth();
+  const { series: hookSeries, loading, error, refetch } = useSeriesDetail(slug, initialSeries);
+  const { readers: allManhwaReaders } = useManhwaReaders(slug);
+
+  const manhwaReaders = useMemo(() => {
+    if (!Array.isArray(allManhwaReaders)) return [];
+    if (!user) return [];
+
+    return allManhwaReaders.filter((reader) => {
+      if (!reader || typeof reader !== 'object') return false;
+      if (!reader.userId && !reader.username) return false;
+
+      if (
+        reader.userId &&
+        user?.id &&
+        String(reader.userId) === String(user.id)
+      ) {
+        return false;
+      }
+
+      if (reader.username && user.username && reader.username === user.username) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [allManhwaReaders, user]);
+
+  const manhwaReadersCount = manhwaReaders.length;
   const [hasHydrated, setHasHydrated] = useState(false);
 
   // IMPORTANTE para SEO: Usar initialSeries como fallback si el hook no tiene datos
@@ -1181,6 +1209,36 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
               <IconSparkles size={14} />
               Buscar similares con IA
             </Link>
+
+            {manhwaReadersCount > 0 && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <Group gap={8} justify="center">
+                  <Avatar.Group spacing="sm">
+                    {manhwaReaders.slice(0, 5).map((r, i) => {
+                      const uniqueKey = r.userId || r.username || `reader-${i}`;
+                      const displayName = r.displayName || r.username || 'Usuario';
+
+                      return (
+                        <Avatar
+                          key={uniqueKey}
+                          src={r.avatarUrl}
+                          name={displayName}
+                          size={40}
+                          radius="xl"
+                          color="initials"
+                          allowedInitialsColors={['cyan', 'pink', 'violet', 'yellow', 'orange', 'teal']}
+                        />
+                      );
+                    })}
+                    {manhwaReadersCount > 5 && (
+                      <Avatar size={40} radius="xl" color="gray">
+                        +{manhwaReadersCount - 5}
+                      </Avatar>
+                    )}
+                  </Avatar.Group>
+                </Group>
+              </div>
+            )}
 
             {merch.length > 0 && (
               <div className={styles.merchSection}>
