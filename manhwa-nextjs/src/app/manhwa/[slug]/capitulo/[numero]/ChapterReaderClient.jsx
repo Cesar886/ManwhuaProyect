@@ -18,6 +18,8 @@ import ReadingProgressBar from '../../../../../components/ReadingProgressBar';
 import ChapterRating from '../../../../../components/ChapterRating';
 import AdsterraNativeBanner from '../../../../../components/AdsterraNativeBanner';
 import Script from 'next/script';
+import { Avatar, Group, Text, Tooltip } from '@mantine/core';
+import { useChapterReaders } from '../../../../../hooks/useChapterReaders';
 
 // Carga dinámica para evitar que el CSS de Mantine sea preloaded innecesariamente
 const Comentarios = dynamic(() => import('../../../../../components/Comentarios'), { ssr: false });
@@ -83,6 +85,65 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
     return () => window.removeEventListener('popstate', handlePopState);
   }, [chapterNum]);
 
+  // Obtener usuario autenticado (DEBE estar antes de usarlo en readers)
+  const { user } = useAuth();
+
+  // Lectores en tiempo real del capítulo actual (excluye al usuario actual)
+  const { readers: allReaders, isConnected } = useChapterReaders(slug, chapterNum);
+  
+  // Filtrar al usuario actual de forma más robusta
+  const readers = React.useMemo(() => {
+    if (!Array.isArray(allReaders)) return [];
+    
+    console.log('🔍 [Debug] Usuario actual:', user?.username, 'ID:', user?.id);
+    console.log('📋 [Debug] Lectores recibidos:', allReaders.map(r => `${r.username} (ID: ${r.userId})`));
+    
+    // Si no hay usuario autenticado, mostrar todos los lectores
+    if (!user) {
+      console.log('⚠️ [Debug] No hay usuario, mostrando todos');
+      return allReaders;
+    }
+    
+    const filtered = allReaders.filter(r => {
+      // Asegurar que el lector tenga identificador
+      if (!r || (!r.userId && !r.username)) {
+        console.log('❌ [Debug] Rechazado (sin ID):', r);
+        return false;
+      }
+      
+      // Convertir ambos a string para comparación segura
+      const readerUserId = String(r.userId);
+      const currentUserId = String(user?.id);
+      
+      console.log('🔎 [Debug] Comparando:', {
+        lector: r.username,
+        readerUserId,
+        currentUserId,
+        sonIguales: readerUserId === currentUserId
+      });
+      
+      // Filtrar por ID (más confiable)
+      if (user?.id && r.userId && readerUserId === currentUserId) {
+        console.log('🚫 [Debug] RECHAZADO (es mi ID):', r.username);
+        return false;
+      }
+      
+      // Filtrar por username (fallback)
+      if (user?.username && r.username && r.username === user.username) {
+        console.log('🚫 [Debug] RECHAZADO (es mi username):', r.username);
+        return false;
+      }
+      
+      console.log('✅ [Debug] ACEPTADO:', r.username);
+      return true;
+    });
+    
+    console.log('🎯 [Debug] Resultado final:', filtered.map(r => r.username));
+    return filtered;
+  }, [allReaders, user]);
+  
+  const readersCount = readers.length;
+
   // Navegación instantánea: solo cambia estado + URL, sin Next.js routing
   const navigateToChapter = useCallback((targetChapter) => {
     const newUrl = `${seriesBasePath}/${slug}/capitulo/${targetChapter}`;
@@ -94,7 +155,6 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   // Usar initialPages como estado inicial → disponible en el primer render (SSR)
   const { pages: hookPages } = useChapterPages(slug, chapterNum);
   const { series: hookSeries } = useSeriesDetail(slug);
-  const { user } = useAuth();
 
   // Combinar datos SSR con datos del hook (hook puede actualizar tras hidratación)
   const pages = hookPages.length > 0 ? hookPages : initialPages;
@@ -602,6 +662,88 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           onNavigate={navigateToChapter}
           seriesBasePath={seriesBasePath}
         />
+        {readersCount > 0 && (
+          <Group justify="center" style={{ marginTop: '0.75rem' }}>
+            <Avatar.Group spacing="sm">
+              {readers.slice(0, 4).map((r, i) => {
+                // Generar un key único más robusto
+                const uniqueKey = r.userId || r.username || `reader-${i}`;
+                const displayName = r.displayName || r.username || 'Usuario';
+                const initials = displayName.substring(0, 2).toUpperCase();
+                
+                return (
+                  <Tooltip
+                    key={uniqueKey}
+                    label={displayName}
+                    withArrow
+                    position="top"
+                    styles={{
+                      tooltip: {
+                        background: 'rgba(15,23,42,0.95)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                        backdropFilter: 'blur(8px)',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        padding: '4px 10px',
+                      },
+                      arrow: { background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.1)' },
+                    }}
+                  >
+                    <Avatar
+                      src={r.avatarUrl}
+                      alt={displayName}
+                      size={48}
+                      radius="xl"
+                      style={{ 
+                        cursor: 'default',
+                        border: '2px solid rgba(255,255,255,0.1)',
+                        transition: 'transform 0.2s ease',
+                        backgroundColor: r.avatarUrl ? 'transparent' : undefined
+                      }}
+                    >
+                      {!r.avatarUrl && initials}
+                    </Avatar>
+                  </Tooltip>
+                );
+              })}
+              {readersCount > 4 && (
+                <Tooltip
+                  label={`+${readersCount - 4} más leyendo`}
+                  withArrow
+                  position="top"
+                  styles={{
+                    tooltip: {
+                      background: 'rgba(15,23,42,0.95)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      padding: '4px 10px',
+                    },
+                    arrow: { background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.1)' },
+                  }}
+                >
+                  <Avatar
+                    size={48}
+                    radius="xl"
+                    style={{ 
+                      background: 'rgba(99,102,241,0.2)', 
+                      cursor: 'default',
+                      border: '2px solid rgba(255,255,255,0.1)',
+                      transition: 'transform 0.2s ease'
+                    }}
+                  >
+                    <Text size="sm" fw={700} style={{ color: '#a5b4fc' }}>
+                      +{readersCount - 4}
+                    </Text>
+                  </Avatar>
+                </Tooltip>
+              )}
+            </Avatar.Group>
+          </Group>
+        )}
       </div>
 
       {/* Adsterra Native Banner - debajo de navegación */}

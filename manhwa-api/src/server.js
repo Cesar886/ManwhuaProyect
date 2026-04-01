@@ -58,6 +58,8 @@ app.locals.streakClients = []
 app.locals.onlineUsers = new Map()
 // Watchers de presencia: [{ userId, res, connectedAt }]
 app.locals.presenceWatchers = []
+// Lectores por capítulo: Map<"slug_numero", Set<reader>>
+app.locals.chapterReaders = new Map()
 
 // ============================================
 // CONFIGURACIÓN DE SEGURIDAD
@@ -487,6 +489,23 @@ const startServer = async () => {
                         return age <= SSE_CLIENT_TIMEOUT;
                     });
                     zombiesRemoved += beforeCount - app.locals.presenceWatchers.length;
+                }
+
+                // Limpieza de lectores de capítulos zombies
+                if (app.locals.chapterReaders?.size > 0) {
+                    for (const [key, set] of app.locals.chapterReaders.entries()) {
+                        const before = set.size;
+                        for (const r of set) {
+                            const age = now - (r.connectedAt || now);
+                            if (age > SSE_CLIENT_TIMEOUT) {
+                                set.delete(r);
+                            }
+                        }
+                        if (set.size === 0) {
+                            app.locals.chapterReaders.delete(key);
+                        }
+                        zombiesRemoved += before - set.size;
+                    }
                 }
 
                 try {
