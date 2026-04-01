@@ -10,7 +10,7 @@ import { ENDPOINTS } from '@/config';
  * @param {string|number} numero - Número del capítulo
  * @returns {{ count: number, readers: Array<{userId, username, displayName, avatarUrl}>, isConnected: boolean }}
  */
-export function useChapterReaders(slug, numero) {
+export function useChapterReaders(slug, numero, { enabled = true } = {}) {
     const [data, setData] = useState({ count: 0, readers: [] });
     const [isConnected, setIsConnected] = useState(false);
     const eventSourceRef = useRef(null);
@@ -18,7 +18,7 @@ export function useChapterReaders(slug, numero) {
     const reconnectAttempts = useRef(0);
 
     useEffect(() => {
-        if (!slug || !numero) {
+        if (!slug || !numero || !enabled) {
             setData({ count: 0, readers: [] });
             setIsConnected(false);
             return;
@@ -68,23 +68,14 @@ export function useChapterReaders(slug, numero) {
                     }
                 };
 
-                es.onerror = (err) => {
-                    console.warn('[ChapterReaders] Error de conexión:', err);
+                es.onerror = () => {
                     setIsConnected(false);
                     es.close();
-                    
-                    // Detectar si es error de autenticación
-                    if (err?.status === 401 || err?.type === 'error') {
-                        console.warn('[ChapterReaders] ⛔ Error de autenticación (401) - usuario debe estar logueado');
-                        // No reintentar si es error de autenticación
-                        setData({ count: 0, readers: [] });
-                        return;
-                    }
-                    
-                    // Intentar reconectar con backoff exponencial para otros errores
+
+                    // Reconectar con backoff exponencial
                     reconnectAttempts.current++;
                     const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
-                    
+
                     if (reconnectAttempts.current <= 5) {
                         reconnectTimeoutRef.current = setTimeout(connect, delay);
                     } else {
@@ -113,7 +104,7 @@ export function useChapterReaders(slug, numero) {
             setIsConnected(false);
             setData({ count: 0, readers: [] });
         };
-    }, [slug, numero]);
+    }, [slug, numero, enabled]);
 
     return { ...data, isConnected };
 }

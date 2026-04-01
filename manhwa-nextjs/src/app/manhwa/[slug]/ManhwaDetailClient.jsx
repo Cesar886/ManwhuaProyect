@@ -418,7 +418,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
   const slug = params?.slug;
   const { user, openLogin } = useAuth();
   const { series: hookSeries, loading, error, refetch } = useSeriesDetail(slug, initialSeries);
-  const { readers: allManhwaReaders } = useManhwaReaders(slug);
+  const { readers: allManhwaReaders } = useManhwaReaders(slug, { enabled: !!user?.id });
 
   const manhwaReaders = useMemo(() => {
     if (!Array.isArray(allManhwaReaders)) return [];

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import Script from 'next/script';
 
 const AD_CONTAINER_ID = 'container-72b3b145adb1b54525609f8133622419';
 
@@ -236,25 +236,17 @@ const adStyles = `
 `;
 
 export default function AdsterraNativeBanner() {
-  const containerRef = useRef(null);
-  const loaded = useRef(false);
-
-  useEffect(() => {
-    if (loaded.current || !containerRef.current) return;
-    loaded.current = true;
-
-    const script = document.createElement('script');
-    script.src = 'https://pl28961764.profitablecpmratenetwork.com/72b3b145adb1b54525609f8133622419/invoke.js';
-    script.async = true;
-    script.setAttribute('data-cfasync', 'false');
-    containerRef.current.parentNode.insertBefore(script, containerRef.current.nextSibling);
-  }, []);
-
   return (
     <section className="ad-native-section">
       <style>{adStyles}</style>
       <div className="ad-native-card">
-        <div id={AD_CONTAINER_ID} ref={containerRef} />
+        <div id={AD_CONTAINER_ID} />
+        <Script
+          id="adsterra-native-banner"
+          src="https://landslidegraphsystems.com/72b3b145adb1b54525609f8133622419/invoke.js"
+          strategy="lazyOnload"
+          data-cfasync="false"
+        />
       </div>
     </section>
   );

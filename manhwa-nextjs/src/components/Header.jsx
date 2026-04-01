@@ -42,8 +42,8 @@ const NAVIGATION_TABS = [
   { label: 'Inicio', icon: IconHome, value: 'home', path: '/home' },
   { label: 'Biblioteca', icon: IconBooks, value: 'Biblioteca', path: '/biblioteca' },
   { label: 'Manga', icon: IconBook, value: 'Manga', path: '/mangas' },
-  // { label: 'Populares', icon: IconTrendingUp, value: 'Populares', path: '/populares' },
-  { label: '18+', icon: IconFlame, value: '18+', path: '/nsfw' },
+  { label: 'Populares', icon: IconTrendingUp, value: 'Populares', path: '/populares' },
+  // { label: '18+', icon: IconFlame, value: '18+', path: '/nsfw' },
 ];
 
 // Items del menú del usuario (fuera del componente)
@@ -96,10 +96,8 @@ function Header({ colorScheme, toggleColorScheme }) {
 
   const activeTab = hasSegment('biblioteca') ? 'Biblioteca'
     : hasSegment('mangas') ? 'Manga'
-      : hasSegment('populares') ? 'Populares'
-        : hasSegment('nsfw') ? '18+'
-          : hasSegment('perfil') ? 'Perfil'
-            : 'home';
+      : hasSegment('perfil') ? 'Perfil'
+        : 'home';
 
   // Usuario provisto por el contexto (no duplicamos el estado local)
   const { user: authUser, openLogin, doLogout } = useAuth()

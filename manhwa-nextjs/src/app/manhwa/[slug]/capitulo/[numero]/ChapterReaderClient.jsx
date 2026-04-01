@@ -89,7 +89,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   const { user } = useAuth();
 
   // Lectores en tiempo real del capítulo actual (excluye al usuario actual)
-  const { readers: allReaders, isConnected } = useChapterReaders(slug, chapterNum);
+  const { readers: allReaders, isConnected } = useChapterReaders(slug, chapterNum, { enabled: !!user?.id });
   
   // Filtrar: mostrar solo otros usuarios (no al usuario actual)
   // Solo usuarios autenticados pueden ver this feature

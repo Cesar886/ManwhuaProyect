@@ -208,7 +208,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
       aria-label={`Calificación del capítulo: ${displayRating} de 5 estrellas basado en ${ratingCount} votos`}
     >
       {/* Texto visible del rating - CRÍTICO PARA SEO */}
-      {ratingCount > 0 && (
+      {ratingCount > 0 && hasRated && (
         <p style={{
           fontSize: '14px',
           fontWeight: '600',

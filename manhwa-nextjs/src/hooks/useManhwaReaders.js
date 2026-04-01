@@ -12,7 +12,7 @@ import { ENDPOINTS } from '@/config';
  * @param {string} slug - Slug del manhwa
  * @returns {{ count: number, readers: Array<{userId, username, displayName, avatarUrl}>, isConnected: boolean }}
  */
-export function useManhwaReaders(slug) {
+export function useManhwaReaders(slug, { enabled = true } = {}) {
   const [data, setData] = useState({ count: 0, readers: [] });
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef(null);
@@ -62,7 +62,7 @@ export function useManhwaReaders(slug) {
   };
 
   useEffect(() => {
-    if (!slug) {
+    if (!slug || !enabled) {
       setData({ count: 0, readers: [] });
       setIsConnected(false);
       return;
@@ -110,14 +110,9 @@ export function useManhwaReaders(slug) {
           }
         };
 
-        es.onerror = (err) => {
+        es.onerror = () => {
           setIsConnected(false);
           es.close();
-
-          if (err?.status === 401) {
-            setData({ count: 0, readers: [] });
-            return;
-          }
 
           reconnectAttempts.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
@@ -172,7 +167,7 @@ export function useManhwaReaders(slug) {
       setIsConnected(false);
       setData({ count: 0, readers: [] });
     };
-  }, [slug]);
+  }, [slug, enabled]);
 
   return { ...data, isConnected };
 }
