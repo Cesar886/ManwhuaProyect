@@ -355,6 +355,7 @@ router.get('/chapter/:slug/:numero/list', authenticate, (req, res) => {
     
     const payload = buildReadersPayload(app, 'chapterReaders', key);
     res.json(payload);
+});
 
 /**
  * GET /api/presence/manhwa/:slug/stream
@@ -383,10 +384,10 @@ router.get('/manhwa/:slug/stream', authenticate, (req, res) => {
     const watcher = { res, connectedAt: Date.now() };
     app.locals.manhwaDetailWatchers.get(slug).add(watcher);
 
-    // Heartbeat cada 25s para mantener conexión viva
+    // Heartbeat cada 25s para mantener conexión viva y reconciliar estado
     const heartbeat = setInterval(() => {
         try {
-            res.write(': ping\n\n');
+            sendReadersTo(res, buildReadersPayload(app, 'manhwaReaders', slug));
         } catch (_) {
             clearInterval(heartbeat);
         }

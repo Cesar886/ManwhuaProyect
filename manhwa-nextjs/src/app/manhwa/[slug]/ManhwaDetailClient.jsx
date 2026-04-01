@@ -422,7 +422,12 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
 
   const manhwaReaders = useMemo(() => {
     if (!Array.isArray(allManhwaReaders)) return [];
-    if (!user) return [];
+    if (!user) {
+      return allManhwaReaders.filter((reader) => {
+        if (!reader || typeof reader !== 'object') return false;
+        return Boolean(reader.userId || reader.username);
+      });
+    }
 
     return allManhwaReaders.filter((reader) => {
       if (!reader || typeof reader !== 'object') return false;
