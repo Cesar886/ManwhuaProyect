@@ -100,20 +100,42 @@ router.get('/:userId/watch', (req, res) => {
    LECTORES DE CAPÍTULO EN TIEMPO REAL
    ============================================================ */
 
-/** Serializa el set de lectores para enviar por SSE (deduplicado por usuario) */
+/** Serializa el set de lectores para enviar por SSE (deduplicado por userId) */
 function buildReadersPayloadFromSet(set) {
     if (!set || set.size === 0) return { count: 0, readers: [] };
+    
     const uniqueReaders = new Map();
     for (const r of set) {
-        const userKey = String(r.userId || r.username || '');
-        if (!userKey || uniqueReaders.has(userKey)) continue;
+        // Validación estricta
+        if (!r || typeof r !== 'object') continue;
+        if (!r.userId && !r.username) continue;
+        
+        // Deduplicación por userId primero (más confiable)
+        const userKey = r.userId ? String(r.userId) : String(r.username || '');
+        if (!userKey || !userKey.trim()) continue;
+        
+        // Si ya existe este usuario, solo actualizar si es más reciente
+        if (uniqueReaders.has(userKey)) {
+            const existing = uniqueReaders.get(userKey);
+            if (r.connectedAt && existing.connectedAt && r.connectedAt > existing.connectedAt) {
+                uniqueReaders.set(userKey, {
+                    userId:      r.userId || existing.userId,
+                    username:    r.username || existing.username,
+                    displayName: r.displayName || existing.displayName,
+                    avatarUrl:   r.avatarUrl || existing.avatarUrl || null,
+                });
+            }
+            continue;
+        }
+        
         uniqueReaders.set(userKey, {
             userId:      r.userId,
             username:    r.username,
-            displayName: r.displayName,
+            displayName: r.displayName || r.username,
             avatarUrl:   r.avatarUrl || null,
         });
     }
+    
     const readers = [...uniqueReaders.values()];
     return { count: readers.length, readers };
 }
@@ -127,33 +149,54 @@ function buildReadersPayload(app, mapName, key) {
 /** Envía el estado actual al cliente SSE dado */
 function sendReadersTo(res, payload) {
     try { 
-        if (!res.writableEnded) {
-            res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        // Verificar múltiples estados de muerte de conexión
+        if (!res || res.writableEnded || res.destroyed || !res.writable) {
+            return false;
         }
+        
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        return true;
     } catch (err) {
-        console.warn('[ChapterReaders] Error enviando datos:', err.message);
+        // Silencial pero marca como falla
+        return false;
     }
 }
 
-/** Broadcast a todos los lectores del mismo capítulo */
+/** Broadcast a todos los lectores del mismo capítulo/manhwa con limpieza de muertos */
 function broadcastReaders(app, mapName, key) {
     const payload = buildReadersPayload(app, mapName, key);
     const set = app.locals[mapName]?.get(key);
     if (!set) return;
 
     const deadConnections = [];
+    let successCount = 0;
+    
     for (const r of set) {
-        if (r.res.writableEnded) {
+        // Verificar si la conexión está muerta antes de enviar
+        if (!r.res || r.res.writableEnded || r.res.destroyed) {
             deadConnections.push(r);
         } else {
-            sendReadersTo(r.res, payload);
+            if (sendReadersTo(r.res, payload)) {
+                successCount++;
+            } else {
+                deadConnections.push(r);
+            }
         }
     }
 
-    // Limpiar conexiones muertas
+    // Limpiar conexiones muertas inmediatamente
     if (deadConnections.length > 0) {
         for (const dead of deadConnections) {
             set.delete(dead);
+        }
+        // Si quedan lectores, actualizar a los vivos
+        if (set.size > 0) {
+            const updatedPayload = buildReadersPayloadFromSet(set);
+            for (const r of set) {
+                if (r.res && !r.res.writableEnded && r.res.writable) {
+                    sendReadersTo(r.res, updatedPayload);
+                }
+            }
         }
     }
 }
@@ -168,21 +211,33 @@ function broadcastManhwaReaders(app, slug) {
     // Enviar a los readers (gente leyendo capítulos)
     broadcastReaders(app, 'manhwaReaders', slug);
     
-    // Enviar a los watchers de detalles
+    // Enviar a los watchers de detalles con limpieza de muertos
     const watchers = app.locals.manhwaDetailWatchers?.get(slug);
     if (watchers && watchers.size > 0) {
         const deadWatchers = [];
+        let successCount = 0;
+        
         for (const w of watchers) {
-            if (w.res.writableEnded) {
+            // Detección agresiva de conexiones muertas
+            if (!w.res || w.res.writableEnded || w.res.destroyed) {
                 deadWatchers.push(w);
             } else {
-                sendReadersTo(w.res, payload);
+                if (sendReadersTo(w.res, payload)) {
+                    successCount++;
+                } else {
+                    deadWatchers.push(w);
+                }
             }
         }
-        // Limpiar conexiones muertas
+        
+        // Limpiar conexiones muertas inmediatamente
         if (deadWatchers.length > 0) {
             for (const dead of deadWatchers) {
                 watchers.delete(dead);
+            }
+            // Si no quedan watchers, eliminar el mapping completo
+            if (watchers.size === 0) {
+                app.locals.manhwaDetailWatchers.delete(slug);
             }
         }
     }
@@ -269,13 +324,37 @@ router.get('/chapter/:slug/:numero/stream', authenticate, (req, res) => {
                 manhwaSet.delete(reader);
                 if (manhwaSet.size === 0) {
                     app.locals.manhwaReaders.delete(slug);
-                } else {
-                    broadcastManhwaReaders(app, slug);
                 }
+                // Siempre broadcast cuando alguien se desconecta, incluso si queda vacío
+                broadcastManhwaReaders(app, slug);
             }
         }
     });
 });
+
+/**
+ * GET /api/presence/manhwa/:slug/list
+ * Endpoint REST de polling — devuelve la lista actual de readers
+ * Útil como fallback si la conexión SSE falla
+ */
+router.get('/manhwa/:slug/list', authenticate, (req, res) => {
+    const app = req.app;
+    const slug = req.params.slug;
+    
+    const payload = buildReadersPayload(app, 'manhwaReaders', slug);
+    res.json(payload);
+});
+
+/**
+ * GET /api/presence/chapter/:slug/:numero/list
+ * Endpoint REST de polling — devuelve la lista actual de readers del capítulo
+ */
+router.get('/chapter/:slug/:numero/list', authenticate, (req, res) => {
+    const app = req.app;
+    const key = `${req.params.slug}_${req.params.numero}`;
+    
+    const payload = buildReadersPayload(app, 'chapterReaders', key);
+    res.json(payload);
 
 /**
  * GET /api/presence/manhwa/:slug/stream

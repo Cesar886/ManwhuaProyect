@@ -448,7 +448,7 @@ const startServer = async () => {
             startIndexNowDaemon();
 
             // Limpieza periódica de clientes SSE zombie
-            const SSE_CLIENT_TIMEOUT = 15 * 60 * 1000;
+            const SSE_CLIENT_TIMEOUT = 60 * 1000; // 1 minuto para detectar conexiones muertas más rápido
             setInterval(() => {
                 const now = Date.now();
                 let zombiesRemoved = 0;
@@ -500,8 +500,9 @@ const startServer = async () => {
                     for (const [key, set] of app.locals.chapterReaders.entries()) {
                         const before = set.size;
                         for (const r of set) {
+                            // Eliminar si está muerto O si es viejo
                             const age = now - (r.connectedAt || now);
-                            if (age > SSE_CLIENT_TIMEOUT) {
+                            if (r.res?.writableEnded || r.res?.destroyed || age > SSE_CLIENT_TIMEOUT) {
                                 set.delete(r);
                             }
                         }
@@ -517,8 +518,9 @@ const startServer = async () => {
                     for (const [key, set] of app.locals.manhwaReaders.entries()) {
                         const before = set.size;
                         for (const r of set) {
+                            // Eliminar si está muerto O si es viejo
                             const age = now - (r.connectedAt || now);
-                            if (age > SSE_CLIENT_TIMEOUT) {
+                            if (r.res?.writableEnded || r.res?.destroyed || age > SSE_CLIENT_TIMEOUT) {
                                 set.delete(r);
                             }
                         }
@@ -534,8 +536,9 @@ const startServer = async () => {
                     for (const [slug, set] of app.locals.manhwaDetailWatchers.entries()) {
                         const before = set.size;
                         for (const w of set) {
+                            // Eliminar si está muerto O si es viejo
                             const age = now - (w.connectedAt || now);
-                            if (age > SSE_CLIENT_TIMEOUT || w.res.writableEnded) {
+                            if (w.res?.writableEnded || w.res?.destroyed || age > SSE_CLIENT_TIMEOUT) {
                                 set.delete(w);
                             }
                         }
