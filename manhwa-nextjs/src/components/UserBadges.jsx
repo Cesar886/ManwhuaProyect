@@ -1,19 +1,14 @@
 'use client';
 
-import { Tooltip } from '@mantine/core';
-import { StreakFlame, ACHIEVEMENT_CATALOG } from '@/components/achievements/Achievements';
+import { useState, useRef } from 'react';
+import { Popover, Text } from '@mantine/core';
+import { ACHIEVEMENT_CATALOG } from '@/components/achievements/Achievements';
 import styles from './UserBadges.module.css';
 
 /* ============================================================
    LÓGICA DE SELECCIÓN DE BADGES
    ============================================================ */
 
-/**
- * Prioriza y selecciona los top N badges para mostrar
- * @param {Object} userStats - Estadísticas del usuario
- * @param {number} maxBadges - Cantidad máxima de badges a mostrar (default: 3)
- * @returns {Array} Array de badges desbloqueados, ordenados por prioridad
- */
 export function selectTopBadges(userStats = {}, maxBadges = 3) {
   const stats = {
     streak: 0,
@@ -21,28 +16,34 @@ export function selectTopBadges(userStats = {}, maxBadges = 3) {
     comments: 0,
     totalChapters: 0,
     maxChaptersPerHour: 0,
+    ratings: 0,
     ...userStats,
   };
 
-  // Sistema de prioridad (mayor = más importante)
-  const PRIORITY = {
-    streak: 100,        // Racha es el más importante
-    diamond: 90,        // Diamante (1000 caps)
-    guardian: 80,       // Guardián (500 caps)
-    devourer: 70,       // Devorador (100 caps)
-    speedReader: 60,    // Veloz
-    critic: 50,         // Crítico
-    nightReader: 40,    // Lector Nocturno
+  const BASE_PRIORITY = {
+    streak:         100,
+    diamante:        80,
+    veloz:           60,
+    critico:         50,
+    lectorNocturno:  40,
+    primeraEstrella: 30,
   };
 
-  // Filtrar badges desbloqueados y ordenar por prioridad
   const unlockedBadges = Object.values(ACHIEVEMENT_CATALOG)
-    .filter(achievement => achievement.unlockCondition(stats))
-    .map(achievement => ({
-      ...achievement,
-      priority: PRIORITY[achievement.id] || 0,
-      stats, // Pasar stats para renderizar valores dinámicos
-    }))
+    .filter(achievement => {
+      try { return achievement.unlockCondition(stats); }
+      catch (_) { return false; }
+    })
+    .map(achievement => {
+      let level = 0;
+      try {
+        const levelInfo = achievement.getLevelInfo ? achievement.getLevelInfo(stats) : null;
+        level = levelInfo?.level ?? 0;
+      } catch (_) {}
+      const basePriority = BASE_PRIORITY[achievement.id] || 0;
+      const priority = basePriority + Math.min(level * 3, 18);
+      return { ...achievement, priority, stats };
+    })
     .sort((a, b) => b.priority - a.priority)
     .slice(0, maxBadges);
 
@@ -54,38 +55,23 @@ export function selectTopBadges(userStats = {}, maxBadges = 3) {
    ============================================================ */
 
 function BadgeIcon({ badge, size = 'compact', showTooltip = true }) {
+  const [opened, setOpened] = useState(false);
+  const closeTimer = useRef(null);
   const Icon = badge.icon;
 
-  // Renderizado especial para racha — llama pequeña sobre el borde del card
-  if (badge.id === 'streak') {
-    const element = (
-      <div className={`${styles.badgeWrapper} ${styles.streakBadge}`}>
-        <StreakFlame
-          streak={badge.stats.streak}
-          iconOnly
-        />
-      </div>
-    );
-
-    if (!showTooltip) return element;
-
-    return (
-      <Tooltip
-        label={`🔥 Racha de ${badge.stats.streak} día${badge.stats.streak !== 1 ? 's' : ''}`}
-        withArrow
-        position="top"
-      >
-        {element}
-      </Tooltip>
-    );
-  }
-
-  // Otros badges
   const iconSize = size === 'compact' ? 13 : 20;
   const containerSize = size === 'compact' ? 20 : 32;
 
+  const open = () => {
+    clearTimeout(closeTimer.current);
+    setOpened(true);
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setOpened(false), 200);
+  };
+
   const element = (
-    <div 
+    <div
       className={styles.badgeWrapper}
       style={{
         width: containerSize,
@@ -105,13 +91,26 @@ function BadgeIcon({ badge, size = 'compact', showTooltip = true }) {
   if (!showTooltip) return element;
 
   return (
-    <Tooltip 
-      label={badge.description}
-      withArrow
-      position="top"
-    >
-      {element}
-    </Tooltip>
+    <Popover opened={opened} onChange={setOpened} withArrow withinPortal position="top" width={200}>
+      <Popover.Target>
+        <div onMouseEnter={open} onMouseLeave={scheduleClose} onClick={() => setOpened(o => !o)} style={{ cursor: 'pointer' }}>
+          {element}
+        </div>
+      </Popover.Target>
+      <Popover.Dropdown style={{ padding: '10px 14px' }} onMouseEnter={open} onMouseLeave={scheduleClose}>
+        <Text fw={700} size="sm" style={{ color: `var(--mantine-color-${badge.color}-7)` }}>
+          {badge.label || badge.id}
+        </Text>
+        <Text size="xs" c="dimmed" mt={2}>
+          {badge.id === 'streak'
+            ? `Llevas ${badge.stats.streak} día${badge.stats.streak !== 1 ? 's' : ''} leyendo seguido. ¡Sigue así!`
+            : badge.description}
+        </Text>
+        <a href="/perfil#vitrina-logros" style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: `var(--mantine-color-${badge.color}-7)`, textDecoration: 'underline', fontWeight: 600 }} onClick={() => setOpened(false)}>
+          Ver más
+        </a>
+      </Popover.Dropdown>
+    </Popover>
   );
 }
 
@@ -119,26 +118,15 @@ function BadgeIcon({ badge, size = 'compact', showTooltip = true }) {
    COMPONENTE PRINCIPAL: UserBadges
    ============================================================ */
 
-/**
- * Muestra los badges desbloqueados del usuario (máx 3)
- * Se coloca en el borde superior del comentario
- * 
- * @param {Object} userStats - Estadísticas del usuario
- * @param {number} maxBadges - Cantidad máxima de badges (default: 3)
- * @param {string} size - Tamaño: 'compact' | 'normal' (default: 'compact')
- * @param {boolean} showTooltip - Mostrar tooltip al hover (default: true)
- */
-export default function UserBadges({ 
-  userStats = {}, 
+export default function UserBadges({
+  userStats = {},
   maxBadges = 3,
   size = 'compact',
   showTooltip = true,
 }) {
   const topBadges = selectTopBadges(userStats, maxBadges);
 
-  if (topBadges.length === 0) {
-    return null;
-  }
+  if (topBadges.length === 0) return null;
 
   return (
     <div className={styles.badgesContainer}>

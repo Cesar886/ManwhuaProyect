@@ -47,9 +47,9 @@ const getUserFromCacheOrDb = async (userId) => {
     
     // Query a la BD (campos optimizados - solo los necesarios)
     const result = await query(
-        `SELECT id, username, email, display_name, avatar_url, role, status, 
-                is_premium, premium_until, email_verified_at
-         FROM users 
+        `SELECT id, username, email, display_name, avatar_url, role, status,
+                is_premium, premium_until, email_verified_at, experience
+         FROM users
          WHERE id = $1 AND deleted_at IS NULL`,
         [userId]
     );
@@ -171,6 +171,9 @@ const authenticate = async (req, res, next) => {
                 });
         }
         
+        // Timezone del cliente (enviado como header por el frontend)
+        const clientTimezone = req.headers['x-timezone'] || null;
+
         // Añadir usuario a la request
         req.user = {
             id: user.id,
@@ -181,7 +184,9 @@ const authenticate = async (req, res, next) => {
             role: user.role,
             status: user.status,
             isPremium: user.is_premium,
-            isVerified: !!user.email_verified_at
+            isVerified: !!user.email_verified_at,
+            experience: parseInt(user.experience) || 0,
+            timezone: clientTimezone
         };
         
         next();
@@ -243,7 +248,8 @@ const optionalAuth = async (req, res, next) => {
                 role: user.role,
                 status: user.status,
                 isPremium: user.is_premium,
-                isVerified: !!user.email_verified_at
+                isVerified: !!user.email_verified_at,
+                experience: parseInt(user.experience) || 0
             };
         } else {
             req.user = null;

@@ -1,7 +1,5 @@
-// Componentes individuales (legacy)
+// StreakFlame legacy (componente separado)
 export { default as StreakFlame } from './StreakFlame';
-export { StreakFlame as StreakFlameComponent, VitrinaLogros } from './Logros';
 
-// Nuevo archivo unificado de logros (recomendado)
-export { StreakFlame as StreakFlameUnified, VitrinaLogros as VitrinaLogrosUnified, ACHIEVEMENT_CATALOG } from './Achievements';
-
+// Sistema unificado de logros (Achievements.jsx)
+export { StreakFlame as StreakFlameUnified, VitrinaLogros, ACHIEVEMENT_CATALOG } from './Achievements';

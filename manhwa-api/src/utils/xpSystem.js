@@ -13,14 +13,14 @@ const LEVEL_CONFIG = {
     1: {
         name: 'Novato',
         minXp: 0,
-        maxXp: 1000,
+        maxXp: 100, // MODIFICADO: Antes 1000
         color: 'gray',
         icon: 'IconBook',
         description: 'Recién comenzando tu viaje en Manhwa Imperial'
     },
     2: {
         name: 'Guerrero',
-        minXp: 1001,
+        minXp: 101, // MODIFICADO: Antes 1001
         maxXp: 5000,
         color: 'cyan',
         icon: 'IconSword',

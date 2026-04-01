@@ -5,6 +5,7 @@
 const { query, transaction } = require('../config/database');
 const { canModifyUser, getAssignableRoles } = require('../config/roles');
 const usernameValidator = require('../utils/usernameValidator');
+const { getLevelInfo, getXpConfig, LEVEL_CONFIG } = require('../utils/xpSystem');
 
 /**
  * Obtener perfil de usuario
@@ -50,6 +51,10 @@ const getProfile = async (req, res, next) => {
 
         const stats = statsResult.rows[0];
 
+        // Obtener información de nivel y XP
+        const currentXp = parseInt(user.experience) || 0;
+        const levelInfo = getLevelInfo(currentXp);
+
         res.json({
             success: true,
             data: {
@@ -65,6 +70,13 @@ const getProfile = async (req, res, next) => {
                     role: user.role,
                     isPremium: user.is_premium,
                     level: user.level,
+                    experience: currentXp,
+                    levelInfo: {
+                        name: levelInfo.name,
+                        color: levelInfo.color,
+                        progress: levelInfo.progress,
+                        xpToNextLevel: levelInfo.xpToNextLevel
+                    },
                     theme: {
                         primaryColor: user.theme_primary_color,
                         accentColor: user.theme_accent_color
@@ -1221,6 +1233,112 @@ const getUserComments = async (req, res, next) => {
     }
 };
 
+/**
+ * Obtener información de XP y nivel del usuario actual
+ * GET /api/users/me/xp
+ */
+const getUserXp = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        // Obtener datos del usuario
+        const userResult = await query(
+            'SELECT experience, level FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        const { experience, level: dbLevel } = userResult.rows[0];
+        const currentXp = parseInt(experience) || 0;
+
+        // Calcular información completa del nivel
+        const levelInfo = getLevelInfo(currentXp);
+
+        // Obtener XP ganado hoy
+        const dailyXpResult = await query(
+            `SELECT xp_earned, chapters_read
+             FROM user_xp_daily
+             WHERE user_id = $1 AND date = CURRENT_DATE`,
+            [userId]
+        );
+
+        const dailyXp = dailyXpResult.rows[0]
+            ? {
+                  earned: parseInt(dailyXpResult.rows[0].xp_earned) || 0,
+                  chaptersRead: parseInt(dailyXpResult.rows[0].chapters_read) || 0,
+                  limit: getXpConfig().DAILY_LIMIT,
+                  remaining: Math.max(0, getXpConfig().DAILY_LIMIT - (parseInt(dailyXpResult.rows[0].xp_earned) || 0))
+              }
+            : {
+                  earned: 0,
+                  chaptersRead: 0,
+                  limit: getXpConfig().DAILY_LIMIT,
+                  remaining: getXpConfig().DAILY_LIMIT
+              };
+
+        // Obtener historial reciente (últimos 7 días)
+        const historyResult = await query(
+            `SELECT date, xp_earned, chapters_read
+             FROM user_xp_daily
+             WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '7 days'
+             ORDER BY date DESC`,
+            [userId]
+        );
+
+        const weekHistory = historyResult.rows.map(row => ({
+            date: row.date,
+            xp: parseInt(row.xp_earned),
+            chapters: parseInt(row.chapters_read)
+        }));
+
+        // Obtener total de capítulos únicos leídos
+        const totalChaptersResult = await query(
+            `SELECT COUNT(DISTINCT chapter_id) as total
+             FROM reading_history
+             WHERE user_id = $1 AND is_completed = true`,
+            [userId]
+        );
+
+        const totalChapters = parseInt(totalChaptersResult.rows[0]?.total) || 0;
+
+        res.json({
+            success: true,
+            data: {
+                xp: {
+                    total: currentXp,
+                    daily: dailyXp,
+                    weekHistory
+                },
+                level: {
+                    current: levelInfo.level,
+                    name: levelInfo.name,
+                    color: levelInfo.color,
+                    icon: levelInfo.icon,
+                    description: levelInfo.description,
+                    progress: levelInfo.progress,
+                    xpToNextLevel: levelInfo.xpToNextLevel,
+                    nextLevelXp: levelInfo.nextLevelXp,
+                    isMaxLevel: levelInfo.level === 4
+                },
+                stats: {
+                    totalChaptersCompleted: totalChapters,
+                    xpPerChapter: getXpConfig().CHAPTER_COMPLETE,
+                    minReadTimeSeconds: getXpConfig().MIN_READ_TIME_SECONDS
+                },
+                allLevels: Object.values(LEVEL_CONFIG)
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getProfile,
     checkUsername,
@@ -1243,5 +1361,6 @@ module.exports = {
     listUsers,
     updateUserRole,
     updateUserStatus,
-    updatePartialUser
+    updatePartialUser,
+    getUserXp
 };

@@ -40,6 +40,8 @@ const uploadRoutes = require('./routes/upload.routes');
 const spacesRoutes = require('./routes/spaces.routes');
 const progressRoutes = require('./routes/progress.routes');
 const donationRoutes = require('./routes/donation.routes');
+const achievementRoutes = require('./routes/achievement.routes');
+const presenceRoutes = require('./routes/presence.routes');
 
 
 const app = express();
@@ -51,6 +53,11 @@ app.locals.sseClients = []
 
 // Lista de clientes SSE para actualizaciones de racha (por usuario)
 app.locals.streakClients = []
+
+// Presencia en tiempo real: Map<userId, Set<Response>>
+app.locals.onlineUsers = new Map()
+// Watchers de presencia: [{ userId, res, connectedAt }]
+app.locals.presenceWatchers = []
 
 // ============================================
 // CONFIGURACIÓN DE SEGURIDAD
@@ -111,7 +118,7 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'x-api-key'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'x-api-key', 'x-timezone'],
     exposedHeaders: ['Content-Type', 'Cache-Control', 'ETag']
 }));
 
@@ -403,6 +410,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/spaces', spacesRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/donations', donationRoutes);
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/presence', presenceRoutes);
 
 // ============================================
 // MANEJO DE ERRORES
@@ -469,6 +478,15 @@ const startServer = async () => {
                         return age <= SSE_CLIENT_TIMEOUT;
                     });
                     zombiesRemoved += beforeCount - app.locals.streakClients.length;
+                }
+
+                if (app.locals.presenceWatchers?.length > 0) {
+                    const beforeCount = app.locals.presenceWatchers.length;
+                    app.locals.presenceWatchers = app.locals.presenceWatchers.filter(w => {
+                        const age = now - (w.connectedAt || now);
+                        return age <= SSE_CLIENT_TIMEOUT;
+                    });
+                    zombiesRemoved += beforeCount - app.locals.presenceWatchers.length;
                 }
 
                 try {

@@ -220,10 +220,10 @@ const getChapterComments = async (req, res, next) => {
         const chapter = chapterResult.rows[0];
 
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role
+            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience
              FROM comments c
              JOIN users u ON c.user_id = u.id
-             WHERE c.target_type = 'chapter' AND c.target_id = $1 
+             WHERE c.target_type = 'chapter' AND c.target_id = $1
                    AND c.parent_id IS NULL AND c.status = 'visible'
              ORDER BY c.created_at DESC
              LIMIT $2 OFFSET $3`,
@@ -236,7 +236,7 @@ const getChapterComments = async (req, res, next) => {
         // Enriquecer comentarios con estadísticas de badges
         const enrichedComments = await Promise.all(
             result.rows.map(async (c) => {
-                const badgeStats = await getUserBadgeStats(c.user_id);
+                const badgeStats = await getUserBadgeStats(c.user_id, req.user?.timezone || req.headers?.['x-timezone']);
                 
                 return {
                     id: c.id,
@@ -247,6 +247,7 @@ const getChapterComments = async (req, res, next) => {
                         displayName: c.display_name,
                         avatarUrl: c.avatar_url,
                         role: c.user_role,
+                        experience: parseInt(c.experience) || 0,
                         // Estadísticas para badges
                         streak: badgeStats.streak,
                         totalChapters: badgeStats.totalChapters,
@@ -636,10 +637,50 @@ const rateChapter = async (req, res, next) => {
         const avgRating = parseFloat(statsResult.rows[0].avg_rating) || 0;
         const totalCount = parseInt(statsResult.rows[0].total, 10) || 0;
 
+        // ============================================
+        // SISTEMA DE LOGROS - Verificar logro de calificaciones (solo usuarios autenticados)
+        // ============================================
+        let achievementUnlocked = null;
+        if (userId) {
+            try {
+                const { checkAndUpdateAchievements } = require('./achievement.controller');
+                const { ACHIEVEMENT_TYPES } = require('../utils/achievementSystem');
+                
+                // Obtener total de calificaciones del usuario
+                const ratingsResult = await query(
+                    'SELECT COUNT(*) as count FROM chapter_votes WHERE user_id = $1',
+                    [userId]
+                );
+                const totalRatings = parseInt(ratingsResult.rows[0]?.count) || 0;
+                
+                // Verificar logro
+                achievementUnlocked = await checkAndUpdateAchievements(
+                    userId,
+                    ACHIEVEMENT_TYPES.ESTRELLA,
+                    totalRatings
+                );
+            } catch (achievementError) {
+                // No crítico - no afectar la calificación
+                console.warn('⚠️ Error verificando logro de calificaciones:', achievementError.message);
+            }
+        }
+
         res.json({
             success: true,
             message: 'Calificación guardada',
-            data: { rating: avgRating, ratingCount: totalCount }
+            data: { 
+                rating: avgRating, 
+                ratingCount: totalCount,
+                // Información del logro si se desbloqueó
+                ...(achievementUnlocked?.unlocked && {
+                    achievement: {
+                        type: achievementUnlocked.achievementType,
+                        newLevel: achievementUnlocked.newLevel,
+                        levelName: achievementUnlocked.levelName,
+                        color: achievementUnlocked.color
+                    }
+                })
+            }
         });
     } catch (error) {
         next(error);

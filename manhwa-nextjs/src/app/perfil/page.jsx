@@ -27,6 +27,7 @@ import {
   rem,
   TextInput,
   Textarea,
+  Indicator,
 } from '@mantine/core';
 import { useMediaQuery, useHover } from '@mantine/hooks';
 import { useAuth } from '@/contexts/AuthContext';
@@ -61,10 +62,13 @@ import {
 import { notifications } from '@mantine/notifications';
 import { getCurrentUser } from '@/api/client';
 import { getRecentProgress, getStreak, getStreakStreamUrl } from '@/api/progress';
-import { StreakFlame, VitrinaLogros } from '@/components/achievements';
+import { getUserAchievements } from '@/api/achievements';
+import { VitrinaLogros } from '@/components/achievements';
+import { ENDPOINTS } from '@/config';
 import styles from '@/app/user-profile/UserProfile.module.css';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import { getLevelInfo, formatXp, getLevelGradient, LEVEL_CONFIG } from '@/utils/xpSystem';
 
 // ============================================
 // COMPONENTES AUXILIARES PREMIUM
@@ -259,6 +263,8 @@ const CollectionCardPreview = ({ collection, isDark }) => {
             top: 10,
             right: 10,
             boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+            padding: '0.35rem 0.9rem',
+            lineHeight: 1,
           }}
         >
           {collection.items} obras
@@ -335,8 +341,28 @@ const PremiumButton = ({ children, variant = 'filled', color = 'cyan', leftSecti
   );
 };
 
-// Avatar Premium con anillo animado
-const PremiumAvatar = ({ src, size, initials, streak, onCameraClick, isDark }) => {
+// Estilos compartidos para todos los Tooltips de la página
+const tooltipStyles = (isDark) => ({
+  tooltip: {
+    background: isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    borderRadius: rem(12),
+    padding: `${rem(8)} ${rem(14)}`,
+    color: isDark ? '#e2e8f0' : '#1e293b',
+  },
+  arrow: {
+    background: isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+  },
+});
+
+// Avatar Premium con anillo animado e indicador de presencia
+const AVATAR_COLORS = ['blue', 'cyan', 'violet', 'pink', 'indigo', 'red', 'teal', 'orange'];
+
+const PremiumAvatar = ({ src, size, initials, name, streak, isDark, isOnline }) => {
   const { hovered, ref } = useHover();
 
   return (
@@ -346,51 +372,61 @@ const PremiumAvatar = ({ src, size, initials, streak, onCameraClick, isDark }) =
         className={styles.avatarRingInner}
         style={{ background: isDark ? '#0f172a' : '#ffffff' }}
       />
-      <Avatar
-        src={src}
-        size={size}
-        radius="50%"
-        className={styles.avatarNormal}
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          boxShadow: '0 10px 40px rgba(6, 182, 212, 0.3)',
-          transition: 'transform 0.3s ease',
-          transform: hovered ? 'scale(1.05)' : 'scale(1)',
-        }}
-      >
-        {initials}
-      </Avatar>
 
-      <Tooltip label="Cambiar avatar" withArrow>
-        <ActionIcon
-          variant="gradient"
-          gradient={{ from: 'cyan', to: 'teal', deg: 135 }}
-          size="lg"
-          radius="xl"
-          pos="absolute"
-          bottom={4}
-          right={4}
-          onClick={onCameraClick}
-          className={styles.avatarCameraButton}
-          style={{
+      <Indicator
+        inline
+        disabled={!isOnline}
+        size={20}
+        offset={4}
+        position="bottom-end"
+        color="teal"
+        withBorder
+        processing
+        styles={{
+          indicator: {
             border: `3px solid ${isDark ? '#0f172a' : '#ffffff'}`,
             zIndex: 2,
-            transform: hovered ? 'scale(1.1)' : 'scale(1)',
+          },
+        }}
+      >
+        <Avatar
+          src={src}
+          name={name}
+          color="initials"
+          allowedInitialsColors={AVATAR_COLORS}
+          size={size}
+          radius="50%"
+          className={styles.avatarNormal}
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            boxShadow: '0 10px 40px rgba(6, 182, 212, 0.3)',
+            transition: 'transform 0.3s ease',
+            transform: hovered ? 'scale(1.05)' : 'scale(1)',
           }}
         >
-          <IconCamera size={16} />
-        </ActionIcon>
-      </Tooltip>
+          {initials}
+        </Avatar>
+      </Indicator>
 
       {streak > 0 && (
-        <Tooltip label={`🔥 Racha de ${streak} días`} withArrow>
+        <Tooltip
+          label={
+            <Group gap={6} align="center">
+              <IconFlame size={14} color="#f97316" />
+              <Text size="sm" fw={700}>{streak} día{streak !== 1 ? 's' : ''} de racha</Text>
+            </Group>
+          }
+          withArrow
+          position="top"
+          styles={tooltipStyles(isDark)}
+        >
           <Badge
             color="orange"
             variant="gradient"
             gradient={{ from: 'orange', to: 'red', deg: 135 }}
-            size="md"
-            leftSection={<StreakFlame streak={streak} iconOnly />}
+            circle
+            size="xl"
             pos="absolute"
             top={-8}
             right={-12}
@@ -401,7 +437,7 @@ const PremiumAvatar = ({ src, size, initials, streak, onCameraClick, isDark }) =
               zIndex: 3,
             }}
           >
-            {streak}
+            <IconFlame size={14} />
           </Badge>
         </Tooltip>
       )}
@@ -449,6 +485,8 @@ export default function UserProfile() {
   const [recentLoading, setRecentLoading] = useState(true);
   const [streakData, setStreakData] = useState({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 });
   const streak = streakData.streak;
+  const [achievementsData, setAchievementsData] = useState(null);
+  const [achievementsLoading, setAchievementsLoading] = useState(true);
 
   // Edit profile modal state
   const [editOpen, setEditOpen] = useState(false);
@@ -461,6 +499,9 @@ export default function UserProfile() {
   const [userComments, setUserComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [communityTab, setCommunityTab] = useState('ratings'); // 'ratings' | 'comments'
+
+  // Presencia en tiempo real
+  const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -491,7 +532,41 @@ export default function UserProfile() {
         totalDaysRead: data?.totalDaysRead || 0,
       }))
       .catch(() => setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 }));
+
+    getUserAchievements()
+      .then(data => setAchievementsData(data))
+      .catch(() => setAchievementsData(null))
+      .finally(() => setAchievementsLoading(false));
   }, []);
+
+  // SSE — presencia en tiempo real (marca al usuario como online mientras la conexión vive)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Stream que nos marca online en el servidor
+    const presenceStream = new EventSource(`${ENDPOINTS.presence}/stream`, { withCredentials: true });
+    presenceStream.onopen = () => setIsOnline(true);
+    presenceStream.onerror = () => { setIsOnline(false); presenceStream.close(); };
+
+    // Watcher del propio usuario para recibir cambios en tiempo real
+    let watchStream = null;
+    const startWatch = (userId) => {
+      watchStream = new EventSource(`${ENDPOINTS.presence}/${userId}/watch`, { withCredentials: true });
+      watchStream.onmessage = (e) => {
+        try { setIsOnline(JSON.parse(e.data).online); } catch (_) {}
+      };
+      watchStream.onerror = () => watchStream.close();
+    };
+
+    // Esperar a que user esté disponible
+    const userId = user?.id || user?._id;
+    if (userId) startWatch(userId);
+
+    return () => {
+      presenceStream.close();
+      watchStream?.close();
+    };
+  }, [user?.id]);
 
   // SSE — actualizaciones de racha en tiempo real
   useEffect(() => {
@@ -667,6 +742,10 @@ export default function UserProfile() {
     bookmarks: user.bookmarks_count || user.stats?.bookmarks || 0,
   };
 
+  // Calcular información del nivel basado en experiencia
+  const userExperience = user.experience || user.levelInfo?.currentXp || 0;
+  const levelInfo = getLevelInfo(userExperience);
+
   const collections = user.collections || [];
   const joinedDateLabel = new Date(userJoinDate).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
 
@@ -704,7 +783,7 @@ export default function UserProfile() {
           {/* MOBILE */}
           {isMobile ? (
             <Stack align="center" gap="lg" style={{ position: 'relative', zIndex: 1 }}>
-              <PremiumAvatar src={avatarSrc} size={110} initials={getInitials()} streak={streak} onCameraClick={() => setOpenAvatarPicker(true)} isDark={isDark} />
+              <PremiumAvatar src={avatarSrc} size={110} initials={getInitials()} name={user?.display_name || user?.name || user?.username || ''} streak={streak} isDark={isDark} isOnline={isOnline} />
               <Stack gap={8} align="center">
                 <Stack gap={4} align="center">
                   <Text fw={800} size={rem(26)} lh={1.1} className={styles.gradientText} ta="center">{userName}</Text>
@@ -722,7 +801,7 @@ export default function UserProfile() {
               )}
               <Group gap={rem(48)} justify="center" mt="md" className={styles.headerStatsGrid}>
                 <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" compact color="cyan" />
-                <StreakFlame streak={streak} compact />
+                <ProfileMetric icon={IconFlame} value={streak} label="Racha" compact color="orange" />
               </Group>
               <Group gap="xs" w="100%">
                 <PremiumButton leftSection={<IconPencil size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={openEditModal}>Editar</PremiumButton>
@@ -734,7 +813,7 @@ export default function UserProfile() {
           ) : (
             /* DESKTOP + TABLET */
             <Group gap="xl" align="flex-start" wrap="nowrap" style={{ position: 'relative', zIndex: 1 }}>
-              <PremiumAvatar src={avatarSrc} size={avatarSize} initials={getInitials()} streak={streak} onCameraClick={() => setOpenAvatarPicker(true)} isDark={isDark} />
+              <PremiumAvatar src={avatarSrc} size={avatarSize} initials={getInitials()} name={user?.display_name || user?.name || user?.username || ''} streak={streak} isDark={isDark} isOnline={isOnline} />
               <Stack gap="md" style={{ flex: 1, minWidth: 0 }}>
                 <Stack gap={6}>
                   <Group gap="sm" wrap="wrap" align="center">
@@ -758,7 +837,7 @@ export default function UserProfile() {
                 )}
                 <Group gap={rem(56)} mt="lg" className={styles.headerStatsGrid}>
                   <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" color="cyan" />
-                  <StreakFlame streak={streak} />
+                  <ProfileMetric icon={IconFlame} value={streak} label="Racha" color="orange" />
                 </Group>
               </Stack>
               <Stack gap="sm" align="flex-end" style={{ flexShrink: 0 }}>
@@ -823,7 +902,7 @@ export default function UserProfile() {
                             <Progress value={progress} color="cyan" size="xs" radius="xl" />
                           </Box>
                           {chapter && (
-                            <Badge size="xs" variant="filled" color="dark" style={{ position: 'absolute', top: 6, right: 6, opacity: 0.85, fontSize: rem(9) }}>
+                            <Badge size="xs" variant="filled" color="dark" style={{ position: 'absolute', top: 6, right: 6, opacity: 0.85, fontSize: rem(9), padding: '0.25rem 0.6rem', lineHeight: 1 }}>
                               Cap.{chapter}
                             </Badge>
                           )}
@@ -852,40 +931,72 @@ export default function UserProfile() {
 
           {/* NIVEL DE USUARIO */}
           <Grid.Col span={{ base: 12, md: 5 }}>
-            <Paper p={isMobile ? 'md' : 'xl'} radius="xl" h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
+            <Paper id="nivel-usuario" p={isMobile ? 'md' : 'xl'} radius="xl" h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
               <Box style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(234,179,8,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
               <Box style={{ position: 'absolute', bottom: -30, left: -30, width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
               <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
                 <Group justify="space-between" align="center" wrap="nowrap">
                   <Group gap="sm">
-                    <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'yellow', to: 'orange', deg: 135 }}><IconStar size={18} /></ThemeIcon>
+                    <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={getLevelGradient(levelInfo.level)}><IconStar size={18} /></ThemeIcon>
                     <Text fw={700} size={isMobile ? 'md' : 'lg'}>Nivel de Usuario</Text>
                   </Group>
-                  <Badge variant="gradient" gradient={{ from: 'yellow', to: 'orange' }} size="sm" leftSection={<IconSparkles size={10} />}>Próximamente</Badge>
+                  <Badge variant="gradient" gradient={getLevelGradient(levelInfo.level)} size="sm" style={{ padding: '0.35rem 0.9rem', lineHeight: 1 }}>{levelInfo.name}</Badge>
                 </Group>
                 <Group gap="md" align="center" wrap="nowrap">
-                  <Box style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72, flexShrink: 0, borderRadius: '50%', background: isDark ? 'linear-gradient(135deg, rgba(234,179,8,0.2), rgba(249,115,22,0.2))' : 'linear-gradient(135deg, rgba(234,179,8,0.15), rgba(249,115,22,0.15))', border: '2px solid rgba(234,179,8,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
-                    <Text fw={800} size="xl" style={{ color: 'var(--mantine-color-yellow-5)' }}>?</Text>
-                  </Box>
+                  {(() => {
+                    const LevelIcon = levelInfo.level === 1 ? IconBook : levelInfo.level === 2 ? IconSword : levelInfo.level === 3 ? IconShield : IconCrown;
+                    const sz = isMobile ? 60 : 72;
+                    return (
+                      <Box style={{ width: sz, height: sz, flexShrink: 0, borderRadius: '50%', background: isDark ? `linear-gradient(135deg, rgba(234,179,8,0.2), rgba(249,115,22,0.2))` : `linear-gradient(135deg, rgba(234,179,8,0.15), rgba(249,115,22,0.15))`, border: `2px solid var(--mantine-color-${levelInfo.color}-6)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <LevelIcon size={sz * 0.44} color={`var(--mantine-color-${levelInfo.color}-5)`} stroke={1.7} />
+                      </Box>
+                    );
+                  })()}
                   <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-                    <Text fw={600} size="sm" c="dimmed">Novato → Guerrero → Héroe → Leyenda</Text>
-                    <Progress value={35} color="yellow" size="md" radius="xl" style={{ opacity: 0.4 }} />
-                    <Text size="xs" c="dimmed">Sistema de XP por lectura en desarrollo</Text>
+                    <Group justify="space-between" gap="xs">
+                      <Text fw={600} size="sm" c="dimmed">{formatXp(levelInfo.currentXp)} XP</Text>
+                      {levelInfo.level < 4 && (
+                        <Text size="xs" c="dimmed">{formatXp(levelInfo.xpToNextLevel)} para subir</Text>
+                      )}
+                    </Group>
+                    <Progress value={levelInfo.progress} color={levelInfo.color} size="md" radius="xl" />
+                    {levelInfo.level < 4 ? (
+                      <Text size="xs" c="dimmed">Progreso al siguiente nivel</Text>
+                    ) : (
+                      <Text size="xs" fw={600} c="yellow">¡Nivel máximo alcanzado!</Text>
+                    )}
                   </Stack>
                 </Group>
                 <SimpleGrid cols={4} spacing="xs">
-                  {[
-                    { label: 'Novato', icon: IconBook, color: 'gray' },
-                    { label: 'Guerrero', icon: IconSword, color: 'cyan' },
-                    { label: 'Héroe', icon: IconShield, color: 'violet' },
-                    { label: 'Leyenda', icon: IconCrown, color: 'yellow' },
-                  ].map((lvl) => {
-                    const LvlIcon = lvl.icon;
+                  {Object.values(LEVEL_CONFIG).map((lvl) => {
+                    const isActive = levelInfo.level >= lvl.level;
+                    const LvlIcon = lvl.level === 1 ? IconBook : lvl.level === 2 ? IconSword : lvl.level === 3 ? IconShield : IconCrown;
                     return (
-                      <Stack key={lvl.label} align="center" gap={4} style={{ opacity: 0.4 }}>
-                        <ThemeIcon size={isMobile ? 'sm' : 'md'} radius="xl" variant="light" color={lvl.color}><LvlIcon size={isMobile ? 12 : 14} /></ThemeIcon>
-                        <Text size="xs" c="dimmed" ta="center" lh={1.2}>{lvl.label}</Text>
-                      </Stack>
+                      <Tooltip
+                        key={lvl.level}
+                        label={
+                          <Stack gap={4}>
+                            <Group gap={6} align="center">
+                              <ThemeIcon size={18} radius="xl" variant={isActive ? 'filled' : 'light'} color={lvl.color}>
+                                {(() => { const I = lvl.level === 1 ? IconBook : lvl.level === 2 ? IconSword : lvl.level === 3 ? IconShield : IconCrown; return <I size={10} />; })()}
+                              </ThemeIcon>
+                              <Text size="sm" fw={700}>{lvl.name}</Text>
+                            </Group>
+                            <Text size="xs" c="dimmed">{formatXp(lvl.minXp)}+ XP para desbloquear</Text>
+                            {isActive && <Text size="xs" fw={600} c={`${lvl.color}.4`}>✓ Nivel alcanzado</Text>}
+                          </Stack>
+                        }
+                        withArrow
+                        position="top"
+                        styles={tooltipStyles(isDark)}
+                      >
+                        <Stack align="center" gap={4} style={{ opacity: isActive ? 1 : 0.4 }}>
+                          <ThemeIcon size={isMobile ? 'sm' : 'md'} radius="xl" variant={isActive ? 'filled' : 'light'} color={lvl.color}>
+                            <LvlIcon size={isMobile ? 12 : 14} />
+                          </ThemeIcon>
+                          <Text size="xs" c={isActive ? levelInfo.color : 'dimmed'} ta="center" lh={1.2} fw={isActive ? 600 : 400}>{lvl.name}</Text>
+                        </Stack>
+                      </Tooltip>
                     );
                   })}
                 </SimpleGrid>
@@ -894,8 +1005,8 @@ export default function UserProfile() {
           </Grid.Col>
 
           {/* VITRINA DE INSIGNIAS */}
-          <Grid.Col span={{ base: 12, md: 7 }}>
-            <VitrinaLogros streak={streak} isDark={isDark} isMobile={isMobile} />
+          <Grid.Col id="vitrina-logros" span={{ base: 12, md: 7 }}>
+            <VitrinaLogros stats={achievementsData?.stats || { streak }} isDark={isDark} isMobile={isMobile} />
           </Grid.Col>
         </Grid>
 
@@ -923,6 +1034,7 @@ export default function UserProfile() {
                 radius="xl"
                 leftSection={<IconStarFilled size={14} />}
                 onClick={() => setCommunityTab('ratings')}
+                style={{ padding: '0.5rem 1.2rem' }}
               >
                 Mis Calificaciones ({userRatings.length})
               </Button>
@@ -933,6 +1045,7 @@ export default function UserProfile() {
                 radius="xl"
                 leftSection={<IconMessage size={14} />}
                 onClick={() => setCommunityTab('comments')}
+                style={{ padding: '0.5rem 1.2rem' }}
               >
                 Mis Comentarios ({userComments.length})
               </Button>
@@ -978,7 +1091,7 @@ export default function UserProfile() {
                             <Group gap={6} wrap="nowrap">
                               <Text size="sm" fw={600} lineClamp={1}>{rating.series?.title || 'Sin título'}</Text>
                               {rating.ratingType === 'chapter' && (
-                                <Badge size="xs" variant="light" color="cyan">Cap. {rating.chapterNumber}</Badge>
+                                <Badge size="xs" variant="light" color="cyan" style={{ padding: '0.25rem 0.6rem', lineHeight: 1 }}>Cap. {rating.chapterNumber}</Badge>
                               )}
                             </Group>
                             <Group gap={4}>
@@ -1042,7 +1155,7 @@ export default function UserProfile() {
                               )}
                               <Stack gap={2} style={{ minWidth: 0 }}>
                                 <Text size="xs" fw={600} lineClamp={1}>{comment.targetTitle || 'Comentario'}</Text>
-                                <Badge size="xs" variant="light" color={comment.targetType === 'chapter' ? 'cyan' : 'violet'}>
+                                <Badge size="xs" variant="light" color={comment.targetType === 'chapter' ? 'cyan' : 'violet'} style={{ padding: '0.25rem 0.6rem', lineHeight: 1 }}>
                                   {comment.targetType === 'chapter' ? `Cap. ${comment.chapterNumber}` : 'Serie'}
                                 </Badge>
                               </Stack>
@@ -1053,7 +1166,7 @@ export default function UserProfile() {
                           </Group>
                           <Text size="sm" lineClamp={2} style={{ opacity: 0.85 }}>
                             {comment.isSpoiler ? (
-                              <Badge size="xs" color="orange" variant="light">Spoiler oculto</Badge>
+                              <Badge size="xs" color="orange" variant="light" style={{ padding: '0.25rem 0.6rem', lineHeight: 1 }}>Spoiler oculto</Badge>
                             ) : comment.content}
                           </Text>
                           <Group gap="md">
@@ -1204,6 +1317,9 @@ export default function UserProfile() {
               <Box pos="relative">
                 <Avatar
                   src={avatarSrc}
+                  name={user?.display_name || user?.name || user?.username || ''}
+                  color="initials"
+                  allowedInitialsColors={AVATAR_COLORS}
                   size={isMobile ? 64 : 80}
                   radius="50%"
                   style={{
@@ -1213,7 +1329,12 @@ export default function UserProfile() {
                 >
                   {getInitials()}
                 </Avatar>
-                <Tooltip label="Cambiar avatar" withArrow>
+                <Tooltip
+                  label={<Text size="sm" fw={600}>Cambiar avatar</Text>}
+                  withArrow
+                  position="top"
+                  styles={tooltipStyles(isDark)}
+                >
                   <ActionIcon
                     variant="gradient"
                     gradient={{ from: 'cyan', to: 'teal' }}

@@ -9,9 +9,13 @@ const { body, param } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const progressController = require('../controllers/progress.controller');
 const { authenticate } = require('../middleware/auth');
+const { xpRateLimitMiddleware } = require('../middleware/xpSecurity');
 
 // Todas las rutas requieren autenticación
 router.use(authenticate);
+
+// Aplicar rate limiting a endpoints que otorgan XP
+router.use(xpRateLimitMiddleware);
 
 // Validaciones
 const saveProgressValidation = [

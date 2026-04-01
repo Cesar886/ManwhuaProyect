@@ -327,7 +327,7 @@ const getCurrentUser = async (req, res, next) => {
         const result = await query(
             `SELECT u.id, u.username, u.email, u.display_name, u.avatar_url, u.banner_url,
                     u.bio, u.location, u.website, u.role, u.status, u.is_premium,
-                    u.premium_until, u.level, u.email_verified_at,
+                    u.premium_until, u.level, u.experience, u.email_verified_at,
                     u.followers_count, u.following_count, u.collections_count,
                     u.theme_primary_color, u.theme_accent_color, u.theme_mode,
                     u.preferences, u.created_at,
@@ -366,7 +366,7 @@ const getCurrentUser = async (req, res, next) => {
                     isPremium: user.is_premium,
                     premiumUntil: user.premium_until,
                     level: user.level,
-                    level: user.level,
+                    experience: parseInt(user.experience) || 0,
                     isVerified: !!user.email_verified_at,
                     theme_mode: user.theme_mode,
                     theme: {

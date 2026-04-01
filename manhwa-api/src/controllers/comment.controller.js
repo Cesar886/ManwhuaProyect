@@ -10,12 +10,12 @@ const { getUserBadgeStats } = require('./progress.controller');
  * Construye el objeto author con badge stats para respuestas.
  * Nunca lanza — devuelve stats en 0 si falla.
  */
-const buildAuthorWithBadges = async (user, dbRow = null) => {
-    let badgeStats = { streak: 0, totalChapters: 0, comments: 0, nightReads: 0, maxChaptersPerHour: 0 };
+const buildAuthorWithBadges = async (user, dbRow = null, timezone = null) => {
+    let badgeStats = { streak: 0, totalChapters: 0, comments: 0, nightReads: 0, maxChaptersPerHour: 0, ratings: 0 };
     const userId = user?.id ?? dbRow?.user_id ?? null;
     if (userId) {
         try {
-            badgeStats = await getUserBadgeStats(userId);
+            badgeStats = await getUserBadgeStats(userId, timezone);
         } catch (_) { /* stats en 0 — no crítico */ }
     }
     return {
@@ -24,11 +24,13 @@ const buildAuthorWithBadges = async (user, dbRow = null) => {
         displayName: user?.displayName ?? user?.display_name ?? dbRow?.display_name ?? null,
         avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? dbRow?.avatar_url ?? null,
         role: user?.role ?? dbRow?.user_role ?? null,
+        experience: parseInt(user?.experience ?? dbRow?.experience ?? 0) || 0,
         streak: badgeStats.streak,
         totalChapters: badgeStats.totalChapters,
         comments: badgeStats.comments,
         nightReads: badgeStats.nightReads,
-        maxChaptersPerHour: badgeStats.maxChaptersPerHour
+        maxChaptersPerHour: badgeStats.maxChaptersPerHour,
+        ratings: badgeStats.ratings
     };
 };
 
@@ -42,7 +44,7 @@ const getComment = async (req, res, next) => {
         
         // ✅ OPTIMIZADO: Una sola query con LEFT JOIN para encuestas y opciones
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role,
+            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $2 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $2 AND comment_id = c.id AND vote_type = -1) as user_disliked,
                     -- Datos de encuesta (si existe)
@@ -112,7 +114,7 @@ const getComment = async (req, res, next) => {
             }
         }
         
-        const author = await buildAuthorWithBadges(null, comment);
+        const author = await buildAuthorWithBadges(null, comment, req.user?.timezone || req.headers?.['x-timezone']);
 
         res.json({
             success: true,
@@ -172,7 +174,7 @@ const getCommentReplies = async (req, res, next) => {
         const total = commentResult.rows[0].replies_count;
         
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role,
+            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = -1) as user_disliked
              FROM comments c
@@ -186,7 +188,7 @@ const getCommentReplies = async (req, res, next) => {
         // Enriquecer respuestas con estadísticas de badges
         const enrichedReplies = await Promise.all(
             result.rows.map(async (c) => {
-                const author = await buildAuthorWithBadges(null, c);
+                const author = await buildAuthorWithBadges(null, c, req.user?.timezone || req.headers?.['x-timezone']);
 
                 return {
                     id: c.id,
@@ -441,7 +443,33 @@ const createComment = async (req, res, next) => {
             console.warn('Error sending comment webhook', e && e.message)
         }
         
-        const authorWithBadges = await buildAuthorWithBadges(req.user);
+        const authorWithBadges = await buildAuthorWithBadges(req.user, null, req.user?.timezone);
+
+        // ============================================
+        // SISTEMA DE LOGROS - Verificar logro de comentarios
+        // ============================================
+        let achievementUnlocked = null;
+        try {
+            const { checkAndUpdateAchievements } = require('./achievement.controller');
+            const { ACHIEVEMENT_TYPES } = require('../utils/achievementSystem');
+            
+            // Obtener total de comentarios del usuario
+            const commentsResult = await query(
+                'SELECT COUNT(*) as count FROM comments WHERE user_id = $1 AND status = $2',
+                [req.user.id, 'visible']
+            );
+            const totalComments = parseInt(commentsResult.rows[0]?.count) || 0;
+            
+            // Verificar logro
+            achievementUnlocked = await checkAndUpdateAchievements(
+                req.user.id,
+                ACHIEVEMENT_TYPES.CRITICO,
+                totalComments
+            );
+        } catch (achievementError) {
+            // No crítico - no afectar creación del comentario
+            console.warn('⚠️ Error verificando logro de comentarios:', achievementError.message);
+        }
 
         res.status(201).json({
             success: true,
@@ -455,7 +483,16 @@ const createComment = async (req, res, next) => {
                     poll: pollData,
                     createdAt: comment.created_at,
                     author: authorWithBadges
-                }
+                },
+                // Información del logro si se desbloqueó
+                ...(achievementUnlocked?.unlocked && {
+                    achievement: {
+                        type: achievementUnlocked.achievementType,
+                        newLevel: achievementUnlocked.newLevel,
+                        levelName: achievementUnlocked.levelName,
+                        color: achievementUnlocked.color
+                    }
+                })
             }
         });
         // Broadcast SSE a clientes conectados (si existen)

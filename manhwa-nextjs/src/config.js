@@ -50,6 +50,7 @@ export const ENDPOINTS = {
   spaces: apiUrl(`${apiPrefix}spaces`),
   progress: apiUrl(`${apiPrefix}progress`),
   donations: apiUrl(`${apiPrefix}donations`),
+  presence: apiUrl(`${apiPrefix}presence`),
 }
 
 export const endpoint = (name, subpath = '') => {

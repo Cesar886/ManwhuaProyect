@@ -17,10 +17,19 @@ const handleResponse = async (res) => {
 // Build headers. Using cookie-based auth (httpOnly) — do not read token from localStorage.
 // Include internal API key for backend access control (defense-in-depth).
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
-const getAuthHeaders = (extra = {}) => ({
-  ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-  ...extra,
-})
+// Timezone del usuario para cálculos de horario local (ej: logro Lector Nocturno)
+const getUserTimezone = () => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone; }
+  catch (_) { return ''; }
+}
+const getAuthHeaders = (extra = {}) => {
+  const tz = getUserTimezone();
+  return {
+    ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+    ...(tz ? { 'x-timezone': tz } : {}),
+    ...extra,
+  };
+}
 // Generic request with retry on network errors but DO NOT retry on 429
 // Rationale: retrying aggressively on 429 can make throttling worse.
 const requestWithRetry = async (input, init = {}, maxRetries = 3) => {

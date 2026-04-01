@@ -5,17 +5,74 @@ import {
   Box, ThemeIcon, Text, Badge, Tooltip, rem,
 } from '@mantine/core';
 import {
-  IconTrophy, IconSparkles, IconLock,
-  IconMoon, IconMessage, IconSword,
-  IconBolt, IconCrown, IconDiamond,
-  IconFlame,
+  IconTrophy, IconSparkles,
+  IconMoon, IconMessage,
+  IconBolt, IconDiamond,
+  IconStar, IconFlame,
 } from '@tabler/icons-react';
 import profileStyles from '@/app/user-profile/UserProfile.module.css';
 import styles from './Achievements.module.css';
 
 /* ============================================================
-   CATÁLOGO COMPLETO DE LOGROS
+   SISTEMA DE NIVELES MULTINIVEL
    ============================================================ */
+
+const LEVEL_NAMES = ['Bronce', 'Plata', 'Oro', 'Zafiro', 'Rubí', 'Diamante', 'Legendario', 'Mítico'];
+
+/**
+ * Calcula el nivel actual y el progreso hacia el siguiente.
+ * @param {number} value  - Valor actual del usuario
+ * @param {number[]} thresholds - Umbrales [L1, L2, L3, ...] (hasta 6 base)
+ * @param {boolean} infinite    - Si true, los niveles continúan más allá del último umbral
+ * @returns {{ level, name, nextThreshold, currentValue }}
+ */
+function getLevelInfo(value, thresholds, infinite = false) {
+  const v = Math.max(0, Number(value) || 0);
+  let level = 0;
+  for (let i = 0; i < thresholds.length; i++) {
+    if (v >= thresholds[i]) level = i + 1;
+    else break;
+  }
+
+  // Niveles infinitos: doblar el último umbral por cada nivel extra
+  // Límite de seguridad: máximo 50 niveles extra para evitar loops infinitos
+  if (infinite && level >= thresholds.length) {
+    let t = thresholds[thresholds.length - 1];
+    let extra = 0;
+    while (v >= t * 2 && extra < 50) {
+      level++;
+      t *= 2;
+      extra++;
+    }
+  }
+
+  // Calcular umbral del siguiente nivel
+  let nextThreshold;
+  if (level < thresholds.length) {
+    nextThreshold = thresholds[level];
+  } else if (infinite) {
+    let t = thresholds[thresholds.length - 1];
+    for (let i = thresholds.length; i < level; i++) t *= 2;
+    nextThreshold = t * 2;
+  } else {
+    nextThreshold = null; // nivel máximo
+  }
+
+  return {
+    level,
+    name: level > 0 ? (LEVEL_NAMES[Math.min(level - 1, LEVEL_NAMES.length - 1)]) : null,
+    nextThreshold,
+    currentValue: v,
+  };
+}
+
+function fmtNum(n) {
+  const v = Number(n) || 0;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 10_000)    return `${Math.round(v / 1_000)}K`;
+  if (v >= 1_000)     return `${(v / 1_000).toFixed(1)}K`;
+  return `${v}`;
+}
 
 /* ── Niveles de Racha ── */
 const STREAK_LEVELS = [
@@ -24,7 +81,7 @@ const STREAK_LEVELS = [
   { min: 7,  max: 13,   outer: '#ea580c', mid: '#f59e0b', core: '#fef9c3', glow: '234,88,12',   name: 'En desarrollo' },
   { min: 14, max: 29,   outer: '#1d4ed8', mid: '#06b6d4', core: '#e0f2fe', glow: '6,182,212',   name: 'Avanzado' },
   { min: 30, max: 59,   outer: '#7c3aed', mid: '#ec4899', core: '#fdf4ff', glow: '139,92,246',  name: 'Maestro' },
-  { min: 60, max: Infinity, outer: '#0e7490', mid: '#8b5cf6', core: '#ecfeff', glow: '14,116,185',  name: 'Legendario' },
+  { min: 60, max: Infinity, outer: '#0e7490', mid: '#8b5cf6', core: '#ecfeff', glow: '14,116,185', name: 'Legendario' },
 ];
 
 function getStreakLevel(streak) {
@@ -50,72 +107,83 @@ const SPARKS = [
   { cx: 36, cy: 73, dx: '7px',   delay: '0.65s', dur: '1.3s'  },
 ];
 
-/* ── Insignias desbloqueables ── */
+/* ============================================================
+   CATÁLOGO COMPLETO DE LOGROS
+   ============================================================ */
 export const ACHIEVEMENT_CATALOG = {
-  // Activo
-  streak: {
-    id: 'streak',
-    label: 'Racha',
-    description: 'Lee cada día sin faltar',
-    unlockCondition: (stats) => stats.streak > 0,
+
+  /* ── Llama Eterna: racha de días consecutivos ── */
+  llamaEterna: {
+    id: 'llamaEterna',
+    label: 'Llama\nEterna',
+    description: 'Mantén una racha de 30 días seguidos para desbloquear',
+    unlockCondition: (stats) => (stats.streak ?? 0) >= 30,
+    getLevelInfo: (stats) =>
+      getLevelInfo(stats.streak ?? 0, [30, 60, 90, 180, 365]),
     icon: IconFlame,
     color: 'orange',
-    levels: STREAK_LEVELS,
   },
-  
-  // Futuros logros
-  nightReader: {
-    id: 'nightReader',
-    label: 'Lector\nNocturno',
-    description: 'Lee de 00:00 a 05:00',
-    unlockCondition: (stats) => stats.nightReads >= 1,
-    icon: IconMoon,
-    color: 'violet',
-  },
-  
-  critic: {
-    id: 'critic',
-    label: 'Crítico',
-    description: 'Deja 10 comentarios',
-    unlockCondition: (stats) => stats.comments >= 10,
-    icon: IconMessage,
-    color: 'cyan',
-  },
-  
-  devourer: {
-    id: 'devourer',
-    label: 'Devorador',
-    description: 'Lee 100 capítulos',
+
+  /* ── Diamante: capítulos totales leídos (6 niveles) ── */
+  diamante: {
+    id: 'diamante',
+    label: 'Diamante',
+    description: 'Lee 100 capítulos para desbloquear',
     unlockCondition: (stats) => stats.totalChapters >= 100,
-    icon: IconSword,
-    color: 'orange',
+    getLevelInfo: (stats) =>
+      getLevelInfo(stats.totalChapters, [100, 1_000, 10_000, 50_000, 100_000, 500_000]),
+    icon: IconDiamond,
+    color: 'blue',
   },
-  
-  speedReader: {
-    id: 'speedReader',
+
+  /* ── Veloz: máximo capítulos en 1 hora (6 niveles) ── */
+  veloz: {
+    id: 'veloz',
     label: 'Veloz',
-    description: 'Lee 5 capítulos en 1 hora',
-    unlockCondition: (stats) => stats.maxChaptersPerHour >= 5,
+    description: 'Lee 100 capítulos en 1 hora para desbloquear',
+    unlockCondition: (stats) => stats.maxChaptersPerHour >= 100,
+    getLevelInfo: (stats) =>
+      getLevelInfo(stats.maxChaptersPerHour, [100, 200, 300, 400, 500, 600]),
     icon: IconBolt,
     color: 'yellow',
   },
-  
-  guardian: {
-    id: 'guardian',
-    label: 'Guardián',
-    description: 'Lee 500 capítulos',
-    unlockCondition: (stats) => stats.totalChapters >= 500,
-    icon: IconCrown,
-    color: 'teal',
+
+  /* ── Crítico: comentarios publicados (infinito) ── */
+  critico: {
+    id: 'critico',
+    label: 'Crítico',
+    description: 'Publica 10 comentarios para desbloquear',
+    unlockCondition: (stats) => stats.comments >= 10,
+    getLevelInfo: (stats) =>
+      getLevelInfo(stats.comments, [10, 50, 100, 500, 1_000, 5_000, 10_000, 50_000], true),
+    icon: IconMessage,
+    color: 'cyan',
+    infinite: true,
   },
-  
-  diamond: {
-    id: 'diamond',
-    label: 'Diamante',
-    description: 'Lee 1000 capítulos',
-    unlockCondition: (stats) => stats.totalChapters >= 1000,
-    icon: IconDiamond,
-    color: 'blue',
+
+  /* ── Lector Nocturno: noches distintas de madrugada (6 niveles) ── */
+  lectorNocturno: {
+    id: 'lectorNocturno',
+    label: 'Lector\nNocturno',
+    description: 'Lee de madrugada 30 noches para desbloquear',
+    unlockCondition: (stats) => stats.nightReads >= 30,
+    getLevelInfo: (stats) =>
+      getLevelInfo(stats.nightReads, [30, 50, 100, 200, 365, 730]),
+    icon: IconMoon,
+    color: 'violet',
+  },
+
+  /* ── Primera Estrella: capítulos calificados (infinito) ── */
+  primeraEstrella: {
+    id: 'primeraEstrella',
+    label: 'Primera\nEstrella',
+    description: 'Califica 10 capítulos para desbloquear',
+    unlockCondition: (stats) => (stats.ratings ?? 0) >= 10,
+    getLevelInfo: (stats) =>
+      getLevelInfo(stats.ratings ?? 0, [10, 50, 120, 500, 1_000, 5_000, 10_000, 50_000], true),
+    icon: IconStar,
+    color: 'orange',
+    infinite: true,
   },
 };
 
@@ -187,7 +255,7 @@ export function StreakFlame({
         className={styles.glowBase}
       />
 
-      {/* Capa exterior — silueta de llama clásica con punta y base ancha */}
+      {/* Capa exterior */}
       <path
         d="M31 5
            C28 14, 11 24, 10 43
@@ -201,7 +269,7 @@ export function StreakFlame({
         className={styles.flameOuter}
       />
 
-      {/* Capa media — llama interior más viva */}
+      {/* Capa media */}
       <path
         d="M30 16
            C28 23, 16 33, 16 47
@@ -215,7 +283,7 @@ export function StreakFlame({
         className={styles.flameMid}
       />
 
-      {/* Lengua izquierda — apunta hacia arriba y la izquierda */}
+      {/* Lengua izquierda */}
       <path
         d="M24 44
            C22 38, 18 30, 20 22
@@ -227,7 +295,7 @@ export function StreakFlame({
         className={styles.flameTongueL}
       />
 
-      {/* Lengua derecha — espejo asimétrico */}
+      {/* Lengua derecha */}
       <path
         d="M36 42
            C38 36, 42 28, 40 20
@@ -239,7 +307,7 @@ export function StreakFlame({
         className={styles.flameTongueR}
       />
 
-      {/* Núcleo interno — gota brillante central */}
+      {/* Núcleo interno */}
       <path
         d="M30 36
            C28 44, 24 54, 24 63
@@ -250,7 +318,7 @@ export function StreakFlame({
         className={styles.core}
       />
 
-      {/* Highlight blanco — centro caliente */}
+      {/* Highlight blanco */}
       <ellipse
         cx="30" cy="60" rx="5" ry="9"
         fill="#ffffff"
@@ -258,7 +326,7 @@ export function StreakFlame({
         className={styles.coreHighlight}
       />
 
-      {/* Chispas / brasas flotantes */}
+      {/* Chispas */}
       {!iconOnly && SPARKS.map((s, i) => (
         <circle
           key={i}
@@ -307,16 +375,117 @@ export function StreakFlame({
 }
 
 /* ============================================================
-   AchievementBadge - Componente individual de insignia
+   AchievementBadge - Insignia individual con soporte multinivel
    ============================================================ */
-function AchievementBadge({ achievement, isUnlocked, stats, isDark, isMobile }) {
+function AchievementTooltip({ achievement, isUnlocked, level, levelInfo, color }) {
   const AchIcon = achievement.icon;
-  const glowRgb = achievement.id === 'streak' && isUnlocked
-    ? getStreakLevel(stats.streak).glow
-    : null;
+
+  if (!isUnlocked) {
+    return (
+      <Stack gap={6} style={{ maxWidth: 200 }}>
+        <Group gap={6} align="center">
+          <ThemeIcon size={22} radius="xl" variant="light" color="gray">
+            <AchIcon size={12} />
+          </ThemeIcon>
+          <Text size="sm" fw={700} c="dimmed" style={{ whiteSpace: 'pre-line' }}>
+            {achievement.label}
+          </Text>
+        </Group>
+        <Text size="xs" c="dimmed" lh={1.4} style={{ opacity: 0.75 }}>
+          {achievement.description}
+        </Text>
+      </Stack>
+    );
+  }
+
+  const hasMax = !levelInfo?.nextThreshold;
+  const pct = levelInfo && !hasMax
+    ? Math.round((levelInfo.currentValue / levelInfo.nextThreshold) * 100)
+    : 100;
 
   return (
-    <Tooltip label={isUnlocked ? achievement.description : `🔒 ${achievement.description}`} withArrow position="top">
+    <Stack gap={8} style={{ maxWidth: 210 }}>
+      <Group gap={8} align="center">
+        <ThemeIcon size={26} radius="xl" variant="light" color={color}>
+          <AchIcon size={14} />
+        </ThemeIcon>
+        <Stack gap={1}>
+          <Text size="sm" fw={700} lh={1.2} style={{ whiteSpace: 'pre-line' }}>
+            {achievement.label}
+          </Text>
+          {levelInfo?.name && (
+            <Text size="xs" c={`${color}.3`} fw={600}>{levelInfo.name}</Text>
+          )}
+        </Stack>
+      </Group>
+
+      <Box style={{
+        background: 'rgba(255,255,255,0.06)',
+        borderRadius: rem(8),
+        padding: `${rem(6)} ${rem(10)}`,
+      }}>
+        <Group justify="space-between" mb={5}>
+          <Text size="xs" c="dimmed">Nivel {level}</Text>
+          {hasMax
+            ? <Text size="xs" fw={700} c="yellow">¡Máximo!</Text>
+            : <Text size="xs" c="dimmed">{fmtNum(levelInfo.currentValue)} / {fmtNum(levelInfo.nextThreshold)}</Text>
+          }
+        </Group>
+        <Box style={{
+          height: 5,
+          borderRadius: rem(99),
+          background: 'rgba(255,255,255,0.1)',
+          overflow: 'hidden',
+        }}>
+          <Box style={{
+            height: '100%',
+            width: `${Math.min(pct, 100)}%`,
+            borderRadius: rem(99),
+            background: `var(--mantine-color-${color}-5)`,
+            transition: 'width 0.6s ease',
+          }} />
+        </Box>
+        {!hasMax && (
+          <Text size="xs" c="dimmed" mt={4}>→ Nivel {level + 1}</Text>
+        )}
+      </Box>
+    </Stack>
+  );
+}
+
+function AchievementBadge({ achievement, stats, isDark, isMobile }) {
+  const AchIcon = achievement.icon;
+  let isUnlocked = false;
+  let levelInfo = null;
+  try {
+    isUnlocked = achievement.unlockCondition(stats);
+    levelInfo = achievement.getLevelInfo ? achievement.getLevelInfo(stats) : null;
+  } catch (_) {}
+  const level = levelInfo?.level ?? 0;
+  const color = isUnlocked ? achievement.color : 'gray';
+
+  return (
+    <Tooltip
+      label={<AchievementTooltip achievement={achievement} isUnlocked={isUnlocked} level={level} levelInfo={levelInfo} color={achievement.color} />}
+      withArrow
+      position="top"
+      multiline
+      styles={{
+        tooltip: {
+          background: isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: rem(12),
+          padding: `${rem(10)} ${rem(14)}`,
+          color: isDark ? '#e2e8f0' : '#1e293b',
+        },
+        arrow: {
+          background: isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+        },
+      }}
+    >
       <Stack
         align="center"
         gap={6}
@@ -325,61 +494,40 @@ function AchievementBadge({ achievement, isUnlocked, stats, isDark, isMobile }) 
           padding: rem(isMobile ? 6 : 10),
           borderRadius: rem(12),
           background: isUnlocked
-            ? isDark
-              ? `rgba(${glowRgb || '6,182,212'},0.10)`
-              : `rgba(${glowRgb || '6,182,212'},0.07)`
+            ? isDark ? `rgba(6,182,212,0.10)` : `rgba(6,182,212,0.07)`
             : isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-          border: `1px solid ${
-            isUnlocked
-              ? `rgba(${glowRgb || '6,182,212'},0.45)`
-              : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
-          }`,
-          boxShadow: isUnlocked
-            ? `0 0 18px rgba(${glowRgb || '6,182,212'},0.22)`
-            : 'none',
+          border: `1px solid ${isUnlocked
+            ? `rgba(6,182,212,0.45)`
+            : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+          boxShadow: isUnlocked ? `0 0 18px rgba(6,182,212,0.22)` : 'none',
           transition: 'all 0.4s ease',
         }}
       >
-        <Box style={{
-          position: 'relative',
-          opacity: isUnlocked ? 1 : 0.35,
-          filter: isUnlocked ? 'none' : 'grayscale(1)',
-        }}>
-          {achievement.id === 'streak' ? (
-            <StreakFlame streak={stats.streak} compact showLabel={false} />
-          ) : (
-            <ThemeIcon
-              size={isMobile ? 40 : 52}
-              radius="xl"
-              variant={isUnlocked ? 'light' : 'light'}
-              color={isUnlocked ? achievement.color : 'gray'}
-            >
-              <AchIcon size={isMobile ? 20 : 26} />
-            </ThemeIcon>
-          )}
-          
-          {!isUnlocked && (
-            <ThemeIcon
-              size={18} radius="xl" variant="filled"
+        <Box style={{ position: 'relative', opacity: isUnlocked ? 1 : 0.35, filter: isUnlocked ? 'none' : 'grayscale(1)' }}>
+          <ThemeIcon size={isMobile ? 40 : 52} radius="xl" variant="light" color={color}>
+            <AchIcon size={isMobile ? 20 : 26} />
+          </ThemeIcon>
+
+          {isUnlocked && level > 0 && (
+            <Badge
+              size="xs"
+              variant="filled"
+              color={achievement.color}
               style={{
-                position: 'absolute', bottom: -3, right: -3,
-                opacity: 0.6,
-                background: isDark ? 'rgba(15,23,42,0.9)' : 'rgba(100,100,100,0.8)',
+                position: 'absolute', bottom: -4, right: -4,
+                padding: '0 4px', minWidth: 18, height: 16,
+                fontSize: 10, lineHeight: '16px', pointerEvents: 'none',
               }}
             >
-              <IconLock size={10} />
-            </ThemeIcon>
+              {level}
+            </Badge>
           )}
         </Box>
-        
+
         <Text
           size="xs" ta="center" lh={1.2}
           fw={isUnlocked ? 700 : 400}
-          style={{
-            opacity: isUnlocked ? 1 : 0.5,
-            color: isUnlocked && glowRgb ? `rgb(${glowRgb})` : undefined,
-            whiteSpace: 'pre-line',
-          }}
+          style={{ opacity: isUnlocked ? 1 : 0.5, whiteSpace: 'pre-line' }}
         >
           {achievement.label}
         </Text>
@@ -392,13 +540,13 @@ function AchievementBadge({ achievement, isUnlocked, stats, isDark, isMobile }) 
    VitrinaLogros - Panel completo de logros
    ============================================================ */
 export function VitrinaLogros({ stats = {}, isDark = false, isMobile = false }) {
-  // Stats por defecto
   const userStats = {
     streak: 0,
     nightReads: 0,
     comments: 0,
     totalChapters: 0,
     maxChaptersPerHour: 0,
+    ratings: 0,
     ...stats,
   };
 
@@ -437,18 +585,18 @@ export function VitrinaLogros({ stats = {}, isDark = false, isMobile = false }) 
             gradient={{ from: 'cyan', to: 'violet' }}
             size="sm"
             leftSection={<IconSparkles size={10} />}
+            style={{ padding: '0.4rem 1rem', lineHeight: 1 }}
           >
-            {unlockedCount}/{achievements.length}
+            {unlockedCount}/∞
           </Badge>
         </Group>
 
         {/* Grid de logros */}
-        <SimpleGrid cols={{ base: 3, sm: 4, md: 7 }} spacing={isMobile ? 'xs' : 'sm'}>
+        <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'}>
           {achievements.map((achievement) => (
             <AchievementBadge
               key={achievement.id}
               achievement={achievement}
-              isUnlocked={achievement.unlockCondition(userStats)}
               stats={userStats}
               isDark={isDark}
               isMobile={isMobile}

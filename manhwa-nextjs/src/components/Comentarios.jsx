@@ -1,13 +1,82 @@
 "use client";
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react'
 import logger from '../utils/logger'
-import { Group, Text, Avatar, Button, Menu, ActionIcon, Modal, Checkbox, Textarea, Loader, Badge, Stack, Card, TextInput, Tooltip } from '@mantine/core'
-import { IconMessage, IconSend, IconCheck, IconAlertCircle, IconThumbUp, IconThumbDown, IconEye, IconEyeOff, IconDotsVertical, IconChartBar, IconPlus, IconX, IconSparkles, IconTrendingUp, IconHistory, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight } from '@tabler/icons-react'
+import { Group, Text, Avatar, Button, Menu, ActionIcon, Modal, Checkbox, Textarea, Loader, Badge, Stack, Card, TextInput, Tooltip, Popover } from '@mantine/core'
+import { IconMessage, IconSend, IconCheck, IconAlertCircle, IconThumbUp, IconThumbDown, IconEye, IconEyeOff, IconDotsVertical, IconChartBar, IconPlus, IconX, IconSparkles, IconTrendingUp, IconHistory, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight, IconBook, IconSword, IconShield, IconCrown } from '@tabler/icons-react'
 import api from '../api/client'
 import { endpoint } from '../config'
 import { getRequestComments as apiGetRequestComments } from '../api/requests'
 import UserBadges from './UserBadges'
+import { getLevelInfo, LEVEL_CONFIG } from '../utils/xpSystem'
+
+const LEVEL_ICONS = { IconBook, IconSword, IconShield, IconCrown }
+
+function LevelBadge({ experience }) {
+  const [opened, setOpened] = useState(false)
+  const closeTimer = useRef(null)
+  const levelInfo = getLevelInfo(experience || 0)
+  const IconComponent = LEVEL_ICONS[levelInfo.icon]
+  if (!IconComponent) return null
+
+  const colorMap = {
+    gray:   { text: '#6b6e73', bg: 'rgba(144,146,150,0.18)', border: 'rgba(144,146,150,0.4)' },
+    cyan:   { text: '#15aabf', bg: 'rgba(34,184,207,0.15)',  border: 'rgba(34,184,207,0.35)'  },
+    violet: { text: '#9775fa', bg: 'rgba(177,151,252,0.15)', border: 'rgba(177,151,252,0.35)' },
+    yellow: { text: '#f59f00', bg: 'rgba(255,212,59,0.18)',  border: 'rgba(255,212,59,0.4)'   }
+  }
+  const colors = colorMap[levelInfo.color] || colorMap.gray
+
+  const open = () => { clearTimeout(closeTimer.current); setOpened(true) }
+  const scheduleClose = () => { closeTimer.current = setTimeout(() => setOpened(false), 200) }
+
+  return (
+    <Popover opened={opened} onChange={setOpened} withArrow withinPortal position="bottom" width={200}>
+      <Popover.Target>
+        <span
+          onMouseEnter={open}
+          onMouseLeave={scheduleClose}
+          onClick={() => setOpened(o => !o)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: 3,
+            borderRadius: 6,
+            background: colors.bg,
+            border: `1px solid ${colors.border}`,
+            cursor: 'pointer',
+            flexShrink: 0,
+            verticalAlign: 'middle'
+          }}
+        >
+          <IconComponent size={13} style={{ color: colors.text, display: 'block' }} />
+        </span>
+      </Popover.Target>
+      <Popover.Dropdown style={{ padding: '10px 14px' }} onMouseEnter={open} onMouseLeave={scheduleClose}>
+        <Text fw={700} size="sm" style={{ color: colors.text }}>{levelInfo.name}</Text>
+        <Text size="xs" c="dimmed" mt={2}>
+          {levelInfo.level === 1
+            ? 'Nivel inicial de todo lector'
+            : `Logro desbloqueado al alcanzar ${levelInfo.minXp.toLocaleString('es-ES')} XP`}
+        </Text>
+        <a
+          href="/perfil#nivel-usuario"
+          style={{
+            display: 'inline-block',
+            marginTop: 8,
+            fontSize: 12,
+            color: colors.text,
+            textDecoration: 'underline',
+            fontWeight: 600
+          }}
+          onClick={() => setOpened(false)}
+        >
+          Ver más
+        </a>
+      </Popover.Dropdown>
+    </Popover>
+  )
+}
 
 // Componente de Paginación personalizado para evitar conflictos con Next.js 15
 function CustomPagination({ value, onChange, total, size = "sm" }) {
@@ -152,6 +221,7 @@ const buildOptimisticAuthor = (createdAuthor, fallbackUser) => {
     displayName: base.displayName ?? fallbackUser?.displayName ?? fallbackUser?.username ?? null,
     avatarUrl: base.avatarUrl ?? fallbackUser?.avatarUrl ?? null,
     role: base.role ?? fallbackUser?.role ?? null,
+    experience: base.experience ?? fallbackUser?.experience ?? 0,
     streak: base.streak ?? 0,
     totalChapters: base.totalChapters ?? 0,
     comments: base.comments ?? 0,
@@ -1600,7 +1670,10 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                     >
                       {r.author?.displayName || r.author?.username}
                     </Text>
-                    <Text size="xs" style={{ color: 'var(--dimmed-text)' }}>{formatTimeAgo(r.createdAt)}</Text>
+                    <Group spacing={6} style={{ alignItems: 'center', flexWrap: 'nowrap' }}>
+                      <LevelBadge experience={r.author?.experience} />
+                      <Text size="xs" style={{ color: 'var(--dimmed-text)' }}>{formatTimeAgo(r.createdAt)}</Text>
+                    </Group>
                   </Group>
                   <div style={{ marginTop: 6, color: 'var(--text-color)', wordBreak: 'break-word' }}>
                     <Text size="sm" component="span">
@@ -2977,6 +3050,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                             </Group>
 
                             <Group spacing={6} style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
+                              <LevelBadge experience={c.author?.experience} />
                               <Text size="xs" style={{ color: 'var(--dimmed-text)', whiteSpace: 'nowrap' }}>
                                 {formatTimeAgo(c.createdAt)}
                               </Text>

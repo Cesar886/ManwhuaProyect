@@ -560,7 +560,7 @@ const getRequestComments = async (req, res, next) => {
         const request = requestResult.rows[0];
         
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role
+            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience
              FROM comments c
              JOIN users u ON c.user_id = u.id
              WHERE c.target_type = 'request' AND c.target_id = $1 
@@ -618,7 +618,7 @@ const getRequestComments = async (req, res, next) => {
                 console.warn('Error obteniendo encuesta del comentario', c.id, pollErr);
             }
 
-            const badgeStats = await getUserBadgeStats(c.user_id);
+            const badgeStats = await getUserBadgeStats(c.user_id, req.user?.timezone || req.headers?.['x-timezone']);
 
             return {
                 id: c.id,
@@ -629,6 +629,7 @@ const getRequestComments = async (req, res, next) => {
                     displayName: c.display_name,
                     avatarUrl: c.avatar_url,
                     role: c.user_role,
+                    experience: parseInt(c.experience) || 0,
                     // Estadísticas para badges (igual que series/chapter)
                     streak: badgeStats.streak,
                     totalChapters: badgeStats.totalChapters,
