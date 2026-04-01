@@ -163,7 +163,29 @@ function broadcastChapterReaders(app, key) {
 }
 
 function broadcastManhwaReaders(app, slug) {
+    const payload = buildReadersPayload(app, 'manhwaReaders', slug);
+    
+    // Enviar a los readers (gente leyendo capítulos)
     broadcastReaders(app, 'manhwaReaders', slug);
+    
+    // Enviar a los watchers de detalles
+    const watchers = app.locals.manhwaDetailWatchers?.get(slug);
+    if (watchers && watchers.size > 0) {
+        const deadWatchers = [];
+        for (const w of watchers) {
+            if (w.res.writableEnded) {
+                deadWatchers.push(w);
+            } else {
+                sendReadersTo(w.res, payload);
+            }
+        }
+        // Limpiar conexiones muertas
+        if (deadWatchers.length > 0) {
+            for (const dead of deadWatchers) {
+                watchers.delete(dead);
+            }
+        }
+    }
 }
 
 /**
@@ -274,6 +296,14 @@ router.get('/manhwa/:slug/stream', authenticate, (req, res) => {
     // Enviar estado actual inmediatamente
     sendReadersTo(res, buildReadersPayload(app, 'manhwaReaders', slug));
 
+    // Registrar este watcher para recibir broadcasts
+    if (!app.locals.manhwaDetailWatchers.has(slug)) {
+        app.locals.manhwaDetailWatchers.set(slug, new Set());
+    }
+    
+    const watcher = { res, connectedAt: Date.now() };
+    app.locals.manhwaDetailWatchers.get(slug).add(watcher);
+
     // Heartbeat cada 25s para mantener conexión viva
     const heartbeat = setInterval(() => {
         try {
@@ -283,9 +313,16 @@ router.get('/manhwa/:slug/stream', authenticate, (req, res) => {
         }
     }, 25000);
 
-    // Solo se cierra la conexión cuando el cliente se desconecta
+    // Limpiar cuando el cliente se desconecta
     req.on('close', () => {
         clearInterval(heartbeat);
+        const watchers = app.locals.manhwaDetailWatchers.get(slug);
+        if (watchers) {
+            watchers.delete(watcher);
+            if (watchers.size === 0) {
+                app.locals.manhwaDetailWatchers.delete(slug);
+            }
+        }
     });
 });
 
