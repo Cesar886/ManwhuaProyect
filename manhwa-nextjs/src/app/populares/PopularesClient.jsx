@@ -9,6 +9,7 @@ import {
     IconCalendar, IconSparkles, IconClock,
 } from '@tabler/icons-react';
 import classes from './Populares.module.css';
+import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
 
 // ─── Card unificada (misma estructura que Colección de Manhwas en /home) ────
 
@@ -153,6 +154,9 @@ export default function PopularesClient({
                         <PopularCard key={item.id || item.slug} item={item} index={i} priority={i < 5} showRank />
                     )}
                 />
+
+                {/* Adsterra Banner Display 468x60 */}
+                <AdsterraBannerDisplay />
 
                 {/* ── 2. Trending ── */}
                 <SectionRow

@@ -23,6 +23,7 @@ import { slugifyQuery } from '@/hooks/useIA';
 import { filterAvailableSeries } from '@/utils/adultContent';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecentProgress } from '@/api/progress';
+import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
 import { getRelatedSeries } from '@/api/requests';
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
@@ -334,6 +335,9 @@ export default function HomeClient({ initialSeries = [] }) {
             ))}
           </div>
         </section>
+
+        {/* Adsterra Banner Display 468x60 */}
+        <AdsterraBannerDisplay />
 
         {smartRecommendation.loading && (
           <section className={styles.querySection}>
