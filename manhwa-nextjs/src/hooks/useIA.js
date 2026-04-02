@@ -1,7 +1,9 @@
 // src/hooks/useIA.js
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { endpoint } from '@/config';
 
-const AI_API_URL = process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read';
+const AI_API_URL = endpoint('search', 'ai/read');
 
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutos
 const DEFAULT_CACHE_PREFIX = 'ia_cache_v3_';
@@ -11,6 +13,8 @@ const SEARCH_COOLDOWN = 3000; // 3s entre búsquedas a la API
 const MAX_QUERY_LENGTH = 300;
 const MAX_QUERY_LINES = 6;
 const STORAGE_PROBE_KEY = '__ia_storage_probe__';
+const GUEST_DAILY_IA_LIMIT = 10;
+const IA_DEVICE_ID_KEY = 'ia_device_id_v1';
 const PROMPT_INJECTION_PATTERNS = [
     /\bignore\b.{0,40}\b(previous|above|prior)\b.{0,40}\b(instruction|prompt|message|rule)s?\b/i,
     /\b(system|developer|assistant)\s*[:=]/i,
@@ -601,13 +605,81 @@ function classifyError(err) {
     return err.message || 'Error al conectar con la IA';
 }
 
+function getIaDeviceId() {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        let value = window.localStorage.getItem(IA_DEVICE_ID_KEY);
+        if (!value) {
+            value = window.crypto?.randomUUID
+                ? window.crypto.randomUUID()
+                : `ia-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+            window.localStorage.setItem(IA_DEVICE_ID_KEY, value);
+        }
+        return value;
+    } catch {
+        return null;
+    }
+}
+
+function buildGuestAiLimitState({ isGuest, used = 0, limit = GUEST_DAILY_IA_LIMIT, blocked = false }) {
+    if (!isGuest) {
+        return {
+            isGuest: false,
+            limit,
+            used: 0,
+            remaining: null,
+            blocked: false,
+            message: null,
+        };
+    }
+
+    const safeLimit = Math.max(1, Number(limit) || GUEST_DAILY_IA_LIMIT);
+    const safeUsed = Math.max(0, Math.min(safeLimit, Number(used) || 0));
+    const remaining = Math.max(0, safeLimit - safeUsed);
+    const isBlocked = blocked || remaining === 0;
+    return {
+        isGuest: true,
+        limit: safeLimit,
+        used: safeUsed,
+        remaining,
+        blocked: isBlocked,
+        message: isBlocked ? `Has alcanzado el límite diario de ${safeLimit} consultas IA. Regístrate para seguir usándola.` : null,
+    };
+}
+
+function toGuestLimitState(payload, fallbackIsGuest = true) {
+    const limitData = payload?.guestLimit;
+    if (!limitData) return buildGuestAiLimitState({ isGuest: fallbackIsGuest, used: 0 });
+    return buildGuestAiLimitState({
+        isGuest: fallbackIsGuest,
+        used: limitData.used,
+        limit: limitData.limit,
+        blocked: Boolean(limitData.blocked),
+    });
+}
+
 export function useIA(options = {}) {
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState(null);
     const [resultados, setResultados] = useState(null);
     const [nsfwRedirect, setNsfwRedirect] = useState(false);
+    const { user } = useAuth();
+    const [guestAiLimit, setGuestAiLimit] = useState(() => buildGuestAiLimitState({ isGuest: true, used: 0 }));
     const cacheConfigRef = useRef(buildCacheConfig(options.namespace));
     const promptProtectionRef = useRef(options.promptProtection !== false);
+    const userRef = useRef(user);
+
+    useEffect(() => {
+        userRef.current = user;
+
+        if (user) {
+            setGuestAiLimit(buildGuestAiLimitState({ isGuest: false, used: 0 }));
+            return;
+        }
+
+        setGuestAiLimit(buildGuestAiLimitState({ isGuest: true, used: 0 }));
+    }, [user]);
 
     useEffect(() => {
         cacheConfigRef.current = buildCacheConfig(options.namespace);
@@ -694,6 +766,10 @@ export function useIA(options = {}) {
             if (cacheConfigRef.current.namespace === 'nsfw') {
                 fetchHeaders['X-Search-Context'] = 'nsfw';
             }
+            const deviceId = getIaDeviceId();
+            if (deviceId) {
+                fetchHeaders['X-Device-Id'] = deviceId;
+            }
             const response = await fetch(AI_API_URL, {
                 method: 'POST',
                 headers: fetchHeaders,
@@ -711,10 +787,21 @@ export function useIA(options = {}) {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Error ${response.status}`);
+                if (!userRef.current && errorData?.guestLimit) {
+                    setGuestAiLimit(toGuestLimitState(errorData, true));
+                }
+                const serverMessage = errorData?.message || errorData?.error || `Error ${response.status}`;
+                const customError = new Error(serverMessage);
+                customError.status = response.status;
+                customError.body = errorData;
+                throw customError;
             }
 
             const data = await response.json();
+
+            if (!userRef.current && data?.guestLimit) {
+                setGuestAiLimit(toGuestLimitState(data, true));
+            }
 
             if (controller !== activeControllerRef.current) return null;
 
@@ -879,6 +966,7 @@ export function useIA(options = {}) {
         error,
         nsfwRedirect,
         resultados,
+        guestAiLimit,
         limpiar,
     };
 }

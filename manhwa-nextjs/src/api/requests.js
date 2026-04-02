@@ -76,6 +76,9 @@ export const getFeaturedSeries = (opts = {}) => {
 
 export const getSeriesDetail = (slug) => api.get('series', slug)
 
+export const recordSeriesView = (slug, visitorId) =>
+  api.post('series', `${slug}/view`, { visitorId })
+
 export const updateSeries = (slug, data) => api.patch('series', slug, data)
 export const getSeriesMerch = (slug) => api.get('series', `${slug}/merch`)
 

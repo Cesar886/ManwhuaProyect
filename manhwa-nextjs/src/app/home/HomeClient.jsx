@@ -21,6 +21,9 @@ import Header from '@/components/Header';
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { slugifyQuery } from '@/hooks/useIA';
 import { filterAvailableSeries } from '@/utils/adultContent';
+import { useAuth } from '@/contexts/AuthContext';
+import { getRecentProgress } from '@/api/progress';
+import { getRelatedSeries } from '@/api/requests';
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
@@ -42,6 +45,13 @@ export default function HomeClient({ initialSeries = [] }) {
   const [isFromCache, setIsFromCache] = useState(false)
   const [popularCategories, setPopularCategories] = useState([])
   const [popularLoading, setPopularLoading] = useState(true)
+  const [smartRecommendation, setSmartRecommendation] = useState({
+    loading: false,
+    sourceTitle: '',
+    sourceSlug: '',
+    items: [],
+  })
+  const { user } = useAuth()
 
   // Solo carga client-side si el server no pudo proveer datos (fallback)
   useEffect(() => {
@@ -120,6 +130,60 @@ export default function HomeClient({ initialSeries = [] }) {
     loadPopular()
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!user) {
+      setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', items: [] })
+      return undefined
+    }
+
+    const loadSmartRecommendation = async () => {
+      setSmartRecommendation(prev => ({ ...prev, loading: true }))
+
+      try {
+        const recent = await getRecentProgress(1)
+        const lastRead = Array.isArray(recent)
+          ? recent.find((item) => item?.series?.slug)
+          : null
+
+        if (!lastRead?.series?.slug) {
+          if (!cancelled) {
+            setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', items: [] })
+          }
+          return
+        }
+
+        const relatedResponse = await getRelatedSeries(lastRead.series.slug, 8)
+        const relatedRaw = relatedResponse?.data?.series
+          || relatedResponse?.series
+          || relatedResponse?.data?.data?.series
+          || []
+
+        const cleaned = filterAvailableSeries(Array.isArray(relatedRaw) ? relatedRaw : [])
+          .filter((item) => item?.slug && item.slug !== lastRead.series.slug)
+          .slice(0, 8)
+
+        if (!cancelled) {
+          setSmartRecommendation({
+            loading: false,
+            sourceTitle: lastRead.series.title || '',
+            sourceSlug: lastRead.series.slug || '',
+            items: cleaned,
+          })
+        }
+      } catch {
+        if (!cancelled) {
+          setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', items: [] })
+        }
+      }
+    }
+
+    loadSmartRecommendation()
+
+    return () => { cancelled = true }
+  }, [user?.id])
 
 
   const refresh = useCallback(async () => {
@@ -270,6 +334,63 @@ export default function HomeClient({ initialSeries = [] }) {
             ))}
           </div>
         </section>
+
+        {smartRecommendation.loading && (
+          <section className={styles.querySection}>
+            <div className={styles.queryRow}>
+              <div className={styles.queryHeader}>
+                <h2 className={styles.queryName}>Recomendaciones para ti</h2>
+              </div>
+              <div className={styles.queryScroll}>
+                <PremiumSkeletonGrid count={6} />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {!smartRecommendation.loading && smartRecommendation.items.length > 0 && (
+          <section className={styles.querySection}>
+            <div className={styles.queryRow}>
+              <div className={styles.queryHeader}>
+                <h2 className={styles.queryName}>Porque leiste {smartRecommendation.sourceTitle}, te puede gustar esto</h2>
+                <Link href={`/manhwa/${smartRecommendation.sourceSlug}`} className={styles.queryLink}>
+                  Ver {smartRecommendation.sourceTitle} →
+                </Link>
+              </div>
+
+              <div className={styles.queryScroll}>
+                {smartRecommendation.items.map((item, i) => (
+                  <Link
+                    href={`/manhwa/${item.slug}`}
+                    key={item.id || item.slug}
+                    className={styles.queryItem}
+                  >
+                    <div className={styles.popularCard}>
+                      <ManhwaCover
+                        src={normalizeImageUrl(item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web) || ''}
+                        fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
+                        slug={item.slug}
+                        alt={getImageAlt.cover(item.title)}
+                        className={styles.popularImg}
+                        priority={i < 4}
+                        sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
+                      />
+                      {item.chapterCount > 0 && (
+                        <span className={styles.chapterBadge}>
+                          {item.chapterCount} caps
+                        </span>
+                      )}
+                      <span className={styles.statusBadge}>
+                        {item.contentType || item.content_type || 'Manhwa'}
+                      </span>
+                      <h3 className={styles.titleLink}>{item.title}</h3>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ================================================================== */}
         {/* BÚSQUEDAS POPULARES - Filas Netflix-style (cargado client-side) */}

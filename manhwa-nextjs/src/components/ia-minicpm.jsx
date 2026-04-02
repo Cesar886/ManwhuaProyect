@@ -96,7 +96,7 @@ const THINKING_PHRASES = [
     'Buscando al protagonista más roto (OP)...',
 
     // --- TEMÁTICA "IA IMPERIAL" (Tecnología + Fantasía) ---
-    'La Inteligencia Imperial está analizando tu solicitud...',
+    'La IA Imperial está analizando tu solicitud...',
     'Conectando las redes neuronales a la Gran Biblioteca...',
     'El autómata de los archivos está buscando coincidencias...',
     'Sincronizando el algoritmo con los pergaminos antiguos...',
@@ -522,10 +522,14 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     const isDeletingRef = useRef(false);
     const timeoutRef = useRef(null);
     const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
     const externalTypewriterRef = useRef(null);
 
     // API externa: permite que componentes padre escriban texto en el input con efecto typewriter
     useImperativeHandle(ref, () => ({
+        focus() {
+            inputRef.current?.focus();
+        },
         typeText(text, onDone) {
             if (externalTypewriterRef.current) {
                 clearInterval(externalTypewriterRef.current);
@@ -855,7 +859,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
             <form
                 className={`ia-search ${getStateClass()}`}
                 onSubmit={handleSubmit}
-                aria-label="Buscar con IA"
+                aria-label="IA Imperial"
             >
                 {loading && <span className="sr-only" role="status">Buscando resultados...</span>}
                 <div className="ia-shimmer" aria-hidden="true" />
@@ -865,6 +869,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                 </svg>
 
                 <input
+                    ref={inputRef}
                     type="text"
                     value={query}
                     onChange={handleInput}
@@ -1014,7 +1019,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                     <p className="ia-suggestions-label">Consultas populares</p>
                                     {suggestions.map((s, i) => (
                                         <button
-                                            key={s.query}
+                                            key={`popular-${s.query}`}
                                             type="button"
                                             className="ia-suggestion-item"
                                             onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
@@ -1032,7 +1037,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                     <p className="ia-suggestions-label">Similares a...</p>
                                     {visibleSimilar.map((s, i) => (
                                         <button
-                                            key={s.query}
+                                            key={`similar-${s.query}`}
                                             type="button"
                                             className="ia-suggestion-item ia-similar-item"
                                             onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}

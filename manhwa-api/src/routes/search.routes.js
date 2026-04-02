@@ -28,4 +28,7 @@ router.get('/autocomplete', validate(searchQueryValidation), searchController.au
 // Búsqueda avanzada
 router.get('/advanced', validate([...searchQueryValidation, ...paginationValidation]), searchController.advancedSearch);
 
+// IA search proxy con límite diario para invitados
+router.post('/ai/read', searchController.aiRead);
+
 module.exports = router;

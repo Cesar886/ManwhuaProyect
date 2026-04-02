@@ -35,6 +35,7 @@ import {
 } from '@mantine/core';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext'
+import { getStreak } from '../api/progress';
 import styles from './Header.module.css';
 
 // Tabs de navegación (fuera del componente para evitar recreación)
@@ -57,6 +58,7 @@ const USER_MENU_ITEMS = [
 function Header({ colorScheme, toggleColorScheme }) {
   const [userMenuOpened, setUserMenuOpened] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [streakDays, setStreakDays] = useState(null);
   const searchDebounce = useRef(null);
   const [searchOpened, setSearchOpened] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,6 +104,34 @@ function Header({ colorScheme, toggleColorScheme }) {
   // Usuario provisto por el contexto (no duplicamos el estado local)
   const { user: authUser, openLogin, doLogout } = useAuth()
   const user = authUser || null;
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!user) {
+      setStreakDays(null);
+      return undefined;
+    }
+
+    const loadStreak = async () => {
+      try {
+        const data = await getStreak();
+        if (isActive) {
+          setStreakDays(Number(data?.streak) || 0);
+        }
+      } catch {
+        if (isActive) {
+          setStreakDays(0);
+        }
+      }
+    };
+
+    loadStreak();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user?.id]);
 
   // Normalize user shape for UI
   const uiUser = useMemo(() => user ? {
@@ -175,7 +205,7 @@ function Header({ colorScheme, toggleColorScheme }) {
                     <span className={styles.logoSecondary}> Imperial</span>
                   </Text>
                   <Text size="xs" className={styles.logoSubtext}>
-                    Tu biblioteca premium
+                    BY IA IMPERIAL
                   </Text>
                 </div>
               </Group>
@@ -183,6 +213,13 @@ function Header({ colorScheme, toggleColorScheme }) {
 
             {/* Right: Solo Notificaciones, Tema y Usuario */}
             <Group gap="xs" wrap="nowrap" style={{ flex: '0 0 auto' }}>
+              {streakDays !== null && (
+                <Group gap={4} wrap="nowrap" className={styles.streakChip}>
+                  <IconFlame size={13} stroke={2} className={styles.streakChipIcon} />
+                  <Text size="xs" fw={700} className={styles.streakChipText}>{streakDays}</Text>
+                </Group>
+              )}
+
               {/* Theme Toggle */}
               {
                 /* Use provided colorScheme/toggleColorScheme if passed from parent (App).

@@ -13,7 +13,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-const { pool, testConnection } = require('./config/database');
+const { pool, query, testConnection } = require('./config/database');
 const { authenticate } = require('./middleware/auth');
 const { requireRole } = require('./middleware/authorize');
 const errorHandler = require('./middleware/errorHandler');
@@ -431,6 +431,36 @@ app.use(errorHandler);
 // ============================================
 
 const PORT = process.env.PORT || 3000;
+const AI_GUEST_USAGE_RETENTION_DAYS = Math.max(1, parseInt(process.env.AI_GUEST_USAGE_RETENTION_DAYS, 10) || 30);
+const AI_GUEST_USAGE_CLEANUP_INTERVAL_MS = Math.max(60 * 60 * 1000, parseInt(process.env.AI_GUEST_USAGE_CLEANUP_INTERVAL_MS, 10) || 24 * 60 * 60 * 1000);
+
+let aiGuestUsageCleanupTableMissingLogged = false;
+
+const cleanupAiGuestUsage = async () => {
+    try {
+        const result = await query(
+            `DELETE FROM ai_guest_daily_usage
+             WHERE usage_date < (CURRENT_DATE - ($1::int * INTERVAL '1 day'))::date`,
+            [AI_GUEST_USAGE_RETENTION_DAYS]
+        );
+
+        const deletedRows = result?.rowCount || 0;
+        if (deletedRows > 0) {
+            logger.info(`Limpieza IA invitados: ${deletedRows} registros eliminados (retención ${AI_GUEST_USAGE_RETENTION_DAYS} días)`);
+        }
+    } catch (error) {
+        // 42P01: undefined_table (migración no aplicada todavía)
+        if (error?.code === '42P01') {
+            if (!aiGuestUsageCleanupTableMissingLogged) {
+                aiGuestUsageCleanupTableMissingLogged = true;
+                logger.warn('Limpieza IA invitados omitida: la tabla ai_guest_daily_usage no existe todavía. Ejecuta la migración 005_add_ai_guest_daily_usage.sql.');
+            }
+            return;
+        }
+
+        logger.error('Error en limpieza IA invitados:', error);
+    }
+};
 
 const startServer = async () => {
     try {
@@ -446,6 +476,10 @@ const startServer = async () => {
             // Iniciar daemons de indexación
             startIndexingDaemon();
             startIndexNowDaemon();
+
+            // Limpieza de registros antiguos del límite de IA para invitados
+            cleanupAiGuestUsage();
+            setInterval(cleanupAiGuestUsage, AI_GUEST_USAGE_CLEANUP_INTERVAL_MS);
 
             // Limpieza periódica de clientes SSE zombie
             const SSE_CLIENT_TIMEOUT = 60 * 1000; // 1 minuto para detectar conexiones muertas más rápido

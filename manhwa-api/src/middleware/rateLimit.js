@@ -69,9 +69,29 @@ const donationLimiter = rateLimit({
     }
 });
 
+/**
+ * Limitador para registro de vistas de series
+ * Permite hasta 60 registros por hora por IP (protección básica contra floods)
+ * La deduplicación real se hace en la BD (24h por visitor/user)
+ */
+const viewLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.body?.visitorId || req.ip,
+    handler: (req, res) => {
+        res.status(429).json({
+            success: false,
+            message: 'Demasiadas peticiones. Intenta de nuevo más tarde.'
+        });
+    }
+});
+
 module.exports = {
     apiLimiter,
     voteLimiter,
     authLimiter,
-    donationLimiter
+    donationLimiter,
+    viewLimiter
 };

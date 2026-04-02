@@ -18,7 +18,7 @@ import { useSeriesDetail } from '../../../hooks/useSpaces';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   updateSeries, addBookmark, removeBookmark, updateBookmark,
-  toggleBookmarkNotifications, trackShare, getSeriesMerch
+  toggleBookmarkNotifications, trackShare, getSeriesMerch, recordSeriesView
 } from '../../../api/requests';
 import { useSeriesProgress } from '../../../hooks/useSeriesProgress';
 import styles from './ManhwaDetail.module.css';
@@ -459,6 +459,41 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa' }) {
   useEffect(() => {
     setHasHydrated(true);
   }, []);
+
+  // Registrar vista — robusto
+  const viewRegisteredRef = React.useRef(null); // slug de la última vista registrada
+  useEffect(() => {
+    if (!slug || !series?.id) return;
+    // Prevenir doble-fire (React StrictMode) y re-renders sin cambio de serie
+    if (viewRegisteredRef.current === slug) return;
+    // Filtro básico de bots en cliente
+    const ua = navigator.userAgent || '';
+    if (/bot|crawler|spider|headless|phantom|puppeteer|selenium/i.test(ua)) return;
+    // No contar si la página no está visible (tab en background)
+    if (document.visibilityState === 'hidden') return;
+
+    // Obtener o crear visitorId desde localStorage (tolerante a incognito)
+    let visitorId = null;
+    try {
+      visitorId = localStorage.getItem('mi_visitor_id');
+      if (!visitorId) {
+        visitorId = 'anon_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem('mi_visitor_id', visitorId);
+      }
+    } catch {
+      // localStorage bloqueado (incognito estricto) → continuar sin visitorId, el backend usa IP
+    }
+
+    // Esperar 4s de engagement mínimo para no contar bounces
+    const timer = setTimeout(() => {
+      // Re-verificar visibilidad antes de enviar
+      if (document.visibilityState === 'hidden') return;
+      viewRegisteredRef.current = slug;
+      recordSeriesView(slug, visitorId).catch(() => {});
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [slug, series?.id]);
 
   // Estados de UI
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);

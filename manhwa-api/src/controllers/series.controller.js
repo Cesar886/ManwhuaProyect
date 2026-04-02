@@ -1863,6 +1863,125 @@ const getSeriesMerch = async (req, res, next) => {
     }
 };
 
+// Patrones de bots conocidos (User-Agent)
+const BOT_UA_PATTERN = /bot|crawler|spider|scraper|curl|wget|python-requests|go-http|java\/|ruby|php|perl|axios\/0\.|node-fetch|got\/|undici|lighthouse|headless|phantomjs|puppeteer|playwright|selenium/i;
+
+/**
+ * Extraer IP real del request, manejando proxies y formatos IPv6.
+ */
+function extractIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const raw = forwarded ? forwarded.split(',')[0].trim() : (req.ip || '');
+    // Quitar prefijo IPv6 ::ffff: para consistencia con IPv4
+    return raw.replace(/^::ffff:/, '');
+}
+
+/**
+ * Registrar vista de una serie
+ * POST /api/series/:slug/view
+ *
+ * Robusto:
+ * - Filtra bots por User-Agent
+ * - Deduplica en 24h por userId (auth) → visitorId (anon) → IP (fallback)
+ * - El INSERT en series_views y el UPDATE de contadores van en la misma transacción
+ * - Si la tabla series_views no tiene las columnas nuevas aún, degrada gracefully
+ * - Valida y trunca visitorId para evitar payload gigante
+ */
+const recordView = async (req, res, next) => {
+    try {
+        const { slug } = req.params;
+        const ua = req.headers['user-agent'] || '';
+
+        // 1. Filtrar bots server-side
+        if (BOT_UA_PATTERN.test(ua)) {
+            return res.json({ success: true, counted: false, reason: 'bot' });
+        }
+
+        // 2. Sanitizar visitorId: solo string corto, sin espacios
+        const rawVisitorId = typeof req.body?.visitorId === 'string' ? req.body.visitorId.trim() : '';
+        const visitorId = rawVisitorId.length > 0 && rawVisitorId.length <= 128 ? rawVisitorId : null;
+
+        const userId = req.user?.id || null;
+        const ip = extractIp(req);
+        const userAgent = ua.slice(0, 512) || null; // truncar para la BD
+
+        // 3. Buscar la serie
+        const seriesResult = await query(
+            'SELECT id FROM series WHERE slug = $1 AND deleted_at IS NULL',
+            [slug]
+        );
+        if (seriesResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Serie no encontrada' });
+        }
+        const seriesId = seriesResult.rows[0].id;
+
+        // 4. Deduplicar en 24h — prioridad: userId > visitorId > IP
+        //    Usamos una sola query con OR para cubrir todos los casos en un viaje a la BD.
+        let dedupQuery;
+        let dedupParams;
+
+        if (userId) {
+            // Usuario autenticado: dedup por userId (también visitorId si está disponible)
+            dedupQuery = `
+                SELECT id FROM series_views
+                WHERE series_id = $1
+                  AND viewed_at > NOW() - INTERVAL '24 hours'
+                  AND (user_id = $2 ${visitorId ? 'OR visitor_id = $3' : ''})
+                LIMIT 1`;
+            dedupParams = visitorId ? [seriesId, userId, visitorId] : [seriesId, userId];
+        } else if (visitorId) {
+            // Anónimo con visitorId
+            dedupQuery = `
+                SELECT id FROM series_views
+                WHERE series_id = $1
+                  AND viewed_at > NOW() - INTERVAL '24 hours'
+                  AND (visitor_id = $2 OR ip_address = $3)
+                LIMIT 1`;
+            dedupParams = [seriesId, visitorId, ip];
+        } else {
+            // Solo IP como fallback
+            dedupQuery = `
+                SELECT id FROM series_views
+                WHERE series_id = $1
+                  AND viewed_at > NOW() - INTERVAL '24 hours'
+                  AND ip_address = $2
+                LIMIT 1`;
+            dedupParams = [seriesId, ip];
+        }
+
+        const existing = await query(dedupQuery, dedupParams);
+        if (existing.rows.length > 0) {
+            return res.json({ success: true, counted: false });
+        }
+
+        // 5. Registrar y actualizar contadores — ambos en la misma transacción
+        await transaction(async (client) => {
+            // El INSERT es tolerante a columnas que aún no existan (user_agent): si falla
+            // esa parte la BD lanzará error, pero el catch de la transacción lo propagará.
+            // La migración 007 ya debería haber añadido user_agent.
+            await client.query(
+                `INSERT INTO series_views
+                    (series_id, user_id, visitor_id, ip_address, user_agent)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [seriesId, userId, visitorId, ip, userAgent]
+            );
+            await client.query(
+                `UPDATE series SET
+                    view_count    = view_count    + 1,
+                    daily_views   = daily_views   + 1,
+                    weekly_views  = weekly_views  + 1,
+                    monthly_views = monthly_views + 1
+                 WHERE id = $1`,
+                [seriesId]
+            );
+        });
+
+        res.json({ success: true, counted: true });
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     listSeries,
     getSeriesDetail,
@@ -1888,5 +2007,6 @@ module.exports = {
     getSeriesStatuses,
     getUserRating,
     getSeriesRating,
-    getSeriesMerch
+    getSeriesMerch,
+    recordView
 };

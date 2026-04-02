@@ -12,7 +12,7 @@ const { requirePermission } = require('../middleware/authorize');
 const { requireApiKeyOrAuth } = require('../middleware/apiKey');
 const { paginationValidation, searchQueryValidation } = require('../middleware/validators');
 const uploadToSpaces = require('../middleware/uploadToSpaces');
-const { voteLimiter } = require('../middleware/rateLimit');
+const { voteLimiter, viewLimiter } = require('../middleware/rateLimit');
 
 // Validaciones
 const createSeriesValidation = [
@@ -117,6 +117,9 @@ const rateValidation = [
 router.get('/:slug/rating', validate(slugParam), seriesController.getSeriesRating);
 router.get('/:slug/user-rating', validate([...slugParam, ...userRatingValidation]), optionalAuth, seriesController.getUserRating);
 router.post('/:slug/rate', voteLimiter, validate([...slugParam, ...rateValidation]), optionalAuth, seriesController.rateSeries);
+
+// Vistas de series (público, con deduplicación en BD)
+router.post('/:slug/view', viewLimiter, requireApiKeyOrAuth, optionalAuth, validate(slugParam), seriesController.recordView);
 
 // Rutas protegidas
 router.use(authenticate);

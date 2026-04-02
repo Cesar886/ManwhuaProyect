@@ -167,6 +167,7 @@ export default function BusquedaIAClient({ querySlug }) {
         error: iaError,
         nsfwRedirect,
         resultados,
+        guestAiLimit,
         limpiar: limpiarIA,
     } = useIA();
 
@@ -348,6 +349,31 @@ export default function BusquedaIAClient({ querySlug }) {
                             onClear={handleClearFilters}
                             initialQuery={searchQuery}
                         />
+
+                        {guestAiLimit?.isGuest && (
+                            <Card
+                                p="sm"
+                                radius="md"
+                                bg={guestAiLimit.blocked ? 'rgba(255, 80, 80, 0.07)' : 'rgba(255, 255, 255, 0.02)'}
+                                style={{ border: guestAiLimit.blocked ? '1px solid rgba(255, 80, 80, 0.35)' : '1px solid var(--border-subtle)' }}
+                            >
+                                <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+                                    <Text size="xs" c={guestAiLimit.blocked ? 'red.4' : 'dimmed'}>
+                                        {guestAiLimit.blocked
+                                            ? 'Llegaste al limite diario de 10 consultas IA. Registrate para seguir usandolo.'
+                                            : `Te quedan ${guestAiLimit.remaining} de ${guestAiLimit.limit} consultas IA hoy.`}
+                                    </Text>
+
+                                    {guestAiLimit.blocked && (
+                                        <Link href="/register">
+                                            <Button variant="light" color="red" size="compact-xs" radius="md">
+                                                Registrarme
+                                            </Button>
+                                        </Link>
+                                    )}
+                                </Group>
+                            </Card>
+                        )}
 
                     </Stack>
 
