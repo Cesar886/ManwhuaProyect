@@ -416,6 +416,9 @@ const calculateStreakForUser = async (userId) => {
          most_recent_grp AS (
            SELECT grp FROM numbered ORDER BY day DESC LIMIT 1
          ),
+            last_read_day AS (
+                SELECT MAX(day) AS day FROM reading_days
+            ),
          streak_calc AS (
            SELECT
              COUNT(*) AS current_streak,
@@ -426,8 +429,9 @@ const calculateStreakForUser = async (userId) => {
          ),
          today_check AS (
            SELECT EXISTS (
-             SELECT 1 FROM reading_days, today
-             WHERE reading_days.day >= today.d - INTERVAL '1 day'
+            SELECT 1
+            FROM last_read_day lrd, today
+                                    WHERE lrd.day = today.d
            ) AS is_active
          ),
          all_streaks AS (
@@ -610,6 +614,9 @@ const getUserBadgeStats = async (userId, timezone = null) => {
             most_recent_grp AS (
                 SELECT grp FROM numbered ORDER BY day DESC LIMIT 1
             ),
+            last_read_day AS (
+                SELECT MAX(day) AS day FROM reading_days
+            ),
             streak_calc AS (
                 SELECT COUNT(*) AS current_streak
                 FROM numbered
@@ -617,8 +624,9 @@ const getUserBadgeStats = async (userId, timezone = null) => {
             ),
             today_check AS (
                 SELECT EXISTS (
-                    SELECT 1 FROM reading_days, today
-                    WHERE reading_days.day >= today.d - INTERVAL '1 day'
+                    SELECT 1
+                    FROM last_read_day lrd, today
+                    WHERE lrd.day = today.d
                 ) AS is_active
             ),
 

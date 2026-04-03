@@ -112,8 +112,6 @@ function PopularCard({ item, index, priority = false, showRank = false, showView
 // ─── Section Row (header + scroll horizontal) ───────────────────────────────
 
 function SectionRow({ title, icon: Icon, subtitle, items, renderCard, verTodoHref }) {
-    if (!items || items.length === 0) return null;
-
     const scrollRef = useRef(null);
 
     const scrollBy = useCallback((dir) => {
@@ -121,6 +119,8 @@ function SectionRow({ title, icon: Icon, subtitle, items, renderCard, verTodoHre
         const amount = scrollRef.current.clientWidth * 0.75;
         scrollRef.current.scrollBy({ left: dir * amount, behavior: 'smooth' });
     }, []);
+
+    if (!items || items.length === 0) return null;
 
     return (
         <section className={classes.sectionBlock}>
