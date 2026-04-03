@@ -42,6 +42,8 @@ const progressRoutes = require('./routes/progress.routes');
 const donationRoutes = require('./routes/donation.routes');
 const achievementRoutes = require('./routes/achievement.routes');
 const presenceRoutes = require('./routes/presence.routes');
+const trackingRoutes = require('./routes/tracking.routes');
+const trackRoutes = require('./routes/track.routes');
 
 
 const app = express();
@@ -418,6 +420,8 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/donations', donationRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/presence', presenceRoutes);
+app.use('/api/tracking', trackingRoutes);
+app.use('/api/track', trackRoutes);
 
 // ============================================
 // MANEJO DE ERRORES

@@ -23,19 +23,39 @@ const defaultHeaders = {
 
 /**
  * Fetch genérico: llama al backend, normaliza los campos y devuelve un array
+ * - Incluye timeout de 10s para evitar bloqueos
+ * - Normaliza campos con múltiples variantes del backend
+ * - Filtra contenido adulto automáticamente
  */
 async function fetchSeriesList(path) {
     try {
         const url = `${SERVER_API_BASE}${path}`
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
+        
         const res = await fetch(url, {
             headers: defaultHeaders,
             next: { revalidate: 600 },
+            signal: controller.signal,
         })
-        if (!res.ok) return []
+        
+        clearTimeout(timeoutId)
+        
+        if (!res.ok) {
+            console.warn(`[Populares] API error: ${path} returned ${res.status}`)
+            return []
+        }
+        
         const result = await res.json()
         const series = result.data?.series || result.series || result.data || []
-        if (!Array.isArray(series)) return []
+        
+        if (!Array.isArray(series)) {
+            console.warn(`[Populares] Invalid response format for ${path}`)
+            return []
+        }
+        
         const safeSeries = filterAvailableSeries(series)
+        
         return safeSeries.map((s, i) => ({
             id: s.id,
             rank: i + 1,
@@ -48,17 +68,21 @@ async function fetchSeriesList(path) {
             status: s.status ?? 'ongoing',
             contentType: s.contentType || s.content_type || 'manhwa',
             genres: Array.isArray(s.genres) ? s.genres.slice(0, 3) : [],
-            isHot: s.isHot ?? false,
-            isNew: s.isNew ?? false,
-            isTrending: s.isTrending ?? false,
+            isHot: s.isHot ?? s.is_hot ?? false,
+            isNew: s.isNew ?? s.is_new ?? false,
+            isTrending: s.isTrending ?? s.is_trending ?? false,
             updatedAt: s.updatedAt || s.updated_at || '',
         }))
-    } catch {
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error(`[Populares] Request timeout: ${path}`)
+        } else {
+            console.error(`[Populares] Fetch error: ${path}`, error.message)
+        }
         return []
     }
 }
 
-export const dynamic = 'force-dynamic'
 export const revalidate = 600
 
 export default async function PopularesPage() {

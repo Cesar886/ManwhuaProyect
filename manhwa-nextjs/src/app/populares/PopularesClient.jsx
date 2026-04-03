@@ -1,19 +1,30 @@
 'use client';
 
 import Link from 'next/link';
+import { useRef, useCallback } from 'react';
 import { normalizeImageUrl } from '../../utils/imageUtils';
 import ManhwaCover from '../../components/ManhwaCover';
 import Header from '@/components/Header';
 import {
     IconTrophy, IconFlame, IconStar, IconEye,
     IconCalendar, IconSparkles, IconClock,
+    IconChevronLeft, IconChevronRight, IconArrowRight,
 } from '@tabler/icons-react';
 import classes from './Populares.module.css';
 import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
 
-// ─── Card unificada (misma estructura que Colección de Manhwas en /home) ────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-function PopularCard({ item, index, priority = false, showRank = false }) {
+function formatViews(n) {
+    if (!n || n <= 0) return null;
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+    return String(n);
+}
+
+// ─── Card unificada ──────────────────────────────────────────────────────────
+
+function PopularCard({ item, index, priority = false, showRank = false, showViews = false }) {
     const rankClass = showRank
         ? index === 0
             ? classes.rankGold
@@ -23,6 +34,8 @@ function PopularCard({ item, index, priority = false, showRank = false }) {
                     ? classes.rankBronze
                     : ''
         : '';
+
+    const viewsLabel = showViews ? formatViews(item.views) : null;
 
     return (
         <Link
@@ -41,6 +54,15 @@ function PopularCard({ item, index, priority = false, showRank = false }) {
                     sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 160px"
                 />
 
+                {/* Indicadores HOT / NUEVO / TRENDING — top row */}
+                {(item.isHot || item.isNew || item.isTrending) && (
+                    <div className={classes.flagRow}>
+                        {item.isHot && <span className={classes.flagHot}>🔥</span>}
+                        {item.isTrending && <span className={classes.flagTrending}>↑</span>}
+                        {item.isNew && <span className={classes.flagNew}>NUEVO</span>}
+                    </div>
+                )}
+
                 {/* Badge capítulos — top left */}
                 {item.chapters > 0 && (
                     <span className={classes.chapterBadge}>
@@ -57,6 +79,16 @@ function PopularCard({ item, index, priority = false, showRank = false }) {
                 {showRank && (
                     <span className={`${classes.rankBadge} ${rankClass}`}>
                         #{item.rank}
+                    </span>
+                )}
+
+                {/* Views — bottom left cuando no hay rank */}
+                {!showRank && viewsLabel && (
+                    <span className={classes.viewsBadge}>
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z" />
+                        </svg>
+                        {viewsLabel}
                     </span>
                 )}
 
@@ -79,8 +111,16 @@ function PopularCard({ item, index, priority = false, showRank = false }) {
 
 // ─── Section Row (header + scroll horizontal) ───────────────────────────────
 
-function SectionRow({ title, icon: Icon, subtitle, items, renderCard }) {
+function SectionRow({ title, icon: Icon, subtitle, items, renderCard, verTodoHref }) {
     if (!items || items.length === 0) return null;
+
+    const scrollRef = useRef(null);
+
+    const scrollBy = useCallback((dir) => {
+        if (!scrollRef.current) return;
+        const amount = scrollRef.current.clientWidth * 0.75;
+        scrollRef.current.scrollBy({ left: dir * amount, behavior: 'smooth' });
+    }, []);
 
     return (
         <section className={classes.sectionBlock}>
@@ -88,12 +128,35 @@ function SectionRow({ title, icon: Icon, subtitle, items, renderCard }) {
                 <div className={classes.sectionIcon}>
                     <Icon size={22} stroke={1.8} />
                 </div>
-                <div>
+                <div className={classes.sectionTitleGroup}>
                     <h2 className={classes.sectionTitle}>{title}</h2>
                     {subtitle && <p className={classes.sectionSubtitle}>{subtitle}</p>}
                 </div>
+                <div className={classes.sectionActions}>
+                    <button
+                        className={classes.scrollBtn}
+                        onClick={() => scrollBy(-1)}
+                        aria-label="Desplazar a la izquierda"
+                        type="button"
+                    >
+                        <IconChevronLeft size={16} stroke={2} />
+                    </button>
+                    <button
+                        className={classes.scrollBtn}
+                        onClick={() => scrollBy(1)}
+                        aria-label="Desplazar a la derecha"
+                        type="button"
+                    >
+                        <IconChevronRight size={16} stroke={2} />
+                    </button>
+                    {verTodoHref && (
+                        <Link href={verTodoHref} className={classes.verTodoLink}>
+                            Ver todo <IconArrowRight size={13} stroke={2} />
+                        </Link>
+                    )}
+                </div>
             </div>
-            <div className={classes.cardsScroll}>
+            <div className={classes.cardsScroll} ref={scrollRef}>
                 {items.map((item, i) => renderCard(item, i))}
             </div>
         </section>
@@ -150,6 +213,7 @@ export default function PopularesClient({
                     icon={IconTrophy}
                     subtitle="Las series más leídas por nuestra comunidad"
                     items={topRankings}
+                    verTodoHref="/biblioteca"
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} priority={i < 5} showRank />
                     )}
@@ -164,8 +228,9 @@ export default function PopularesClient({
                     icon={IconFlame}
                     subtitle="Lo que está en tendencia ahora mismo"
                     items={trending}
+                    verTodoHref="/biblioteca"
                     renderCard={(item, i) => (
-                        <PopularCard key={item.id || item.slug} item={item} index={i} priority={i < 4} />
+                        <PopularCard key={item.id || item.slug} item={item} index={i} priority={i < 4} showViews />
                     )}
                 />
 
@@ -175,6 +240,7 @@ export default function PopularesClient({
                     icon={IconStar}
                     subtitle="Las series con mayor puntuación de la comunidad"
                     items={topRated}
+                    verTodoHref="/biblioteca"
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} priority={i < 4} />
                     )}
@@ -186,8 +252,9 @@ export default function PopularesClient({
                     icon={IconEye}
                     subtitle="Las más populares esta semana"
                     items={weeklyPopular}
+                    verTodoHref="/biblioteca"
                     renderCard={(item, i) => (
-                        <PopularCard key={item.id || item.slug} item={item} index={i} />
+                        <PopularCard key={item.id || item.slug} item={item} index={i} showViews />
                     )}
                 />
 
@@ -197,8 +264,9 @@ export default function PopularesClient({
                     icon={IconCalendar}
                     subtitle="Las más populares este mes"
                     items={monthlyPopular}
+                    verTodoHref="/biblioteca"
                     renderCard={(item, i) => (
-                        <PopularCard key={item.id || item.slug} item={item} index={i} />
+                        <PopularCard key={item.id || item.slug} item={item} index={i} showViews />
                     )}
                 />
 
@@ -208,6 +276,7 @@ export default function PopularesClient({
                     icon={IconSparkles}
                     subtitle="Series recién añadidas a la plataforma"
                     items={newReleases}
+                    verTodoHref="/biblioteca"
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} />
                     )}
@@ -219,6 +288,7 @@ export default function PopularesClient({
                     icon={IconClock}
                     subtitle="Series con capítulos recién publicados"
                     items={latestUpdates}
+                    verTodoHref="/biblioteca"
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} />
                     )}
