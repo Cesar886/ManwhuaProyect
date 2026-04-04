@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { getAllPosts, CATEGORY_LABELS } from '@/lib/blog/posts'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import Script from 'next/script'
+import AdsterraNativeBanner from '@/components/AdsterraNativeBanner'
 import styles from './Blog.module.css'
 
 export default function BlogPage() {
@@ -78,25 +78,7 @@ export default function BlogPage() {
           </div>
         </section>
 
-        <div style={{ display: 'flex', justifyContent: 'center', margin: '1.5rem 0', minHeight: '60px' }}>
-          <div style={{ width: '100%', maxWidth: '468px', minHeight: '60px', overflow: 'hidden' }} aria-label="Publicidad">
-            <Script id="blog-adsterra-config" strategy="afterInteractive">
-              {`window.atOptions = {
-  key: '280fe1a5410d7ce5594949258d04c1ed',
-  format: 'iframe',
-  height: 60,
-  width: 468,
-  params: {},
-};`}
-            </Script>
-            <Script
-              id="blog-adsterra-src"
-              strategy="afterInteractive"
-              src="https://landslidegraphsystems.com/280fe1a5410d7ce5594949258d04c1ed/invoke.js"
-              data-cfasync="false"
-            />
-          </div>
-        </div>
+        <AdsterraNativeBanner instanceId="blog-index" />
       </div>
     </main>
     <Footer />

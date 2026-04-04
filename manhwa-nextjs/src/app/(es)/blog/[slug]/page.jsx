@@ -4,7 +4,7 @@ import { getPostBySlug, getAllSlugs, getRecentPosts, CATEGORY_LABELS } from '@/l
 import { SITE_URL, SITE_NAME } from '@/config'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import Script from 'next/script'
+import AdsterraNativeBanner from '@/components/AdsterraNativeBanner'
 import styles from './BlogPost.module.css'
 
 export async function generateStaticParams() {
@@ -218,25 +218,7 @@ export default async function BlogPostPage({ params }) {
               <Link href="/blog">← Volver al Blog</Link>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '1.5rem 0', minHeight: '60px' }}>
-              <div style={{ width: '100%', maxWidth: '468px', minHeight: '60px', overflow: 'hidden' }} aria-label="Publicidad">
-                <Script id={`blog-post-adsterra-config-${post.slug}`} strategy="afterInteractive">
-                  {`window.atOptions = {
-  key: '280fe1a5410d7ce5594949258d04c1ed',
-  format: 'iframe',
-  height: 60,
-  width: 468,
-  params: {},
-};`}
-                </Script>
-                <Script
-                  id={`blog-post-adsterra-src-${post.slug}`}
-                  strategy="afterInteractive"
-                  src="https://landslidegraphsystems.com/280fe1a5410d7ce5594949258d04c1ed/invoke.js"
-                  data-cfasync="false"
-                />
-              </div>
-            </div>
+            <AdsterraNativeBanner instanceId={`blog-post-${post.slug}`} />
           </article>
 
           {/* ── Sidebar ─────────────────────────────────────────────────────── */}
