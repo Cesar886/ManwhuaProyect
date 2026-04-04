@@ -17,6 +17,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--spacing-2xl);
+  min-width: 0;
 }
 
 @media (min-width: 900px) {
@@ -295,6 +296,7 @@
   gap: var(--spacing-lg);
   position: sticky;
   top: calc(var(--header-height, 80px) + var(--spacing-lg));
+  min-width: 0;
 }
 
 .sidebarCard {
@@ -302,6 +304,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: var(--spacing-md);
+  min-width: 0;
 }
 
 .sidebarTitle {
@@ -317,6 +320,95 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+}
+
+.sidebarLink,
+.relatedItem {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 899px) {
+  .layout {
+    gap: var(--spacing-xl);
+  }
+
+  .articleBody {
+    font-size: 0.98rem;
+  }
+
+  .sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 639px) {
+  .layout {
+    padding: var(--spacing-lg) var(--spacing-sm);
+    padding-top: calc(var(--header-height, 80px) + var(--spacing-lg));
+    gap: var(--spacing-lg);
+  }
+
+  .articleHeader {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .articleTitle {
+    font-size: clamp(1.35rem, 6vw, 1.8rem);
+  }
+
+  .articleMeta {
+    row-gap: 4px;
+  }
+
+  .articleExcerpt {
+    font-size: 0.98rem;
+    padding: var(--spacing-sm);
+  }
+
+  .articleBody {
+    font-size: 0.95rem;
+    line-height: 1.75;
+  }
+
+  .articleBody h2 {
+    font-size: 1.2rem;
+    margin-top: 1.5rem;
+  }
+
+  .articleBody h3 {
+    font-size: 1.05rem;
+  }
+
+  .articleBody table {
+    font-size: 0.82rem;
+    margin: 1rem 0;
+  }
+
+  .faqTitle {
+    font-size: 1.15rem;
+  }
+
+  .faqQuestion {
+    font-size: 0.9rem;
+  }
+
+  .sidebarCard {
+    padding: var(--spacing-sm);
+  }
+
+  .sidebarTitle {
+    font-size: 0.9rem;
+  }
+
+  .relatedList {
+    gap: 8px;
+  }
+
+  .relatedItem {
+    padding: 10px 12px;
+  }
 }
 
 .sidebarLink {

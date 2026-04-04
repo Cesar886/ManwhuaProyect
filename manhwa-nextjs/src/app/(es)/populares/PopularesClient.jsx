@@ -1,17 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useCallback } from 'react';
 import { normalizeImageUrl } from '@/utils/imageUtils';
 import ManhwaCover from '@/components/ManhwaCover';
 import Header from '@/components/Header';
+import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
 import {
-    IconTrophy, IconFlame, IconStar, IconEye,
-    IconCalendar, IconSparkles, IconClock,
-    IconChevronLeft, IconChevronRight, IconArrowRight,
+    IconTrophy,
+    IconFlame,
+    IconStar,
+    IconEye,
+    IconCalendar,
+    IconSparkles,
+    IconClock,
+    IconArrowRight,
 } from '@tabler/icons-react';
 import classes from './Populares.module.css';
-import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -55,12 +59,11 @@ function PopularCard({ item, index, priority = false, showRank = false, showView
                     sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 160px"
                 />
 
-                {/* Indicadores HOT / NUEVO / TRENDING — top row */}
-                {(item.isHot || item.isNew || item.isTrending) && (
+                {/* Indicadores HOT / TRENDING — top row */}
+                {(item.isHot || item.isTrending) && (
                     <div className={classes.flagRow}>
                         {item.isHot && <span className={classes.flagHot}>🔥</span>}
                         {item.isTrending && <span className={classes.flagTrending}>↑</span>}
-                        {item.isNew && <span className={classes.flagNew}>{lang === 'en' ? 'NEW' : 'NUEVO'}</span>}
                     </div>
                 )}
 
@@ -112,52 +115,26 @@ function PopularCard({ item, index, priority = false, showRank = false, showView
 
 // ─── Section Row (header + scroll horizontal) ───────────────────────────────
 
-function SectionRow({ title, icon: Icon, subtitle, items, renderCard, verTodoHref, lang = 'es' }) {
-    const scrollRef = useRef(null);
-
-    const scrollBy = useCallback((dir) => {
-        if (!scrollRef.current) return;
-        const amount = scrollRef.current.clientWidth * 0.75;
-        scrollRef.current.scrollBy({ left: dir * amount, behavior: 'smooth' });
-    }, []);
-
+function SectionRow({ sectionId, title, subtitle, icon: Icon, items, renderCard, verTodoHref, lang = 'es' }) {
     if (!items || items.length === 0) return null;
 
     return (
-        <section className={classes.sectionBlock}>
+        <section id={sectionId} className={classes.sectionBlock}>
             <div className={classes.sectionHeader}>
                 <div className={classes.sectionIcon}>
-                    <Icon size={22} stroke={1.8} />
+                    <Icon size={20} stroke={1.9} />
                 </div>
                 <div className={classes.sectionTitleGroup}>
                     <h2 className={classes.sectionTitle}>{title}</h2>
                     {subtitle && <p className={classes.sectionSubtitle}>{subtitle}</p>}
                 </div>
-                <div className={classes.sectionActions}>
-                    <button
-                        className={classes.scrollBtn}
-                        onClick={() => scrollBy(-1)}
-                        aria-label={lang === 'en' ? 'Scroll left' : 'Desplazar a la izquierda'}
-                        type="button"
-                    >
-                        <IconChevronLeft size={16} stroke={2} />
-                    </button>
-                    <button
-                        className={classes.scrollBtn}
-                        onClick={() => scrollBy(1)}
-                        aria-label={lang === 'en' ? 'Scroll right' : 'Desplazar a la derecha'}
-                        type="button"
-                    >
-                        <IconChevronRight size={16} stroke={2} />
-                    </button>
-                    {verTodoHref && (
-                        <Link href={verTodoHref} className={classes.verTodoLink}>
-                            {lang === 'en' ? 'View all' : 'Ver todo'} <IconArrowRight size={13} stroke={2} />
-                        </Link>
-                    )}
-                </div>
+                {verTodoHref && (
+                    <Link href={verTodoHref} className={classes.verTodoLink}>
+                        {lang === 'en' ? 'View more' : 'Ver más'} <IconArrowRight size={13} stroke={2} />
+                    </Link>
+                )}
             </div>
-            <div className={classes.cardsScroll} ref={scrollRef}>
+            <div className={classes.cardsScroll}>
                 {items.map((item, i) => renderCard(item, i))}
             </div>
         </section>
@@ -210,8 +187,11 @@ export default function PopularesClient({
             <div className={classes.container}>
                 <Header title={lang === 'en' ? 'Popular' : 'Populares'} lang={lang} />
 
+                <AdsterraBannerDisplay instanceId="populares-top" />
+
                 {/* ── 1. Top Ranking Global ── */}
                 <SectionRow
+                    sectionId="top-ranking"
                     title="Top Ranking"
                     icon={IconTrophy}
                     subtitle={lang === 'en' ? 'The most-read series in our community' : 'Las series más leídas por nuestra comunidad'}
@@ -223,11 +203,9 @@ export default function PopularesClient({
                     )}
                 />
 
-                {/* Adsterra Banner Display 468x60 */}
-                <AdsterraBannerDisplay />
-
                 {/* ── 2. Trending ── */}
                 <SectionRow
+                    sectionId="trending"
                     title="Trending"
                     icon={IconFlame}
                     subtitle={lang === 'en' ? 'What is trending right now' : 'Lo que está en tendencia ahora mismo'}
@@ -241,6 +219,7 @@ export default function PopularesClient({
 
                 {/* ── 3. Mejor Valoradas ── */}
                 <SectionRow
+                    sectionId="top-rated"
                     title={lang === 'en' ? 'Top Rated' : 'Mejor Valoradas'}
                     icon={IconStar}
                     subtitle={lang === 'en' ? 'Highest-rated series by the community' : 'Las series con mayor puntuación de la comunidad'}
@@ -254,6 +233,7 @@ export default function PopularesClient({
 
                 {/* ── 4. Más Vistas (Semana) ── */}
                 <SectionRow
+                    sectionId="weekly"
                     title={lang === 'en' ? 'Most Viewed (Week)' : 'Más Vistas (Semana)'}
                     icon={IconEye}
                     subtitle={lang === 'en' ? 'Most popular this week' : 'Las más populares esta semana'}
@@ -267,6 +247,7 @@ export default function PopularesClient({
 
                 {/* ── 5. Más Vistas (Mes) ── */}
                 <SectionRow
+                    sectionId="monthly"
                     title={lang === 'en' ? 'Most Viewed (Month)' : 'Más Vistas (Mes)'}
                     icon={IconCalendar}
                     subtitle={lang === 'en' ? 'Most popular this month' : 'Las más populares este mes'}
@@ -280,6 +261,7 @@ export default function PopularesClient({
 
                 {/* ── 6. Nuevos Lanzamientos ── */}
                 <SectionRow
+                    sectionId="new-releases"
                     title={lang === 'en' ? 'New Releases' : 'Nuevos Lanzamientos'}
                     icon={IconSparkles}
                     subtitle={lang === 'en' ? 'Series recently added to the platform' : 'Series recién añadidas a la plataforma'}
@@ -293,6 +275,7 @@ export default function PopularesClient({
 
                 {/* ── 7. Últimas Actualizaciones ── */}
                 <SectionRow
+                    sectionId="latest-updates"
                     title={lang === 'en' ? 'Latest Updates' : 'Últimas Actualizaciones'}
                     icon={IconClock}
                     subtitle={lang === 'en' ? 'Series with newly published chapters' : 'Series con capítulos recién publicados'}
@@ -303,6 +286,8 @@ export default function PopularesClient({
                         <PopularCard key={item.id || item.slug} item={item} index={i} lang={lang} />
                     )}
                 />
+
+                <AdsterraBannerDisplay instanceId="populares-bottom" loadDelayMs={300} deferUntilVisible />
             </div>
         </div>
     );
