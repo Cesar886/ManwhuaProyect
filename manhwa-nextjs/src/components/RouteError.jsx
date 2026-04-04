@@ -2,12 +2,16 @@
 
 import { IconAlertTriangle, IconRefresh, IconHome } from '@tabler/icons-react'
 import { Button, Text, Title, Stack, Group, Paper } from '@mantine/core'
+import { useLang } from '../hooks/useLang'
+import { getLocalizedPath } from '../utils/i18nRoutes'
 
 /**
  * Componente reutilizable para error.jsx de cada ruta.
  * Muestra un mensaje amigable con botón de reintentar y link al inicio.
  */
 export default function RouteError({ error, reset, title = 'Algo salió mal' }) {
+  const { lang } = useLang()
+
   return (
     <div style={{
       minHeight: '60vh',
@@ -28,7 +32,9 @@ export default function RouteError({ error, reset, title = 'Algo salió mal' }) 
           <Title order={3}>{title}</Title>
 
           <Text c="dimmed" size="sm" maw={360}>
-            Ocurrió un error cargando esta página. Puedes intentar de nuevo o volver al inicio.
+            {lang === 'en'
+              ? 'An error occurred while loading this page. You can try again or go back home.'
+              : 'Ocurrió un error cargando esta página. Puedes intentar de nuevo o volver al inicio.'}
           </Text>
 
           {process.env.NODE_ENV === 'development' && error?.message && (
@@ -42,20 +48,23 @@ export default function RouteError({ error, reset, title = 'Algo salió mal' }) 
           <Group>
             <Button
               leftSection={<IconRefresh size={16} />}
+              size="md"
+              px="xl"
+              py="md"
               onClick={() => reset()}
               variant="gradient"
               gradient={{ from: 'blue', to: 'cyan' }}
             >
-              Reintentar
+              {lang === 'en' ? 'Retry' : 'Reintentar'}
             </Button>
             <Button
               leftSection={<IconHome size={16} />}
               component="a"
-              href="/home"
+              href={getLocalizedPath('/home', lang)}
               variant="outline"
               color="cyan"
             >
-              Inicio
+              {lang === 'en' ? 'Home' : 'Inicio'}
             </Button>
           </Group>
         </Stack>

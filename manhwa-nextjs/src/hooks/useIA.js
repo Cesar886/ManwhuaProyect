@@ -15,6 +15,7 @@ const MAX_QUERY_LINES = 6;
 const STORAGE_PROBE_KEY = '__ia_storage_probe__';
 const GUEST_DAILY_IA_LIMIT = 10;
 const IA_DEVICE_ID_KEY = 'ia_device_id_v1';
+const RETRYABLE_AI_STATUS_CODES = new Set([502, 503, 504]);
 const PROMPT_INJECTION_PATTERNS = [
     /\bignore\b.{0,40}\b(previous|above|prior)\b.{0,40}\b(instruction|prompt|message|rule)s?\b/i,
     /\b(system|developer|assistant)\s*[:=]/i,
@@ -587,6 +588,15 @@ export function getOriginalQuery(slug, options = {}) {
 
 // Clasificar error para dar mensajes claros al usuario
 function classifyError(err) {
+    if (err?.body?.code === 'AI_UPSTREAM_HTML_ERROR' || /<html|<!doctype|maintenance|mantenimiento|cloudflare/i.test(String(err?.body || err?.message || ''))) {
+        return 'El servicio IA está en mantenimiento o temporalmente bloqueado por la red. Intenta en unos minutos.';
+    }
+    if (err?.status === 504 || err?.body?.code === 'AI_UPSTREAM_TIMEOUT') {
+        return 'La IA tardó demasiado en responder. Intenta nuevamente en unos segundos.';
+    }
+    if (err?.status === 502 || err?.status === 503 || err?.status === 500 || err?.body?.code === 'AI_UPSTREAM_UNAVAILABLE') {
+        return 'No se pudo conectar con el servicio IA. Verifica la conectividad y vuelve a intentar.';
+    }
     if (err.name === 'AbortError') {
         return 'La IA tardó demasiado en responder. Intenta de nuevo.';
     }
@@ -621,6 +631,8 @@ function getIaDeviceId() {
         return null;
     }
 }
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function buildGuestAiLimitState({ isGuest, used = 0, limit = GUEST_DAILY_IA_LIMIT, blocked = false }) {
     if (!isGuest) {
@@ -770,14 +782,28 @@ export function useIA(options = {}) {
             if (deviceId) {
                 fetchHeaders['X-Device-Id'] = deviceId;
             }
-            const response = await fetch(AI_API_URL, {
-                method: 'POST',
-                headers: fetchHeaders,
-                body: JSON.stringify({
-                    messages: [{ role: 'user', content: trimmed }]
-                }),
-                signal: controller.signal
-            });
+            let response = null;
+            for (let attempt = 0; attempt < 2; attempt++) {
+                response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: fetchHeaders,
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: trimmed }]
+                    }),
+                    signal: controller.signal
+                });
+
+                if (response.ok || !RETRYABLE_AI_STATUS_CODES.has(response.status) || attempt === 1) {
+                    break;
+                }
+
+                await delay(900 * (attempt + 1));
+
+                if (controller !== activeControllerRef.current) {
+                    return null;
+                }
+            }
+
             const latencyMs = Math.round(performance.now() - t0);
 
             clearTimeout(timeoutId);
@@ -786,7 +812,29 @@ export function useIA(options = {}) {
             if (controller !== activeControllerRef.current) return null;
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+                const rawErrorText = await response.text().catch(() => '');
+                const contentType = response.headers.get('content-type') || '';
+                let errorData = {};
+
+                if (contentType.includes('application/json') && rawErrorText) {
+                    try {
+                        errorData = JSON.parse(rawErrorText);
+                    } catch {
+                        errorData = { message: rawErrorText };
+                    }
+                } else if (rawErrorText) {
+                    errorData = { message: rawErrorText };
+                }
+
+                const appearsToBeHtml = /<html|<!doctype|maintenance|mantenimiento|cloudflare/i.test(rawErrorText);
+                if (appearsToBeHtml && !errorData.code) {
+                    errorData = {
+                        ...errorData,
+                        code: 'AI_UPSTREAM_HTML_ERROR',
+                        message: 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red.',
+                    };
+                }
+
                 if (!userRef.current && errorData?.guestLimit) {
                     setGuestAiLimit(toGuestLimitState(errorData, true));
                 }
@@ -797,7 +845,46 @@ export function useIA(options = {}) {
                 throw customError;
             }
 
-            const data = await response.json();
+            const responseContentType = response.headers.get('content-type') || '';
+            const responseText = await response.text().catch(() => '');
+            const responseLooksLikeHtml = /<html|<!doctype|maintenance|mantenimiento|cloudflare/i.test(responseText);
+
+            let data = null;
+            if (responseContentType.includes('application/json') && responseText) {
+                try {
+                    data = JSON.parse(responseText);
+                } catch {
+                    data = {
+                        success: false,
+                        code: 'AI_UPSTREAM_INVALID_JSON',
+                        message: responseText || 'Respuesta inválida del servicio IA',
+                    };
+                }
+            } else if (responseText) {
+                data = {
+                    success: false,
+                    code: responseLooksLikeHtml ? 'AI_UPSTREAM_HTML_ERROR' : 'AI_UPSTREAM_INVALID_RESPONSE',
+                    message: responseLooksLikeHtml
+                        ? 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red.'
+                        : responseText,
+                };
+            }
+
+            if (responseLooksLikeHtml && (!data || data.success !== false)) {
+                data = {
+                    success: false,
+                    code: 'AI_UPSTREAM_HTML_ERROR',
+                    message: 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red.',
+                };
+            }
+
+            if (!data) {
+                data = {
+                    success: false,
+                    code: 'AI_UPSTREAM_EMPTY_RESPONSE',
+                    message: 'El servicio IA devolvió una respuesta vacía.',
+                };
+            }
 
             if (!userRef.current && data?.guestLimit) {
                 setGuestAiLimit(toGuestLimitState(data, true));
@@ -830,7 +917,10 @@ export function useIA(options = {}) {
                     prompt_risk: risk.level,
                 });
             } else {
-                throw new Error('La IA no pudo procesar la solicitud correctamente');
+                const upstreamError = new Error(data.message || 'La IA no pudo procesar la solicitud correctamente');
+                upstreamError.status = response.status;
+                upstreamError.body = data;
+                throw upstreamError;
             }
 
             setCargando(false);

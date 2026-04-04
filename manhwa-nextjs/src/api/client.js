@@ -20,7 +20,7 @@ const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 // Timezone del usuario para cálculos de horario local (ej: logro Lector Nocturno)
 const getUserTimezone = () => {
   try { return Intl.DateTimeFormat().resolvedOptions().timeZone; }
-  catch (_) { return ''; }
+  catch { return ''; }
 }
 const getAuthHeaders = (extra = {}) => {
   const tz = getUserTimezone();

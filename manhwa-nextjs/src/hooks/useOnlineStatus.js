@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 
 function subscribe(callback) {
   window.addEventListener('online', callback)

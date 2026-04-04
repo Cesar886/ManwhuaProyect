@@ -5,25 +5,43 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Breadcrumbs, Anchor, Text, Container } from '@mantine/core';
 import { IconHome, IconChevronRight } from '@tabler/icons-react';
+import { getLocalizedPath } from '@/utils/i18nRoutes';
 
 // Mapeo de slugs a nombres amigables
 const FRIENDLY_NAMES = {
-  'biblioteca': 'Biblioteca',
-  'manhwa': 'Manhwa',
-  'capitulo': 'Capítulo',
-  'populares': 'Populares',
-  'home': 'Inicio',
-  'perfil': 'Mi Perfil',
-  'colecciones': 'Colecciones',
-  'pedidos': 'Pedidos',
-  'pendiente': 'Pendiente',
+  es: {
+    biblioteca: 'Biblioteca',
+    manhwa: 'Manhwa',
+    capitulo: 'Capítulo',
+    populares: 'Populares',
+    home: 'Inicio',
+    perfil: 'Mi Perfil',
+    colecciones: 'Colecciones',
+    pedidos: 'Pedidos',
+    pendiente: 'Pendiente',
+    manga: 'Manga',
+    mangas: 'Manga',
+  },
+  en: {
+    library: 'Library',
+    manhwa: 'Manhwa',
+    chapter: 'Chapter',
+    populares: 'Popular',
+    home: 'Home',
+    profile: 'My Profile',
+    collections: 'Collections',
+    pending: 'Pending',
+    manga: 'Manga',
+    genre: 'Genre',
+    about: 'About',
+  },
 };
 
 // Rutas donde NO mostrar breadcrumbs
-const HIDDEN_PATHS = ['/', '/home', '/login', '/register', '/auth'];
+const HIDDEN_PATHS = ['/', '/home', '/en/home', '/login', '/register', '/auth'];
 
 // Componente interno que usa useSearchParams
-function BreadcrumbsContent() {
+function BreadcrumbsContent({ lang = 'es' }) {
   const pathname = usePathname() || '/';
   const searchParams = useSearchParams();
   const query = searchParams?.get('search') || '';
@@ -40,7 +58,7 @@ function BreadcrumbsContent() {
   items.push(
     <Anchor 
       component={Link} 
-      href="/" 
+      href={getLocalizedPath('/home', lang)}
       key="home"
       style={{ 
         display: 'flex', 
@@ -59,7 +77,7 @@ function BreadcrumbsContent() {
     const isLast = idx === segments.length - 1;
     
     // Obtener nombre amigable o formatear el slug
-    let label = FRIENDLY_NAMES[seg.toLowerCase()];
+    let label = FRIENDLY_NAMES[lang]?.[seg.toLowerCase()];
     if (!label) {
       // Decodificar y capitalizar si no está en el mapeo
       label = decodeURIComponent(seg)
@@ -68,8 +86,8 @@ function BreadcrumbsContent() {
     }
 
     // Para capítulos, mostrar el número
-    if (segments[idx - 1]?.toLowerCase() === 'capitulo') {
-      label = `Cap. ${seg}`;
+    if (segments[idx - 1]?.toLowerCase() === 'capitulo' || segments[idx - 1]?.toLowerCase() === 'chapter') {
+      label = lang === 'en' ? `Ch. ${seg}` : `Cap. ${seg}`;
     }
 
     if (isLast && !query) {
@@ -119,10 +137,10 @@ function BreadcrumbsContent() {
 }
 
 // Componente exportado envuelto en Suspense para evitar errores de hidratación
-export default function GlobalBreadcrumbs() {
+export default function GlobalBreadcrumbs({ lang = 'es' }) {
   return (
     <Suspense fallback={null}>
-      <BreadcrumbsContent />
+      <BreadcrumbsContent lang={lang} />
     </Suspense>
   );
 }

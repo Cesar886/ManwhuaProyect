@@ -151,7 +151,7 @@ export const getSeriesStats = (slug) => api.get('series', `${slug}/stats`)
 // Share tracking
 export const trackShare = (seriesId, platform) => api.post('series', `${seriesId}/share`, { platform })
 
-export default {
+const requestsApi = {
   listRequests,
   getRequest,
   getRequestComments,
@@ -196,3 +196,5 @@ export default {
   getSeriesStats,
   trackShare,
 }
+
+export default requestsApi

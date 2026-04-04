@@ -22,7 +22,6 @@ Disallow: /admin/
 Disallow: /temp/
 Disallow: /auth/
 Disallow: /private/
-Disallow: /busqueda-ia/
 Disallow: /*.json$
 Disallow: /*?*utm_source=
 Disallow: /*?*sessionid=

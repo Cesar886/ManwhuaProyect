@@ -278,7 +278,7 @@ export const getStreak = withErrorHandler(
  */
 export const getStreakStreamUrl = () => `${ENDPOINTS.progress}/stream`;
 
-export default {
+const progressApi = {
   saveProgress,
   getProgress,
   syncProgress,
@@ -289,4 +289,6 @@ export default {
   clearAllProgress,
   getDeviceId,
 };
+
+export default progressApi;
 

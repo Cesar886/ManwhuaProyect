@@ -10,7 +10,7 @@ import {
   IconBolt, IconDiamond,
   IconStar, IconFlame,
 } from '@tabler/icons-react';
-import profileStyles from '@/app/user-profile/UserProfile.module.css';
+import profileStyles from '@/app/(es)/user-profile/UserProfile.module.css';
 import styles from './Achievements.module.css';
 
 /* ============================================================

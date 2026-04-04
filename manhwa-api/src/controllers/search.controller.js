@@ -6,6 +6,9 @@ const crypto = require('crypto');
 const { query, transaction } = require('../config/database');
 
 const GUEST_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.GUEST_DAILY_IA_LIMIT, 10) || 10);
+const AI_FETCH_TIMEOUT_MS = Math.max(3000, parseInt(process.env.AI_FETCH_TIMEOUT_MS, 10) || 25000);
+const AI_UPSTREAM_HTML_REGEX = /<html|<!doctype|maintenance|mantenimiento|cloudflare/i;
+const AI_UPSTREAM_MAINTENANCE_MESSAGE = 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red. Intenta de nuevo en unos minutos.';
 const AI_READ_ENDPOINT = (() => {
     const raw = process.env.AI_API_URL || process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read';
     const cleaned = String(raw).replace(/\/+$/, '');
@@ -709,30 +712,118 @@ const aiRead = async (req, res, next) => {
             aiHeaders['X-Search-Context'] = String(searchContext);
         }
 
-        const aiResponse = await fetch(AI_READ_ENDPOINT, {
-            method: 'POST',
-            headers: aiHeaders,
-            body: JSON.stringify({ messages }),
-        });
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => timeoutController.abort(), AI_FETCH_TIMEOUT_MS);
 
-        const rawText = await aiResponse.text();
-        let payload;
         try {
-            payload = rawText ? JSON.parse(rawText) : {};
-        } catch {
-            payload = { success: false, message: rawText || 'Respuesta inválida del servicio IA' };
-        }
+            const aiResponse = await fetch(AI_READ_ENDPOINT, {
+                method: 'POST',
+                headers: aiHeaders,
+                body: JSON.stringify({ messages }),
+                signal: timeoutController.signal,
+            });
 
-        if (guestLimit) {
-            payload.guestLimit = guestLimit;
-            res.set('X-IA-Guest-Limit', String(guestLimit.limit));
-            res.set('X-IA-Guest-Used', String(guestLimit.used));
-            res.set('X-IA-Guest-Remaining', String(guestLimit.remaining));
-        }
+            const rawText = await aiResponse.text().catch(() => '');
+            const contentType = aiResponse.headers.get('content-type') || '';
+            const appearsToBeHtml = AI_UPSTREAM_HTML_REGEX.test(String(rawText || ''));
 
-        return res.status(aiResponse.status).json(payload);
+            let payload = {};
+            if (contentType.includes('application/json') && rawText) {
+                try {
+                    payload = JSON.parse(rawText);
+                } catch {
+                    payload = {
+                        success: false,
+                        code: 'AI_UPSTREAM_INVALID_JSON',
+                        message: rawText || 'Respuesta inválida del servicio IA',
+                    };
+                }
+            } else if (rawText) {
+                payload = {
+                    success: false,
+                    message: rawText,
+                };
+            }
+
+            if (appearsToBeHtml) {
+                payload = {
+                    success: false,
+                    code: 'AI_UPSTREAM_HTML_ERROR',
+                    message: AI_UPSTREAM_MAINTENANCE_MESSAGE,
+                };
+            }
+
+            if (!aiResponse.ok) {
+                const status = appearsToBeHtml ? 503 : aiResponse.status;
+                payload = {
+                    success: false,
+                    code: payload.code || (status >= 500 ? 'AI_UPSTREAM_UNAVAILABLE' : 'AI_UPSTREAM_ERROR'),
+                    message: payload.message || (status >= 500
+                        ? 'No se pudo conectar con el servicio IA en este momento.'
+                        : `El servicio IA respondió con error ${aiResponse.status}.`),
+                };
+
+                if (appearsToBeHtml) {
+                    payload.code = 'AI_UPSTREAM_HTML_ERROR';
+                    payload.message = AI_UPSTREAM_MAINTENANCE_MESSAGE;
+                }
+
+                if (guestLimit) {
+                    payload.guestLimit = guestLimit;
+                }
+
+                res.status(status);
+                if (guestLimit) {
+                    res.set('X-IA-Guest-Limit', String(guestLimit.limit));
+                    res.set('X-IA-Guest-Used', String(guestLimit.used));
+                    res.set('X-IA-Guest-Remaining', String(guestLimit.remaining));
+                }
+                return res.json(payload);
+            }
+
+            if (guestLimit) {
+                payload.guestLimit = guestLimit;
+                res.set('X-IA-Guest-Limit', String(guestLimit.limit));
+                res.set('X-IA-Guest-Used', String(guestLimit.used));
+                res.set('X-IA-Guest-Remaining', String(guestLimit.remaining));
+            }
+
+            if (!payload || typeof payload !== 'object') {
+                return res.status(502).json({
+                    success: false,
+                    code: 'AI_UPSTREAM_INVALID_RESPONSE',
+                    message: 'El servicio IA devolvió una respuesta inválida.',
+                    ...(guestLimit ? { guestLimit } : {}),
+                });
+            }
+
+            if (appearsToBeHtml) {
+                return res.status(503).json({
+                    success: false,
+                    code: 'AI_UPSTREAM_HTML_ERROR',
+                    message: AI_UPSTREAM_MAINTENANCE_MESSAGE,
+                    ...(guestLimit ? { guestLimit } : {}),
+                });
+            }
+
+            return res.status(200).json(payload);
+        } finally {
+            clearTimeout(timeoutId);
+        }
     } catch (error) {
-        next(error);
+        if (error?.name === 'AbortError') {
+            return res.status(504).json({
+                success: false,
+                code: 'AI_UPSTREAM_TIMEOUT',
+                message: 'El servicio IA tardó demasiado en responder.',
+            });
+        }
+
+        return res.status(502).json({
+            success: false,
+            code: 'AI_UPSTREAM_UNAVAILABLE',
+            message: 'No se pudo conectar con el servicio IA en este momento.',
+        });
     }
 };
 

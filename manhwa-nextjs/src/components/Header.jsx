@@ -10,11 +10,8 @@ import {
   IconTrendingUp,
   IconMoon,
   IconSun,
-  IconX,
   IconLogout,
-  IconSettings,
   IconUser,
-  IconHeart,
   IconFlame,
 } from '@tabler/icons-react';
 import {
@@ -27,7 +24,6 @@ import {
   Badge,
   Stack,
   Button,
-  Input,
   Container,
   ThemeIcon,
   useMantineColorScheme,
@@ -36,34 +32,34 @@ import {
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext'
 import { getStreak } from '../api/progress';
+import { useLang } from '../hooks/useLang';
+import { getLocalizedPath } from '../utils/i18nRoutes';
 import styles from './Header.module.css';
 
-// Tabs de navegación (fuera del componente para evitar recreación)
-const NAVIGATION_TABS = [
-  { label: 'Inicio', icon: IconHome, value: 'home', path: '/home' },
-  { label: 'Biblioteca', icon: IconBooks, value: 'Biblioteca', path: '/biblioteca' },
-  { label: 'Manga', icon: IconBook, value: 'Manga', path: '/mangas' },
-  { label: 'Populares', icon: IconTrendingUp, value: 'Populares', path: '/populares' },
-  // { label: '18+', icon: IconFlame, value: '18+', path: '/nsfw' },
-];
-
-// Items del menú del usuario (fuera del componente)
-const USER_MENU_ITEMS = [
-  { icon: IconUser, label: 'Mi Perfil', color: 'blue', action: 'perfil' },
-  // { icon: IconHeart, label: 'Mis Favoritos', color: 'yellow', action: 'favoritos' },
-  // { icon: IconSettings, label: 'Configuración', color: 'gray', action: 'configuracion', divider: true },
-  { icon: IconLogout, label: 'Cerrar Sesión', color: 'red', action: 'cerrar_sesion' },
-];
-
-function Header({ colorScheme, toggleColorScheme }) {
+function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   const [userMenuOpened, setUserMenuOpened] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [streakDays, setStreakDays] = useState(null);
-  const searchDebounce = useRef(null);
-  const [searchOpened, setSearchOpened] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const headerRef = useRef(null);
   const router = useRouter();
+  const { lang: detectedLang, t } = useLang();
+  
+  // Usar lang del prop o detectado
+  const lang = propLang || detectedLang;
+  
+  // Tabs de navegación (dinámicas según idioma)
+  const NAVIGATION_TABS = useMemo(() => [
+    { label: t.common.home, icon: IconHome, value: 'home', path: getLocalizedPath('/home', lang) },
+    { label: t.common.library, icon: IconBooks, value: 'library', path: getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang) },
+    { label: 'Manga', icon: IconBook, value: 'manga', path: getLocalizedPath(lang === 'en' ? '/manga' : '/mangas', lang) },
+    { label: t.common.popular, icon: IconTrendingUp, value: 'popular', path: getLocalizedPath('/populares', lang) },
+  ], [lang, t]);
+  
+  // Items del menú del usuario (dinámicos según idioma)
+  const USER_MENU_ITEMS = useMemo(() => [
+    { icon: IconUser, label: t.common.profile, color: 'blue', action: 'perfil' },
+    { icon: IconLogout, label: t.common.logout, color: 'red', action: 'cerrar_sesion' },
+  ], [t]);
 
   // Calcular altura del header y establecer variable CSS
   useEffect(() => {
@@ -96,9 +92,9 @@ function Header({ colorScheme, toggleColorScheme }) {
   const pathSegments = normalizedPath.split('/').filter(Boolean);
   const hasSegment = (segment) => pathSegments.includes(segment);
 
-  const activeTab = hasSegment('biblioteca') ? 'Biblioteca'
-    : hasSegment('mangas') ? 'Manga'
-      : hasSegment('perfil') ? 'Perfil'
+  const activeTab = (hasSegment('biblioteca') || hasSegment('library')) ? 'library'
+    : (hasSegment('mangas') || hasSegment('manga')) ? 'manga'
+      : (hasSegment('perfil') || hasSegment('profile')) ? 'profile'
         : 'home';
 
   // Usuario provisto por el contexto (no duplicamos el estado local)
@@ -149,27 +145,36 @@ function Header({ colorScheme, toggleColorScheme }) {
     const now = new Date()
     const diffMs = now - created
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    if (diffDays < 1) return 'Miembro desde hoy'
-    if (diffDays === 1) return 'Miembro desde ayer'
-    if (diffDays < 30) return `Miembro desde hace ${diffDays} días`
+    if (diffDays < 1) return lang === 'en' ? 'Member since today' : 'Miembro desde hoy'
+    if (diffDays === 1) return lang === 'en' ? 'Member since yesterday' : 'Miembro desde ayer'
+    if (diffDays < 30) return lang === 'en' ? `Member for ${diffDays} days` : `Miembro desde hace ${diffDays} días`
     const diffMonths = Math.floor(diffDays / 30)
-    if (diffMonths < 12) return `Miembro desde hace ${diffMonths} ${diffMonths === 1 ? 'mes' : 'meses'}`
+    if (diffMonths < 12) {
+      if (lang === 'en') return `Member for ${diffMonths} ${diffMonths === 1 ? 'month' : 'months'}`
+      return `Miembro desde hace ${diffMonths} ${diffMonths === 1 ? 'mes' : 'meses'}`
+    }
     const diffYears = Math.floor(diffMonths / 12)
     const remainMonths = diffMonths % 12
-    if (remainMonths === 0) return `Miembro desde hace ${diffYears} ${diffYears === 1 ? 'año' : 'años'}`
+    if (remainMonths === 0) {
+      if (lang === 'en') return `Member for ${diffYears} ${diffYears === 1 ? 'year' : 'years'}`
+      return `Miembro desde hace ${diffYears} ${diffYears === 1 ? 'año' : 'años'}`
+    }
+    if (lang === 'en') {
+      return `Member for ${diffYears} ${diffYears === 1 ? 'year' : 'years'} and ${remainMonths} ${remainMonths === 1 ? 'month' : 'months'}`
+    }
     return `Miembro desde hace ${diffYears} ${diffYears === 1 ? 'año' : 'años'} y ${remainMonths} ${remainMonths === 1 ? 'mes' : 'meses'}`
-  }, [uiUser?.createdAt]);
+  }, [uiUser?.createdAt, lang]);
 
   // Stable handler for user menu actions
   const handleUserAction = useMemo(() => ({
-    perfil: () => router.push('/perfil'),
+    perfil: () => router.push(getLocalizedPath(lang === 'en' ? '/profile' : '/perfil', lang)),
     // favoritos: () => router.push('/colecciones?tab=favoritos'),
     // configuracion: () => router.push('/configuracion'),
     cerrar_sesion: async () => {
       try { await doLogout(); } catch (e) { console.warn('Logout failed', e); }
-      router.push('/');
+      router.push(getLocalizedPath('/home', lang));
     },
-  }), [router, doLogout]);
+  }), [router, doLogout, lang]);
 
   return (
     <>
@@ -184,16 +189,18 @@ function Header({ colorScheme, toggleColorScheme }) {
             {/* Logo */}
             <UnstyledButton
               onClick={() => {
-                try { router.push('/home'); } catch { void 0; }
+                try { router.push(getLocalizedPath('/home', lang)); } catch { void 0; }
               }}
               className={styles.logoGroup}
               style={{ minWidth: 0, flex: '0 1 auto' }}
-              aria-label="Ir a inicio"
+              aria-label={lang === 'en' ? 'Go to home' : 'Ir a inicio'}
             >
               <Group gap="sm" className={styles.logoGroup} style={{ minWidth: 0, flex: '0 1 auto' }}>
                 <Image
                   src="/logo.png"
-                  alt="Logo de Manhwa Imperial - Plataforma para leer manhwa en español online gratis"
+                  alt={lang === 'en'
+                    ? 'Manhwa Imperial logo - Platform to read manhwa in English online for free'
+                    : 'Logo de Manhwa Imperial - Plataforma para leer manhwa en español online gratis'}
                   width={40}
                   height={40}
                   className={styles.logoImage}
@@ -233,7 +240,11 @@ function Header({ colorScheme, toggleColorScheme }) {
                 onClick={() => {
                   if (typeof activeToggle === 'function') activeToggle();
                 }}
-                aria-label={mounted && activeColorScheme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                aria-label={mounted
+                  ? (activeColorScheme === 'dark'
+                    ? (lang === 'en' ? 'Switch to light theme' : 'Cambiar a tema claro')
+                    : (lang === 'en' ? 'Switch to dark theme' : 'Cambiar a tema oscuro'))
+                  : (lang === 'en' ? 'Switch theme' : 'Cambiar tema')}
               >
                 {/* Renderizar icono solo después del montaje para evitar hydration mismatch */}
                 {mounted ? (
@@ -361,7 +372,7 @@ function Header({ colorScheme, toggleColorScheme }) {
                   onClick={() => openLogin()}
                 >
                   <IconUser size={16} stroke={2} style={{ marginRight: 6 }} />
-                  Entrar
+                  {lang === 'en' ? 'Login' : 'Entrar'}
                 </Button>
               )}
             </Group>

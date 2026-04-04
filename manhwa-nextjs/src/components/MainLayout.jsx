@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import GlobalBreadcrumbs from '@/components/GlobalBreadcrumbs';
 import Footer from '@/components/Footer';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import LangBanner from '@/components/LangBanner';
 
 // Rutas donde NO queremos mostrar los breadcrumbs ni el footer
 const NO_BREADCRUMBS_PATHS = [
@@ -11,19 +12,21 @@ const NO_BREADCRUMBS_PATHS = [
   '/register',
 ];
 
-export default function MainLayout({ children }) {
+export default function MainLayout({ children, lang }) {
   const pathname = usePathname() || '';
+  const activeLang = lang || (pathname.startsWith('/en') ? 'en' : 'es');
 
   // Comprueba si la ruta actual debe ocultar los breadcrumbs y el footer
   const shouldHideBreadcrumbs = NO_BREADCRUMBS_PATHS.some(path => pathname.startsWith(path));
 
   return (
     <>
-      {!shouldHideBreadcrumbs && <GlobalBreadcrumbs />}
+      <LangBanner />
+      {!shouldHideBreadcrumbs && <GlobalBreadcrumbs lang={activeLang} />}
       <ErrorBoundary>
         {children}
       </ErrorBoundary>
-      {!shouldHideBreadcrumbs && <Footer />}
+      {!shouldHideBreadcrumbs && <Footer lang={activeLang} />}
     </>
   );
 }

@@ -5,7 +5,7 @@
  * Captura errores en el root layout que error.jsx no puede atrapar.
  * DEBE re-declarar <html> y <body> porque el root layout ya no se renderiza.
  */
-export default function GlobalError({ error, reset }) {
+export default function GlobalError({ reset }) {
   return (
     <html lang="es">
       <body style={{

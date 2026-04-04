@@ -1,7 +1,6 @@
 'use client'
 
 import React, { createContext } from 'react';
-import { Notifications, notifications } from '@mantine/notifications';
 import '@mantine/notifications/styles.layer.css';
 
 /**

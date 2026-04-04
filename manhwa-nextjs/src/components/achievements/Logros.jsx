@@ -9,7 +9,7 @@ import {
   IconMoon, IconMessage, IconSword,
   IconBolt, IconCrown, IconDiamond,
 } from '@tabler/icons-react';
-import profileStyles from '@/app/user-profile/UserProfile.module.css';
+import profileStyles from '@/app/(es)/user-profile/UserProfile.module.css';
 import styles from './Logros.module.css';
 
 /* Nota: StreakFlame está separado en StreakFlame.jsx

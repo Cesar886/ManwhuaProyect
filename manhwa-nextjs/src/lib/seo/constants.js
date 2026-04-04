@@ -221,6 +221,31 @@ export const GENRE_SEO = {
 // TEXTOS SEO REUTILIZABLES
 // Contenido visible optimizado para SEO
 // ============================================================================
+import { getTranslations } from '@/i18n/translations'
+
+export const getSEOContent = (lang = 'es') => {
+  const t = getTranslations(lang)
+  
+  return {
+    home: {
+      h1: t.home.h1,
+      introText: t.home.introText,
+      whatIsManhwa: {
+        title: t.home.whatIsManhwa.title,
+        text: t.home.whatIsManhwa.text,
+      },
+      sections: {
+        latest: t.home.sections.latest,
+        popular: t.home.sections.popular,
+        genres: t.home.sections.genres,
+        collection: t.home.sections.collection,
+      },
+    },
+    // ... resto del contenido SEO
+  }
+}
+
+// Versión legacy para retrocompatibilidad
 export const SEO_CONTENT = {
   home: {
     h1: 'Leer Manhwa en Español Online Gratis',

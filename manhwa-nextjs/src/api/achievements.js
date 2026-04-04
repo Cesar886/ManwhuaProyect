@@ -63,8 +63,10 @@ export const getAchievementsLeaderboard = async (type = null, limit = 50) => {
   }
 };
 
-export default {
+const achievementsApi = {
   getUserAchievements,
   getAchievementsConfig,
   getAchievementsLeaderboard,
 };
+
+export default achievementsApi;

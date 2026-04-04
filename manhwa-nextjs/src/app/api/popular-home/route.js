@@ -20,10 +20,12 @@ const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || '';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutos
 const MAX_QUERIES = 5;
 const DELAY_MS = 1000;
+const RETRYABLE_AI_STATUS_CODES = new Set([502, 503, 504]);
 
 // Caché en memoria del servidor
 let serverCache = null;
 let serverCacheTime = 0;
+let inFlightRefresh = null;
 
 // Caché del catálogo (se renueva cada 10 min)
 let catalogCache = null;
@@ -31,6 +33,22 @@ let catalogCacheTime = 0;
 const CATALOG_TTL = 10 * 60 * 1000;
 
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
+async function fetchWithRetry(url, options, retries = 1, retryDelay = 900) {
+  let response = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    response = await fetch(url, options);
+
+    if (response.ok || !RETRYABLE_AI_STATUS_CODES.has(response.status) || attempt === retries) {
+      return response;
+    }
+
+    await delay(retryDelay * (attempt + 1));
+  }
+
+  return response;
+}
 
 const normTitle = (t) =>
   String(t || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
@@ -80,12 +98,16 @@ export async function GET() {
     return Response.json({ data: serverCache, fromCache: true });
   }
 
-  try {
+  if (inFlightRefresh) {
+    return inFlightRefresh;
+  }
+
+  inFlightRefresh = (async () => {
     // Cargar catálogo para enriquecer covers
     const { bySlug, byTitle } = await getCatalogMaps();
 
     // 1. Obtener queries populares
-    const popRes = await fetch(`${AI_BASE_URL}/api/popular?limit=20`, {
+    const popRes = await fetchWithRetry(`${AI_BASE_URL}/api/popular?limit=20`, {
       headers: { 'Accept': 'application/json' },
       next: { revalidate: 0 },
     });
@@ -106,7 +128,7 @@ export async function GET() {
     for (let i = 0; i < queries.length; i++) {
       const q = queries[i];
       try {
-        const res = await fetch(`${AI_BASE_URL}/api/read`, {
+        const res = await fetchWithRetry(`${AI_BASE_URL}/api/read`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: [{ role: 'user', content: q.query }] }),
@@ -150,7 +172,11 @@ export async function GET() {
     }
 
     return Response.json({ data: accumulated, fromCache: false });
-  } catch {
-    return Response.json({ data: [] });
-  }
+  })()
+    .catch(() => Response.json({ data: [] }))
+    .finally(() => {
+      inFlightRefresh = null;
+    });
+
+  return inFlightRefresh;
 }

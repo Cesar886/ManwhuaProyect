@@ -60,7 +60,7 @@ const INACTIVITY_TIMEOUT = 3000;      // Auto-hide después de 3 segundos
 const INITIAL_HIDE_DELAY = 2000;      // Ocultar header inicial después de 2 segundos
 const MOBILE_BREAKPOINT = 768;        // Breakpoint mobile vs desktop
 
-export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manhwa' }) {
+export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manhwa', lang = 'es' }) {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -298,8 +298,8 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
         <button
           className={styles.backButton}
           onClick={handleBack}
-          aria-label="Volver a la lista de capítulos"
-          title="Volver"
+          aria-label={lang === 'en' ? 'Back to chapter list' : 'Volver a la lista de capítulos'}
+          title={lang === 'en' ? 'Back' : 'Volver'}
         >
           <IconArrowLeft size={18} />
         </button>
@@ -311,7 +311,7 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
         <div className={styles.logoContainer}>
           <Image
             src="/logo.png"
-            alt="Logo de Manhwa Imperial - Lector de manhwas en español"
+            alt={lang === 'en' ? 'Manhwa Imperial logo - English manhwa reader' : 'Logo de Manhwa Imperial - Lector de manhwas en español'}
             width={32}
             height={32}
             className={styles.logoImg}
@@ -328,8 +328,12 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
         <button
           className={styles.fullscreenButton}
           onClick={toggleFullscreenLocal}
-          aria-label={isFullscreenLocal ? 'Salir de pantalla completa' : 'Pantalla completa'}
-          title={isFullscreenLocal ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          aria-label={isFullscreenLocal
+            ? (lang === 'en' ? 'Exit fullscreen' : 'Salir de pantalla completa')
+            : (lang === 'en' ? 'Fullscreen' : 'Pantalla completa')}
+          title={isFullscreenLocal
+            ? (lang === 'en' ? 'Exit fullscreen' : 'Salir de pantalla completa')
+            : (lang === 'en' ? 'Fullscreen' : 'Pantalla completa')}
         >
           {isFullscreenLocal
             ? <IconMinimize size={18} />
