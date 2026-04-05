@@ -124,7 +124,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es" className={`${outfit.variable} ${playfair.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
-        <ColorSchemeScript />
+        <ColorSchemeScript defaultColorScheme="auto" />
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
@@ -191,7 +191,7 @@ export default function RootLayout({ children }) {
           }}
         />
 <NavigationProgress />
-        <MantineProvider theme={imperialTheme} defaultColorScheme="light">
+        <MantineProvider theme={imperialTheme} defaultColorScheme="auto">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>
             <MainLayout>

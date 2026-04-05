@@ -729,12 +729,24 @@
         height: 36px;
     }
 
+    .sectionHeader {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
     .sectionTitle {
         font-size: 1rem;
     }
 
     .sectionSubtitle {
         font-size: 0.7rem;
+    }
+
+    .sectionActions {
+        order: 3;
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 0.25rem;
     }
 
     .scrollBtn {

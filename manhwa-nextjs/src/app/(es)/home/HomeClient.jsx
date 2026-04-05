@@ -21,7 +21,6 @@ import { filterAvailableSeries } from '@/utils/adultContent';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecentProgress } from '@/api/progress';
 import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
-import { getRelatedSeries } from '@/api/requests';
 import { useLang } from '@/hooks/useLang';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
 
@@ -46,6 +45,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     loading: false,
     sourceTitle: '',
     sourceSlug: '',
+    aiQuery: '',
     items: [],
   })
   const { user } = useAuth()
@@ -132,7 +132,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     let cancelled = false
 
     if (!user) {
-      setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', items: [] })
+      setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', items: [] })
       return undefined
     }
 
@@ -147,32 +147,47 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
         if (!lastRead?.series?.slug) {
           if (!cancelled) {
-            setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', items: [] })
+            setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', items: [] })
           }
           return
         }
 
-        const relatedResponse = await getRelatedSeries(lastRead.series.slug, 8)
-        const relatedRaw = relatedResponse?.data?.series
-          || relatedResponse?.series
-          || relatedResponse?.data?.data?.series
-          || []
+        const sourceTitle = String(lastRead?.series?.title || '').trim()
+        const sourceSlug = String(lastRead?.series?.slug || '').trim()
+
+        const aiRes = await fetch(`/api/smart-home?title=${encodeURIComponent(sourceTitle)}&exclude=${encodeURIComponent(sourceSlug)}&limit=8`, {
+          headers: { 'Accept': 'application/json' },
+        })
+
+        let relatedRaw = []
+        let aiQuery = sourceTitle ? `manhwas similares a ${sourceTitle}` : ''
+
+        if (aiRes.ok) {
+          try {
+            const aiJson = await aiRes.json()
+            relatedRaw = Array.isArray(aiJson?.data) ? aiJson.data : []
+            aiQuery = aiJson?.query || aiQuery
+          } catch {
+            relatedRaw = []
+          }
+        }
 
         const cleaned = filterAvailableSeries(Array.isArray(relatedRaw) ? relatedRaw : [])
-          .filter((item) => item?.slug && item.slug !== lastRead.series.slug)
+          .filter((item) => item?.slug && item.slug !== sourceSlug)
           .slice(0, 8)
 
         if (!cancelled) {
           setSmartRecommendation({
             loading: false,
-            sourceTitle: lastRead.series.title || '',
-            sourceSlug: lastRead.series.slug || '',
+            sourceTitle,
+            sourceSlug,
+            aiQuery,
             items: cleaned,
           })
         }
       } catch {
         if (!cancelled) {
-          setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', items: [] })
+          setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', items: [] })
         }
       }
     }
@@ -352,9 +367,9 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           <section className={styles.querySection}>
             <div className={styles.queryRow}>
               <div className={styles.queryHeader}>
-                <h2 className={styles.queryName}>{lang === 'en' ? `Because you read ${smartRecommendation.sourceTitle}, you may like this` : `Porque leiste ${smartRecommendation.sourceTitle}, te puede gustar esto`}</h2>
-                <Link href={getLocalizedPath(`/manhwa/${smartRecommendation.sourceSlug}`, lang)} className={styles.queryLink}>
-                  {lang === 'en' ? `View ${smartRecommendation.sourceTitle}` : `Ver ${smartRecommendation.sourceTitle}`} →
+                <h2 className={styles.queryName}>{lang === 'en' ? `Because you read ${smartRecommendation.sourceTitle}, you may like this` : `Porque leíste ${smartRecommendation.sourceTitle}, te puede gustar esto`}</h2>
+                <Link href={getLocalizedPath(`/busqueda-ia/${slugifyQuery(smartRecommendation.aiQuery || `manhwas similares a ${smartRecommendation.sourceTitle}`)}`, lang)} className={styles.queryLink}>
+                  {lang === 'en' ? 'View AI results' : 'Ver resultados IA'} →
                 </Link>
               </div>
 

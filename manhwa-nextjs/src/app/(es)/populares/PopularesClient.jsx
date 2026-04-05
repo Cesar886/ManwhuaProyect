@@ -129,9 +129,11 @@ function SectionRow({ sectionId, title, subtitle, icon: Icon, items, renderCard,
                     {subtitle && <p className={classes.sectionSubtitle}>{subtitle}</p>}
                 </div>
                 {verTodoHref && (
-                    <Link href={verTodoHref} className={classes.verTodoLink}>
-                        {lang === 'en' ? 'View more' : 'Ver más'} <IconArrowRight size={13} stroke={2} />
-                    </Link>
+                    <div className={classes.sectionActions}>
+                        <Link href={verTodoHref} className={classes.verTodoLink}>
+                            {lang === 'en' ? 'View more' : 'Ver más'} <IconArrowRight size={13} stroke={2} />
+                        </Link>
+                    </div>
                 )}
             </div>
             <div className={classes.cardsScroll}>

@@ -993,6 +993,10 @@
    ============================================================================ */
 
 @media (max-width: 768px) {
+  .queryLink {
+    display: none;
+  }
+
   .queryItem {
     flex: 0 0 120px;
   }
@@ -1041,8 +1045,7 @@
   }
 
   .queryLink {
-    font-size: 0.7rem;
-    padding: 6px 8px;
+    display: none;
   }
 }
 

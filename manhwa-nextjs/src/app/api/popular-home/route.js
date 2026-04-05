@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+
 // API route con caché server-side compartido entre todos los usuarios.
 // Enriquece los covers desde el catálogo de Spaces para que el cliente
 // siempre reciba datos completos, sin depender del coverRegistry.
@@ -95,7 +97,7 @@ function getChapters(s) {
 export async function GET() {
   // Devolver caché si está fresco
   if (serverCache && Date.now() - serverCacheTime < CACHE_TTL) {
-    return Response.json({ data: serverCache, fromCache: true });
+    return NextResponse.json({ data: serverCache, fromCache: true });
   }
 
   if (inFlightRefresh) {
@@ -111,16 +113,16 @@ export async function GET() {
       headers: { 'Accept': 'application/json' },
       next: { revalidate: 0 },
     });
-    if (!popRes.ok) return Response.json({ data: [] });
+    if (!popRes.ok) return NextResponse.json({ data: [] });
 
     const popData = await popRes.json();
-    if (!popData.success || !Array.isArray(popData.queries)) return Response.json({ data: [] });
+    if (!popData.success || !Array.isArray(popData.queries)) return NextResponse.json({ data: [] });
 
     const queries = popData.queries
       .filter((q) => q.query && q.query.trim().length > 3)
       .slice(0, MAX_QUERIES);
 
-    if (queries.length === 0) return Response.json({ data: [] });
+    if (queries.length === 0) return NextResponse.json({ data: [] });
 
     // 2. Llamar a /api/read secuencialmente y enriquecer con catálogo
     const accumulated = [];
@@ -171,9 +173,9 @@ export async function GET() {
       serverCacheTime = Date.now();
     }
 
-    return Response.json({ data: accumulated, fromCache: false });
+    return NextResponse.json({ data: accumulated, fromCache: false });
   })()
-    .catch(() => Response.json({ data: [] }))
+    .catch(() => NextResponse.json({ data: [] }))
     .finally(() => {
       inFlightRefresh = null;
     });
