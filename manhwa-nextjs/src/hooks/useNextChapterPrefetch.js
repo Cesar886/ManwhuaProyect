@@ -28,10 +28,11 @@ export default function useNextChapterPrefetch({ slug, nextChapterNum, networkCo
 
   useEffect(() => {
     if (!enabled || !slug || nextChapterNum == null) return;
-    if (!networkConfig?.prefetchNextChapter) return;
 
-    const { prefetchDelay, prefetchImageCount } = networkConfig;
-    if (!prefetchImageCount || prefetchImageCount <= 0) return;
+    const { prefetchDelay } = networkConfig || {};
+    const prefetchImageCount = Number.isFinite(networkConfig?.prefetchImageCount)
+      ? Math.max(1, networkConfig.prefetchImageCount)
+      : 3;
 
     const spacesUrl = process.env.NEXT_PUBLIC_DO_SPACES_URL;
     if (!spacesUrl) return;
@@ -41,18 +42,44 @@ export default function useNextChapterPrefetch({ slug, nextChapterNum, networkCo
 
     timerRef.current = setTimeout(async () => {
       try {
-        const paddedChapter = String(nextChapterNum).padStart(2, '0');
-        const imagesJsonUrl = `${spacesUrl}/${slug}/cap-${paddedChapter}/images.json`;
+        const chapterRaw = String(nextChapterNum);
+        const paddedCandidates = [
+          chapterRaw.padStart(4, '0'),
+          chapterRaw.padStart(2, '0'),
+          chapterRaw,
+        ];
 
-        const res = await fetch(imagesJsonUrl, {
-          signal: controller.signal,
-          priority: 'low',
-        });
+        let images = null;
 
-        if (!res.ok || controller.signal.aborted) return;
+        for (const paddedChapter of paddedCandidates) {
+          if (controller.signal.aborted) return;
 
-        const images = await res.json();
-        if (!Array.isArray(images) || controller.signal.aborted) return;
+          const baseUrl = `${spacesUrl}/${slug}/cap-${paddedChapter}`;
+
+          // Preferir meta (cuando existe) y fallback a images.json
+          const attempts = [`${baseUrl}/images-meta.json`, `${baseUrl}/images.json`];
+
+          for (const url of attempts) {
+            if (controller.signal.aborted) return;
+
+            const res = await fetch(url, {
+              signal: controller.signal,
+              priority: 'low',
+            });
+
+            if (!res.ok) continue;
+
+            const data = await res.json();
+            if (!Array.isArray(data) || data.length === 0) continue;
+
+            images = data;
+            break;
+          }
+
+          if (Array.isArray(images) && images.length > 0) break;
+        }
+
+        if (!Array.isArray(images) || images.length === 0 || controller.signal.aborted) return;
 
         const count = prefetchImageCount === Infinity ? images.length : Math.min(prefetchImageCount, images.length);
         const toPrefetch = images.slice(0, count);

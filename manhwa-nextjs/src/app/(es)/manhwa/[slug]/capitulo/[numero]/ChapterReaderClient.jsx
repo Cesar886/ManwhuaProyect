@@ -143,7 +143,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   }, [slug, seriesBasePath, chapterSegment]);
 
   // Usar initialPages como estado inicial → disponible en el primer render (SSR)
-  const { pages: hookPages } = useChapterPages(slug, chapterNum);
+  const { pages: hookPages, loading: chapterPagesLoading } = useChapterPages(slug, chapterNum);
   const { series: hookSeries } = useSeriesDetail(slug);
 
   // Combinar datos SSR con datos del hook (hook puede actualizar tras hidratación)
@@ -154,20 +154,25 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   const networkInfo = useNetworkQuality();
   const networkConfig = useMemo(() => getQueueConfig(networkInfo), [networkInfo]);
 
-  // Estado: capítulo actual completamente cargado
-  const [isCurrentChapterLoaded, setIsCurrentChapterLoaded] = useState(false);
+  // Esperar a que el documento termine de cargar antes de iniciar prefetch pesado.
+  const [isDocumentLoaded, setIsDocumentLoaded] = useState(
+    typeof document !== 'undefined' ? document.readyState === 'complete' : false
+  );
 
-  // Reset al cambiar de capítulo
   useEffect(() => {
-    setIsCurrentChapterLoaded(false);
-  }, [slug, chapterNum]);
+    if (typeof window === 'undefined') return;
+    if (document.readyState === 'complete') {
+      setIsDocumentLoaded(true);
+      return;
+    }
 
-  const handleAllImagesLoaded = useCallback(() => {
-    setIsCurrentChapterLoaded(true);
+    const onLoad = () => setIsDocumentLoaded(true);
+    window.addEventListener('load', onLoad, { once: true });
+    return () => window.removeEventListener('load', onLoad);
   }, []);
 
   // Hook de carga secuencial de imágenes (adaptativo)
-  const { statuses: imageStatuses, markLoaded, markError, registerRef } = useImageQueue(pages, networkConfig, handleAllImagesLoaded);
+  const { statuses: imageStatuses, markLoaded, markError, registerRef } = useImageQueue(pages, networkConfig);
 
   // Derivar capítulos anterior y siguiente desde la lista real de capítulos
   const { prevChapterNum, nextChapterNum, hasPrev, hasNext } = useMemo(() => {
@@ -204,12 +209,28 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
     };
   }, [chapterNum, series?.chapters]);
 
+  const nextChapterPrefetchConfig = useMemo(() => {
+    const fallbackCount = 3;
+    const count = Number.isFinite(networkConfig?.prefetchImageCount)
+      ? Math.max(1, networkConfig.prefetchImageCount)
+      : fallbackCount;
+
+    return {
+      ...networkConfig,
+      prefetchNextChapter: true,
+      prefetchImageCount: count,
+      prefetchDelay: Number.isFinite(networkConfig?.prefetchDelay) ? networkConfig.prefetchDelay : 1200,
+    };
+  }, [networkConfig]);
+
+  const isReadyToPrefetchNext = isDocumentLoaded && !chapterPagesLoading && pages.length > 0 && hasNext;
+
   // Prefetch del siguiente capítulo
   useNextChapterPrefetch({
     slug,
     nextChapterNum,
-    networkConfig,
-    enabled: isCurrentChapterLoaded,
+    networkConfig: nextChapterPrefetchConfig,
+    enabled: isReadyToPrefetchNext,
   });
 
   const [currentPage, setCurrentPage] = useState(0);
