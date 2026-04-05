@@ -41,6 +41,8 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const [isFromCache, setIsFromCache] = useState(false)
   const [popularCategories, setPopularCategories] = useState([])
   const [popularLoading, setPopularLoading] = useState(true)
+  const [recentReads, setRecentReads] = useState([])
+  const [recentLoading, setRecentLoading] = useState(true)
   const [smartRecommendation, setSmartRecommendation] = useState({
     loading: false,
     sourceTitle: '',
@@ -132,18 +134,25 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     let cancelled = false
 
     if (!user) {
+      setRecentReads([])
+      setRecentLoading(false)
       setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', items: [] })
       return undefined
     }
 
     const loadSmartRecommendation = async () => {
+      setRecentLoading(true)
       setSmartRecommendation(prev => ({ ...prev, loading: true }))
 
       try {
-        const recent = await getRecentProgress(1)
-        const lastRead = Array.isArray(recent)
-          ? recent.find((item) => item?.series?.slug)
-          : null
+        const recent = await getRecentProgress(6)
+        const recentList = Array.isArray(recent) ? recent : []
+
+        if (!cancelled) {
+          setRecentReads(recentList)
+        }
+
+        const lastRead = recentList.find((item) => item?.series?.slug)
 
         if (!lastRead?.series?.slug) {
           if (!cancelled) {
@@ -187,8 +196,11 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
         }
       } catch {
         if (!cancelled) {
+          setRecentReads([])
           setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', items: [] })
         }
+      } finally {
+        if (!cancelled) setRecentLoading(false)
       }
     }
 
@@ -349,6 +361,77 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
         {/* Adsterra Banner Display 468x60 */}
         <AdsterraBannerDisplay />
+
+        {user && recentLoading && (
+          <section className={styles.querySection}>
+            <div className={styles.queryRow}>
+              <div className={styles.queryHeader}>
+                <h2 className={styles.queryName}>{t.home.continueReading}</h2>
+                <Link href={getLocalizedPath('/perfil', lang)} className={styles.queryLink}>
+                  {lang === 'en' ? 'View history' : 'Ver historial'} →
+                </Link>
+              </div>
+              <div className={styles.queryScroll}>
+                <PremiumSkeletonGrid count={6} />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {user && !recentLoading && recentReads.length > 0 && (
+          <section className={styles.querySection}>
+            <div className={styles.queryRow}>
+              <div className={styles.queryHeader}>
+                <h2 className={styles.queryName}>{t.home.continueReading}</h2>
+                <Link href={getLocalizedPath('/perfil', lang)} className={styles.queryLink}>
+                  {lang === 'en' ? 'View history' : 'Ver historial'} →
+                </Link>
+              </div>
+
+              <div className={styles.queryScroll}>
+                {recentReads.slice(0, 6).map((item, i) => {
+                  const slug = item.series?.slug || item.slug || ''
+                  const title = item.series?.title || item.title || slug
+                  const chapter = item.chapter?.number || item.chapterNum || item.chapter_num || item.latestChapter || item.lastChapter || ''
+                  const progress = Math.min(100, Math.max(0, Number(item.progress) || 0))
+                  const cover = item.series?.coverUrl || item.series?.cover_url || item.series?.cover || item.coverUrl || item.cover_url || item.cover || ''
+
+                  return (
+                    <Link
+                      href={slug ? getLocalizedPath(`/manhwa/${slug}`, lang) : '#'}
+                      key={`${slug || title}-${i}`}
+                      className={styles.queryItem}
+                    >
+                      <div className={styles.popularCard}>
+                        <ManhwaCover
+                          src={normalizeImageUrl(cover) || ''}
+                          fallbackSrc={normalizeImageUrl(cover) || ''}
+                          slug={slug}
+                          alt={getImageAlt.cover(title)}
+                          className={styles.popularImg}
+                          priority={i < 4}
+                          sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
+                        />
+                        {chapter && (
+                          <span className={styles.chapterBadge}>
+                            Cap.{chapter}
+                          </span>
+                        )}
+                        <span className={styles.statusBadge}>
+                          {progress > 0 ? `${progress}%` : 'Historia'}
+                        </span>
+                        <h3 className={styles.titleLink}>{title}</h3>
+                        <div style={{ position: 'absolute', left: 8, right: 8, bottom: 8, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                          <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, var(--imperial-cyan), var(--imperial-gold))' }} />
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          </section>
+        )}
 
         {smartRecommendation.loading && (
           <section className={styles.querySection}>
