@@ -162,7 +162,7 @@ const AddToListModal = ({ isOpen, onClose, currentStatus, onUpdateStatus }) => {
 };
 
 // Componente de Capítulo
-const ChapterCard = ({ chapter, slug, isRead, isNew, basePath = '/manhwa', lang = 'es' }) => {
+const ChapterCard = ({ chapter, slug, isRead, isNew, isResumePoint = false, basePath = '/manhwa', lang = 'es' }) => {
   const progressPercent = chapter.progress ? Math.round((chapter.progress.page / chapter.pageCount) * 100) : 0;
   const pathname = usePathname();
   const chapterSegment = lang === 'en' ? 'chapter' : 'capitulo';
@@ -171,7 +171,7 @@ const ChapterCard = ({ chapter, slug, isRead, isNew, basePath = '/manhwa', lang 
   return (
     <Link
       href={`${basePath}/${slug}/${chapterSegment}/${chapter.number}`}
-      className={`${styles.chapterCard} ${isRead ? styles.chapterRead : ''} ${isActive ? styles.chapterActive : ''}`}
+      className={`${styles.chapterCard} ${isRead ? styles.chapterRead : ''} ${isResumePoint ? styles.chapterResumePoint : ''} ${isActive ? styles.chapterActive : ''}`}
     >
       {chapter.thumbnail && (
         <img src={chapter.thumbnail} alt={lang === 'en' ? `Chapter ${chapter.number} thumbnail - manhwa page preview` : `Miniatura del Capítulo ${chapter.number} - Vista previa de página del manhwa`} className={styles.chapterThumbnail} loading="lazy" />
@@ -183,6 +183,11 @@ const ChapterCard = ({ chapter, slug, isRead, isNew, basePath = '/manhwa', lang 
             {lang === 'en' ? 'Chapter' : 'Capítulo'} {chapter.number}
             {isNew && <Badge type="new">NUEVO</Badge>}
             {isRead && <IconCheck size={14} className={styles.readCheck} />}
+            {isResumePoint && (
+              <span className={styles.resumeHint}>
+                {lang === 'en' ? 'You stayed here' : 'Te quedaste aqui'}
+              </span>
+            )}
           </h3>
           {chapter.title && <p className={styles.chapterTitle}>{chapter.title}</p>}
           <div className={styles.chapterMeta}>
@@ -261,6 +266,19 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
   const manhwaReadersCount = manhwaReaders.length;
   const [hasHydrated, setHasHydrated] = useState(false);
+
+  const isSameChapter = (a, b) => {
+    if (a === undefined || a === null || b === undefined || b === null) return false;
+
+    const na = Number.parseFloat(a);
+    const nb = Number.parseFloat(b);
+
+    if (Number.isFinite(na) && Number.isFinite(nb)) {
+      return Math.abs(na - nb) < 0.0001;
+    }
+
+    return String(a).trim() === String(b).trim();
+  };
 
   // IMPORTANTE para SEO: Usar initialSeries como fallback si el hook no tiene datos
   // Esto evita Soft 404 en Google durante la hidratación
@@ -1344,6 +1362,8 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   ? Math.floor((Date.now() - new Date(chapter.publishedAt)) / (1000 * 60 * 60 * 24))
                   : 999;
 
+                const isResumePoint = Boolean(lastReadChapter) && isSameChapter(chapter.number, lastReadChapter);
+
                 return (
                   <ChapterCard
                     key={chapter.number}
@@ -1351,6 +1371,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                     slug={slug}
                     isRead={chapter.isRead}
                     isNew={daysSincePublish <= 3}
+                    isResumePoint={isResumePoint}
                     basePath={basePath}
                     lang={lang}
                   />

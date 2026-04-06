@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   IconClock,
   IconTrendingUp,
@@ -16,7 +16,7 @@ import { normalizeImageUrl } from '@/utils/imageUtils';
 import { endpoint } from '@/config';
 import Header from '@/components/Header';
 import { getImageAlt, getAnchorText } from '@/lib/seo/constants';
-import { slugifyQuery } from '@/hooks/useIA';
+import { slugifyQuery, getSearchHistory } from '@/hooks/useIA';
 import { filterAvailableSeries } from '@/utils/adultContent';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecentProgress } from '@/api/progress';
@@ -25,6 +25,206 @@ import { useLang } from '@/hooks/useLang';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const HOME_CAROUSEL_FEEDBACK_KEY = 'home_carousel_feedback_v1'
+const NO_CLICK_PENALTY_MIN_VIEWS = 3
+const PERSONALIZED_ALGO_NAME = 'home_personalized_carousel_v2'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const isUuid = (value) => UUID_RE.test(String(value || '').trim())
+
+const TRACK_RECO_IMPRESSION_URL = endpoint('track', 'recommendation-impression')
+const TRACK_RECO_CLICK_URL = endpoint('track', 'recommendation-click')
+const TRACK_RECO_FEEDBACK_URL = endpoint('track', 'recommendation-feedback-summary')
+
+function readCarouselFeedbackMap() {
+  if (typeof window === 'undefined') return {}
+
+  try {
+    const raw = window.localStorage.getItem(HOME_CAROUSEL_FEEDBACK_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeCarouselFeedbackMap(map) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(HOME_CAROUSEL_FEEDBACK_KEY, JSON.stringify(map || {}))
+  } catch {
+    // ignorar errores de storage para no romper render
+  }
+}
+
+function carouselFeedbackKey(query) {
+  const normalized = String(query || '').trim().toLowerCase()
+  if (!normalized) return ''
+  return slugifyQuery(normalized)
+}
+
+function updateCarouselFeedback(query, updater) {
+  const key = carouselFeedbackKey(query)
+  if (!key) return null
+
+  const map = readCarouselFeedbackMap()
+  const current = map[key] || { views: 0, clicks: 0, lastViewAt: 0, lastClickAt: 0 }
+  map[key] = updater(current)
+  writeCarouselFeedbackMap(map)
+  return map[key]
+}
+
+function getPenaltyFactorByFeedback(query, persistentFeedback = null) {
+  const key = carouselFeedbackKey(query)
+  if (!key) return 1
+
+  const map = readCarouselFeedbackMap()
+  const localStats = map[key] || { views: 0, clicks: 0 }
+
+  const persistent = (persistentFeedback && typeof persistentFeedback === 'object')
+    ? (persistentFeedback[String(query || '').trim().toLowerCase()] || null)
+    : null
+
+  const persistentViews = Math.max(0, Number(persistent?.impressions) || 0)
+  const persistentClicks = Math.max(0, Number(persistent?.clicks) || 0)
+
+  const stats = {
+    views: Math.max(0, Number(localStats.views) || 0) + persistentViews,
+    clicks: Math.max(0, Number(localStats.clicks) || 0) + persistentClicks,
+    noClickLast3: Math.max(0, Number(persistent?.noClickLast3) || 0),
+    recentSample: Math.max(0, Number(persistent?.recentSample) || 0),
+  }
+
+  const views = Math.max(0, Number(stats.views) || 0)
+  const clicks = Math.max(0, Number(stats.clicks) || 0)
+
+  if (stats.recentSample >= 3 && stats.noClickLast3 >= 3) return 0.15
+
+  if (views >= NO_CLICK_PENALTY_MIN_VIEWS && clicks === 0) return 0.2
+
+  if (views >= NO_CLICK_PENALTY_MIN_VIEWS) {
+    const ctr = clicks / Math.max(1, views)
+    if (ctr < 0.08) return 0.55
+    if (ctr < 0.15) return 0.75
+  }
+
+  return 1
+}
+
+function rankRowsWithFeedback(rows, persistentFeedback = null) {
+  if (!Array.isArray(rows)) return []
+
+  return rows
+    .map((row, idx) => {
+      const baseScore = Number(row?.rowScore) || (rows.length - idx)
+      const penalty = getPenaltyFactorByFeedback(row?.query, persistentFeedback)
+      return {
+        ...row,
+        _baseScore: baseScore,
+        _penalty: penalty,
+        _adjustedScore: Number((baseScore * penalty).toFixed(4)),
+      }
+    })
+    .sort((a, b) => b._adjustedScore - a._adjustedScore)
+}
+
+function trackCarouselClickEvent({ query, seriesSlug, seriesTitle, position }) {
+  const payload = {
+    event_name: 'click_on_carousel_item',
+    carousel_query: String(query || ''),
+    series_slug: String(seriesSlug || ''),
+    series_title: String(seriesTitle || ''),
+    position: Number(position) || 0,
+    timestamp: new Date().toISOString(),
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'click_on_carousel_item', {
+          carousel_query: payload.carousel_query,
+          series_slug: payload.series_slug,
+          position: payload.position,
+        })
+      }
+
+      window.dispatchEvent(new CustomEvent('click_on_carousel_item', { detail: payload }))
+    } catch {
+      // No-op
+    }
+  }
+
+}
+
+async function fetchPersistentFeedbackByQuery(queries = []) {
+  const normalizedQueries = Array.from(new Set(
+    (Array.isArray(queries) ? queries : [])
+      .map((q) => String(q || '').trim().toLowerCase())
+      .filter(Boolean)
+  )).slice(0, 30)
+
+  if (normalizedQueries.length === 0) return {}
+
+  try {
+    const url = `${TRACK_RECO_FEEDBACK_URL}?queries=${encodeURIComponent(normalizedQueries.join(','))}`
+    const res = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Accept': 'application/json', ...(API_KEY ? { 'x-api-key': API_KEY } : {}) },
+    })
+
+    if (!res.ok) return {}
+    const json = await res.json().catch(() => ({}))
+    return json?.success && json?.feedback && typeof json.feedback === 'object' ? json.feedback : {}
+  } catch {
+    return {}
+  }
+}
+
+function sendPersistentRecommendationImpression({ impressionId, seriesId, query, rowType, rowScore, position }) {
+  if (!isUuid(seriesId) || !isUuid(impressionId)) return
+
+  const payload = {
+    recommendation_impression_id: impressionId,
+    recommended_series_id: seriesId,
+    algoritmo_origen: PERSONALIZED_ALGO_NAME,
+    banner_position: Number(position) || 1,
+    mostrado_en: new Date().toISOString(),
+    recommendation_context: {
+      carousel_query: String(query || '').trim().toLowerCase(),
+      carousel_type: String(rowType || 'personalized').trim(),
+      row_score: Number(rowScore) || 0,
+    },
+  }
+
+  fetch(TRACK_RECO_IMPRESSION_URL, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(API_KEY ? { 'x-api-key': API_KEY } : {}) },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {})
+}
+
+function sendPersistentRecommendationClick({ impressionId, seriesId }) {
+  if (!isUuid(seriesId) || !isUuid(impressionId)) return
+
+  const payload = {
+    recommendation_impression_id: impressionId,
+    recommended_series_id: seriesId,
+    algoritmo_origen: PERSONALIZED_ALGO_NAME,
+    clicked_at: new Date().toISOString(),
+  }
+
+  fetch(TRACK_RECO_CLICK_URL, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(API_KEY ? { 'x-api-key': API_KEY } : {}) },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {})
+}
 
 // ============================================================================
 // COMPONENTE CLIENTE - Recibe datos iniciales del Server Component (SSR)
@@ -48,9 +248,38 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     sourceTitle: '',
     sourceSlug: '',
     aiQuery: '',
+    sourceMode: 'daily',
     items: [],
   })
+  const [personalizedRows, setPersonalizedRows] = useState([])
+  const [personalizedLoading, setPersonalizedLoading] = useState(true)
+  const [persistentFeedbackByQuery, setPersistentFeedbackByQuery] = useState({})
   const { user } = useAuth()
+  const seenCarouselImpressionsRef = useRef(new Set())
+  const seenCarouselItemImpressionsRef = useRef(new Set())
+  const impressionIdByItemRef = useRef({})
+
+  const getFeaturedSourceSeries = (seriesList = []) => {
+    const availableSeries = filterAvailableSeries(seriesList)
+    return availableSeries.find((item) => item?.slug && item?.title) || seriesList.find((item) => item?.slug && item?.title) || null
+  }
+
+  const getHistorySourceSeries = (recentList = []) => {
+    return recentList.find((item) => item?.series?.slug && item?.series?.title)?.series || null
+  }
+
+  const getDailyRotatingSourceSeries = (seriesList = [], date = new Date()) => {
+    const availableSeries = filterAvailableSeries(seriesList)
+      .filter((item) => item?.slug && item?.title)
+      .slice()
+      .sort((a, b) => String(a.slug || '').localeCompare(String(b.slug || '')))
+
+    if (availableSeries.length === 0) return null
+
+    const dayKey = date.toISOString().slice(0, 10)
+    const seed = dayKey.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return availableSeries[seed % availableSeries.length]
+  }
 
   // Solo carga client-side si el server no pudo proveer datos (fallback)
   useEffect(() => {
@@ -136,13 +365,11 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     if (!user) {
       setRecentReads([])
       setRecentLoading(false)
-      setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', items: [] })
       return undefined
     }
 
-    const loadSmartRecommendation = async () => {
+    const loadRecentReads = async () => {
       setRecentLoading(true)
-      setSmartRecommendation(prev => ({ ...prev, loading: true }))
 
       try {
         const recent = await getRecentProgress(6)
@@ -151,31 +378,100 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
         if (!cancelled) {
           setRecentReads(recentList)
         }
-
-        const lastRead = recentList.find((item) => item?.series?.slug)
-
-        if (!lastRead?.series?.slug) {
-          if (!cancelled) {
-            setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', items: [] })
-          }
-          return
+      } catch {
+        if (!cancelled) {
+          setRecentReads([])
         }
+      } finally {
+        if (!cancelled) setRecentLoading(false)
+      }
+    }
 
-        const sourceTitle = String(lastRead?.series?.title || '').trim()
-        const sourceSlug = String(lastRead?.series?.slug || '').trim()
+    loadRecentReads()
 
-        const aiRes = await fetch(`/api/smart-home?title=${encodeURIComponent(sourceTitle)}&exclude=${encodeURIComponent(sourceSlug)}&limit=8`, {
-          headers: { 'Accept': 'application/json' },
+    return () => { cancelled = true }
+  }, [user, user?.id])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadSmartRecommendation = async () => {
+      const historySourceSeries = user ? getHistorySourceSeries(recentReads) : null
+      const dailySourceSeries = getDailyRotatingSourceSeries(series)
+      const sourceSeries = historySourceSeries || dailySourceSeries || getFeaturedSourceSeries(series)
+
+      if (user && recentLoading) {
+        setSmartRecommendation((prev) => ({ ...prev, loading: true }))
+        return
+      }
+
+      if (!sourceSeries?.slug || !sourceSeries?.title) {
+        if (!cancelled) {
+          setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', sourceMode: 'daily', items: [] })
+        }
+        return
+      }
+
+      setSmartRecommendation(prev => ({ ...prev, loading: true }))
+
+      const sourceTitle = String(sourceSeries.title || '').trim()
+      const sourceSlug = String(sourceSeries.slug || '').trim()
+      const sourceMode = historySourceSeries ? 'history' : 'daily'
+      const aiQuery = sourceTitle ? `manhwas similares a ${sourceTitle}` : ''
+      const availableFallback = filterAvailableSeries(series)
+        .filter((item) => item?.slug && item.slug !== sourceSlug)
+        .slice(0, 8)
+
+      try {
+        const aiRes = await fetch(endpoint('search', 'ai/read'), {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+          },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: aiQuery }],
+          }),
         })
 
         let relatedRaw = []
-        let aiQuery = sourceTitle ? `manhwas similares a ${sourceTitle}` : ''
 
         if (aiRes.ok) {
           try {
             const aiJson = await aiRes.json()
-            relatedRaw = Array.isArray(aiJson?.data) ? aiJson.data : []
-            aiQuery = aiJson?.query || aiQuery
+            const aiSeries = Array.isArray(aiJson?.series)
+              ? aiJson.series
+              : Array.isArray(aiJson?.data?.series)
+                ? aiJson.data.series
+                : []
+
+            const catalogBySlug = new Map(
+              filterAvailableSeries(series)
+                .filter((item) => item?.slug)
+                .map((item) => [String(item.slug), item])
+            )
+
+            relatedRaw = aiSeries.map((item) => {
+              const slug = String(item?.slug || '').trim()
+              const fallback = slug ? catalogBySlug.get(slug) : null
+
+              return {
+                ...item,
+                slug: slug || fallback?.slug,
+                title: String(item?.title || fallback?.title || '').trim(),
+                cover: item?.cover || item?.coverUrl || item?.cover_url || fallback?.cover || fallback?.coverUrl || fallback?.cover_url || fallback?.coverUrlWeb || fallback?.cover_url_web || '',
+                chapterCount:
+                  item?.chapterCount ??
+                  item?.chaptersCount ??
+                  item?.chapters_count ??
+                  fallback?.chapterCount ??
+                  fallback?.chaptersCount ??
+                  fallback?.chapters_count ??
+                  0,
+              }
+            })
           } catch {
             relatedRaw = []
           }
@@ -185,29 +481,204 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           .filter((item) => item?.slug && item.slug !== sourceSlug)
           .slice(0, 8)
 
+        const items = cleaned.length > 0 ? cleaned : availableFallback
+
         if (!cancelled) {
           setSmartRecommendation({
             loading: false,
             sourceTitle,
             sourceSlug,
             aiQuery,
-            items: cleaned,
+            sourceMode,
+            items,
           })
         }
       } catch {
         if (!cancelled) {
-          setRecentReads([])
-          setSmartRecommendation({ loading: false, sourceTitle: '', sourceSlug: '', aiQuery: '', items: [] })
+          setSmartRecommendation({
+            loading: false,
+            sourceTitle,
+            sourceSlug,
+            aiQuery,
+            sourceMode,
+            items: availableFallback,
+          })
         }
-      } finally {
-        if (!cancelled) setRecentLoading(false)
       }
     }
 
     loadSmartRecommendation()
 
     return () => { cancelled = true }
-  }, [user, user?.id])
+  }, [series, recentReads, recentLoading, user])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadPersonalizedRows = async () => {
+      try {
+        setPersonalizedLoading(true)
+
+        const recentHistory = getSearchHistory(8)
+        const historyQueries = Array.isArray(recentHistory)
+          ? recentHistory
+            .map((entry) => ({
+              query: String(entry?.query || '').trim(),
+              ts: Number(entry?.ts) || Date.now(),
+            }))
+            .filter((entry) => entry.query)
+          : []
+
+        if (historyQueries.length === 0) {
+          if (!cancelled) setPersonalizedRows([])
+          return
+        }
+
+        const res = await fetch('/api/personalized-home', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ history: historyQueries }),
+        })
+
+        if (!res.ok || cancelled) return
+
+        const json = await res.json().catch(() => ({}))
+        const rows = Array.isArray(json?.data) ? json.data : []
+
+        const queryList = rows.map((row) => String(row?.query || '').trim().toLowerCase()).filter(Boolean)
+        const persistentFeedback = await fetchPersistentFeedbackByQuery(queryList)
+        const rankedRows = rankRowsWithFeedback(rows, persistentFeedback)
+
+        if (!cancelled) {
+          setPersistentFeedbackByQuery(persistentFeedback)
+          setPersonalizedRows(rankedRows)
+        }
+      } catch {
+        if (!cancelled) setPersonalizedRows([])
+      } finally {
+        if (!cancelled) setPersonalizedLoading(false)
+      }
+    }
+
+    loadPersonalizedRows()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!Array.isArray(personalizedRows) || personalizedRows.length === 0) return
+
+    for (let i = 0; i < personalizedRows.length; i++) {
+      const row = personalizedRows[i]
+      const query = String(row?.query || '').trim()
+      const key = carouselFeedbackKey(query)
+      if (!key || seenCarouselImpressionsRef.current.has(key)) continue
+
+      seenCarouselImpressionsRef.current.add(key)
+      updateCarouselFeedback(query, (current) => ({
+        ...current,
+        views: (Number(current.views) || 0) + 1,
+        lastViewAt: Date.now(),
+      }))
+    }
+  }, [personalizedRows])
+
+  useEffect(() => {
+    if (!Array.isArray(personalizedRows) || personalizedRows.length === 0) return
+
+    for (let rowIdx = 0; rowIdx < personalizedRows.length; rowIdx++) {
+      const row = personalizedRows[rowIdx]
+      const rowQuery = String(row?.query || '').trim().toLowerCase()
+      if (!rowQuery) continue
+
+      const rowSeries = filterAvailableSeries(Array.isArray(row?.series) ? row.series : []).slice(0, 10)
+
+      for (let itemIdx = 0; itemIdx < rowSeries.length; itemIdx++) {
+        const item = rowSeries[itemIdx]
+        const seriesId = String(item?.id || '').trim()
+        if (!isUuid(seriesId)) continue
+
+        const itemKey = `${carouselFeedbackKey(rowQuery)}::${seriesId}`
+        if (seenCarouselItemImpressionsRef.current.has(itemKey)) continue
+        seenCarouselItemImpressionsRef.current.add(itemKey)
+
+        const impressionId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+
+        if (isUuid(impressionId)) {
+          impressionIdByItemRef.current[itemKey] = impressionId
+          sendPersistentRecommendationImpression({
+            impressionId,
+            seriesId,
+            query: rowQuery,
+            rowType: row?.type,
+            rowScore: row?._adjustedScore || row?.rowScore,
+            position: itemIdx + 1,
+          })
+        }
+      }
+    }
+  }, [personalizedRows])
+
+  const handlePersonalizedItemClick = useCallback((row, item, itemIndex) => {
+    const query = String(row?.query || '').trim()
+    if (!query) return
+
+    updateCarouselFeedback(query, (current) => ({
+      ...current,
+      clicks: (Number(current.clicks) || 0) + 1,
+      lastClickAt: Date.now(),
+    }))
+
+    trackCarouselClickEvent({
+      query,
+      seriesSlug: item?.slug,
+      seriesTitle: item?.title,
+      position: itemIndex + 1,
+    })
+
+    const queryKey = carouselFeedbackKey(query.toLowerCase())
+    const seriesId = String(item?.id || '').trim()
+    const itemKey = `${queryKey}::${seriesId}`
+
+    let knownImpressionId = impressionIdByItemRef.current[itemKey]
+    if (isUuid(seriesId) && !isUuid(knownImpressionId)) {
+      const fallbackImpressionId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+        ? crypto.randomUUID()
+        : ''
+      if (isUuid(fallbackImpressionId)) {
+        knownImpressionId = fallbackImpressionId
+        impressionIdByItemRef.current[itemKey] = fallbackImpressionId
+        sendPersistentRecommendationImpression({
+          impressionId: fallbackImpressionId,
+          seriesId,
+          query: query.toLowerCase(),
+          rowType: row?.type,
+          rowScore: row?._adjustedScore || row?.rowScore,
+          position: itemIndex + 1,
+        })
+      }
+    }
+
+    if (isUuid(seriesId) && isUuid(knownImpressionId)) {
+      sendPersistentRecommendationClick({
+        impressionId: knownImpressionId,
+        seriesId,
+      })
+    }
+
+    setPersistentFeedbackByQuery((prev) => ({
+      ...prev,
+      [String(query || '').trim().toLowerCase()]: {
+        ...(prev[String(query || '').trim().toLowerCase()] || {}),
+        impressions: Number(prev[String(query || '').trim().toLowerCase()]?.impressions) || 0,
+        clicks: (Number(prev[String(query || '').trim().toLowerCase()]?.clicks) || 0) + 1,
+      },
+    }))
+  }, [])
 
 
   const refresh = useCallback(async () => {
@@ -446,11 +917,96 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           </section>
         )}
 
+        {personalizedLoading && personalizedRows.length === 0 && (
+          <section className={styles.querySection}>
+            <div className={styles.queryRow}>
+              <div className={styles.queryHeader}>
+                <h2 className={styles.queryName}>{lang === 'en' ? 'Personalized for you' : 'Personalizado para ti'}</h2>
+              </div>
+              <div className={styles.queryScroll}>
+                <PremiumSkeletonGrid count={6} />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {!personalizedLoading && personalizedRows.length > 0 && (
+          <section className={styles.querySection}>
+            {personalizedRows.map((row, rowIdx) => {
+              const rowQuery = String(row?.query || '').trim()
+              const querySlug = rowQuery ? slugifyQuery(rowQuery) : ''
+              const rowTitle = String(row?.title || '').trim()
+              const rowSubtitle = String(row?.subtitle || '').trim()
+              const rowSeries = filterAvailableSeries(Array.isArray(row?.series) ? row.series : [])
+
+              if (!rowTitle || rowSeries.length === 0) return null
+
+              return (
+                <div key={`${row.type || 'row'}-${rowIdx}-${querySlug || rowIdx}`} className={styles.queryRow}>
+                  <div className={styles.queryHeader}>
+                    <div>
+                      <h2 className={styles.queryName}>{rowTitle}</h2>
+                      {rowSubtitle && (
+                        <p style={{ margin: '0.15rem 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{rowSubtitle}</p>
+                      )}
+                    </div>
+                    {querySlug && (
+                      <Link href={getLocalizedPath(`/busqueda-ia/${querySlug}`, lang)} className={styles.queryLink}>
+                        {lang === 'en' ? 'See full AI list' : 'Ver lista completa IA'} →
+                      </Link>
+                    )}
+                  </div>
+
+                  <div className={styles.queryScroll}>
+                    {rowSeries.slice(0, 10).map((item, i) => (
+                      <Link
+                        href={getLocalizedPath(`/manhwa/${item.slug}`, lang)}
+                        key={item.id || item.slug}
+                        className={styles.queryItem}
+                        onClick={() => handlePersonalizedItemClick(row, item, i)}
+                      >
+                        <div className={styles.popularCard}>
+                          <ManhwaCover
+                            src={normalizeImageUrl(item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web) || ''}
+                            fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
+                            slug={item.slug}
+                            alt={getImageAlt.cover(item.title)}
+                            className={styles.popularImg}
+                            priority={rowIdx === 0 && i < 4}
+                            sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
+                          />
+                          {item.chapterCount > 0 && (
+                            <span className={styles.chapterBadge}>
+                              {item.chapterCount} {lang === 'en' ? 'ch' : 'caps'}
+                            </span>
+                          )}
+                          <span className={styles.statusBadge}>
+                            {item.contentType || item.content_type || 'Manhwa'}
+                          </span>
+                          <h3 className={styles.titleLink}>{item.title}</h3>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </section>
+        )}
+
         {!smartRecommendation.loading && smartRecommendation.items.length > 0 && (
           <section className={styles.querySection}>
             <div className={styles.queryRow}>
               <div className={styles.queryHeader}>
-                <h2 className={styles.queryName}>{lang === 'en' ? `Because you read ${smartRecommendation.sourceTitle}, you may like this` : `Porque leíste ${smartRecommendation.sourceTitle}, te puede gustar esto`}</h2>
+                <h2 className={styles.queryName}>
+                  {smartRecommendation.sourceMode === 'history'
+                    ? (lang === 'en'
+                      ? `Because you read ${smartRecommendation.sourceTitle}, you may like this`
+                      : `Porque leíste ${smartRecommendation.sourceTitle}, te puede gustar esto`)
+                    : (lang === 'en'
+                      ? `Today you may like this`
+                      : `Hoy te puede gustar esto`)}
+                </h2>
                 <Link href={getLocalizedPath(`/busqueda-ia/${slugifyQuery(smartRecommendation.aiQuery || `manhwas similares a ${smartRecommendation.sourceTitle}`)}`, lang)} className={styles.queryLink}>
                   {lang === 'en' ? 'View AI results' : 'Ver resultados IA'} →
                 </Link>

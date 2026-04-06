@@ -361,6 +361,88 @@ exports.trackRecommendationClick = async (req, res) => {
     return res.status(202).json({ success: true, queued: true, timestamp: nowUtc() });
 };
 
+exports.getRecommendationFeedbackSummary = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const rawQueries = String(req.query.queries || '').trim();
+
+        if (!rawQueries) {
+            return res.json({ success: true, feedback: {} });
+        }
+
+        const normalizedQueries = Array.from(new Set(
+            rawQueries
+                .split(',')
+                .map((q) => String(q || '').trim().toLowerCase())
+                .filter(Boolean)
+                .slice(0, 30)
+        ));
+
+        if (normalizedQueries.length === 0) {
+            return res.json({ success: true, feedback: {} });
+        }
+
+        const statsResult = await query(
+            `WITH base AS (
+                SELECT
+                    lower(trim(recommendation_context->>'carousel_query')) AS query_norm,
+                    shown_at,
+                    clicked_at,
+                    created_at
+                FROM user_behavior_recommendation_impressions
+                WHERE user_id = $1
+                  AND recommendation_context IS NOT NULL
+                  AND recommendation_context ? 'carousel_query'
+                  AND lower(trim(recommendation_context->>'carousel_query')) = ANY($2::text[])
+            ),
+            ranked AS (
+                SELECT
+                    query_norm,
+                    clicked_at,
+                    row_number() OVER (PARTITION BY query_norm ORDER BY shown_at DESC NULLS LAST, created_at DESC) AS rn
+                FROM base
+            )
+            SELECT
+                b.query_norm,
+                COUNT(*)::int AS impressions,
+                COUNT(b.clicked_at)::int AS clicks,
+                MAX(b.shown_at) AS last_shown_at,
+                MAX(b.clicked_at) AS last_clicked_at,
+                SUM(CASE WHEN r.rn <= 3 AND r.clicked_at IS NULL THEN 1 ELSE 0 END)::int AS no_click_last3,
+                SUM(CASE WHEN r.rn <= 3 THEN 1 ELSE 0 END)::int AS recent_sample
+            FROM base b
+            LEFT JOIN ranked r ON r.query_norm = b.query_norm
+            GROUP BY b.query_norm`,
+            [userId, normalizedQueries]
+        );
+
+        const feedback = {};
+        for (let i = 0; i < statsResult.rows.length; i++) {
+            const row = statsResult.rows[i];
+            const queryNorm = String(row.query_norm || '').trim().toLowerCase();
+            if (!queryNorm) continue;
+
+            const impressions = Number(row.impressions) || 0;
+            const clicks = Number(row.clicks) || 0;
+            const ctr = impressions > 0 ? (clicks / impressions) : 0;
+
+            feedback[queryNorm] = {
+                impressions,
+                clicks,
+                ctr,
+                noClickLast3: Number(row.no_click_last3) || 0,
+                recentSample: Number(row.recent_sample) || 0,
+                lastShownAt: row.last_shown_at || null,
+                lastClickedAt: row.last_clicked_at || null,
+            };
+        }
+
+        return res.json({ success: true, feedback });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'No se pudo obtener feedback de recomendaciones' });
+    }
+};
+
 exports.trackSessionEnd = async (req, res) => {
     const body = parseBody(schemas.sessionEnd, req, res); if (!body) return;
     const userId = req.user.id;

@@ -51,6 +51,7 @@ export const ENDPOINTS = {
   progress: apiUrl(`${apiPrefix}progress`),
   donations: apiUrl(`${apiPrefix}donations`),
   presence: apiUrl(`${apiPrefix}presence`),
+  track: apiUrl(`${apiPrefix}track`),
 }
 
 export const endpoint = (name, subpath = '') => {

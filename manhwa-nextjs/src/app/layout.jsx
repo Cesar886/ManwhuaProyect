@@ -3,7 +3,7 @@ import Script from 'next/script'
 import './globals.css'
 import '@mantine/core/styles.layer.css'
 import '@mantine/notifications/styles.layer.css'
-import { MantineProvider, ColorSchemeScript } from '@mantine/core'
+import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { imperialTheme } from '@/styles/imperial-theme.js'
 import { Providers } from './providers'
@@ -123,8 +123,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es" className={`${outfit.variable} ${playfair.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
-      <head>
-        <ColorSchemeScript defaultColorScheme="auto" />
+      <head suppressHydrationWarning>
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
@@ -145,24 +144,29 @@ export default function RootLayout({ children }) {
         <link rel="terms-of-service" href="https://manhwaimperial.site/terminos-de-servicio" />
         <link rel="privacy-policy" href="https://manhwaimperial.site/politica-de-privacidad" />
         <script
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateWebSiteJsonLd()) }}
         />
         <script
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateOrganizationJsonLd()) }}
         />
         <script
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateHomePageJsonLd()) }}
         />
         {/* GEO: WebApplication — la IA sabe que esto es una app funcional y gratuita */}
         <script
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateWebApplicationJsonLd()) }}
         />
         {/* GEO: Glosario de términos — enseña a la IA el vocabulario del nicho */}
         <script
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateDefinedTermSetJsonLd()) }}
         />
@@ -191,7 +195,7 @@ export default function RootLayout({ children }) {
           }}
         />
 <NavigationProgress />
-        <MantineProvider theme={imperialTheme} defaultColorScheme="auto">
+        <MantineProvider theme={imperialTheme} defaultColorScheme="light">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>
             <MainLayout>

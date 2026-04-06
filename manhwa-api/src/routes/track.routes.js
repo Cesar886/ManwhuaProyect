@@ -12,6 +12,7 @@ router.post('/work-abandon', trackController.trackWorkAbandon);
 router.post('/search-query', trackController.trackSearchQuery);
 router.post('/recommendation-impression', trackController.trackRecommendationImpression);
 router.post('/recommendation-click', trackController.trackRecommendationClick);
+router.get('/recommendation-feedback-summary', trackController.getRecommendationFeedbackSummary);
 router.post('/session-end', trackController.trackSessionEnd);
 
 module.exports = router;

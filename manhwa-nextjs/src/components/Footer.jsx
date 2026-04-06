@@ -54,6 +54,7 @@ function Footer({ lang: propLang }) {
   const year = new Date().getFullYear();
   const { lang: detectedLang } = useLang();
   const lang = propLang || detectedLang;
+  const homeHref = getLocalizedPath('/', lang);
   
   // Columnas de navegación (dinámicas según idioma)
   const navColumns = useMemo(() => {
@@ -163,7 +164,7 @@ function Footer({ lang: propLang }) {
             {/* Branding */}
             <div className={classes.logoWrapper}>
               <Link
-                href={getLocalizedPath('/home', lang)}
+                href={homeHref}
                 className={classes.logoLink}
                 aria-label={lang === 'en' ? 'Manhwa Imperial - Home' : 'Manhwa Imperial - Inicio'}
               >
