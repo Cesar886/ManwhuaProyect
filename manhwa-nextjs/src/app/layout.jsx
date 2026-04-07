@@ -130,6 +130,7 @@ export default function RootLayout({ children }) {
         <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
         <meta name="impact-site-verification" content="a62d51e4-8267-4442-bba4-45de72b6c992" />
+        <meta name="referrer" content="no-referrer-when-downgrade" />
         {/* SEO: hreflang señaliza idioma español a Google para búsquedas geolocalizadas */}
         <link rel="alternate" hrefLang="es" href="https://manhwaimperial.site/" />
         <link rel="alternate" hrefLang="x-default" href="https://manhwaimperial.site/" />
