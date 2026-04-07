@@ -16,11 +16,16 @@ export default function AdsterraBannerDisplay({
   const containerId = `container-${AD_KEY}-${instanceId}`;
 
   useEffect(() => {
+    setDelayReady(loadDelayMs <= 0);
+    setVisibleReady(!deferUntilVisible);
+  }, [instanceId, loadDelayMs, deferUntilVisible]);
+
+  useEffect(() => {
     if (loadDelayMs <= 0) return undefined;
 
     const timeoutId = setTimeout(() => setDelayReady(true), loadDelayMs);
     return () => clearTimeout(timeoutId);
-  }, [loadDelayMs]);
+  }, [instanceId, loadDelayMs]);
 
   useEffect(() => {
     if (!deferUntilVisible) return undefined;
@@ -46,7 +51,7 @@ export default function AdsterraBannerDisplay({
     observer.observe(slot);
 
     return () => observer.disconnect();
-  }, [deferUntilVisible]);
+  }, [instanceId, deferUntilVisible]);
 
   useEffect(() => {
     if (!ready) return undefined;
@@ -116,7 +121,7 @@ export default function AdsterraBannerDisplay({
         delete window.atOptions;
       }
     };
-  }, [ready]);
+  }, [instanceId, ready]);
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', margin: '1.5rem 0', minHeight: '60px', width: '100%' }}>

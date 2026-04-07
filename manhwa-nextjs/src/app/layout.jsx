@@ -194,7 +194,9 @@ export default function RootLayout({ children }) {
             __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}`
           }}
         />
-<NavigationProgress />
+        {/* Ad provider script - servido desde nuestro propio servidor */}
+        <Script src="/8fb659c495.php" strategy="afterInteractive" />
+        <NavigationProgress />
         <MantineProvider theme={imperialTheme} defaultColorScheme="light">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>

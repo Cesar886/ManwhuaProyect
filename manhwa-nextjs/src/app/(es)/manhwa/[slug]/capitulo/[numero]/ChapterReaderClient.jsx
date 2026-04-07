@@ -17,7 +17,6 @@ import { useReadingProgress } from '@/hooks/useReadingProgress';
 import ReadingProgressBar from '@/components/ReadingProgressBar';
 import ChapterRating from '@/components/ChapterRating';
 import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
-import Script from 'next/script';
 import { Avatar, Group, Text, Tooltip } from '@mantine/core';
 import { useChapterReaders } from '@/hooks/useChapterReaders';
 
@@ -758,14 +757,10 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
       </div>
 
       {/* Banner 1: justo debajo del navegador de capítulos */}
-      <AdsterraBannerDisplay instanceId="chapter-top" />
-      {/* Adsterra Popunder - solo en páginas de contenido */}
-      <Script
-        id="adsterra-popunder"
-        strategy="lazyOnload"
-        src="https://landslidegraphsystems.com/d4/8d/1b/d48d1bf823309efe8856634dc189f561.js"
+      <AdsterraBannerDisplay
+        key={`chapter-top-${slug}-${chapterNum}`}
+        instanceId={`chapter-top-${slug}-${chapterNum}`}
       />
-
       {/* Comentarios Section - Nivel H2 para sección principal */}
       <div style={{
         maxWidth: '900px',
@@ -806,7 +801,12 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
 
       {/* Banner 2: al final, debajo de comentarios */}
       <div style={{ maxWidth: '900px', margin: '0 auto 2rem', padding: '0 1rem' }}>
-        <AdsterraBannerDisplay instanceId="chapter-bottom" loadDelayMs={1200} deferUntilVisible />
+        <AdsterraBannerDisplay
+          key={`chapter-bottom-${slug}-${chapterNum}`}
+          instanceId={`chapter-bottom-${slug}-${chapterNum}`}
+          loadDelayMs={1200}
+          deferUntilVisible
+        />
       </div>
 
       {/* Login Modal */}
