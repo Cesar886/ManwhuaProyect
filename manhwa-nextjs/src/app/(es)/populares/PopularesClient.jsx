@@ -17,6 +17,7 @@ import {
 } from '@tabler/icons-react';
 import classes from './Populares.module.css';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
+import { getTranslations } from '@/i18n/translations';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ function formatViews(n) {
 // ─── Card unificada ──────────────────────────────────────────────────────────
 
 function PopularCard({ item, index, priority = false, showRank = false, showViews = false, lang = 'es' }) {
+    const t = getTranslations(lang).popular;
     const rankClass = showRank
         ? index === 0
             ? classes.rankGold
@@ -46,7 +48,7 @@ function PopularCard({ item, index, priority = false, showRank = false, showView
         <Link
             href={getLocalizedPath(`/manhwa/${item.slug}`, lang)}
             className={classes.cardItem}
-            title={lang === 'en' ? `Read ${item.title} in English` : `Leer ${item.title} en español`}
+            title={t.readInLang.replace('{title}', item.title)}
         >
             <div className={classes.card}>
                 <ManhwaCover
@@ -70,7 +72,7 @@ function PopularCard({ item, index, priority = false, showRank = false, showView
                 {/* Badge capítulos — top left */}
                 {item.chapters > 0 && (
                     <span className={classes.chapterBadge}>
-                        {item.chapters} {lang === 'en' ? 'ch' : 'caps'}
+                        {item.chapters} {t.chaptersShort}
                     </span>
                 )}
 
@@ -117,6 +119,7 @@ function PopularCard({ item, index, priority = false, showRank = false, showView
 
 function SectionRow({ sectionId, title, subtitle, icon: Icon, items, renderCard, verTodoHref, lang = 'es' }) {
     if (!items || items.length === 0) return null;
+    const t = getTranslations(lang).popular;
 
     return (
         <section id={sectionId} className={classes.sectionBlock}>
@@ -131,7 +134,7 @@ function SectionRow({ sectionId, title, subtitle, icon: Icon, items, renderCard,
                 {verTodoHref && (
                     <div className={classes.sectionActions}>
                         <Link href={verTodoHref} className={classes.verTodoLink}>
-                            {lang === 'en' ? 'View more' : 'Ver más'} <IconArrowRight size={13} stroke={2} />
+                            {t.viewMore} <IconArrowRight size={13} stroke={2} />
                         </Link>
                     </div>
                 )}
@@ -155,6 +158,8 @@ export default function PopularesClient({
     latestUpdates = [],
     lang = 'es',
 }) {
+    const t = getTranslations(lang).popular;
+    const libraryHref = getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang);
     const hasData = topRankings.length || trending.length || topRated.length
         || weeklyPopular.length || monthlyPopular.length
         || newReleases.length || latestUpdates.length;
@@ -163,20 +168,16 @@ export default function PopularesClient({
         return (
             <div className={classes.page}>
                 <div className={classes.container}>
-                    <Header title="Populares" />
+                    <Header title={t.pageTitle} lang={lang} />
                     <div className={classes.empty}>
                         <svg className={classes.emptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             <path d="M9 10h.01M15 10h.01M8 14s1.5 2 4 2 4-2 4-2" />
                         </svg>
-                        <h2 className={classes.emptyTitle}>{lang === 'en' ? 'No popularity data yet' : 'Sin datos de popularidad aún'}</h2>
-                        <p className={classes.emptyText}>
-                            {lang === 'en'
-                              ? 'Rankings are generated from community views and ratings. Check back soon to see trends.'
-                              : 'Los rankings se generan a partir de las vistas y valoraciones de la comunidad. ¡Vuelve pronto para ver las tendencias!'}
-                        </p>
-                        <Link href={getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang)} className={classes.emptyLink}>
-                            {lang === 'en' ? 'Explore Library' : 'Explorar Biblioteca'}
+                        <h2 className={classes.emptyTitle}>{t.noDataTitle}</h2>
+                        <p className={classes.emptyText}>{t.noDataText}</p>
+                        <Link href={libraryHref} className={classes.emptyLink}>
+                            {t.exploreLibrary}
                         </Link>
                     </div>
                 </div>
@@ -187,18 +188,18 @@ export default function PopularesClient({
     return (
         <div className={classes.page}>
             <div className={classes.container}>
-                <Header title={lang === 'en' ? 'Popular' : 'Populares'} lang={lang} />
+                <Header title={t.pageTitle} lang={lang} />
 
                 <AdsterraBannerDisplay instanceId="populares-top" />
 
                 {/* ── 1. Top Ranking Global ── */}
                 <SectionRow
                     sectionId="top-ranking"
-                    title="Top Ranking"
+                    title={t.topRanking}
                     icon={IconTrophy}
-                    subtitle={lang === 'en' ? 'The most-read series in our community' : 'Las series más leídas por nuestra comunidad'}
+                    subtitle={t.topRankingSubtitle}
                     items={topRankings}
-                    verTodoHref={getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang)}
+                    verTodoHref={libraryHref}
                     lang={lang}
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} priority={i < 5} showRank lang={lang} />
@@ -208,11 +209,11 @@ export default function PopularesClient({
                 {/* ── 2. Trending ── */}
                 <SectionRow
                     sectionId="trending"
-                    title="Trending"
+                    title={t.trending}
                     icon={IconFlame}
-                    subtitle={lang === 'en' ? 'What is trending right now' : 'Lo que está en tendencia ahora mismo'}
+                    subtitle={t.trendingSubtitle}
                     items={trending}
-                    verTodoHref={getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang)}
+                    verTodoHref={libraryHref}
                     lang={lang}
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} priority={i < 4} showViews lang={lang} />
@@ -222,11 +223,11 @@ export default function PopularesClient({
                 {/* ── 3. Mejor Valoradas ── */}
                 <SectionRow
                     sectionId="top-rated"
-                    title={lang === 'en' ? 'Top Rated' : 'Mejor Valoradas'}
+                    title={t.topRated}
                     icon={IconStar}
-                    subtitle={lang === 'en' ? 'Highest-rated series by the community' : 'Las series con mayor puntuación de la comunidad'}
+                    subtitle={t.topRatedSubtitle}
                     items={topRated}
-                    verTodoHref={getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang)}
+                    verTodoHref={libraryHref}
                     lang={lang}
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} priority={i < 4} lang={lang} />
@@ -236,11 +237,11 @@ export default function PopularesClient({
                 {/* ── 4. Más Vistas (Semana) ── */}
                 <SectionRow
                     sectionId="weekly"
-                    title={lang === 'en' ? 'Most Viewed (Week)' : 'Más Vistas (Semana)'}
+                    title={t.weeklyTitle}
                     icon={IconEye}
-                    subtitle={lang === 'en' ? 'Most popular this week' : 'Las más populares esta semana'}
+                    subtitle={t.weeklySubtitle}
                     items={weeklyPopular}
-                    verTodoHref={getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang)}
+                    verTodoHref={libraryHref}
                     lang={lang}
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} showViews lang={lang} />
@@ -250,11 +251,11 @@ export default function PopularesClient({
                 {/* ── 5. Más Vistas (Mes) ── */}
                 <SectionRow
                     sectionId="monthly"
-                    title={lang === 'en' ? 'Most Viewed (Month)' : 'Más Vistas (Mes)'}
+                    title={t.monthlyTitle}
                     icon={IconCalendar}
-                    subtitle={lang === 'en' ? 'Most popular this month' : 'Las más populares este mes'}
+                    subtitle={t.monthlySubtitle}
                     items={monthlyPopular}
-                    verTodoHref={getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang)}
+                    verTodoHref={libraryHref}
                     lang={lang}
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} showViews lang={lang} />
@@ -264,11 +265,11 @@ export default function PopularesClient({
                 {/* ── 6. Nuevos Lanzamientos ── */}
                 <SectionRow
                     sectionId="new-releases"
-                    title={lang === 'en' ? 'New Releases' : 'Nuevos Lanzamientos'}
+                    title={t.newReleases}
                     icon={IconSparkles}
-                    subtitle={lang === 'en' ? 'Series recently added to the platform' : 'Series recién añadidas a la plataforma'}
+                    subtitle={t.newReleasesSubtitle}
                     items={newReleases}
-                    verTodoHref={getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang)}
+                    verTodoHref={libraryHref}
                     lang={lang}
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} lang={lang} />
@@ -278,18 +279,16 @@ export default function PopularesClient({
                 {/* ── 7. Últimas Actualizaciones ── */}
                 <SectionRow
                     sectionId="latest-updates"
-                    title={lang === 'en' ? 'Latest Updates' : 'Últimas Actualizaciones'}
+                    title={t.latestUpdates}
                     icon={IconClock}
-                    subtitle={lang === 'en' ? 'Series with newly published chapters' : 'Series con capítulos recién publicados'}
+                    subtitle={t.latestUpdatesSubtitle}
                     items={latestUpdates}
-                    verTodoHref={getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang)}
+                    verTodoHref={libraryHref}
                     lang={lang}
                     renderCard={(item, i) => (
                         <PopularCard key={item.id || item.slug} item={item} index={i} lang={lang} />
                     )}
                 />
-
-                <AdsterraBannerDisplay instanceId="populares-bottom" loadDelayMs={300} deferUntilVisible />
             </div>
         </div>
     );

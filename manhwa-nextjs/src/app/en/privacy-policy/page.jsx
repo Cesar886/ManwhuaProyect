@@ -1,5 +1,4 @@
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import styles from '@/styles/legal.module.css'
 
 export default function EnPrivacyPage() {
@@ -114,7 +113,6 @@ export default function EnPrivacyPage() {
           </div>
         </div>
       </main>
-      <Footer lang="en" />
     </>
   )
 }

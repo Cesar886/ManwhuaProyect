@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { Breadcrumbs, Anchor, Text, Container } from '@mantine/core';
 import { IconHome, IconChevronRight } from '@tabler/icons-react';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
+import { getTranslations } from '@/i18n/translations';
 
 // Mapeo de slugs a nombres amigables
 const FRIENDLY_NAMES = {
@@ -42,6 +43,7 @@ const HIDDEN_PATHS = ['/', '/home', '/en/home', '/login', '/register', '/auth'];
 
 // Componente interno que usa useSearchParams
 function BreadcrumbsContent({ lang = 'es' }) {
+  const t = getTranslations(lang).breadcrumbs;
   const pathname = usePathname() || '/';
   const searchParams = useSearchParams();
   const query = searchParams?.get('search') || '';
@@ -87,7 +89,7 @@ function BreadcrumbsContent({ lang = 'es' }) {
 
     // Para capítulos, mostrar el número
     if (segments[idx - 1]?.toLowerCase() === 'capitulo' || segments[idx - 1]?.toLowerCase() === 'chapter') {
-      label = lang === 'en' ? `Ch. ${seg}` : `Cap. ${seg}`;
+      label = `${t.chapterAbbrev} ${seg}`;
     }
 
     if (isLast && !query) {

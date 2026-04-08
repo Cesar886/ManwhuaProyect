@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { IconArrowLeft, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import Image from 'next/image';
 import { useAuth } from '../contexts/AuthContext';
+import { getTranslations } from '../i18n/translations';
 import styles from './ReaderHeader.module.css';
 
 // ===============================================
@@ -63,6 +64,7 @@ const MOBILE_BREAKPOINT = 768;        // Breakpoint mobile vs desktop
 export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manhwa', lang = 'es' }) {
   const router = useRouter();
   const { user } = useAuth();
+  const t = getTranslations(lang).readerHeader;
 
   // ===============================================
   // ESTADOS
@@ -298,8 +300,8 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
         <button
           className={styles.backButton}
           onClick={handleBack}
-          aria-label={lang === 'en' ? 'Back to chapter list' : 'Volver a la lista de capítulos'}
-          title={lang === 'en' ? 'Back' : 'Volver'}
+          aria-label={t.backToChapterList}
+          title={t.back}
         >
           <IconArrowLeft size={18} />
         </button>
@@ -311,7 +313,7 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
         <div className={styles.logoContainer}>
           <Image
             src="/logo.png"
-            alt={lang === 'en' ? 'Manhwa Imperial logo - English manhwa reader' : 'Logo de Manhwa Imperial - Lector de manhwas en español'}
+            alt={t.logoAlt}
             width={32}
             height={32}
             className={styles.logoImg}
@@ -328,12 +330,8 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
         <button
           className={styles.fullscreenButton}
           onClick={toggleFullscreenLocal}
-          aria-label={isFullscreenLocal
-            ? (lang === 'en' ? 'Exit fullscreen' : 'Salir de pantalla completa')
-            : (lang === 'en' ? 'Fullscreen' : 'Pantalla completa')}
-          title={isFullscreenLocal
-            ? (lang === 'en' ? 'Exit fullscreen' : 'Salir de pantalla completa')
-            : (lang === 'en' ? 'Fullscreen' : 'Pantalla completa')}
+          aria-label={isFullscreenLocal ? t.exitFullscreen : t.fullscreen}
+          title={isFullscreenLocal ? t.exitFullscreen : t.fullscreen}
         >
           {isFullscreenLocal
             ? <IconMinimize size={18} />

@@ -5,6 +5,7 @@ import LazyImage from './LazyImage';
 import { normalizeImageUrl } from '../utils/imageUtils';
 import { useLang } from '../hooks/useLang';
 import { getLocalizedPath } from '../utils/i18nRoutes';
+import { getTranslations } from '../i18n/translations';
 import classes from './ManhwaCard.module.css';
 
 /**
@@ -23,6 +24,7 @@ export default function ManhwaCard({
 }) {
   const router = useRouter();
   const { lang } = useLang();
+  const t = getTranslations(lang).manhwaCard;
 
   // Generar slug seguro
   const slugify = (str) =>
@@ -59,15 +61,17 @@ export default function ManhwaCard({
 
   // SEO: Alt text dinámico con género real de la obra (no hardcodeado)
   const genres = manhwa.genres?.map(g => typeof g === 'string' ? g : g?.name).filter(Boolean) || []
-  const genreText = genres.length > 0 ? genres.slice(0, 2).join(' y ') : typeLabel.toLowerCase()
+  const genreText = genres.length > 0 ? genres.slice(0, 2).join(` ${t.and} `) : typeLabel.toLowerCase()
   const statusText = manhwa.status === 'ongoing'
-    ? (lang === 'en' ? 'ongoing' : 'en emisión')
+    ? t.statusOngoing
     : manhwa.status === 'completed'
-      ? (lang === 'en' ? 'completed' : 'completo')
-      : (lang === 'en' ? 'available' : 'disponible')
-  const coverAlt = lang === 'en'
-    ? `${typeLabel} cover ${manhwa.title} - ${genreText} in English on Manhwa Imperial, ${statusText}`
-    : `Portada ${typeLabel.toLowerCase()} ${manhwa.title} - ${genreText} en español, ${statusText} en Manhwa Imperial`;
+      ? t.statusCompleted
+      : t.statusAvailable
+  const coverAlt = t.coverAltTpl
+    .replace('{type}', lang === 'en' ? typeLabel : typeLabel.toLowerCase())
+    .replace('{title}', manhwa.title)
+    .replace('{genres}', genreText)
+    .replace('{status}', statusText);
 
   return (
     <Card
@@ -91,7 +95,7 @@ export default function ManhwaCard({
 
         {/* Indicador de estado de carga */}
         <div className={classes.cardStateIndicator}>
-          <div className={classes.stateLabel}>{lang === 'en' ? 'STATE 2: Card with data' : 'ESTADO 2: Card con datos'}</div>
+          <div className={classes.stateLabel}>{t.stateLabel}</div>
         </div>
 
         {/* Content Type Badge */}
@@ -113,7 +117,7 @@ export default function ManhwaCard({
             e.stopPropagation()
             onFavoriteToggle?.(manhwa)
           }}
-          aria-label={isFavorite ? (lang === 'en' ? 'Remove from favorites' : 'Quitar de favoritos') : (lang === 'en' ? 'Add manhwa to favorites' : 'Añadir manhwa a favoritos')}
+          aria-label={isFavorite ? t.removeFromFavorites : t.addToFavorites}
           className={classes.favoriteButton}
         >
           <IconStar size={14} fill={isFavorite ? 'currentColor' : undefined} />
@@ -134,7 +138,7 @@ export default function ManhwaCard({
         {/* Hover overlay - SEO: texto con "manhwa" */}
         <div className={classes.hoverOverlay}>
           <Text size="xs" c="white" ta="center" className={classes.hoverText}>
-            {lang === 'en' ? 'Read manhwa' : 'Leer manhwa'}
+            {t.readManhwa}
           </Text>
         </div>
       </div>
@@ -153,7 +157,7 @@ export default function ManhwaCard({
             <Group gap={4}>
               <IconBook size={12} stroke={1.5} />
               <Text size="xs" c="dimmed">
-                {manhwa.chapterCount} caps
+                {manhwa.chapterCount} {t.chaptersShort}
               </Text>
             </Group>
           )}
@@ -171,7 +175,7 @@ export default function ManhwaCard({
         {/* Último capítulo */}
         {manhwa.chapters?.length > 0 && (
           <Text size="xs" c="cyan" className={classes.latestChapter}>
-            {lang === 'en' ? 'Ch.' : 'Cap.'} {manhwa.chapters[0].number} • {manhwa.chapters[0].time || (lang === 'en' ? 'Recent' : 'Reciente')}
+            {t.chapterAbbrev} {manhwa.chapters[0].number} • {manhwa.chapters[0].time || t.recent}
           </Text>
         )}
       </Stack>

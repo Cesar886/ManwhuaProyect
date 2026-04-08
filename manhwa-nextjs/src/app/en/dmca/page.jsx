@@ -1,5 +1,4 @@
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import styles from '../../(es)/dmca/Dmca.module.css'
 
 export default function EnDMCAPage() {
@@ -71,7 +70,6 @@ export default function EnDMCAPage() {
           </section>
         </div>
       </main>
-      <Footer lang="en" />
     </>
   )
 }

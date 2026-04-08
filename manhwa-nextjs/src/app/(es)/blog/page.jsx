@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { getAllPosts, CATEGORY_LABELS } from '@/lib/blog/posts'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import AdsterraNativeBanner from '@/components/AdsterraNativeBanner'
 import styles from './Blog.module.css'
 
@@ -81,7 +80,6 @@ export default function BlogPage() {
         <AdsterraNativeBanner instanceId="blog-index" />
       </div>
     </main>
-    <Footer />
     </>
   )
 }

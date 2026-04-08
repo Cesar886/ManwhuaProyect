@@ -743,7 +743,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   return (
     <div className={styles.pageWrapper}>
       <main className={styles.content}>
-        <Header title={lang === 'en' ? 'Home' : 'Inicio'} lang={lang} />
+        <Header title={t.common.home} lang={lang} />
 
         {/* ================================================================== */}
         {/* SEO: H1 PRINCIPAL - Keyword "Leer Manhwa en Español Online Gratis" */}
@@ -765,7 +765,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
               className={styles.inlineBtn}
             >
               <IconRefresh size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-              {loading ? (lang === 'en' ? 'Updating...' : 'Actualizando...') : (lang === 'en' ? 'Refresh content' : 'Actualizar contenido')}
+              {loading ? t.home.updating : t.home.refreshContent}
             </button>
           </div>
         )}
@@ -793,7 +793,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
               color: 'var(--text-muted)',
               fontWeight: 500
             }}>
-              {series.length} {lang === 'en' ? 'Available titles' : 'Títulos disponibles'}
+              {series.length} {t.home.availableTitles}
             </span>
           </div>
 
@@ -817,7 +817,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   />
                   {series.chapterCount > 0 && (
                     <span className={styles.chapterBadge}>
-                      {series.chapterCount} {lang === 'en' ? 'ch' : 'caps'}
+                      {series.chapterCount} {t.home.chaptersShort}
                     </span>
                   )}
                   <span className={styles.statusBadge}>
@@ -839,7 +839,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
               <div className={styles.queryHeader}>
                 <h2 className={styles.queryName}>{t.home.continueReading}</h2>
                 <Link href={getLocalizedPath('/perfil', lang)} className={styles.queryLink}>
-                  {lang === 'en' ? 'View history' : 'Ver historial'} →
+                  {t.home.viewHistory} →
                 </Link>
               </div>
               <div className={styles.queryScroll}>
@@ -855,7 +855,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
               <div className={styles.queryHeader}>
                 <h2 className={styles.queryName}>{t.home.continueReading}</h2>
                 <Link href={getLocalizedPath('/perfil', lang)} className={styles.queryLink}>
-                  {lang === 'en' ? 'View history' : 'Ver historial'} →
+                  {t.home.viewHistory} →
                 </Link>
               </div>
 
@@ -885,11 +885,11 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         />
                         {chapter && (
                           <span className={styles.chapterBadge}>
-                            Cap.{chapter}
+                            {t.home.chapterAbbrev}{chapter}
                           </span>
                         )}
                         <span className={styles.statusBadge}>
-                          {progress > 0 ? `${progress}%` : 'Historia'}
+                          {progress > 0 ? `${progress}%` : t.home.story}
                         </span>
                         <h3 className={styles.titleLink}>{title}</h3>
                         <div style={{ position: 'absolute', left: 8, right: 8, bottom: 8, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
@@ -908,7 +908,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           <section className={styles.querySection}>
             <div className={styles.queryRow}>
               <div className={styles.queryHeader}>
-                <h2 className={styles.queryName}>{lang === 'en' ? 'Recommendations for you' : 'Recomendaciones para ti'}</h2>
+                <h2 className={styles.queryName}>{t.home.recommendationsForYou}</h2>
               </div>
               <div className={styles.queryScroll}>
                 <PremiumSkeletonGrid count={6} />
@@ -921,7 +921,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           <section className={styles.querySection}>
             <div className={styles.queryRow}>
               <div className={styles.queryHeader}>
-                <h2 className={styles.queryName}>{lang === 'en' ? 'Personalized for you' : 'Personalizado para ti'}</h2>
+                <h2 className={styles.queryName}>{t.home.personalizedForYou}</h2>
               </div>
               <div className={styles.queryScroll}>
                 <PremiumSkeletonGrid count={6} />
@@ -952,7 +952,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     </div>
                     {querySlug && (
                       <Link href={getLocalizedPath(`/busqueda-ia/${querySlug}`, lang)} className={styles.queryLink}>
-                        {lang === 'en' ? 'See full AI list' : 'Ver lista completa IA'} →
+                        {t.home.seeFullAiList} →
                       </Link>
                     )}
                   </div>
@@ -977,7 +977,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                           />
                           {item.chapterCount > 0 && (
                             <span className={styles.chapterBadge}>
-                              {item.chapterCount} {lang === 'en' ? 'ch' : 'caps'}
+                              {item.chapterCount} {t.home.chaptersShort}
                             </span>
                           )}
                           <span className={styles.statusBadge}>
@@ -1000,15 +1000,11 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
               <div className={styles.queryHeader}>
                 <h2 className={styles.queryName}>
                   {smartRecommendation.sourceMode === 'history'
-                    ? (lang === 'en'
-                      ? `Because you read ${smartRecommendation.sourceTitle}, you may like this`
-                      : `Porque leíste ${smartRecommendation.sourceTitle}, te puede gustar esto`)
-                    : (lang === 'en'
-                      ? `Today you may like this`
-                      : `Hoy te puede gustar esto`)}
+                    ? t.home.becauseYouRead.replace('{title}', smartRecommendation.sourceTitle)
+                    : t.home.todayYouMayLike}
                 </h2>
                 <Link href={getLocalizedPath(`/busqueda-ia/${slugifyQuery(smartRecommendation.aiQuery || `manhwas similares a ${smartRecommendation.sourceTitle}`)}`, lang)} className={styles.queryLink}>
-                  {lang === 'en' ? 'View AI results' : 'Ver resultados IA'} →
+                  {t.home.viewAiResults} →
                 </Link>
               </div>
 
@@ -1031,7 +1027,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                       />
                       {item.chapterCount > 0 && (
                         <span className={styles.chapterBadge}>
-                          {item.chapterCount} {lang === 'en' ? 'ch' : 'caps'}
+                          {item.chapterCount} {t.home.chaptersShort}
                         </span>
                       )}
                       <span className={styles.statusBadge}>
@@ -1082,7 +1078,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     <h2 className={styles.queryName}>{cat.query}</h2>
                     {/* SEO: Anchor text descriptivo — nunca "Ver más" solo */}
                     <Link href={`/busqueda-ia/${slug}`} className={styles.queryLink}>
-                      {lang === 'en' ? `Explore ${cat.query.toLowerCase()} manhwa` : `Explorar manhwas de ${cat.query.toLowerCase()}`} →
+                      {t.home.exploreManhwa.replace('{query}', cat.query.toLowerCase())} →
                     </Link>
                   </div>
                   <div className={styles.queryScroll}>
@@ -1104,7 +1100,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                           />
                           {item.chapterCount > 0 && (
                             <span className={styles.chapterBadge}>
-                              {item.chapterCount} {lang === 'en' ? 'ch' : 'caps'}
+                              {item.chapterCount} {t.home.chaptersShort}
                             </span>
                           )}
                           <span className={styles.statusBadge}>

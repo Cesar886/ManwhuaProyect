@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import { SITE_URL } from '@/config'
 import styles from '@/styles/legal.module.css'
 
@@ -208,7 +207,6 @@ export default function PrivacidadPage() {
                     </nav>
                 </div>
             </main>
-            <Footer />
         </>
     )
 }

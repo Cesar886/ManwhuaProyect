@@ -1,5 +1,6 @@
 import { Outfit, Playfair_Display } from 'next/font/google'
 import Script from 'next/script'
+import { headers } from 'next/headers'
 import './globals.css'
 import '@mantine/core/styles.layer.css'
 import '@mantine/notifications/styles.layer.css'
@@ -30,20 +31,17 @@ const playfair = Playfair_Display({
 
 /**
  * SEO Metadata Global
- * 
- * Keywords objetivo de alta prioridad:
- * 1. manhwa
- * 2. leer manhwa
- * 3. manhwa en español
- * 4. manhwa online
- * 5. manhwa gratis
+ *
+ * La metadata raíz cubre el idioma ES (raíz del sitio). Cuando el usuario
+ * navega a /en/*, el layout anidado `/en/layout.jsx` sobreescribe title,
+ * description, openGraph, twitter y alternates con la versión en inglés.
+ * Sólo lo común (authors, metadataBase, robots, verification, etc.) vive aquí.
  */
 export const metadata = {
   title: {
     default: 'Leer Manhwa Online Gratis en Español - Manhwa Imperial',
     template: '%s | Manhwa Imperial',
   },
-  // GEO-optimized: clara para crawlers de IA y motores de búsqueda
   description: 'Lee manhwa online gratis en español en Manhwa Imperial. Plataforma potenciada por inteligencia artificial con buscador IA que entiende lenguaje natural. Miles de manhwas y webtoons coreanos actualizados diariamente.',
   keywords: [
     'manhwa en español',
@@ -72,8 +70,12 @@ export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   alternates: {
     canonical: '/',
+    languages: {
+      'es': '/',
+      'en': '/en',
+      'x-default': '/',
+    },
   },
-  // GEO meta tags adicionales (next.js 'other' se renderiza como <meta name="...")
   other: {
     rating: 'general',
     'mylead-verification': 'a030d8faf1f6f5c67eabe4c817e326a7',
@@ -120,9 +122,22 @@ export const metadata = {
   // },
 }
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  // Lee el pathname que el middleware inyecta como header para decidir el
+  // idioma del `<html lang>` y los hreflang en el servidor. Si por alguna
+  // razón el header no está presente, caemos a 'es'.
+  const hdrs = await headers()
+  const pathname = hdrs.get('x-pathname') || '/'
+  const lang = (hdrs.get('x-lang') || (pathname.startsWith('/en') ? 'en' : 'es'))
+  const isEn = lang === 'en'
+
   return (
-    <html lang="es" className={`${outfit.variable} ${playfair.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html
+      lang={isEn ? 'en' : 'es'}
+      className={`${outfit.variable} ${playfair.variable}`}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <head suppressHydrationWarning>
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
@@ -131,8 +146,9 @@ export default function RootLayout({ children }) {
         <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
         <meta name="impact-site-verification" content="a62d51e4-8267-4442-bba4-45de72b6c992" />
         <meta name="referrer" content="no-referrer-when-downgrade" />
-        {/* SEO: hreflang señaliza idioma español a Google para búsquedas geolocalizadas */}
+        {/* hreflang: señaliza a Google las dos variantes del sitio */}
         <link rel="alternate" hrefLang="es" href="https://manhwaimperial.site/" />
+        <link rel="alternate" hrefLang="en" href="https://manhwaimperial.site/en" />
         <link rel="alternate" hrefLang="x-default" href="https://manhwaimperial.site/" />
         {/* Preconnect + DNS prefetch for image CDN (chapter reader) */}
         <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
@@ -201,7 +217,7 @@ export default function RootLayout({ children }) {
         <MantineProvider theme={imperialTheme} defaultColorScheme="light">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>
-            <MainLayout>
+            <MainLayout lang={lang}>
               {children}
             </MainLayout>
           </Providers>

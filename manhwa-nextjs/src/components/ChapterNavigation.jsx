@@ -4,6 +4,7 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { IconChevronLeft, IconChevronRight, IconBook, IconLoader2 } from '@tabler/icons-react';
+import { getTranslations } from '../i18n/translations';
 import styles from './ChapterNavigation.module.css';
 
 /**
@@ -18,6 +19,7 @@ import styles from './ChapterNavigation.module.css';
  * @param {Array} props.chapters - Lista de capítulos disponibles
  */
 const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, seriesBasePath = '/manhwa', lang = 'es', chapterSegment = 'capitulo' }) => {
+    const t = getTranslations(lang).chapterNav;
     const currentNum = parseFloat(currentChapter);
     const pathname = usePathname();
     // 'prev' | 'next' | null — indica qué botón está cargando
@@ -100,7 +102,7 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, se
     return (
         <nav
             className={styles.controlsFooter}
-            aria-label={lang === 'en' ? 'Chapter navigation' : 'Navegación de capítulos'}
+            aria-label={t.navAria}
             role="navigation"
         >
             {/* SEO: Enlace <a> real al Capítulo Anterior para que Googlebot pueda rastrearlo */}
@@ -108,8 +110,8 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, se
                 <Link
                     href={`${seriesBasePath}/${slug}/${chapterSegment}/${prevChapter}`}
                     className={`${styles.chapterNav} ${styles.secondary} ${navigating === 'prev' ? styles.navigating : ''}`}
-                    aria-label={lang === 'en' ? `Go to previous chapter: ${prevChapter}` : `Ir al capítulo anterior: ${prevChapter}`}
-                    title={lang === 'en' ? `Chapter ${formatChapterNum(prevChapter)}` : `Capítulo ${formatChapterNum(prevChapter)}`}
+                    aria-label={t.goPrevTpl.replace('{n}', prevChapter)}
+                    title={t.chapterTpl.replace('{n}', formatChapterNum(prevChapter))}
                     onClick={handleNavClick('prev', prevChapter)}
                 >
                     {navigating === 'prev' ? (
@@ -127,7 +129,7 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, se
                         />
                     )}
                     <span>
-                        {navigating === 'prev' ? (lang === 'en' ? 'Loading...' : 'Cargando...') : `${lang === 'en' ? 'Ch.' : 'Cap.'} ${formatChapterNum(prevChapter)}`}
+                        {navigating === 'prev' ? t.loading : `${t.chapterAbbrev} ${formatChapterNum(prevChapter)}`}
                     </span>
                     <span>
                         {navigating === 'prev' ? '...' : formatChapterNum(prevChapter)}
@@ -136,7 +138,7 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, se
             ) : (
                 <span
                     className={`${styles.chapterNav} ${styles.secondary} ${styles.disabled}`}
-                    aria-label={lang === 'en' ? 'No previous chapter' : 'No hay capítulo anterior'}
+                    aria-label={t.noPrev}
                     aria-disabled="true"
                 >
                     <IconChevronLeft
@@ -144,8 +146,8 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, se
                         size={18}
                         aria-hidden="true"
                     />
-                    <span>{lang === 'en' ? 'Previous' : 'Anterior'}</span>
-                    <span>{lang === 'en' ? 'Prev.' : 'Ant.'}</span>
+                    <span>{t.previous}</span>
+                    <span>{t.previousShort}</span>
                 </span>
             )}
 
@@ -153,15 +155,15 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, se
             <Link
                 href={`${seriesBasePath}/${slug}`}
                 className={`${styles.chapterNav} ${styles.primary}`}
-                aria-label={lang === 'en' ? 'Chapter list' : 'Lista de capítulos'}
-                title={lang === 'en' ? 'View all chapters' : 'Ver todos los capítulos'}
+                aria-label={t.chapterList}
+                title={t.viewAllChapters}
             >
                 <IconBook
                     stroke={2.5}
                     size={20}
                     aria-hidden="true"
                 />
-                <span>{lang === 'en' ? 'Chapters' : 'Capítulos'}</span>
+                <span>{t.chapters}</span>
             </Link>
 
             {/* SEO: Enlace <a> real al Capítulo Siguiente para que Googlebot pueda rastrearlo */}
@@ -169,12 +171,12 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, se
                 <Link
                     href={`${seriesBasePath}/${slug}/${chapterSegment}/${nextChapter}`}
                     className={`${styles.chapterNav} ${styles.secondary} ${navigating === 'next' ? styles.navigating : ''}`}
-                    aria-label={lang === 'en' ? `Go to next chapter: ${nextChapter}` : `Ir al capítulo siguiente: ${nextChapter}`}
-                    title={lang === 'en' ? `Chapter ${formatChapterNum(nextChapter)}` : `Capítulo ${formatChapterNum(nextChapter)}`}
+                    aria-label={t.goNextTpl.replace('{n}', nextChapter)}
+                    title={t.chapterTpl.replace('{n}', formatChapterNum(nextChapter))}
                     onClick={handleNavClick('next', nextChapter)}
                 >
                     <span>
-                        {navigating === 'next' ? (lang === 'en' ? 'Loading...' : 'Cargando...') : `${lang === 'en' ? 'Ch.' : 'Cap.'} ${formatChapterNum(nextChapter)}`}
+                        {navigating === 'next' ? t.loading : `${t.chapterAbbrev} ${formatChapterNum(nextChapter)}`}
                     </span>
                     <span>
                         {navigating === 'next' ? '...' : formatChapterNum(nextChapter)}
@@ -197,11 +199,11 @@ const ChapterNavigation = ({ currentChapter, slug, chapters = [], onNavigate, se
             ) : (
                 <span
                     className={`${styles.chapterNav} ${styles.secondary} ${styles.disabled}`}
-                    aria-label={lang === 'en' ? 'No next chapter' : 'No hay capítulo siguiente'}
+                    aria-label={t.noNext}
                     aria-disabled="true"
                 >
-                    <span>{lang === 'en' ? 'Next' : 'Siguiente'}</span>
-                    <span>{lang === 'en' ? 'Next.' : 'Sig.'}</span>
+                    <span>{t.next}</span>
+                    <span>{t.nextShort}</span>
                     <IconChevronRight
                         stroke={2.5}
                         size={18}

@@ -15,6 +15,7 @@ import FiltersPanel from '@/components/FiltersPanel';
 
 // Componente de Paginación personalizado
 function CustomPagination({ value, onChange, total, color = "cyan", lang = 'es' }) {
+    const t = getTranslations(lang).biblioteca;
     const isMobile = useMediaQuery('(max-width: 600px)');
     const btnSize = isMobile ? 30 : 36;
     const showPages = isMobile ? 3 : 5;
@@ -70,7 +71,7 @@ function CustomPagination({ value, onChange, total, color = "cyan", lang = 'es' 
                 style={navButtonStyle(value === 1)}
                 onClick={() => value > 1 && onChange(1)}
                 disabled={value === 1}
-                aria-label={lang === 'en' ? 'First page' : 'Primera página'}
+                aria-label={t.firstPage}
             >
                 <IconChevronsLeft size={iconSize} />
             </button>
@@ -78,7 +79,7 @@ function CustomPagination({ value, onChange, total, color = "cyan", lang = 'es' 
                 style={navButtonStyle(value === 1)}
                 onClick={() => value > 1 && onChange(value - 1)}
                 disabled={value === 1}
-                aria-label={lang === 'en' ? 'Previous page' : 'Página anterior'}
+                aria-label={t.previousPage}
             >
                 <IconChevronLeft size={iconSize} />
             </button>
@@ -88,7 +89,7 @@ function CustomPagination({ value, onChange, total, color = "cyan", lang = 'es' 
                     key={page}
                     style={buttonStyle(page === value)}
                     onClick={() => onChange(page)}
-                    aria-label={lang === 'en' ? `Page ${page}` : `Página ${page}`}
+                    aria-label={t.pageN.replace('{n}', page)}
                     aria-current={page === value ? 'page' : undefined}
                 >
                     {page}
@@ -99,7 +100,7 @@ function CustomPagination({ value, onChange, total, color = "cyan", lang = 'es' 
                 style={navButtonStyle(value === total)}
                 onClick={() => value < total && onChange(value + 1)}
                 disabled={value === total}
-                aria-label={lang === 'en' ? 'Next page' : 'Página siguiente'}
+                aria-label={t.nextPage}
             >
                 <IconChevronRight size={iconSize} />
             </button>
@@ -107,7 +108,7 @@ function CustomPagination({ value, onChange, total, color = "cyan", lang = 'es' 
                 style={navButtonStyle(value === total)}
                 onClick={() => value < total && onChange(total)}
                 disabled={value === total}
-                aria-label={lang === 'en' ? 'Last page' : 'Última página'}
+                aria-label={t.lastPage}
             >
                 <IconChevronsRight size={iconSize} />
             </button>
@@ -142,6 +143,7 @@ import { normalizeImageUrl } from '@/utils/imageUtils';
 import ManhwaCover from '@/components/ManhwaCover';
 import dynamic from 'next/dynamic';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
+import { getTranslations } from '@/i18n/translations';
 const ChatIA = dynamic(() => import('@/components/ia-minicpm'), { ssr: false });
 const Donacion = dynamic(() => import('@/components/Donacion'), { ssr: false });
 
@@ -162,6 +164,7 @@ function isMangaSeries(series) {
 }
 
 export default function MangasClient({ initialSeries = [], lang = 'es' }) {
+    const t = getTranslations(lang).mangas;
     const [currentPage, setCurrentPage] = useState(1);
     const [isInitialLoad, setIsInitialLoad] = useState(initialSeries.length === 0);
     const [navigatingToIA, setNavigatingToIA] = useState(false);
@@ -286,7 +289,7 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                     <Stack gap="md">
                         <Group>
                             <IconBook size={24} color="var(--mantine-color-blue-5)" />
-                            <Text size="xl" fw={700}>{lang === 'en' ? 'Loading manga catalog...' : 'Cargando catálogo de Manga...'}</Text>
+                            <Text size="xl" fw={700}>{t.loading}</Text>
                         </Group>
                         <PremiumSkeletonGrid count={8} />
                     </Stack>
@@ -297,7 +300,7 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                     <Transition mounted={isFromCache} transition="fade" duration={400}>
                         {(styles) => (
                             <Group justify="space-between" mb="md" p="xs" bg="var(--subtle-bg)" style={{ ...styles, borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                                <Text size="xs" c="dimmed">{lang === 'en' ? 'Loaded from local memory (Offline-first)' : 'Cargado desde memoria local (Offline-first)'}</Text>
+                                <Text size="xs" c="dimmed">{t.loadedFromCache}</Text>
                                 <Button
                                     variant="subtle"
                                     size="compact-xs"
@@ -305,7 +308,7 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                                     onClick={refresh}
                                     loading={spacesLoading}
                                 >
-                                    {lang === 'en' ? 'Refresh catalog' : 'Actualizar catálogo'}
+                                    {t.refreshCatalog}
                                 </Button>
                             </Group>
                         )}
@@ -313,7 +316,7 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                 )}
 
                 {hasError && !isLoading && (
-                    <Center py="xl"><Text c="red" fw={500}>{lang === 'en' ? 'Could not connect to the main server.' : 'No se pudo conectar con el servidor central.'}</Text></Center>
+                    <Center py="xl"><Text c="red" fw={500}>{t.connectionError}</Text></Center>
                 )}
 
                 {/* Main Content Area */}
@@ -346,8 +349,8 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                                         <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42c-.03.19-.065.383-.105.578-1.128 5.794-4.96 8.043-9.86 8.043H9.07a.641.641 0 0 0-.633.741l.922 5.84c.066.42.432.727.856.727h3.655c.463 0 .855-.335.927-.791l.038-.198.734-4.653.047-.257c.072-.456.464-.792.927-.792h.583c3.78 0 6.738-1.535 7.603-5.978.362-1.856.175-3.407-.782-4.5a3.72 3.72 0 0 0-1.75-.76z" fill="currentColor" />
                                     </svg>
                                 </div>
-                                <span className={classes.paypalLabel}>{lang === 'en' ? 'Like the AI? Support us to keep it running' : '¿Te gusta la IA? Apóyanos para mantenerla'}</span>
-                                <span className={classes.paypalCta}>{lang === 'en' ? 'Donate' : 'Donar'}</span>
+                                <span className={classes.paypalLabel}>{t.donationPrompt}</span>
+                                <span className={classes.paypalCta}>{t.donate}</span>
                             </button>
                         )}
 
@@ -405,9 +408,9 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                                 <Group ref={gridTopRef} justify="space-between">
                                     <Group gap="xs">
                                         <IconBook size={22} className={classes.sectionIcon} />
-                                        <Text size="lg" fw={700}>{lang === 'en' ? 'Manga Catalog' : 'Catálogo de Manga'}</Text>
+                                        <Text size="lg" fw={700}>{t.catalog}</Text>
                                     </Group>
-                                    <Text size="xs" c="dimmed">{filteredSeries.length} {lang === 'en' ? 'available manga titles' : 'mangas disponibles'}</Text>
+                                    <Text size="xs" c="dimmed">{filteredSeries.length} {t.availableTitles}</Text>
                                 </Group>
 
                                 <div className={classes.gridReleases}>
@@ -416,15 +419,13 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                                             <Link href={getLocalizedPath(`/manhwa/${series.slug}`, lang)} className={classes.releaseCoverContainer}>
                                                 <div className={classes.releaseCoverWrapper}>
                                                     <span className={classes.chapterBadge}>
-                                                        {getSeriesChapterCount(series)} {lang === 'en' ? 'ch' : 'caps'}
+                                                        {getSeriesChapterCount(series)} {t.chaptersShort}
                                                     </span>
                                                     <ManhwaCover
                                                         src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
                                                         fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
                                                         slug={series.slug}
-                                                                                                                alt={lang === 'en'
-                                                                                                                    ? `Cover of ${series.title} manga - Read online for free on Manhwa Imperial`
-                                                                                                                    : `Portada del manga ${series.title} - Leer en español online gratis en Manhwa Imperial`}
+                                                        alt={t.coverAlt.replace('{title}', series.title)}
                                                         className={classes.popularImg}
                                                         priority={currentPage === 1 && index < 8}
                                                         sizes="(max-width: 480px) 45vw, (max-width: 768px) 30vw, (max-width: 1200px) 22vw, 200px"
@@ -455,10 +456,10 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                                 {(styles) => (
                                     <Card p="xl" radius="lg" bg="rgba(255,255,255,0.02)" style={{ ...styles, textAlign: 'center', border: '1px dashed var(--border-subtle)' }}>
                                         <Stack align="center" gap="sm">
-                                            <Text fw={600}>{lang === 'en' ? 'No manga found' : 'No se encontraron mangas'}</Text>
-                                            <Text size="sm" c="dimmed">{lang === 'en' ? 'Try different genres or a broader description.' : 'Prueba con géneros diferentes o una descripción más amplia.'}</Text>
+                                            <Text fw={600}>{t.noResults}</Text>
+                                            <Text size="sm" c="dimmed">{t.noResultsHint}</Text>
                                             <Button variant="light" color="cyan" radius="md" onClick={handleClearFilters}>
-                                                {lang === 'en' ? 'Reset filters' : 'Reiniciar filtros'}
+                                                {t.resetFilters}
                                             </Button>
                                         </Stack>
                                     </Card>

@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server'
 
 const PROTECTED_ROUTES = ['/perfil', '/pedidos', '/en/profile', '/en/pending']
 const BOT_PATTERNS = /googlebot|bingbot|yandex|duckduckbot|slurp|baiduspider/i
-const ES_PATHS = ['/manhwa', '/genero', '/tag', '/home', '/populares', '/biblioteca']
-const EN_PATHS = ['/en/manhwa', '/en/genre', '/en/tag', '/en/home', '/en/populares', '/en/library']
+
+// Rutas "canónicas" por idioma — se usan sólo para sugerir el banner de cambio de idioma
+const ES_PATHS = ['/home', '/manhwa', '/genero', '/tag', '/populares', '/biblioteca', '/mangas']
+const EN_PATHS = ['/en/home', '/en/manhwa', '/en/genre', '/en/tag', '/en/popular', '/en/library', '/en/manga']
+
 const LANG_COOKIE = 'preferred_lang'
 
 export function middleware(request) {
@@ -12,49 +15,53 @@ export function middleware(request) {
   const userAgent = headers.get('user-agent') || ''
   const token = request.cookies.get('token')?.value
 
+  // ─── Clonar headers y exponer el pathname al layout (server component) ──
+  // Esto permite que RootLayout lea el pathname vía `headers()` y decida
+  // dinámicamente `<html lang="en|es">`, hreflang, metadata, etc.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', pathname)
+  requestHeaders.set('x-lang', pathname.startsWith('/en') ? 'en' : 'es')
+
+  const forward = () =>
+    NextResponse.next({ request: { headers: requestHeaders } })
+
   // 1. Protección de rutas privadas
-  const isProtected = PROTECTED_ROUTES.some(route =>
-    pathname === route || pathname.startsWith(route + '/')
+  const isProtected = PROTECTED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(route + '/')
   )
 
   if (isProtected && !token) {
     const url = request.nextUrl.clone()
-    // Redirigir a home según el idioma de la ruta
     url.pathname = pathname.startsWith('/en') ? '/en' : '/'
     return NextResponse.redirect(url)
   }
 
-  // 2. Bots: nunca redirigir, dejar pasar siempre
+  // 2. Bots: nunca redirigir, dejar pasar con headers
   if (BOT_PATTERNS.test(userAgent)) {
-    return NextResponse.next()
+    return forward()
   }
 
   // 3. Si ya tiene cookie de preferencia, respetar
   const langCookie = request.cookies.get(LANG_COOKIE)?.value
   if (langCookie) {
-    return NextResponse.next()
+    return forward()
   }
 
   // 4. Detectar idioma del navegador
   const acceptLang = headers.get('accept-language') || ''
-  const prefersEnglish = acceptLang.startsWith('en') && !acceptLang.startsWith('es')
+  const prefersEnglish = acceptLang.startsWith('en')
   const prefersSpanish = acceptLang.startsWith('es')
 
-  // 5. Usuario en ruta ES pero prefiere inglés → sugerir cambio
-  if (prefersEnglish && ES_PATHS.some(p => pathname.startsWith(p))) {
-    const response = NextResponse.next()
-    response.headers.set('x-show-lang-banner', 'en')
-    return response
+  // 5. Sugerir cambio de idioma (sólo un header; el cliente decide si mostrar banner)
+  const response = forward()
+
+  if (prefersEnglish && ES_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+    response.headers.set('x-suggest-lang', 'en')
+  } else if (prefersSpanish && EN_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+    response.headers.set('x-suggest-lang', 'es')
   }
 
-  // 6. Usuario en ruta EN pero prefiere español → sugerir cambio
-  if (prefersSpanish && EN_PATHS.some(p => pathname.startsWith(p))) {
-    const response = NextResponse.next()
-    response.headers.set('x-show-lang-banner', 'es')
-    return response
-  }
-
-  return NextResponse.next()
+  return response
 }
 
 export const config = {

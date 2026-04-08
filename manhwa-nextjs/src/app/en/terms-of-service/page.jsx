@@ -1,5 +1,4 @@
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import styles from '@/styles/legal.module.css'
 
 export default function EnTermsPage() {
@@ -106,7 +105,6 @@ export default function EnTermsPage() {
           </div>
         </div>
       </main>
-      <Footer lang="en" />
     </>
   )
 }

@@ -4,13 +4,16 @@ import { IconAlertTriangle, IconRefresh, IconHome } from '@tabler/icons-react'
 import { Button, Text, Title, Stack, Group, Paper } from '@mantine/core'
 import { useLang } from '../hooks/useLang'
 import { getLocalizedPath } from '../utils/i18nRoutes'
+import { getTranslations } from '../i18n/translations'
 
 /**
  * Componente reutilizable para error.jsx de cada ruta.
  * Muestra un mensaje amigable con botón de reintentar y link al inicio.
  */
-export default function RouteError({ error, reset, title = 'Algo salió mal' }) {
+export default function RouteError({ error, reset, title }) {
   const { lang } = useLang()
+  const t = getTranslations(lang).routeError
+  const resolvedTitle = title || t.defaultTitle
 
   return (
     <div style={{
@@ -29,12 +32,10 @@ export default function RouteError({ error, reset, title = 'Algo salió mal' }) 
         <Stack align="center" gap="md">
           <IconAlertTriangle size={56} color="var(--mantine-color-yellow-6)" stroke={1.5} />
 
-          <Title order={3}>{title}</Title>
+          <Title order={3}>{resolvedTitle}</Title>
 
           <Text c="dimmed" size="sm" maw={360}>
-            {lang === 'en'
-              ? 'An error occurred while loading this page. You can try again or go back home.'
-              : 'Ocurrió un error cargando esta página. Puedes intentar de nuevo o volver al inicio.'}
+            {t.description}
           </Text>
 
           {process.env.NODE_ENV === 'development' && error?.message && (
@@ -55,7 +56,7 @@ export default function RouteError({ error, reset, title = 'Algo salió mal' }) 
               variant="gradient"
               gradient={{ from: 'blue', to: 'cyan' }}
             >
-              {lang === 'en' ? 'Retry' : 'Reintentar'}
+              {t.retry}
             </Button>
             <Button
               leftSection={<IconHome size={16} />}
@@ -64,7 +65,7 @@ export default function RouteError({ error, reset, title = 'Algo salió mal' }) 
               variant="outline"
               color="cyan"
             >
-              {lang === 'en' ? 'Home' : 'Inicio'}
+              {t.home}
             </Button>
           </Group>
         </Stack>

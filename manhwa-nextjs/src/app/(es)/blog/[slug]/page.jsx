@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { getPostBySlug, getAllSlugs, getRecentPosts, CATEGORY_LABELS } from '@/lib/blog/posts'
 import { SITE_URL, SITE_NAME } from '@/config'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import AdsterraNativeBanner from '@/components/AdsterraNativeBanner'
 import styles from './BlogPost.module.css'
 
@@ -250,7 +249,6 @@ export default async function BlogPostPage({ params }) {
           </aside>
         </div>
       </main>
-      <Footer />
     </>
   )
 }

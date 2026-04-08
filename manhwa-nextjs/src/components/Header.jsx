@@ -145,25 +145,26 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
     const now = new Date()
     const diffMs = now - created
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    if (diffDays < 1) return lang === 'en' ? 'Member since today' : 'Miembro desde hoy'
-    if (diffDays === 1) return lang === 'en' ? 'Member since yesterday' : 'Miembro desde ayer'
-    if (diffDays < 30) return lang === 'en' ? `Member for ${diffDays} days` : `Miembro desde hace ${diffDays} días`
+    const th = t.header;
+    if (diffDays < 1) return th.memberSinceToday
+    if (diffDays === 1) return th.memberSinceYesterday
+    if (diffDays < 30) return th.memberForDays.replace('{n}', diffDays)
     const diffMonths = Math.floor(diffDays / 30)
     if (diffMonths < 12) {
-      if (lang === 'en') return `Member for ${diffMonths} ${diffMonths === 1 ? 'month' : 'months'}`
-      return `Miembro desde hace ${diffMonths} ${diffMonths === 1 ? 'mes' : 'meses'}`
+      const unit = diffMonths === 1 ? th.memberUnitMonth : th.memberUnitMonths
+      return th.memberForMonthsTpl.replace('{n}', diffMonths).replace('{unit}', unit)
     }
     const diffYears = Math.floor(diffMonths / 12)
     const remainMonths = diffMonths % 12
+    const yUnit = diffYears === 1 ? th.memberUnitYear : th.memberUnitYears
     if (remainMonths === 0) {
-      if (lang === 'en') return `Member for ${diffYears} ${diffYears === 1 ? 'year' : 'years'}`
-      return `Miembro desde hace ${diffYears} ${diffYears === 1 ? 'año' : 'años'}`
+      return th.memberForYearsTpl.replace('{n}', diffYears).replace('{unit}', yUnit)
     }
-    if (lang === 'en') {
-      return `Member for ${diffYears} ${diffYears === 1 ? 'year' : 'years'} and ${remainMonths} ${remainMonths === 1 ? 'month' : 'months'}`
-    }
-    return `Miembro desde hace ${diffYears} ${diffYears === 1 ? 'año' : 'años'} y ${remainMonths} ${remainMonths === 1 ? 'mes' : 'meses'}`
-  }, [uiUser?.createdAt, lang]);
+    const mUnit = remainMonths === 1 ? th.memberUnitMonth : th.memberUnitMonths
+    return th.memberForYearsMonthsTpl
+      .replace('{y}', diffYears).replace('{yUnit}', yUnit)
+      .replace('{m}', remainMonths).replace('{mUnit}', mUnit)
+  }, [uiUser?.createdAt, t]);
 
   // Stable handler for user menu actions
   const handleUserAction = useMemo(() => ({
@@ -193,14 +194,12 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
               }}
               className={styles.logoGroup}
               style={{ minWidth: 0, flex: '0 1 auto' }}
-              aria-label={lang === 'en' ? 'Go to home' : 'Ir a inicio'}
+              aria-label={t.header.goToHome}
             >
               <Group gap="sm" className={styles.logoGroup} style={{ minWidth: 0, flex: '0 1 auto' }}>
                 <Image
                   src="/logo.png"
-                  alt={lang === 'en'
-                    ? 'Manhwa Imperial logo - Platform to read manhwa in English online for free'
-                    : 'Logo de Manhwa Imperial - Plataforma para leer manhwa en español online gratis'}
+                  alt={t.header.logoAlt}
                   width={40}
                   height={40}
                   className={styles.logoImage}
@@ -241,10 +240,8 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
                   if (typeof activeToggle === 'function') activeToggle();
                 }}
                 aria-label={mounted
-                  ? (activeColorScheme === 'dark'
-                    ? (lang === 'en' ? 'Switch to light theme' : 'Cambiar a tema claro')
-                    : (lang === 'en' ? 'Switch to dark theme' : 'Cambiar a tema oscuro'))
-                  : (lang === 'en' ? 'Switch theme' : 'Cambiar tema')}
+                  ? (activeColorScheme === 'dark' ? t.header.switchLightTheme : t.header.switchDarkTheme)
+                  : t.header.switchTheme}
               >
                 {/* Renderizar icono solo después del montaje para evitar hydration mismatch */}
                 {mounted ? (
@@ -372,7 +369,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
                   onClick={() => openLogin()}
                 >
                   <IconUser size={16} stroke={2} style={{ marginRight: 6 }} />
-                  {lang === 'en' ? 'Login' : 'Entrar'}
+                  {t.header.login}
                 </Button>
               )}
             </Group>

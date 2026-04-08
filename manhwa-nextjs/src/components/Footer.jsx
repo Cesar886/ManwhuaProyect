@@ -11,6 +11,7 @@ import {
 } from '@tabler/icons-react';
 import { useLang } from '../hooks/useLang';
 import { getLocalizedPath } from '../utils/i18nRoutes';
+import { getTranslations } from '../i18n/translations';
 import classes from './Footer.module.css';
 
 const socialLinks = [
@@ -54,102 +55,57 @@ function Footer({ lang: propLang }) {
   const year = new Date().getFullYear();
   const { lang: detectedLang } = useLang();
   const lang = propLang || detectedLang;
+  const t = getTranslations(lang).footer;
   const homeHref = getLocalizedPath('/', lang);
-  
+
   // Columnas de navegación (dinámicas según idioma)
   const navColumns = useMemo(() => {
-    if (lang === 'en') {
-      return [
-        {
-          title: 'Read Manhwa',
-          links: [
-            { label: 'Library', link: getLocalizedPath('/library', lang) },
-            { label: 'Popular', link: getLocalizedPath('/populares', lang) },
-            { label: 'Collections', link: getLocalizedPath('/colecciones', lang) },
-          ],
-        },
-        {
-          title: 'Genres',
-          links: [
-            { label: 'Romance', link: getLocalizedPath('/genre/romance', lang) },
-            { label: 'Action', link: getLocalizedPath('/genre/accion', lang) },
-            { label: 'Fantasy', link: getLocalizedPath('/genre/fantasia', lang) },
-          ],
-        },
-        {
-          title: 'Blog',
-          links: [
-            { label: 'Manhwa Articles', link: '/blog' },
-            { label: 'Reading Guides', link: '/blog#guides' },
-            { label: 'Platform Comparisons', link: '/blog#comparisons' },
-          ],
-        },
-        {
-          title: 'Community',
-          links: [
-            { label : 'X/ Twitter', link: 'https://x.com/manhwaimperial' },
-            { label: 'Instagram', link: 'https://instagram.com/manhwaimperial' },
-            { label: 'Facebook', link: 'https://www.facebook.com/share/1DeCq4G8B4/' },
-          ],
-        },
-        {
-          title: 'Legal',
-          links: [
-            { label: 'About', link: getLocalizedPath('/about', lang) },
-            { label: 'Terms of Service', link: getLocalizedPath('/terms-of-service', lang) },
-            { label: 'Privacy', link: getLocalizedPath('/privacy-policy', lang) },
-            { label: 'DMCA', link: getLocalizedPath('/dmca', lang) },
-            { label: 'Legal Notice', link: getLocalizedPath('/legal-notice', lang) },
-          ],
-        },
-      ];
-    }
-    
+    const genreBase = lang === 'en' ? '/genre' : '/genero';
     return [
       {
-        title: 'Leer Manhwa',
+        title: t.colReadManhwa,
         links: [
-          { label: 'Biblioteca', link: getLocalizedPath('/biblioteca', lang) },
-          { label: 'Populares', link: getLocalizedPath('/populares', lang) },
-          { label: 'Colecciones', link: getLocalizedPath('/colecciones', lang) },
+          { label: t.linkLibrary, link: getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang) },
+          { label: t.linkPopular, link: getLocalizedPath('/populares', lang) },
+          { label: t.linkCollections, link: getLocalizedPath('/colecciones', lang) },
         ],
       },
       {
-        title: 'Géneros',
+        title: t.colGenres,
         links: [
-          { label: 'Romance', link: getLocalizedPath('/genero/romance', lang) },
-          { label: 'Acción', link: getLocalizedPath('/genero/accion', lang) },
-          { label: 'Fantasía', link: getLocalizedPath('/genero/fantasia', lang) },
+          { label: t.linkRomance, link: getLocalizedPath(`${genreBase}/romance`, lang) },
+          { label: t.linkAction, link: getLocalizedPath(`${genreBase}/accion`, lang) },
+          { label: t.linkFantasy, link: getLocalizedPath(`${genreBase}/fantasia`, lang) },
         ],
       },
       {
-        title: 'Blog',
+        title: t.colBlog,
         links: [
-          { label: 'Artículos sobre Manhwa', link: '/blog' },
-          { label: 'Guías para leer Manhwa', link: '/blog#guias' },
-          { label: 'Comparativas de plataformas', link: '/blog#comparativas' },
+          { label: t.linkBlogArticles, link: '/blog' },
+          { label: t.linkBlogGuides, link: `/blog${t.blogGuidesHash}` },
+          { label: t.linkBlogCompare, link: `/blog${t.blogCompareHash}` },
         ],
       },
       {
-        title: 'Comunidad',
+        title: t.colCommunity,
         links: [
-          { label : 'X/ Twitter', link: 'https://x.com/manhwaimperial' },
+          { label: 'X/ Twitter', link: 'https://x.com/manhwaimperial' },
           { label: 'Instagram', link: 'https://instagram.com/manhwaimperial' },
           { label: 'Facebook', link: 'https://www.facebook.com/share/1DeCq4G8B4/' },
         ],
       },
       {
-        title: 'Legal',
+        title: t.colLegal,
         links: [
-          { label: 'Acerca de', link: getLocalizedPath('/acerca-de', lang) },
-          { label: 'Términos de Servicio', link: getLocalizedPath('/terminos-de-servicio', lang) },
-          { label: 'Privacidad', link: getLocalizedPath('/politica-de-privacidad', lang) },
-          { label: 'DMCA', link: getLocalizedPath('/dmca', lang) },
-          { label: 'Aviso Legal', link: getLocalizedPath('/aviso-legal', lang) },
+          { label: t.linkAbout, link: getLocalizedPath(lang === 'en' ? '/about' : '/acerca-de', lang) },
+          { label: t.linkTerms, link: getLocalizedPath(lang === 'en' ? '/terms-of-service' : '/terminos-de-servicio', lang) },
+          { label: t.linkPrivacy, link: getLocalizedPath(lang === 'en' ? '/privacy-policy' : '/politica-de-privacidad', lang) },
+          { label: t.linkDmca, link: getLocalizedPath('/dmca', lang) },
+          { label: t.linkLegalNotice, link: getLocalizedPath(lang === 'en' ? '/legal-notice' : '/aviso-legal', lang) },
         ],
       },
     ];
-  }, [lang]);
+  }, [lang, t]);
 
   return (
     <footer className={classes.footer}>
@@ -166,7 +122,7 @@ function Footer({ lang: propLang }) {
               <Link
                 href={homeHref}
                 className={classes.logoLink}
-                aria-label={lang === 'en' ? 'Manhwa Imperial - Home' : 'Manhwa Imperial - Inicio'}
+                aria-label={t.homeAria}
               >
                 <Image
                   src="/logo.png"
@@ -178,11 +134,7 @@ function Footer({ lang: propLang }) {
                 <span className={classes.logoName}>Manhwa Imperial</span>
               </Link>
 
-              <p className={classes.description}>
-                {lang === 'en' 
-                  ? 'Your library to read manhwa and webtoons in English, free and legally.'
-                  : 'Tu biblioteca para leer manhwa y webtoons en español, gratis y de forma legal.'}
-              </p>
+              <p className={classes.description}>{t.description}</p>
 
               {/* Stats rápidas */}
               <div className={classes.stats}>
@@ -192,8 +144,8 @@ function Footer({ lang: propLang }) {
                 </div>
                 <div className={classes.statDivider} aria-hidden="true" />
                 <div className={classes.stat}>
-                  <span className={classes.statNum}>{lang === 'en' ? 'Free' : 'Gratis'}</span>
-                  <span className={classes.statLabel}>{lang === 'en' ? 'Always' : 'Siempre'}</span>
+                  <span className={classes.statNum}>{t.statFree}</span>
+                  <span className={classes.statLabel}>{t.statAlways}</span>
                 </div>
                 <div className={classes.statDivider} aria-hidden="true" />
                 <div className={classes.stat}>
@@ -220,7 +172,7 @@ function Footer({ lang: propLang }) {
             </div>
 
             {/* Columnas de navegación — desktop: grid, mobile: acordeón */}
-            <nav className={classes.groups} aria-label={lang === 'en' ? 'Footer navigation' : 'Navegación del footer'}>
+            <nav className={classes.groups} aria-label={t.navAria}>
               {navColumns.map((col) => (
                 <FooterColumn key={col.title} title={col.title} links={col.links} />
               ))}
@@ -235,31 +187,25 @@ function Footer({ lang: propLang }) {
       {/* ── Disclaimer Legal ── */}
       <div className={classes.disclaimer}>
         <div className={classes.container}>
-          <nav aria-label={lang === 'en' ? 'Site policy' : 'Política del sitio'} className={classes.disclaimerLinks}>
+          <nav aria-label={t.policyAria} className={classes.disclaimerLinks}>
             <Link href={getLocalizedPath(lang === 'en' ? '/terms-of-service' : '/terminos-de-servicio', lang)} className={classes.disclaimerLink}>
-              {lang === 'en' ? 'Terms' : 'Términos'}
+              {t.termsShort}
             </Link>
             <span className={classes.disclaimerSep} aria-hidden="true">·</span>
             <Link href={getLocalizedPath(lang === 'en' ? '/privacy-policy' : '/politica-de-privacidad', lang)} className={classes.disclaimerLink}>
-              {lang === 'en' ? 'Privacy' : 'Privacidad'}
+              {t.privacyShort}
             </Link>
             <span className={classes.disclaimerSep} aria-hidden="true">·</span>
             <Link href={getLocalizedPath('/dmca', lang)} className={classes.disclaimerLink}>DMCA</Link>
             <span className={classes.disclaimerSep} aria-hidden="true">·</span>
             <Link href={getLocalizedPath(lang === 'en' ? '/legal-notice' : '/aviso-legal', lang)} className={classes.disclaimerLink}>
-              {lang === 'en' ? 'Legal Notice' : 'Aviso Legal'}
+              {t.legalNoticeShort}
             </Link>
           </nav>
           <p className={classes.disclaimerText}>
-            {lang === 'en' 
-              ? <>© {year} Manhwa Imperial. All manhwas, webtoons and manhua are property of their respective authors and publishers. Aggregation platform with{' '}
-                <Link href={getLocalizedPath('/dmca', lang)} className={classes.disclaimerHighlight}>active DMCA compliance</Link>.
-                {' '}Malware-free, no intrusive ads.</>
-              : <>© {year} Manhwa Imperial. Todos los manhwas, webtoons y manhua son propiedad de
-                sus respectivos autores y editores. Plataforma de agregación con{' '}
-                <Link href={getLocalizedPath('/dmca', lang)} className={classes.disclaimerHighlight}>cumplimiento DMCA activo</Link>.
-                {' '}Libre de malware, sin anuncios intrusivos.</>
-            }
+            © {year} Manhwa Imperial. {t.disclaimerLead}
+            <Link href={getLocalizedPath('/dmca', lang)} className={classes.disclaimerHighlight}>{t.disclaimerDmcaLink}</Link>
+            {t.disclaimerTail}
           </p>
         </div>
       </div>
@@ -269,10 +215,9 @@ function Footer({ lang: propLang }) {
         <div className={classes.container}>
           <div className={classes.afterFooterInner}>
             <p className={classes.copyright}>
-              {lang === 'en'
-                ? <>© {year} Manhwa Imperial — Made with{' '}<span className={classes.heart} aria-label="love">♥</span>{' '}for readers</>
-                : <>© {year} Manhwa Imperial — Hecho con{' '}<span className={classes.heart} aria-label="amor">♥</span>{' '}para lectores</>
-              }
+              © {year} Manhwa Imperial — {t.madeWith}{' '}
+              <span className={classes.heart} aria-label={t.loveAria}>♥</span>{' '}
+              {t.forReaders}
             </p>
 
             {/* Social visible solo en mobile (en desktop está arriba) */}

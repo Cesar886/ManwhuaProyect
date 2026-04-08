@@ -35,6 +35,7 @@ import LinkedSynopsis from '@/components/LinkedSynopsis';
 import SeriesRating from '@/components/SeriesRating';
 // SEO: Constantes para contenido optimizado
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
+import { getTranslations } from '@/i18n/translations';
 
 
 // Componente de Badge
@@ -162,6 +163,7 @@ const AddToListModal = ({ isOpen, onClose, currentStatus, onUpdateStatus }) => {
 
 // Componente de Capítulo
 const ChapterCard = ({ chapter, slug, isRead, isNew, isResumePoint = false, basePath = '/manhwa', lang = 'es' }) => {
+  const t = getTranslations(lang).manhwaDetail;
   const progressPercent = chapter.progress ? Math.round((chapter.progress.page / chapter.pageCount) * 100) : 0;
   const pathname = usePathname();
   const chapterSegment = lang === 'en' ? 'chapter' : 'capitulo';
@@ -173,18 +175,18 @@ const ChapterCard = ({ chapter, slug, isRead, isNew, isResumePoint = false, base
       className={`${styles.chapterCard} ${isRead ? styles.chapterRead : ''} ${isResumePoint ? styles.chapterResumePoint : ''} ${isActive ? styles.chapterActive : ''}`}
     >
       {chapter.thumbnail && (
-        <img src={chapter.thumbnail} alt={lang === 'en' ? `Chapter ${chapter.number} thumbnail - manhwa page preview` : `Miniatura del Capítulo ${chapter.number} - Vista previa de página del manhwa`} className={styles.chapterThumbnail} loading="lazy" />
+        <img src={chapter.thumbnail} alt={t.chapterThumbAlt.replace('{n}', chapter.number)} className={styles.chapterThumbnail} loading="lazy" />
       )}
       <div className={styles.chapterLeft}>
         <span className={styles.chapterNumber}>{chapter.number}</span>
         <div className={styles.chapterInfo}>
           <h3>
-            {lang === 'en' ? 'Chapter' : 'Capítulo'} {chapter.number}
+            {t.chapter} {chapter.number}
             {isNew && <Badge type="new">NUEVO</Badge>}
             {isRead && <IconCheck size={14} className={styles.readCheck} />}
             {isResumePoint && (
               <span className={styles.resumeHint}>
-                {lang === 'en' ? 'You stayed here' : 'Te quedaste aqui'}
+                {t.youStayedHere}
               </span>
             )}
           </h3>
@@ -227,6 +229,7 @@ const ChapterCard = ({ chapter, slug, isRead, isNew, isResumePoint = false, base
  * Página de detalle de un Manhwa desde DigitalOcean Spaces
  */
 export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang = 'es' }) {
+  const t = getTranslations(lang).manhwaDetail;
   const chapterSegment = lang === 'en' ? 'chapter' : 'capitulo';
   const params = useParams();
   const slug = params?.slug;
@@ -837,14 +840,14 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
       <div className={`${styles.pageWrapper} ${styles.error}`}>
         <div className={styles.errorContent}>
           <IconAlertCircle size={48} className={styles.errorIcon} />
-          <h2>{lang === 'en' ? 'Oops! Something went wrong' : 'Oops! Algo salió mal'}</h2>
-          <p>{error || (lang === 'en' ? 'Manhwa not found' : 'Manhwa no encontrado')}</p>
+          <h2>{t.oopsError}</h2>
+          <p>{error || t.notFound}</p>
           <div className={styles.errorActions}>
             <button onClick={() => refetch?.()} className={styles.retryButton}>
-              <IconRefresh size={18} /> {lang === 'en' ? 'Retry' : 'Reintentar'}
+              <IconRefresh size={18} /> {t.retry}
             </button>
             <Link href={lang === 'en' ? '/en/home' : '/home'} className={styles.homeButton}>
-              <IconArrowLeft size={18} /> {lang === 'en' ? 'Back to home' : 'Volver al inicio'}
+              <IconArrowLeft size={18} /> {t.backToHome}
             </Link>
           </div>
         </div>
@@ -882,8 +885,8 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
               <Link
                 href={nsfwIaHref}
                 className={styles.hotBadge}
-                title={lang === 'en' ? 'Explore +18 AI recommendations' : 'Explorar recomendaciones +18 con IA'}
-                aria-label={lang === 'en' ? 'Go to +18 AI recommendations' : 'Ir a recomendaciones +18 con IA'}
+                title={t.exploreAdultAi}
+                aria-label={t.exploreAdultAiAria}
               >
                 <IconFlame size={13} stroke={2.5} />
                 +18
@@ -896,7 +899,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
             {/* SEO: H1 es el título del manhwa */}
             <h1 className={styles.title}>
               {effectiveSeries?.title || series?.title}
-              <span className={styles.srOnly}>{lang === 'en' ? ' - Read Manhwa in English' : ' - Leer Manhwa en Español'}</span>
+              <span className={styles.srOnly}>{t.readManhwaSuffix}</span>
             </h1>
 
             {(effectiveSeries?.originalTitle || series?.originalTitle) && (
@@ -930,8 +933,8 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   <Link
                     href={nsfwIaHref}
                     className={`${styles.hotBadgeMeta} ${styles.heroMetaItem}`}
-                    title={lang === 'en' ? 'Explore +18 AI recommendations' : 'Explorar recomendaciones +18 con IA'}
-                    aria-label={lang === 'en' ? 'Go to +18 AI recommendations' : 'Ir a recomendaciones +18 con IA'}
+                    title={t.exploreAdultAi}
+                    aria-label={t.exploreAdultAiAria}
                   >
                     <IconFlame size={14} stroke={2.5} />
                     +18
@@ -951,8 +954,8 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                       / <span>5</span>{' '}
                       (<span>{parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10)}</span>{' '}
                       {parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10) === 1
-                        ? (lang === 'en' ? 'vote' : 'voto')
-                        : (lang === 'en' ? 'votes' : 'votos')})
+                        ? t.vote
+                        : t.votes})
                     </span>
                   </span>
                 )}
@@ -990,7 +993,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                       {(effectiveSeries?.genres || series?.genres).map((genre, index) => {
                         const genreName = typeof genre === 'string'
                           ? genre
-                          : genre?.name || genre?.label || (lang === 'en' ? `Genre ${index + 1}` : `Género ${index + 1}`);
+                          : genre?.name || genre?.label || t.genreFallback.replace('{n}', index + 1);
                         const genreSlug = genreName.toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                         return (
                           <MantineBadge
@@ -1037,7 +1040,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
               className={styles.iaSimilarChip}
             >
               <IconSparkles size={14} />
-              {lang === 'en' ? 'Find similar with AI' : 'Buscar similares con IA'}
+              {t.findSimilarAi}
             </Link>
 
             {manhwaReadersCount > 0 && (
@@ -1046,7 +1049,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   <Avatar.Group spacing="sm">
                     {manhwaReaders.slice(0, 5).map((r, i) => {
                       const uniqueKey = r.userId || r.username || `reader-${i}`;
-                      const displayName = r.displayName || r.username || (lang === 'en' ? 'User' : 'Usuario');
+                      const displayName = r.displayName || r.username || t.user;
 
                       return (
                         <Avatar
@@ -1122,18 +1125,21 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
         VISIBLE en la página para cumplir las directrices de Google sobre Speakable.
       */}
       <p id="estado-publicacion" className={styles.speakableStatus}>
-        {series.status === 'completed'
-          ? (lang === 'en'
-            ? `The series ${effectiveSeries?.title || series?.title} is completed. You can read all available chapters now.`
-            : `La obra ${effectiveSeries?.title || series?.title} está completada. Puedes leer todos los capítulos disponibles sin esperas.`)
-          : series.status === 'paused'
-            ? (lang === 'en'
-              ? `The series ${effectiveSeries?.title || series?.title} is currently paused. Right now it has ${series.chapters?.length || 0} chapters available to read.`
-              : `La obra ${effectiveSeries?.title || series?.title} está actualmente pausada. Actualmente cuenta con ${series.chapters?.length || 0} capítulos disponibles para leer.`)
-            : (lang === 'en'
-              ? `The series ${effectiveSeries?.title || series?.title} is currently ongoing. The latest published chapter is chapter ${series.chapters?.reduce((max, c) => Math.max(max, Number(c.number)), 0) || '?'} and it updates regularly.`
-              : `La obra ${effectiveSeries?.title || series?.title} se encuentra en emisión activa. El último capítulo publicado es el capítulo ${series.chapters?.reduce((max, c) => Math.max(max, Number(c.number)), 0) || '?'} y se actualiza regularmente.`)
-        }
+        {(() => {
+          const title = effectiveSeries?.title || series?.title;
+          if (series.status === 'completed') {
+            return t.seriesCompletedLong.replace('{title}', title);
+          }
+          if (series.status === 'paused') {
+            return t.seriesPausedLong
+              .replace('{title}', title)
+              .replace('{count}', series.chapters?.length || 0);
+          }
+          const latest = series.chapters?.reduce((max, c) => Math.max(max, Number(c.number)), 0) || '?';
+          return t.seriesOngoingLong
+            .replace('{title}', title)
+            .replace('{latest}', latest);
+        })()}
       </p>
 
       {/* ================================================================== */}
@@ -1181,31 +1187,30 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
           }
           if (diffs.length) {
             const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
-            if (avg <= 3) frequencyLabel = lang === 'en' ? 'Several per week' : 'Varios por semana';
-            else if (avg <= 8) frequencyLabel = lang === 'en' ? 'Weekly' : 'Semanal';
-            else if (avg <= 18) frequencyLabel = lang === 'en' ? 'Biweekly' : 'Quincenal';
-            else if (avg <= 35) frequencyLabel = lang === 'en' ? 'Monthly' : 'Mensual';
-            else frequencyLabel = 'Irregular';
+            if (avg <= 3) frequencyLabel = t.severalPerWeek;
+            else if (avg <= 8) frequencyLabel = t.weekly;
+            else if (avg <= 18) frequencyLabel = t.biweekly;
+            else if (avg <= 35) frequencyLabel = t.monthly;
+            else frequencyLabel = t.irregular;
           }
         }
 
         // Estado de publicación legible
         const statusLabel = series.status === 'completed'
-          ? (lang === 'en' ? 'Completed' : 'Completada')
+          ? t.statusCompleted
           : series.status === 'paused'
-            ? (lang === 'en' ? 'Paused' : 'Pausada')
-            : (lang === 'en' ? 'Ongoing' : 'En emisión activa');
+            ? t.statusPaused
+            : t.statusOngoing;
 
         // JSON-LD ItemList para la IA (inyectado como script)
         const jsonLd = {
           '@context': 'https://schema.org',
           '@type': 'ItemList',
-          name: lang === 'en'
-            ? `Chapter history for ${effectiveSeries?.title || series?.title}`
-            : `Historial de capítulos de ${effectiveSeries?.title || series?.title}`,
-          description: lang === 'en'
-            ? `List of chapters available on Manhwa Imperial. Latest chapter: ${latestNum}. Status: ${statusLabel}. Update frequency: ${frequencyLabel}.`
-            : `Lista de capítulos disponibles en Manhwa Imperial. Último capítulo: ${latestNum}. Estado: ${statusLabel}. Frecuencia de actualización: ${frequencyLabel}.`,
+          name: t.chapterHistoryName.replace('{title}', effectiveSeries?.title || series?.title),
+          description: t.chapterHistoryDesc
+            .replace('{latest}', latestNum)
+            .replace('{status}', statusLabel)
+            .replace('{freq}', frequencyLabel),
           numberOfItems: series.chapters.length,
           itemListElement: series.chapters
             .sort((a, b) => parseFloat(b.number) - parseFloat(a.number))
@@ -1213,7 +1218,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
             .map((ch, idx) => ({
               '@type': 'ListItem',
               position: idx + 1,
-              name: `${lang === 'en' ? 'Chapter' : 'Capítulo'} ${ch.number}`,
+              name: `${t.chapter} ${ch.number}`,
               url: `https://manhwaimperial.com${lang === 'en' ? '/en' : ''}/manhwa/${slug}/${chapterSegment}/${ch.number}`,
             })),
         };
@@ -1242,7 +1247,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
             className={`${styles.tab} ${activeTab === 'chapters' ? styles.tabActive : ''}`}
             onClick={() => setActiveTab('chapters')}
           >
-            <IconBook size={18} /> {lang === 'en' ? 'Chapters' : 'Capítulos'}
+            <IconBook size={18} /> {t.chaptersTab}
             {series.chapters?.length > 0 && (
               <span className={styles.tabBadge}>{series.chapters.length}</span>
             )}
@@ -1251,7 +1256,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
             className={`${styles.tab} ${activeTab === 'informacion' ? styles.tabActive : ''}`}
             onClick={() => setActiveTab('informacion')}
           >
-            <IconInfoCircle size={18} /> {lang === 'en' ? 'Information' : 'Informacion'}
+            <IconInfoCircle size={18} /> {t.information}
             {series.commentCount > 0 && (
               <span className={styles.tabBadge}>{series.commentCount}</span>
             )}
@@ -1279,7 +1284,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   <IconSearch size={16} />
                   <input
                     type="text"
-                    placeholder={lang === 'en' ? 'Search chapter...' : 'Buscar capítulo...'}
+                    placeholder={t.searchChapter}
                     value={chapterSearch}
                     onChange={(e) => setChapterSearch(e.target.value)}
                     className={styles.searchInput}
@@ -1290,10 +1295,10 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   <button
                     className={`${styles.filterButton} ${showChapterFilters ? styles.filterButtonActive : ''}`}
                     onClick={() => setShowChapterFilters(!showChapterFilters)}
-                    title={lang === 'en' ? 'Filter chapters' : 'Filtrar capítulos'}
+                    title={t.filterChapters}
                   >
                     <IconFilter size={18} />
-                    <span className={styles.filterLabel}>{lang === 'en' ? 'Filters' : 'Filtros'}</span>
+                    <span className={styles.filterLabel}>{t.filters}</span>
                     {chapterFilter !== 'all' && <div className={styles.filterBadge} />}
                   </button>
 
@@ -1301,20 +1306,20 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   {showChapterFilters && (
                     <div className={styles.filterDropdown}>
                       <div className={styles.filterSection}>
-                        <h4>{lang === 'en' ? 'Sort by' : 'Ordenar por'}</h4>
+                        <h4>{t.sortBy}</h4>
                         <div className={styles.filterOptions}>
                           <button
                             className={`${styles.filterOption} ${chapterSort === 'newest' ? styles.optionActive : ''}`}
                             onClick={() => setChapterSort('newest')}
                           >
-                            <span>{lang === 'en' ? 'Newest' : 'Más recientes'}</span>
+                            <span>{t.newest}</span>
                             {chapterSort === 'newest' && <IconCheck size={14} />}
                           </button>
                           <button
                             className={`${styles.filterOption} ${chapterSort === 'oldest' ? styles.optionActive : ''}`}
                             onClick={() => setChapterSort('oldest')}
                           >
-                            <span>{lang === 'en' ? 'Oldest' : 'Más antiguos'}</span>
+                            <span>{t.oldest}</span>
                             {chapterSort === 'oldest' && <IconCheck size={14} />}
                           </button>
                         </div>
@@ -1323,27 +1328,27 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                       <div className={styles.filterDivider} />
 
                       <div className={styles.filterSection}>
-                        <h4>{lang === 'en' ? 'Status' : 'Estado'}</h4>
+                        <h4>{t.statusLabel}</h4>
                         <div className={styles.filterOptions}>
                           <button
                             className={`${styles.filterOption} ${chapterFilter === 'all' ? styles.optionActive : ''}`}
                             onClick={() => setChapterFilter('all')}
                           >
-                            <span>{lang === 'en' ? 'All' : 'Todos'}</span>
+                            <span>{t.all}</span>
                             {chapterFilter === 'all' && <IconCheck size={14} />}
                           </button>
                           <button
                             className={`${styles.filterOption} ${chapterFilter === 'read' ? styles.optionActive : ''}`}
                             onClick={() => setChapterFilter('read')}
                           >
-                            <span>{lang === 'en' ? 'Read' : 'Leídos'}</span>
+                            <span>{t.read}</span>
                             {chapterFilter === 'read' && <IconCheck size={14} />}
                           </button>
                           <button
                             className={`${styles.filterOption} ${chapterFilter === 'unread' ? styles.optionActive : ''}`}
                             onClick={() => setChapterFilter('unread')}
                           >
-                            <span>{lang === 'en' ? 'Unread' : 'No leídos'}</span>
+                            <span>{t.unread}</span>
                             {chapterFilter === 'unread' && <IconCheck size={14} />}
                           </button>
                         </div>
@@ -1386,8 +1391,8 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                 <IconBook size={48} className={styles.emptyIcon} />
                 <p>
                   {chapterSearch
-                    ? (lang === 'en' ? 'No chapters found for that search.' : 'No se encontraron capítulos con esa búsqueda.')
-                    : (lang === 'en' ? 'No chapters available yet.' : 'No hay capítulos disponibles aún.')}
+                    ? t.noChaptersSearch
+                    : t.noChaptersAvail}
                 </p>
               </div>
             )}
@@ -1399,18 +1404,18 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
           <div className={styles.informacionTab}>
             {(() => {
               const statusLabel = series.status === 'completed'
-                ? (lang === 'en' ? 'Completed' : 'Completada')
+                ? t.statusCompleted
                 : series.status === 'paused'
-                  ? (lang === 'en' ? 'Paused' : 'Pausada')
-                  : (lang === 'en' ? 'Ongoing' : 'En emisión activa');
+                  ? t.statusPaused
+                  : t.statusOngoing;
               const statusBadgeClass = `${styles.updateStatusBadge} ${series.status === 'completed' ? styles.updateStatusCompleted
                 : series.status === 'paused' ? styles.updateStatusPaused
                   : styles.updateStatusOngoing
                 }`;
 
               let latestChapter = null, latestNum = null;
-              let latestDateLabel = lang === 'en' ? 'Date not available' : 'Fecha no disponible', latestDateISO = null;
-              let frequencyLabel = lang === 'en' ? 'Irregular' : 'Irregular', estimatedFrequencyDays = null;
+              let latestDateLabel = t.dateNotAvailable, latestDateISO = null;
+              let frequencyLabel = t.irregular, estimatedFrequencyDays = null;
               let nextChapterLabel = '—';
 
               if (series?.chapters?.length) {
@@ -1427,13 +1432,14 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                     if (!isNaN(d.getTime())) {
                       latestDateISO = d.toISOString();
                       const diffDays = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-                      if (diffDays === 0) latestDateLabel = lang === 'en' ? 'Today' : 'Hoy';
-                      else if (diffDays === 1) latestDateLabel = lang === 'en' ? '1 day ago' : 'Hace 1 día';
-                      else if (diffDays < 7) latestDateLabel = lang === 'en' ? `${diffDays} days ago` : `Hace ${diffDays} días`;
-                      else if (diffDays < 30) latestDateLabel = lang === 'en'
-                        ? `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? 's' : ''} ago`
-                        : `Hace ${Math.floor(diffDays / 7)} semana${Math.floor(diffDays / 7) > 1 ? 's' : ''}`;
-                      else latestDateLabel = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+                      if (diffDays === 0) latestDateLabel = t.today;
+                      else if (diffDays === 1) latestDateLabel = t.dayAgo;
+                      else if (diffDays < 7) latestDateLabel = t.daysAgo.replace('{n}', diffDays);
+                      else if (diffDays < 30) {
+                        const weeks = Math.floor(diffDays / 7);
+                        latestDateLabel = weeks === 1 ? t.weekAgo : t.weeksAgo.replace('{n}', weeks);
+                      }
+                      else latestDateLabel = d.toLocaleDateString(lang === 'en' ? 'en-US' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
                     }
                   } catch { /* sin fecha */ }
                 }
@@ -1454,11 +1460,11 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   if (diffs.length) {
                     const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
                     estimatedFrequencyDays = Math.round(avg);
-                    if (avg <= 3) frequencyLabel = lang === 'en' ? 'Several per week' : 'Varios por semana';
-                    else if (avg <= 8) frequencyLabel = lang === 'en' ? 'Weekly' : 'Semanal';
-                    else if (avg <= 18) frequencyLabel = lang === 'en' ? 'Biweekly' : 'Quincenal';
-                    else if (avg <= 35) frequencyLabel = lang === 'en' ? 'Monthly' : 'Mensual';
-                    else frequencyLabel = 'Irregular';
+                    if (avg <= 3) frequencyLabel = t.severalPerWeek;
+                    else if (avg <= 8) frequencyLabel = t.weekly;
+                    else if (avg <= 18) frequencyLabel = t.biweekly;
+                    else if (avg <= 35) frequencyLabel = t.monthly;
+                    else frequencyLabel = t.irregular;
                   }
                 }
 
@@ -1467,40 +1473,40 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   nextDate.setDate(nextDate.getDate() + estimatedFrequencyDays);
                   const nextChapterNum = latestNum + 1;
                   const diffToNext = Math.round((nextDate - Date.now()) / (1000 * 60 * 60 * 24));
-                  if (diffToNext <= 0) nextChapterLabel = lang === 'en' ? `Ch. ${nextChapterNum} — Soon` : `Cap. ${nextChapterNum} — Pronto`;
-                  else if (diffToNext === 1) nextChapterLabel = lang === 'en' ? `Ch. ${nextChapterNum} — Tomorrow` : `Cap. ${nextChapterNum} — Mañana`;
-                  else nextChapterLabel = lang === 'en' ? `Ch. ${nextChapterNum} — In ${diffToNext} days` : `Cap. ${nextChapterNum} — En ${diffToNext} días`;
+                  if (diffToNext <= 0) nextChapterLabel = t.chSoon.replace('{n}', nextChapterNum);
+                  else if (diffToNext === 1) nextChapterLabel = t.chTomorrow.replace('{n}', nextChapterNum);
+                  else nextChapterLabel = t.chInDays.replace('{n}', nextChapterNum).replace('{d}', diffToNext);
                 } else if (series.status === 'completed') {
-                  nextChapterLabel = lang === 'en' ? 'Series completed' : 'Obra completada';
+                  nextChapterLabel = t.seriesCompletedShort;
                 }
               }
 
               return (
                 <section
                   className={styles.updateStatusSection}
-                  aria-label={lang === 'en' ? 'Series update status' : 'Estado de actualización de la obra'}
+                  aria-label={t.seriesUpdateStatus}
                 >
                   <h3 className={styles.updateStatusTitle}>
                     <IconCalendar size={18} aria-hidden="true" />
-                    {lang === 'en' ? 'Current Publishing Status' : 'Estado Actual de Publicación'}
+                    {t.currentPublishingStatus}
                   </h3>
 
                   <p className={styles.updateStatusIntro}>
-                    {lang === 'en'
-                      ? <>Check the current status of <strong>{effectiveSeries?.title || series?.title}</strong> based on real chapter history from our database.</>
-                      : <>Consulta el estado actualizado de <strong>{effectiveSeries?.title || series?.title}</strong> basado en el historial real de capítulos de nuestra base de datos.</>}
+                    {t.statusIntroBefore}
+                    <strong>{effectiveSeries?.title || series?.title}</strong>
+                    {t.statusIntroAfter}
                   </p>
 
                   {/* Stats grid: Estado, Vistas, Puntuación, Frecuencia, Badges */}
                   <div className={styles.infoStatsGrid}>
                     <div className={styles.infoStatCard}>
-                      <span className={styles.infoStatLabel}>{lang === 'en' ? 'Status' : 'Estado'}</span>
+                      <span className={styles.infoStatLabel}>{t.statusLabel}</span>
                       <span className={statusBadgeClass}>{statusLabel}</span>
                     </div>
 
                     {series.views > 0 && (
                       <div className={styles.infoStatCard}>
-                        <span className={styles.infoStatLabel}>{lang === 'en' ? 'Views' : 'Vistas'}</span>
+                        <span className={styles.infoStatLabel}>{t.viewsLabel}</span>
                         <span className={styles.infoStatValue}>
                           <IconEye size={15} />
                           {series.views > 1000 ? `${(series.views / 1000).toFixed(0)}K` : series.views}
@@ -1509,17 +1515,17 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                     )}
 
                     <div className={styles.infoStatCard}>
-                      <span className={styles.infoStatLabel}>{lang === 'en' ? 'Rating' : 'Puntuación'}</span>
+                      <span className={styles.infoStatLabel}>{t.ratingLabel}</span>
                       <span className={styles.infoStatValue}>
                         <IconStar size={15} className={styles.starIcon} />
                         {(parseFloat(series.rating || 0) / 2).toFixed(1)} / 5
-                        <span className={styles.infoStatSub}>({series.ratingCount || 0} {series.ratingCount === 1 ? (lang === 'en' ? 'vote' : 'voto') : (lang === 'en' ? 'votes' : 'votos')})</span>
+                        <span className={styles.infoStatSub}>({series.ratingCount || 0} {series.ratingCount === 1 ? t.vote : t.votes})</span>
                       </span>
                     </div>
 
                     {series?.chapters?.length > 0 && (
                       <div className={styles.infoStatCard}>
-                        <span className={styles.infoStatLabel}>{lang === 'en' ? 'Frequency' : 'Frecuencia'}</span>
+                        <span className={styles.infoStatLabel}>{t.frequencyLabel}</span>
                         <span className={styles.infoStatValue}>{frequencyLabel}</span>
                       </div>
                     )}
@@ -1625,33 +1631,33 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                         <table className={styles.updateStatusTable}>
                           <thead>
                             <tr>
-                              <th scope="col">{lang === 'en' ? 'Latest Chapter' : 'Último Capítulo'}</th>
-                              <th scope="col">{lang === 'en' ? 'Published' : 'Publicación'}</th>
-                              <th scope="col">{lang === 'en' ? 'Total' : 'Total'}</th>
-                              {series.status !== 'completed' && <th scope="col">{lang === 'en' ? 'Next Estimate' : 'Próximo Estimado'}</th>}
+                              <th scope="col">{t.latestChapterCol}</th>
+                              <th scope="col">{t.publishedCol}</th>
+                              <th scope="col">{t.totalCol}</th>
+                              {series.status !== 'completed' && <th scope="col">{t.nextEstimateCol}</th>}
                             </tr>
                           </thead>
                           <tbody>
                             <tr>
-                              <td data-label={lang === 'en' ? 'Latest Chapter' : 'Último Capítulo'}>
+                              <td data-label={t.latestChapterCol}>
                                 <Link
                                   href={`${basePath}/${slug}/${chapterSegment}/${latestNum}`}
                                   className={styles.updateStatusChapterLink}
                                 >
-                                  {lang === 'en' ? 'Chapter' : 'Capítulo'} {latestNum}
+                                  {t.chapter} {latestNum}
                                 </Link>
                               </td>
-                              <td data-label="Publicación">
+                              <td data-label={t.publishedCol}>
                                 {latestDateISO
                                   ? <time dateTime={latestDateISO}>{latestDateLabel}</time>
                                   : latestDateLabel
                                 }
                               </td>
-                              <td data-label="Total">
-                                <strong>{series.chapters.length}</strong> {lang === 'en' ? 'ch.' : 'caps.'}
+                              <td data-label={t.totalCol}>
+                                <strong>{series.chapters.length}</strong> {t.chaptersShortDot}
                               </td>
                               {series.status !== 'completed' && (
-                                <td data-label="Próximo">{nextChapterLabel}</td>
+                                <td data-label={t.nextEstimateCol}>{nextChapterLabel}</td>
                               )}
                             </tr>
                           </tbody>
@@ -1659,13 +1665,11 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                       </div>
 
                       <p className={styles.updateStatusNote}>
-                        {series.status !== 'completed'
-                          ? (lang === 'en' ? 'Data is updated automatically with each new translation.' : 'Datos actualizados automáticamente con cada nueva traducción.')
-                          : (lang === 'en' ? 'This series is complete. All chapters are available.' : 'Esta obra está completa. Todos los capítulos están disponibles.')}
+                        {series.status !== 'completed' ? t.dataAutoUpdated : t.thisSeriesComplete}
                       </p>
                     </>
                   ) : (
-                    <p className={styles.updateStatusNote}>{lang === 'en' ? 'No chapters available yet.' : 'No hay capítulos disponibles aún.'}</p>
+                    <p className={styles.updateStatusNote}>{t.noChaptersAvail}</p>
                   )}
                 </section>
               );
@@ -1724,8 +1728,8 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
             <IconPlayerPlay size={18} fill="currentColor" />
             <span className={styles.mobileReadLinkText}>
               {user && hasProgress && lastReadChapter
-                ? (lang === 'en' ? `Continue · Ch. ${lastReadChapter}` : `Continuar · Cap. ${lastReadChapter}`)
-                : (lang === 'en' ? 'Start Reading' : 'Empezar a Leer')}
+                ? t.continueCh.replace('{n}', lastReadChapter)
+                : t.startReading}
             </span>
             {user && hasProgress && progressPercent > 0 && (
               <span className={styles.mobileReadBadge}>
