@@ -762,6 +762,40 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     ? normalizeImageUrl(heroSeries.cover || heroSeries.coverUrl || heroSeries.cover_url || heroSeries.coverUrlWeb || heroSeries.cover_url_web) || ''
     : ''
 
+  const pickAiCardCover = useCallback((items = [], seed = '') => {
+    const covers = (Array.isArray(items) ? items : [])
+      .map((item) => normalizeImageUrl(
+        item?.cover ||
+        item?.coverUrl ||
+        item?.cover_url ||
+        item?.coverUrlWeb ||
+        item?.cover_url_web ||
+        ''
+      ))
+      .filter(Boolean)
+
+    if (covers.length === 0) return ''
+
+    const key = String(seed || '')
+    let hash = 0
+    for (let i = 0; i < key.length; i++) {
+      hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0
+    }
+
+    const index = Math.abs(hash) % covers.length
+    return covers[index]
+  }, [])
+
+  const aiDailySeed = new Date().toISOString().slice(0, 10)
+
+  const smartRecommendationQuerySlug = slugifyQuery(
+    smartRecommendation.aiQuery || `manhwas similares a ${smartRecommendation.sourceTitle}`
+  )
+  const smartRecommendationCardCover = pickAiCardCover(
+    smartRecommendation.items,
+    `${aiDailySeed}-${smartRecommendationQuerySlug || smartRecommendation.sourceTitle}`
+  )
+
   // Mostrar skeleton mientras se cargan los datos (solo si no hubo datos SSR)
   if (loading && series.length === 0) {
     return (
@@ -1079,6 +1113,10 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
               const rowTitle = String(row?.title || '').trim()
               const rowSubtitle = String(row?.subtitle || '').trim()
               const rowSeries = filterAvailableSeries(Array.isArray(row?.series) ? row.series : [])
+              const rowCardCover = pickAiCardCover(
+                rowSeries,
+                `${aiDailySeed}-${querySlug || rowQuery || String(rowIdx)}`
+              )
 
               if (!rowTitle || rowSeries.length === 0) return null
 
@@ -1133,10 +1171,17 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         href={getLocalizedPath(`/busqueda-ia/${querySlug}`, lang)}
                         className={`${styles.queryItem} ${styles.aiMoreItem}`}
                       >
-                        <div className={`${styles.popularCard} ${styles.aiMoreCard}`}>
-                          <span className={styles.aiMoreBadge}>IA</span>
-                          <p className={styles.aiMoreTitle}>{t.home.seeFullAiList}</p>
-                          <p className={styles.aiMoreSubtitle}>Ver todo</p>
+                        <div
+                          className={`${styles.popularCard} ${styles.aiMoreCard}`}
+                          style={rowCardCover ? { '--ai-more-bg': `url(${rowCardCover})` } : undefined}
+                        >
+                          <span className={styles.aiMoreIconWrap} aria-hidden="true">
+                            <svg className={styles.aiMoreIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 3l1.9 5.8a2 2 0 001.3 1.3L21 12l-5.8 1.9a2 2 0 00-1.3 1.3L12 21l-1.9-5.8a2 2 0 00-1.3-1.3L3 12l5.8-1.9a2 2 0 001.3-1.3L12 3z" />
+                            </svg>
+                          </span>
+                          <span className={styles.aiMoreBadge}>IA Imperial</span>
+                          <p className={styles.aiMoreMicro}>Ver todo</p>
                         </div>
                       </Link>
                     )}
@@ -1191,13 +1236,20 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   </Link>
                 ))}
                 <Link
-                  href={getLocalizedPath(`/busqueda-ia/${slugifyQuery(smartRecommendation.aiQuery || `manhwas similares a ${smartRecommendation.sourceTitle}`)}`, lang)}
+                  href={getLocalizedPath(`/busqueda-ia/${smartRecommendationQuerySlug}`, lang)}
                   className={`${styles.queryItem} ${styles.aiMoreItem}`}
                 >
-                  <div className={`${styles.popularCard} ${styles.aiMoreCard}`}>
-                    <span className={styles.aiMoreBadge}>IA</span>
-                    <p className={styles.aiMoreTitle}>{t.home.viewAiResults}</p>
-                    <p className={styles.aiMoreSubtitle}>Ver todo</p>
+                  <div
+                    className={`${styles.popularCard} ${styles.aiMoreCard}`}
+                    style={smartRecommendationCardCover ? { '--ai-more-bg': `url(${smartRecommendationCardCover})` } : undefined}
+                  >
+                    <span className={styles.aiMoreIconWrap} aria-hidden="true">
+                      <svg className={styles.aiMoreIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3l1.9 5.8a2 2 0 001.3 1.3L21 12l-5.8 1.9a2 2 0 00-1.3 1.3L12 21l-1.9-5.8a2 2 0 00-1.3-1.3L3 12l5.8-1.9a2 2 0 001.3-1.3L12 3z" />
+                      </svg>
+                    </span>
+                    <span className={styles.aiMoreBadge}>IA Imperial</span>
+                    <p className={styles.aiMoreMicro}>Ver todo</p>
                   </div>
                 </Link>
               </div>
@@ -1235,6 +1287,11 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
             {popularCategories.map((cat, catIdx) => {
               const slug = slugifyQuery(cat.query);
+              const catSeries = (cat.series || []).filter(s => !isAdultSeries(s));
+              const catCardCover = pickAiCardCover(
+                catSeries,
+                `${aiDailySeed}-${slug || cat.query || String(catIdx)}`
+              );
               return (
                 <div key={cat.query} className={styles.queryRow}>
                   <div className={styles.queryHeader}>
@@ -1245,7 +1302,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     </Link>
                   </div>
                   <div className={styles.queryScroll}>
-                    {(cat.series || []).filter(s => !isAdultSeries(s)).map((item, i) => (
+                    {catSeries.map((item, i) => (
                       <Link
                         href={getLocalizedPath(`/manhwa/${item.slug}`, lang)}
                         key={item.id || item.slug}
@@ -1273,6 +1330,23 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         </div>
                       </Link>
                     ))}
+                    <Link
+                      href={getLocalizedPath(`/busqueda-ia/${slug}`, lang)}
+                      className={`${styles.queryItem} ${styles.aiMoreItem}`}
+                    >
+                      <div
+                        className={`${styles.popularCard} ${styles.aiMoreCard}`}
+                        style={catCardCover ? { '--ai-more-bg': `url(${catCardCover})` } : undefined}
+                      >
+                        <span className={styles.aiMoreIconWrap} aria-hidden="true">
+                          <svg className={styles.aiMoreIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 3l1.9 5.8a2 2 0 001.3 1.3L21 12l-5.8 1.9a2 2 0 00-1.3 1.3L12 21l-1.9-5.8a2 2 0 00-1.3-1.3L3 12l5.8-1.9a2 2 0 001.3-1.3L12 3z" />
+                          </svg>
+                        </span>
+                        <span className={styles.aiMoreBadge}>IA Imperial</span>
+                        <p className={styles.aiMoreMicro}>Ver todo</p>
+                      </div>
+                    </Link>
                   </div>
                 </div>
               );

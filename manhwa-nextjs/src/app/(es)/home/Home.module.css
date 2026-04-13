@@ -951,6 +951,156 @@
   display: block;
 }
 
+.aiMoreItem .popularCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.62rem;
+  padding: 0.95rem 0.75rem 0.9rem;
+  background: var(--card-bg-solid);
+  border: 1px solid var(--border-subtle);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.aiMoreCard {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.aiMoreCard::before {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  background-image: var(--ai-more-bg);
+  background-size: cover;
+  background-position: center;
+  filter: blur(6px) saturate(1.15) brightness(0.55);
+  transform: scale(1.2);
+  opacity: 0.72;
+  z-index: 0;
+}
+
+.aiMoreCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(9, 12, 20, 0.38) 0%, rgba(9, 12, 20, 0.6) 55%, rgba(9, 12, 20, 0.72) 100%),
+    radial-gradient(ellipse at center, rgba(var(--imperial-gold-rgb), 0.14), transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.aiMoreIconWrap {
+  width: 2.15rem;
+  height: 2.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--imperial-gold);
+  position: relative;
+  z-index: 2;
+  margin-top: 0.2rem;
+}
+
+.aiMoreIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  animation: aiMoreSparkle 1.8s ease-in-out infinite;
+}
+
+@keyframes aiMoreSparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+  50% { transform: scale(1.15) rotate(15deg); opacity: 1; }
+}
+
+.aiMoreBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.25rem;
+  height: 1.35rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  background: rgba(var(--imperial-gold-rgb), 0.18);
+  border: 1px solid rgba(var(--imperial-gold-rgb), 0.35);
+  position: relative;
+  z-index: 2;
+  margin-top: 0.08rem;
+}
+
+.aiMoreTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--text-primary);
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+}
+
+.aiMoreMicro {
+  margin: 0.68rem 0 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+:global([data-theme="light"]) .aiMoreItem .popularCard,
+:global([data-mantine-color-scheme="light"]) .aiMoreItem .popularCard {
+  background: var(--card-bg-solid);
+  border-color: var(--border-medium);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 0 rgba(var(--imperial-primary-rgb, 99, 102, 241), 0.06);
+}
+
+:global([data-theme="light"]) .aiMoreCard::before,
+:global([data-mantine-color-scheme="light"]) .aiMoreCard::before {
+  filter: blur(5px) saturate(1.2) brightness(0.9);
+  opacity: 0.5;
+}
+
+:global([data-theme="light"]) .aiMoreCard::after,
+:global([data-mantine-color-scheme="light"]) .aiMoreCard::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.56) 55%, rgba(255, 255, 255, 0.68) 100%),
+    radial-gradient(ellipse at center, rgba(var(--imperial-primary-rgb, 99, 102, 241), 0.1), transparent 72%);
+}
+
+:global([data-theme="light"]) .aiMoreBadge,
+:global([data-mantine-color-scheme="light"]) .aiMoreBadge {
+  background: rgba(var(--imperial-primary-rgb, 99, 102, 241), 0.1);
+  border-color: rgba(var(--imperial-primary-rgb, 99, 102, 241), 0.24);
+  color: var(--text-primary);
+}
+
+:global([data-theme="light"]) .aiMoreTitle,
+:global([data-mantine-color-scheme="light"]) .aiMoreTitle {
+  color: var(--text-primary);
+  text-shadow: 0 1px 6px rgba(255, 255, 255, 0.55);
+}
+
+:global([data-theme="light"]) .aiMoreMicro,
+:global([data-mantine-color-scheme="light"]) .aiMoreMicro {
+  color: var(--text-secondary);
+}
+
 /* Título dentro de la card — ajustar para cards más pequeñas */
 .queryItem .titleLink {
   font-size: 0.8rem;
@@ -998,6 +1148,13 @@
   .queryItem:hover .titleLink {
     color: #D4AF37;
   }
+
+  .aiMoreItem:hover .popularCard {
+    border-color: var(--border-medium);
+    box-shadow:
+      var(--shadow-imperial-hover),
+      0 0 0 1px rgba(var(--imperial-primary-rgb, 99, 102, 241), 0.18);
+  }
 }
 
 /* ============================================================================
@@ -1018,12 +1175,21 @@
     padding: 24px 6px 6px;
   }
 
-  .queryRow {
-    margin-bottom: 1.5rem;
-  }
-
   .queryName {
     font-size: 0.95rem;
+  }
+
+  .aiMoreIconWrap {
+    width: 2.1rem;
+    height: 2.1rem;
+  }
+
+  .aiMoreTitle {
+    font-size: 0.82rem;
+  }
+
+  .aiMoreMicro {
+    font-size: 0.58rem;
   }
 }
 
@@ -1046,6 +1212,15 @@
     font-size: 0.5rem;
     padding: 0.15rem 0.3rem;
     top: 4px;
+  }
+
+  .aiMoreBadge {
+    min-width: 4.8rem;
+    font-size: 0.56rem;
+  }
+
+  .aiMoreTitle {
+    font-size: 0.74rem;
   }
 
   .queryRow {
