@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   IconClock,
   IconTrendingUp,
-  IconSparkles,
   IconRefresh,
 } from '@tabler/icons-react';
 import { PremiumSkeletonGrid } from '@/components/PremiumSkeleton';
@@ -254,6 +254,8 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const [personalizedRows, setPersonalizedRows] = useState([])
   const [personalizedLoading, setPersonalizedLoading] = useState(true)
   const [persistentFeedbackByQuery, setPersistentFeedbackByQuery] = useState({})
+  const [heroIndex, setHeroIndex] = useState(0)
+  const [heroDir, setHeroDir] = useState(1)
   const { user } = useAuth()
   const seenCarouselImpressionsRef = useRef(new Set())
   const seenCarouselItemImpressionsRef = useRef(new Set())
@@ -704,6 +706,62 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     }
   }, [])
 
+  const router = useRouter()
+  const heroTouchStartX = useRef(null)
+
+  // Pool real de series (9) + 1 slide de Sorpréndeme al final
+  const realHeroPool = filterAvailableSeries(series).filter(s => s.slug && s.title).slice(0, 9)
+  const heroTotal = realHeroPool.length > 0 ? realHeroPool.length + 1 : 0
+  const isSurpriseSlide = heroTotal > 0 && heroIndex === realHeroPool.length
+
+  const heroGoTo = useCallback((idx, dir = 1) => {
+    setHeroDir(dir)
+    setHeroIndex(idx)
+  }, [])
+
+  const heroNext = useCallback(() => {
+    if (heroTotal < 2) return
+    heroGoTo((heroIndex + 1) % heroTotal, 1)
+  }, [heroIndex, heroTotal, heroGoTo])
+
+  const heroPrev = useCallback(() => {
+    if (heroTotal < 2) return
+    heroGoTo((heroIndex - 1 + heroTotal) % heroTotal, -1)
+  }, [heroIndex, heroTotal, heroGoTo])
+
+  const handleHeroTouchStart = useCallback((e) => {
+    heroTouchStartX.current = e.touches[0].clientX
+  }, [])
+
+  const handleHeroTouchEnd = useCallback((e) => {
+    if (heroTouchStartX.current === null) return
+    const delta = heroTouchStartX.current - e.changedTouches[0].clientX
+    heroTouchStartX.current = null
+    if (Math.abs(delta) < 40) return
+    if (delta > 0) heroNext(); else heroPrev()
+  }, [heroNext, heroPrev])
+
+  const handleSurprise = useCallback(() => {
+    const pool = filterAvailableSeries(series).filter(s => s.slug)
+    if (pool.length === 0) return
+    const pick = pool[Math.floor(Math.random() * pool.length)]
+    router.push(getLocalizedPath(`/manhwa/${pick.slug}`, lang))
+  }, [series, lang, router])
+
+  useEffect(() => {
+    if (heroTotal < 2) return
+    const interval = setInterval(() => {
+      setHeroDir(1)
+      setHeroIndex(prev => (prev + 1) % heroTotal)
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [heroTotal])
+
+  const heroSeries = isSurpriseSlide ? null : (realHeroPool[heroIndex] || null)
+  const heroCover = heroSeries
+    ? normalizeImageUrl(heroSeries.cover || heroSeries.coverUrl || heroSeries.cover_url || heroSeries.coverUrlWeb || heroSeries.cover_url_web) || ''
+    : ''
+
   // Mostrar skeleton mientras se cargan los datos (solo si no hubo datos SSR)
   if (loading && series.length === 0) {
     return (
@@ -746,16 +804,151 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
         <Header title={t.common.home} lang={lang} />
 
         {/* ================================================================== */}
-        {/* SEO: H1 PRINCIPAL - Keyword "Leer Manhwa en Español Online Gratis" */}
+        {/* HERO BANNER — Slides + Sorpréndeme integrado, swipe + flechas    */}
         {/* ================================================================== */}
-        <h1 className={styles.seoH1}>{t.home.h1}</h1>
+        {heroTotal > 0 && (
+          <div
+            className={styles.heroBanner}
+            onTouchStart={handleHeroTouchStart}
+            onTouchEnd={handleHeroTouchEnd}
+          >
+            {/* Línea de acento animada */}
+            <div className={styles.heroAccentLine} />
 
-        {/* ================================================================== */}
-        {/* SEO: PÁRRAFO INTRODUCTORIO CON KEYWORDS NATURALES */}
-        {/* ================================================================== */}
-        <p className={styles.seoIntro}>
-          {t.home.introText}
-        </p>
+            {/* Fondo dinámico — cambia con la serie activa */}
+            {heroCover && !isSurpriseSlide && (
+              <>
+                <div className={styles.heroBgBlur} style={{ backgroundImage: `url(${heroCover})` }} />
+                <div className={styles.heroBgGlow} style={{ backgroundImage: `url(${heroCover})` }} />
+                <div className={styles.heroBgSpot} style={{ backgroundImage: `url(${heroCover})` }} />
+              </>
+            )}
+            {isSurpriseSlide && <div className={styles.heroBgSurprise} />}
+            <div className={styles.heroDimLayer} />
+
+            {/* Flechas de navegación */}
+            {heroTotal > 1 && (
+              <>
+                <button className={`${styles.heroArrow} ${styles.heroArrowLeft}`} onClick={heroPrev} aria-label="Anterior">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <button className={`${styles.heroArrow} ${styles.heroArrowRight}`} onClick={heroNext} aria-label="Siguiente">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 6 15 12 9 18" />
+                  </svg>
+                </button>
+              </>
+            )}
+
+            {/* Contenido animado — key cambia en cada slide → CSS @keyframes se dispara */}
+            <div key={heroIndex} className={styles.heroContent} data-dir={heroDir}>
+
+              {isSurpriseSlide ? (
+                /* ── Slide de Sorpréndeme ──────────────────────────────── */
+                <>
+                  <div className={styles.heroInfo}>
+                    <div className={styles.heroTagRow}>
+                      <span className={`${styles.heroTag} ${styles.heroTagSurprise}`}>
+                        <span className={styles.heroTagIcon}>🎲</span>
+                        Ruleta
+                      </span>
+                    </div>
+                    <h2 className={styles.heroTitle}>¿No sabes qué leer?</h2>
+                    <p className={styles.heroSurpriseSubtitle}>El universo elige por ti — un manhwa al azar de toda la colección</p>
+                    <div className={styles.heroActions}>
+                      <button className={styles.heroBtn} onClick={handleSurprise}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="16 3 21 3 21 8"/>
+                          <line x1="4" y1="20" x2="21" y2="3"/>
+                          <polyline points="21 16 21 21 16 21"/>
+                          <line x1="15" y1="15" x2="21" y2="21"/>
+                        </svg>
+                        Sorpréndeme
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Portadas misterio apiladas */}
+                  <div className={styles.surpriseFan} aria-hidden="true">
+                    {filterAvailableSeries(series).slice(1, 4).map((s, i) => {
+                      const c = normalizeImageUrl(s.cover || s.coverUrl || s.cover_url || s.coverUrlWeb || s.cover_url_web) || ''
+                      return c ? (
+                        <div key={s.slug} className={styles.surpriseFanCard} style={{ '--fi': i }}>
+                          <ManhwaCover src={c} fallbackSrc={c} slug={s.slug} alt="" className={styles.heroCoverImg} sizes="120px" />
+                        </div>
+                      ) : null
+                    })}
+                    <div className={styles.surpriseFanMask} />
+                  </div>
+                </>
+              ) : (
+                /* ── Slide normal de serie ─────────────────────────────── */
+                <>
+                  <div className={styles.heroInfo}>
+                    <div className={styles.heroTagRow}>
+                      <span className={styles.heroTag}>
+                        <span className={styles.heroTagPulse} />
+                        Destacado
+                      </span>
+                      <span className={styles.heroCounter}>
+                        <span className={styles.heroCounterCurrent}>{String(heroIndex + 1).padStart(2, '0')}</span>
+                        {' / '}
+                        {String(heroTotal).padStart(2, '0')}
+                      </span>
+                    </div>
+                    <h2 className={styles.heroTitle}>{heroSeries.title}</h2>
+                    {Array.isArray(heroSeries.genres) && heroSeries.genres.length > 0 && (
+                      <div className={styles.heroGenres}>
+                        {heroSeries.genres.slice(0, 4).map((g) => {
+                          const label = g?.name || g
+                          return label ? <span key={label} className={styles.heroGenreTag}>{label}</span> : null
+                        })}
+                      </div>
+                    )}
+                    {(heroSeries.chapterCount || 0) > 0 && (
+                      <p className={styles.heroMeta}>
+                        <span className={styles.heroMetaDot} />
+                        {heroSeries.chapterCount} {t.home.chaptersShort}
+                      </p>
+                    )}
+                    <div className={styles.heroActions}>
+                      <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroBtn}>
+                        <svg width="14" height="14" viewBox="0 0 10 10" fill="currentColor">
+                          <polygon points="0,0 10,5 0,10" />
+                        </svg>
+                        Leer ahora
+                      </Link>
+                      <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroBtnSecondary}>
+                        + Detalles
+                      </Link>
+                    </div>
+                  </div>
+
+                  <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroCoverWrap} tabIndex={-1}>
+                    <ManhwaCover src={heroCover} fallbackSrc={heroCover} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
+                    <div className={styles.heroCoverGlow} style={{ backgroundImage: `url(${heroCover})` }} />
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {/* Barra de progreso inferior */}
+            {heroTotal > 1 && (
+              <div className={styles.heroProgressBar}>
+                {Array.from({ length: Math.min(heroTotal, 7) }).map((_, i) => (
+                  <button
+                    key={i}
+                    className={`${styles.heroProgressSeg} ${i < heroIndex ? styles.heroProgressSegActive : ''} ${i === heroIndex ? styles.heroProgressSegCurrent : ''}`}
+                    onClick={() => heroGoTo(i, i > heroIndex ? 1 : -1)}
+                    aria-label={`Slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {isFromCache && (
           <div className={styles.cacheNotice}>
@@ -776,62 +969,10 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           </div>
         )}
 
-        {/* ================================================================== */}
-        {/* MANHWAS DESTACADOS - SEO: "Manhwas Populares en Español" */}
-        {/* ================================================================== */}
-        <section>
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionIcon}>
-              <IconSparkles size={22} />
-            </div>
-            <h2 className={styles.sectionTitle}>
-              {t.home.sections.collection}
-            </h2>
-            <span style={{
-              marginLeft: 'auto',
-              fontSize: '0.875rem',
-              color: 'var(--text-muted)',
-              fontWeight: 500
-            }}>
-              {series.length} {t.home.availableTitles}
-            </span>
-          </div>
-
-          <div className={styles.cardsRow}>
-            {(filterAvailableSeries(series) || []).slice(0, 12).map((series, index) => (
-              <Link
-                href={getLocalizedPath(`/manhwa/${series.slug}`, lang)}
-                key={series.slug}
-                className={styles.popularItem}
-                title={getAnchorText.title(series.title)}
-              >
-                <div className={styles.popularCard}>
-                  <ManhwaCover
-                    src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
-                    fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
-                    slug={series.slug}
-                    alt={getImageAlt.cover(series.title)}
-                    className={styles.popularImg}
-                    priority={index < 4}
-                    sizes="(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 160px"
-                  />
-                  {series.chapterCount > 0 && (
-                    <span className={styles.chapterBadge}>
-                      {series.chapterCount} {t.home.chaptersShort}
-                    </span>
-                  )}
-                  <span className={styles.statusBadge}>
-                    {series.contentType || series.content_type || 'Manhwa'}
-                  </span>
-                  <h3 className={styles.titleLink}>{series.title}</h3>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
         {/* Adsterra Banner Display 468x60 */}
         <AdsterraBannerDisplay />
+
+        <div className={styles.querySectionsWrapper}>
 
         {user && recentLoading && (
           <section className={styles.querySection}>
@@ -987,6 +1128,18 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         </div>
                       </Link>
                     ))}
+                    {querySlug && (
+                      <Link
+                        href={getLocalizedPath(`/busqueda-ia/${querySlug}`, lang)}
+                        className={`${styles.queryItem} ${styles.aiMoreItem}`}
+                      >
+                        <div className={`${styles.popularCard} ${styles.aiMoreCard}`}>
+                          <span className={styles.aiMoreBadge}>IA</span>
+                          <p className={styles.aiMoreTitle}>{t.home.seeFullAiList}</p>
+                          <p className={styles.aiMoreSubtitle}>Ver todo</p>
+                        </div>
+                      </Link>
+                    )}
                   </div>
                 </div>
               )
@@ -1037,6 +1190,16 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     </div>
                   </Link>
                 ))}
+                <Link
+                  href={getLocalizedPath(`/busqueda-ia/${slugifyQuery(smartRecommendation.aiQuery || `manhwas similares a ${smartRecommendation.sourceTitle}`)}`, lang)}
+                  className={`${styles.queryItem} ${styles.aiMoreItem}`}
+                >
+                  <div className={`${styles.popularCard} ${styles.aiMoreCard}`}>
+                    <span className={styles.aiMoreBadge}>IA</span>
+                    <p className={styles.aiMoreTitle}>{t.home.viewAiResults}</p>
+                    <p className={styles.aiMoreSubtitle}>Ver todo</p>
+                  </div>
+                </Link>
               </div>
             </div>
           </section>
@@ -1117,14 +1280,20 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           </section>
         )}
 
+        </div>
+
         {/* ================================================================== */}
-        {/* SEO: SECCIÓN "¿QUÉ ES UN MANHWA?" — Contenido educativo con      */}
-        {/* keywords long-tail para capturar tráfico informacional             */}
+        {/* SEO: H1 PRINCIPAL - Keyword "Leer Manhwa en Español Online Gratis" */}
+        {/* Se mueve al final, justo antes de "¿Qué es un manhwa?" */}
         {/* ================================================================== */}
-        <section className={styles.whatIsManhwa}>
-          <h2 className={styles.sectionTitle}>{t.home.whatIsManhwa.title}</h2>
-          <p className={styles.seoIntro}>{t.home.whatIsManhwa.text}</p>
-        </section>
+        <h1 className={styles.seoH1}>{t.home.h1}</h1>
+
+        {/* ================================================================== */}
+        {/* SEO: PÁRRAFO INTRODUCTORIO CON KEYWORDS NATURALES */}
+        {/* ================================================================== */}
+        <p className={styles.seoIntro}>
+          {t.home.introText}
+        </p>
 
         {/* ================================================================== */}
         {/* TIP IA - Banner informativo sobre el buscador inteligente          */}

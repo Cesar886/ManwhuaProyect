@@ -17,7 +17,7 @@ export const metadata = {
     canonical: '/populares',
     languages: {
       es: '/populares',
-      en: '/en/populares',
+      en: '/en/popular',
     },
   },
   openGraph: {

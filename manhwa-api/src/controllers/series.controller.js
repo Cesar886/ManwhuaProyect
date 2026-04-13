@@ -101,7 +101,7 @@ const listSeries = async (req, res, next) => {
                 s.color_scheme, s.awards, s.world_building_depth, s.publication_format, s.has_physical_edition,
                 s.trigger_warnings, s.target_demographic, s.international_title_variations, s.update_reliability,
                 s.writing_quality, s.cultural_notes, s.educational_value,
-                s.source, s.demography, s.cover_url_tmo,
+                s.source, s.demography, s.cover_url_tmo, s.cover_url_oni, s.language,
                 -- Subquery para traer el/los últimos capítulos publicados (como JSON)
                 (SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) FROM (
                     SELECT id, number, title, slug, published_at
@@ -206,7 +206,9 @@ const listSeries = async (req, res, next) => {
                     educationalValue: s.educational_value,
                     source: s.source,
                     demography: s.demography,
-                    coverUrlTmo: s.cover_url_tmo
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
+                    language: s.language
                 })),
                 pagination: {
                     page,
@@ -285,6 +287,7 @@ const getSeriesDetail = async (req, res, next) => {
                     coverUrl: series.cover_url,
                     coverUrlWeb: series.cover_url_web,
                     coverUrlTmo: series.cover_url_tmo,
+                    coverUrlOni: series.cover_url_oni,
                     bannerUrl: series.banner_url,
                     status: series.status,
                     contentType: series.content_type,
@@ -327,6 +330,7 @@ const getSeriesDetail = async (req, res, next) => {
                     },
                     source: series.source,
                     demography: series.demography,
+                    language: series.language,
                     lastChapterAt: series.last_chapter_at,
                     createdAt: series.created_at,
                     latestChapters: chaptersResult.rows.map(c => ({
@@ -1349,9 +1353,9 @@ const createSeries = async (req, res, next) => {
     try {
         const {
             title, originalTitle, synopsis, description,
-            contentType, status, coverUrl, coverUrlTmo, bannerUrl,
+            contentType, status, coverUrl, coverUrlTmo, coverUrlOni, bannerUrl,
             authorId, artistId, genres, releaseYear, isAdult,
-            source, demography
+            source, demography, language
         } = req.body;
 
         // Generar slug único
@@ -1369,15 +1373,15 @@ const createSeries = async (req, res, next) => {
             // Crear serie
             const seriesResult = await client.query(
                 `INSERT INTO series (title, original_title, slug, synopsis, description,
-                                    content_type, status, cover_url, cover_url_tmo, banner_url,
+                                    content_type, status, cover_url, cover_url_tmo, cover_url_oni, banner_url,
                                     author_id, artist_id, release_year, is_adult,
-                                    source, demography)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                                    source, demography, language)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
                  RETURNING *`,
                 [title, originalTitle, slug, synopsis, description,
-                    contentType || 'manhwa', status || 'ongoing', coverUrl, coverUrlTmo, bannerUrl,
+                    contentType || 'manhwa', status || 'ongoing', coverUrl, coverUrlTmo, coverUrlOni, bannerUrl,
                     authorId, artistId, releaseYear, isAdult || false,
-                    source, demography]
+                    source, demography, language || 'es']
             );
 
             const series = seriesResult.rows[0];
@@ -1512,7 +1516,7 @@ const updateSeries = async (req, res, next) => {
             'international_title_variations', 'update_reliability', 'writing_quality',
             'cultural_notes', 'educational_value',
             // Nuevos campos
-            'source', 'demography', 'cover_url_tmo',
+            'source', 'demography', 'cover_url_tmo', 'cover_url_oni', 'language',
         ];
 
         const updateFields = [];

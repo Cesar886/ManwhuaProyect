@@ -13,6 +13,7 @@ const { paginationValidation, searchQueryValidation } = require('../middleware/v
 // Todas las rutas requieren API key + auth opcional
 // IA search proxy con límite diario para invitados (NO requiere API key)
 router.post('/ai/read', searchController.aiRead);
+router.post('/ai/track', searchController.trackAiSearch);
 router.use(requireApiKeyOrAuth);
 router.use(optionalAuth);
 

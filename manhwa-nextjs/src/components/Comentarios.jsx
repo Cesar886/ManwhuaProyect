@@ -178,14 +178,14 @@ function CustomPagination({ value, onChange, total, size = "sm" }) {
   );
 }
 
-// Formatea fechas de forma relativa en español (hace X / en X)
-const formatTimeAgo = (input) => {
+// Formatea fechas de forma relativa según idioma
+const formatTimeAgo = (input, lang = 'es') => {
   try {
     const date = new Date(input)
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
-    if (Math.abs(seconds) < 5) return 'ahora'
+    if (Math.abs(seconds) < 5) return lang === 'en' ? 'now' : 'ahora'
 
-    const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })
+    const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' })
     const thresholds = [
       { unit: 'year', seconds: 31536000 },
       { unit: 'month', seconds: 2592000 },

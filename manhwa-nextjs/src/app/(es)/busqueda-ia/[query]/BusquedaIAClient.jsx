@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight } from '@tabler/icons-react';
-import { IconBook, IconArrowLeft, IconRefresh, IconLink, IconCheck } from '@tabler/icons-react';
+import { IconBook, IconArrowLeft, IconRefresh, IconLink, IconCheck, IconSearch } from '@tabler/icons-react';
 import Header from '@/components/Header';
 import { useIA, slugifyQuery, getOriginalQuery } from '@/hooks/useIA';
 import { useSpaces } from '@/hooks/useSpaces';
@@ -167,6 +167,7 @@ export default function BusquedaIAClient({ querySlug }) {
         error: iaError,
         nsfwRedirect,
         resultados,
+        searchCount,
         guestAiLimit,
         limpiar: limpiarIA,
     } = useIA();
@@ -416,6 +417,14 @@ export default function BusquedaIAClient({ querySlug }) {
                                 </Group>
                                 <Group gap="xs">
                                     <Text size="xs" c="dimmed">{filteredSeries.length} títulos encontrados</Text>
+                                    {searchCount > 0 && (
+                                        <Group gap={4}>
+                                            <IconSearch size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                                            <Text size="xs" c="dimmed">
+                                                {searchCount} {searchCount === 1 ? 'búsqueda' : 'búsquedas'}
+                                            </Text>
+                                        </Group>
+                                    )}
                                     <Button
                                         variant="subtle"
                                         color={copied ? 'teal' : 'gray'}

@@ -7,10 +7,10 @@ const { query, transaction } = require('../config/database');
 
 const GUEST_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.GUEST_DAILY_IA_LIMIT, 10) || 10);
 const AI_FETCH_TIMEOUT_MS = Math.max(3000, parseInt(process.env.AI_FETCH_TIMEOUT_MS, 10) || 25000);
-const AI_UPSTREAM_HTML_REGEX = /<html|<!doctype|maintenance|mantenimiento|cloudflare/i;
+const AI_UPSTREAM_HTML_REGEX = /<html[\s>]|<!doctype\s/i;
 const AI_UPSTREAM_MAINTENANCE_MESSAGE = 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red. Intenta de nuevo en unos minutos.';
 const AI_READ_ENDPOINT = (() => {
-    const raw = process.env.AI_API_URL || process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimperial.site/api/read';
+    const raw = process.env.AI_API_URL || process.env.NEXT_PUBLIC_AI_API_URL || 'http://localhost:3003/api/read';
     const cleaned = String(raw).replace(/\/+$/, '');
     return cleaned.endsWith('/api/read') ? cleaned : `${cleaned}/api/read`;
 })();
@@ -827,6 +827,67 @@ const aiRead = async (req, res, next) => {
     }
 };
 
+/**
+ * Obtener el search_count de una query desde el servicio IA (no requiere auth)
+ * POST /api/search/ai/track
+ */
+const AI_POPULAR_URL = (() => {
+    const base = AI_READ_ENDPOINT.replace(/\/api\/read$/, '');
+    return `${base}/api/popular`;
+})();
+
+const trackAiSearch = async (req, res) => {
+    const queryText = (req.body?.query || '').trim();
+    if (!queryText || queryText.length < 2) {
+        return res.status(400).json({ success: false, message: 'query es requerido (min 2 chars)' });
+    }
+
+    const normalized = queryText.toLowerCase();
+
+    // 1) Incrementar contador local (para queries que no estén en el top del servicio IA)
+    let localCount = null;
+    try {
+        const localResult = await query(
+            `INSERT INTO global_behavior_search_queries
+                (query_text, query_normalized, search_count, click_count, first_seen_at, last_seen_at, created_at, updated_at)
+             VALUES ($1, $2, 1, 0, timezone('utc', now()), timezone('utc', now()), timezone('utc', now()), timezone('utc', now()))
+             ON CONFLICT (query_normalized) DO UPDATE SET
+                search_count = global_behavior_search_queries.search_count + 1,
+                last_seen_at = timezone('utc', now()),
+                updated_at = timezone('utc', now())
+             RETURNING search_count`,
+            [queryText, normalized]
+        );
+        localCount = localResult.rows[0]?.search_count || 1;
+    } catch (dbErr) {
+        console.error('[trackAiSearch] DB error:', dbErr.message);
+    }
+
+    // 2) Intentar obtener el count real desde el servicio IA (popular endpoint)
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+
+        const popularRes = await fetch(AI_POPULAR_URL, {
+            signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (popularRes.ok) {
+            const data = await popularRes.json();
+            const allQueries = [...(data.queries || []), ...(data.popular || []), ...(data.similar || [])];
+            const match = allQueries.find(q => (q.query || '').toLowerCase() === normalized);
+            if (match?.count) {
+                return res.json({ success: true, searchCount: match.count });
+            }
+        }
+    } catch {
+        // Si falla el servicio IA, usar count local
+    }
+
+    return res.json({ success: true, searchCount: localCount });
+};
+
 module.exports = {
     search,
     searchSeries,
@@ -835,4 +896,5 @@ module.exports = {
     autocomplete,
     advancedSearch,
     aiRead,
+    trackAiSearch,
 };

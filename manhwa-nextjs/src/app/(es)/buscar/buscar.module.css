@@ -1,0 +1,274 @@
+/* ============================================================
+   BUSCAR PAGE — Premium Search Styles
+   ============================================================ */
+
+/* ── Page header ── */
+.pageTitle {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #F0C14E 0%, #D4A528 45%, #A67BD4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+  margin: 0;
+}
+
+:global([data-theme="light"]) .pageTitle {
+  background: linear-gradient(135deg, #B8860B 0%, #8B6914 45%, #6B4FA3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.pageSubtitle {
+  color: var(--dimmed-text, rgba(160, 170, 195, 0.8));
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* ── Search form container ── */
+.searchForm {
+  width: 100%;
+}
+
+.searchRow {
+  display: flex;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
+/* ── Input wrapper with gradient border ── */
+.inputWrapper {
+  position: relative;
+  flex: 1;
+  border-radius: 14px;
+}
+
+/* Animated gradient border */
+.inputWrapper::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 15px;
+  background: linear-gradient(
+    125deg,
+    rgba(212, 165, 40, 0.55) 0%,
+    rgba(6, 182, 212, 0.50) 50%,
+    rgba(139, 92, 200, 0.45) 100%
+  );
+  z-index: 0;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+  filter: saturate(1.1);
+}
+
+.inputWrapper:focus-within::before {
+  background: linear-gradient(
+    125deg,
+    rgba(212, 165, 40, 0.85) 0%,
+    rgba(6, 182, 212, 0.75) 50%,
+    rgba(139, 92, 200, 0.70) 100%
+  );
+  filter: saturate(1.4) blur(0.3px);
+}
+
+/* Glow under input */
+.inputWrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 13px;
+  box-shadow: 0 14px 36px -16px rgba(6, 182, 212, 0.55);
+  pointer-events: none;
+  z-index: 0;
+  transition: box-shadow 0.25s ease;
+}
+
+.inputWrapper:focus-within::after {
+  box-shadow: 0 18px 40px -14px rgba(212, 165, 40, 0.55), 0 6px 20px -10px rgba(6, 182, 212, 0.4);
+}
+
+/* The actual Mantine input element */
+.input {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(
+    135deg,
+    rgba(10, 15, 28, 0.90) 0%,
+    rgba(16, 21, 38, 0.92) 55%,
+    rgba(20, 16, 34, 0.92) 100%
+  ) !important;
+  border: none !important;
+  color: var(--text-color) !important;
+  min-height: 50px !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em;
+  border-radius: 13px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  transition: background 0.2s ease !important;
+}
+
+.input::placeholder {
+  color: rgba(160, 175, 210, 0.45) !important;
+  font-weight: 400 !important;
+}
+
+.input:focus {
+  background: linear-gradient(
+    135deg,
+    rgba(12, 18, 34, 0.97) 0%,
+    rgba(18, 24, 42, 0.98) 55%,
+    rgba(22, 18, 38, 0.98) 100%
+  ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 0 transparent !important;
+  outline: none !important;
+}
+
+/* Left icon section */
+.section {
+  color: rgba(240, 193, 78, 0.9) !important;
+  z-index: 2;
+}
+
+/* Light mode overrides */
+:global([data-theme="light"]) .input {
+  background: linear-gradient(135deg, #fffdf7 0%, #f8f6ff 100%) !important;
+  color: #1A1A28 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+:global([data-theme="light"]) .input::placeholder {
+  color: rgba(80, 80, 110, 0.45) !important;
+}
+
+:global([data-theme="light"]) .input:focus {
+  background: linear-gradient(135deg, #fffef9 0%, #f4f2ff 100%) !important;
+}
+
+:global([data-theme="light"]) .inputWrapper::before {
+  background: linear-gradient(
+    125deg,
+    rgba(184, 134, 11, 0.52) 0%,
+    rgba(14, 116, 144, 0.48) 50%,
+    rgba(107, 79, 163, 0.42) 100%
+  );
+}
+
+:global([data-theme="light"]) .inputWrapper:focus-within::before {
+  background: linear-gradient(
+    125deg,
+    rgba(184, 134, 11, 0.80) 0%,
+    rgba(14, 116, 144, 0.72) 50%,
+    rgba(107, 79, 163, 0.65) 100%
+  );
+}
+
+:global([data-theme="light"]) .section {
+  color: #8b6914 !important;
+}
+
+/* ── Submit button ── */
+.searchBtn {
+  min-height: 50px !important;
+  min-width: 100px;
+  border-radius: 13px !important;
+  background: linear-gradient(135deg, #D4A528 0%, #A67BD4 100%) !important;
+  border: none !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  letter-spacing: 0.03em;
+  color: #fff !important;
+  box-shadow:
+    0 4px 18px -4px rgba(212, 165, 40, 0.5),
+    0 2px 8px rgba(139, 92, 200, 0.25) !important;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease !important;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.searchBtn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.searchBtn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow:
+    0 8px 28px -4px rgba(212, 165, 40, 0.6),
+    0 4px 14px rgba(139, 92, 200, 0.35) !important;
+}
+
+.searchBtn:active {
+  transform: translateY(0) !important;
+}
+
+:global([data-theme="light"]) .searchBtn {
+  background: linear-gradient(135deg, #B8860B 0%, #6B4FA3 100%) !important;
+  box-shadow:
+    0 4px 18px -4px rgba(184, 134, 11, 0.45),
+    0 2px 8px rgba(107, 79, 163, 0.2) !important;
+}
+
+/* ── Results header ── */
+.resultsLabel {
+  font-size: 0.875rem;
+  color: var(--dimmed-text, rgba(160, 170, 195, 0.75));
+}
+
+.resultsQuery {
+  color: var(--text-color);
+  font-weight: 700;
+}
+
+/* ── Cards ── */
+.card {
+  cursor: pointer;
+  background: var(--card-bg, rgba(16, 20, 36, 0.7)) !important;
+  border: 1px solid rgba(212, 165, 40, 0.10) !important;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease, border-color 0.22s ease !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(212, 165, 40, 0.28) !important;
+  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.4), 0 4px 16px -8px rgba(212, 165, 40, 0.3);
+}
+
+:global([data-theme="light"]) .card {
+  background: #fff !important;
+  border-color: rgba(184, 134, 11, 0.12) !important;
+}
+
+:global([data-theme="light"]) .card:hover {
+  border-color: rgba(184, 134, 11, 0.30) !important;
+  box-shadow: 0 10px 28px -10px rgba(184, 134, 11, 0.2), 0 3px 12px -6px rgba(107, 79, 163, 0.15);
+}
+
+.coverWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cardTitle {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.cardMeta {
+  color: var(--dimmed-text, rgba(150, 160, 185, 0.75));
+  font-size: 0.8rem;
+}

@@ -73,10 +73,10 @@ export const metadata = {
   title: 'Popular Manhwa - Most Read Series',
   description: 'Discover the most popular manhwa and webtoons. Rankings updated daily with top trending, best rated and new releases.',
     alternates: {
-        canonical: '/en/populares',
+        canonical: '/en/popular',
         languages: {
             es: '/populares',
-            en: '/en/populares',
+            en: '/en/popular',
         },
     },
 }
@@ -95,7 +95,7 @@ export default async function PopularEnPage() {
     const rankingJsonLd = generateItemListJsonLd('Most Popular Manhwa in English', topRankings, 'ranking', 'en')
     const breadcrumbJsonLd = generateBreadcrumbJsonLd([
         { name: 'Home', url: '/en/home' },
-        { name: 'Popular Manhwa', url: '/en/populares' },
+        { name: 'Popular Manhwa', url: '/en/popular' },
     ], 'en')
 
     return (

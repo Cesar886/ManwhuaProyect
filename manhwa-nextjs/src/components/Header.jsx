@@ -13,6 +13,7 @@ import {
   IconLogout,
   IconUser,
   IconFlame,
+  IconSearch,
 } from '@tabler/icons-react';
 import {
   Avatar,
@@ -21,6 +22,7 @@ import {
   Text,
   UnstyledButton,
   ActionIcon,
+  TextInput,
   Badge,
   Stack,
   Button,
@@ -40,6 +42,8 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   const [userMenuOpened, setUserMenuOpened] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [streakDays, setStreakDays] = useState(null);
+  const [searchActive, setSearchActive] = useState(false);
+  const [headerSearch, setHeaderSearch] = useState('');
   const headerRef = useRef(null);
   const router = useRouter();
   const { lang: detectedLang, t } = useLang();
@@ -78,8 +82,6 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
     return () => window.removeEventListener('resize', updateHeaderHeight);
   }, []);
 
-  // La búsqueda en el header fue removida; la lógica se maneja en la página de biblioteca.
-
   const pathname = usePathname();
 
   const mantineColor = useMantineColorScheme();
@@ -97,8 +99,28 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
       : (hasSegment('perfil') || hasSegment('profile')) ? 'profile'
         : 'home';
 
-  // Usuario provisto por el contexto (no duplicamos el estado local)
-  const { user: authUser, openLogin, doLogout } = useAuth()
+  const handleHeaderSearchSubmit = (event) => {
+    event.preventDefault();
+    const value = headerSearch.trim();
+    const basePath = getLocalizedPath('/biblioteca', lang);
+
+    if (!value) {
+      router.push(basePath);
+      return;
+    }
+
+    const params = new URLSearchParams();
+    params.set('search', value);
+    router.push(`${basePath}?${params.toString()}`);
+  };
+
+  // Usuario provisto por el contexto (puede ser null fuera del provider)
+  const auth = useAuth() || {};
+  const {
+    user: authUser = null,
+    openLogin = () => {},
+    doLogout = async () => {},
+  } = auth;
   const user = authUser || null;
 
   useEffect(() => {
@@ -377,8 +399,8 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
             {/* Mobile: las pestañas se muestran directamente (sin burger) */}
           </Group>
 
-          {/* Nivel inferior: navegación, búsqueda y menú móvil */}
-          <Group justify="center" align="center" style={{ position: 'relative' }}>
+          {/* Nivel inferior: navegación */}
+          <Group align="center" wrap="nowrap" className={styles.bottomNavRow}>
             <Group gap={0} className={styles.tabsList}>
               {NAVIGATION_TABS.map((tab) => {
                 const Icon = tab.icon;
@@ -412,7 +434,53 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
               })}
             </Group>
 
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              radius="xl"
+              className={`${styles.searchToggleBtn} ${searchActive ? styles.searchToggleBtnActive : ''}`}
+              onClick={() => {
+                const closing = searchActive;
+                setSearchActive((prev) => !prev);
+                if (closing) {
+                  setHeaderSearch('');
+                  const basePath = getLocalizedPath('/biblioteca', lang);
+                  if (pathname?.startsWith(basePath) || pathname?.includes('/biblioteca') || pathname?.includes('/library')) {
+                    router.push(basePath);
+                  }
+                }
+              }}
+              aria-label={lang === 'en' ? 'Toggle search bar' : 'Mostrar u ocultar buscador'}
+              title={lang === 'en' ? 'Toggle search bar' : 'Mostrar u ocultar buscador'}
+              aria-pressed={searchActive}
+            >
+              <IconSearch size={18} stroke={1.8} />
+            </ActionIcon>
           </Group>
+
+          {searchActive && (
+            <form className={styles.headerSearchForm} onSubmit={handleHeaderSearchSubmit}>
+              <div className={styles.headerSearchOuter}>
+                <TextInput
+                  value={headerSearch}
+                  onChange={(event) => setHeaderSearch(event.currentTarget.value)}
+                  placeholder={lang === 'en' ? 'Search title or synopsis in library...' : 'Buscar titulo o sinopsis en biblioteca...'}
+                  leftSection={null}
+                  leftSectionWidth={0}
+                  rightSection={<span className={styles.headerSearchHint}>ENTER</span>}
+                  rightSectionWidth={60}
+                  radius="md"
+                  size="md"
+                  classNames={{
+                    input: styles.headerSearchInput,
+                    section: styles.headerSearchSection,
+                  }}
+                  aria-label={lang === 'en' ? 'Search in library' : 'Buscar en biblioteca'}
+                  autoFocus
+                />
+              </div>
+            </form>
+          )}
         </Container>
       </Box>
 

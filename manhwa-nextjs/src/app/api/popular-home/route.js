@@ -20,8 +20,9 @@ const SPACES_URL = (() => {
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || '';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutos
-const MAX_QUERIES = 5;
-const DELAY_MS = 1000;
+const MAX_EACH = 5;              // 5 populares + 5 similares = 10 total
+const READ_TIMEOUT_MS = 5000;    // máx por llamada individual a /api/read
+const TOTAL_TIMEOUT_MS = 8000;   // máx total antes de devolver resultados parciales
 const RETRYABLE_AI_STATUS_CODES = new Set([502, 503, 504]);
 
 // Caché en memoria del servidor
@@ -108,65 +109,90 @@ export async function GET() {
     // Cargar catálogo para enriquecer covers
     const { bySlug, byTitle } = await getCatalogMaps();
 
-    // 1. Obtener queries populares
-    const popRes = await fetchWithRetry(`${AI_BASE_URL}/api/popular?limit=20`, {
+    // 1. Obtener populares y similares por separado desde /api/search-suggestions
+    const sugRes = await fetchWithRetry(`${AI_BASE_URL}/api/search-suggestions`, {
       headers: { 'Accept': 'application/json' },
       next: { revalidate: 0 },
     });
-    if (!popRes.ok) return NextResponse.json({ data: [] });
+    if (!sugRes.ok) return NextResponse.json({ data: [] });
 
-    const popData = await popRes.json();
-    if (!popData.success || !Array.isArray(popData.queries)) return NextResponse.json({ data: [] });
+    const sugData = await sugRes.json();
+    if (!sugData.success) return NextResponse.json({ data: [] });
 
-    const queries = popData.queries
+    const popularQueries = (sugData.popular || [])
       .filter((q) => q.query && q.query.trim().length > 3)
-      .slice(0, MAX_QUERIES);
+      .slice(0, MAX_EACH);
 
-    if (queries.length === 0) return NextResponse.json({ data: [] });
+    const similarQueries = (sugData.similar || [])
+      .filter((q) => q.query && q.query.trim().length > 3)
+      .slice(0, MAX_EACH);
 
-    // 2. Llamar a /api/read secuencialmente y enriquecer con catálogo
-    const accumulated = [];
+    // Intercalar: popular, similar, popular, similar, ...
+    const interleaved = [];
+    const maxLen = Math.max(popularQueries.length, similarQueries.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < popularQueries.length) interleaved.push({ ...popularQueries[i], type: 'popular' });
+      if (i < similarQueries.length) interleaved.push({ ...similarQueries[i], type: 'similar' });
+    }
 
-    for (let i = 0; i < queries.length; i++) {
-      const q = queries[i];
+    if (interleaved.length === 0) return NextResponse.json({ data: [] });
+
+    // 2. Llamar a /api/read en paralelo con timeout por llamada
+    const callRead = async (q) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), READ_TIMEOUT_MS);
       try {
         const res = await fetchWithRetry(`${AI_BASE_URL}/api/read`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: [{ role: 'user', content: q.query }] }),
+          signal: controller.signal,
           next: { revalidate: 0 },
-        });
-        if (res.ok) {
-          const result = await res.json();
-          const seriesList = result.series || [];
-          const mapped = seriesList.slice(0, 15).map((s) => {
-            // Buscar en catálogo por slug y por título normalizado
-            const catalog = bySlug.get(s.slug) || byTitle.get(normTitle(s.title));
-            const cover = getCover(catalog) || getCover(s);
-            const chapterCount = getChapters(catalog) || getChapters(s);
-            return {
-              id: s.id ?? catalog?.id,
-              title: s.title,
-              slug: s.slug || catalog?.slug,
-              cover,
-              chapterCount,
-              status: catalog?.status || s.status || 'ongoing',
-              isAdult: s.isAdult ?? catalog?.isAdult,
-              is_adult: s.is_adult ?? catalog?.is_adult,
-              genres: Array.isArray(s.genres) ? s.genres : (catalog?.genres || []),
-              contentType: catalog?.contentType || catalog?.content_type || s.contentType || '',
-            };
-          }).filter((s) => s.slug && s.title);
-
-          if (mapped.length >= 3) {
-            accumulated.push({ query: q.query, count: q.count, series: mapped });
-          }
-        }
+        }, 0); // sin reintentos en paralelo
+        if (!res.ok) return null;
+        const result = await res.json();
+        const seriesList = result.series || [];
+        const mapped = seriesList.slice(0, 15).map((s) => {
+          const catalog = bySlug.get(s.slug) || byTitle.get(normTitle(s.title));
+          const cover = getCover(catalog) || getCover(s);
+          const chapterCount = getChapters(catalog) || getChapters(s);
+          return {
+            id: s.id ?? catalog?.id,
+            title: s.title,
+            slug: s.slug || catalog?.slug,
+            cover,
+            chapterCount,
+            status: catalog?.status || s.status || 'ongoing',
+            isAdult: s.isAdult ?? catalog?.isAdult,
+            is_adult: s.is_adult ?? catalog?.is_adult,
+            genres: Array.isArray(s.genres) ? s.genres : (catalog?.genres || []),
+            contentType: catalog?.contentType || catalog?.content_type || s.contentType || '',
+          };
+        }).filter((s) => s.slug && s.title);
+        return mapped.length >= 3 ? { query: q.query, count: q.count, type: q.type, series: mapped } : null;
       } catch {
-        // ignorar error individual
+        return null;
+      } finally {
+        clearTimeout(timer);
       }
-      if (i < queries.length - 1) await delay(DELAY_MS);
-    }
+    };
+
+    // Timeout global: devolver lo que ya completó si se supera el límite
+    const callsWithFallback = interleaved.map((q) =>
+      callRead(q).catch(() => null)
+    );
+    const partialResults = new Array(callsWithFallback.length).fill(null);
+    callsWithFallback.forEach((p, i) => p.then((v) => { partialResults[i] = v; }));
+
+    const timeoutGuard = new Promise((resolve) =>
+      setTimeout(resolve, TOTAL_TIMEOUT_MS)
+    );
+    await Promise.race([Promise.all(callsWithFallback), timeoutGuard]);
+
+    const rawResults = partialResults;
+
+    // Mantener el orden intercalado original
+    const accumulated = rawResults.filter(Boolean);
 
     if (accumulated.length > 0) {
       serverCache = accumulated;

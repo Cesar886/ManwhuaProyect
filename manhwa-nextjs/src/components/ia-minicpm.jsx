@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
 import { getSearchHistory, removeFromHistory, detectNsfwQuery } from '@/hooks/useIA';
 import { api } from '@/api/client';
 import './ia-minicpm.css';
@@ -455,9 +456,11 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     const [isTyping, setIsTyping] = useState(false);
     const [placeholder, setPlaceholder] = useState('');
     const [phrases, setPhrases] = useState([]);
-    const [suggestions, setSuggestions] = useState([]); // top 5 para el dropdown
-    const [allSimilarQueries, setAllSimilarQueries] = useState([]); // todas las "similar a X"
-    const [visibleSimilar, setVisibleSimilar] = useState([]); // 5 visibles rotando
+    const [popularSuggestions, setPopularSuggestions] = useState([]);
+    const [similarSuggestions, setSimilarSuggestions] = useState([]);
+    const [suggestions, setSuggestions] = useState([]);
+    const [allSimilarQueries, setAllSimilarQueries] = useState([]);
+    const [visibleSimilar, setVisibleSimilar] = useState([]);
     const [isFocused, setIsFocused] = useState(false);
     const [history, setHistory] = useState([]);
     const [autocompleteResults, setAutocompleteResults] = useState([]);
@@ -468,25 +471,62 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     const abortRef = useRef(null);
     const placeholderAnimationActive = !loading && !isFocused && query.trim().length === 0;
 
-    const localAutocompletePhrasePool = useMemo(() => {
-        const merged = [...FALLBACK_PHRASES, ...suggestions.map(s => s.query)];
-        return [...new Set(merged)];
-    }, [suggestions]);
-
-    // Rotar "Similares a..." cada vez que se abre el dropdown
-    // Si hay más de 5, rota mostrando los siguientes 5 en orden de popularidad
+    // Rotar las sugerencias "Similares a..." cada vez que se enfoca el input
     const rotateSimilar = useCallback(() => {
-        setAllSimilarQueries(prev => {
-            if (prev.length <= 5) {
-                setVisibleSimilar(prev);
-                return prev;
-            }
-            // Rotar: mover los primeros 5 al final y mostrar los nuevos primeros 5
-            const rotated = [...prev.slice(5), ...prev.slice(0, 5)];
-            setVisibleSimilar(rotated.slice(0, 5));
-            return rotated;
-        });
-    }, []);
+        if (allSimilarQueries.length <= 5) {
+            setVisibleSimilar(allSimilarQueries);
+            return;
+        }
+        // Mostrar 5 aleatorias cada vez
+        const shuffled = [...allSimilarQueries].sort(() => Math.random() - 0.5);
+        setVisibleSimilar(shuffled.slice(0, 5));
+    }, [allSimilarQueries]);
+
+    // Fetch único de sugerencias: carga inicial + polling cada 5s con contadores frescos
+    useEffect(() => {
+        if (incognitoMode) return;
+
+        let cancelled = false;
+
+        const fetchCounters = async () => {
+            try {
+                const response = await fetch(`${AI_BASE_URL}/api/search-suggestions?_t=${Date.now()}`, { cache: 'no-store' });
+                const data = await response.json();
+                if (cancelled) return;
+                if (data.success) {
+                    if (Array.isArray(data.popular) && data.popular.length > 0) {
+                        setPopularSuggestions(data.popular);
+                        setSuggestions(data.popular.slice(0, 5));
+                        setPhrases(prev => {
+                            const fromPopular = data.popular.map(q => q.query);
+                            return [...new Set([...fromPopular, ...prev])];
+                        });
+                    }
+                    if (Array.isArray(data.similar) && data.similar.length > 0) {
+                        setSimilarSuggestions(data.similar);
+                        setAllSimilarQueries(data.similar);
+                        setVisibleSimilar(data.similar.slice(0, 5));
+                    }
+                }
+            } catch (_) { }
+        };
+
+        // Carga inicial inmediata
+        fetchCounters();
+        // Polling cada 5s
+        const interval = setInterval(fetchCounters, 5000);
+
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [incognitoMode]);
+
+    const localAutocompletePhrasePool = useMemo(() => {
+        const merged = [...FALLBACK_PHRASES, ...popularSuggestions.map(s => s.query), ...similarSuggestions.map(s => s.query)];
+        return [...new Set(merged)];
+    }, [popularSuggestions, similarSuggestions]);
+
 
     // Refrescar historial cuando se enfoca el input
     const refreshHistory = useCallback(() => {
@@ -582,32 +622,9 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         // Poner fallback de inmediato para que el dropdown funcione desde el primer click
         setSuggestions(FALLBACK_SUGGESTIONS);
         setPhrases(shuffleArray(FALLBACK_PHRASES));
-
-        let cancelled = false;
-
-        Promise.all([
-            fetch(`${AI_BASE_URL}/api/popular?limit=50`).then(r => r.json()).catch(() => null),
-            fetch(`${AI_BASE_URL}/api/popular-similar?limit=10`).then(r => r.json()).catch(() => null),
-        ]).then(([popData, simData]) => {
-            if (cancelled) return;
-
-            // Populares (excluyendo "similar a..." que ya vienen del otro endpoint)
-            if (popData?.success && Array.isArray(popData.queries) && popData.queries.length > 0) {
-                const isSimilar = (q) => /similar\s*(a\b|al\b)/i.test(q.query);
-                const normal = popData.queries.filter(q => !isSimilar(q));
-                setSuggestions(normal.slice(0, 5));
-                setPhrases(shuffleArray(popData.queries.map(q => q.query)));
-            }
-
-            // Similares a... (endpoint dedicado, rankeados por popularidad)
-            if (simData?.success && Array.isArray(simData.queries) && simData.queries.length > 0) {
-                setAllSimilarQueries(simData.queries);
-                setVisibleSimilar(simData.queries.slice(0, 5));
-            }
-        });
-
-        return () => { cancelled = true; };
     }, [incognitoMode, placeholderPhrases]);
+
+    // (Polling de contadores unificado en el useEffect de arriba)
 
     // --- Efecto máquina de escribir (placeholder) ---
     useEffect(() => {
@@ -888,7 +905,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                     spellCheck="false"
                     autoComplete="off"
                     maxLength={300}
-                    placeholder={loading ? 'Buscando...' : (placeholder )}
+                    placeholder={loading ? 'Buscando...' : (placeholder)}
                     aria-label="Escribe tu consulta"
                 />
 

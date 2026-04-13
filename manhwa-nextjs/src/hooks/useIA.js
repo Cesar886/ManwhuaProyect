@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { endpoint } from '@/config';
 
 const AI_API_URL = endpoint('search', 'ai/read');
+const AI_TRACK_URL = endpoint('search', 'ai/track');
 
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutos
 const DEFAULT_CACHE_PREFIX = 'ia_cache_v3_';
@@ -588,7 +589,7 @@ export function getOriginalQuery(slug, options = {}) {
 
 // Clasificar error para dar mensajes claros al usuario
 function classifyError(err) {
-    if (err?.body?.code === 'AI_UPSTREAM_HTML_ERROR' || /<html|<!doctype|maintenance|mantenimiento|cloudflare/i.test(String(err?.body || err?.message || ''))) {
+    if (err?.body?.code === 'AI_UPSTREAM_HTML_ERROR' || /<html[\s>]|<!doctype\s/i.test(String(err?.body || err?.message || ''))) {
         return 'El servicio IA está en mantenimiento o temporalmente bloqueado por la red. Intenta en unos minutos.';
     }
     if (err?.status === 504 || err?.body?.code === 'AI_UPSTREAM_TIMEOUT') {
@@ -676,6 +677,7 @@ export function useIA(options = {}) {
     const [error, setError] = useState(null);
     const [resultados, setResultados] = useState(null);
     const [nsfwRedirect, setNsfwRedirect] = useState(false);
+    const [searchCount, setSearchCount] = useState(null);
     const { user } = useAuth();
     const [guestAiLimit, setGuestAiLimit] = useState(() => buildGuestAiLimitState({ isGuest: true, used: 0 }));
     const cacheConfigRef = useRef(buildCacheConfig(options.namespace));
@@ -700,6 +702,21 @@ export function useIA(options = {}) {
     useEffect(() => {
         promptProtectionRef.current = options.promptProtection !== false;
     }, [options.promptProtection]);
+
+    // Fire-and-forget: registrar búsqueda y actualizar searchCount
+    const trackSearch = useCallback((queryText) => {
+        if (!queryText || queryText.length < 2) return;
+        fetch(AI_TRACK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: queryText }),
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data?.searchCount != null) setSearchCount(data.searchCount);
+            })
+            .catch(() => {});
+    }, []);
 
     // Ref para cancelar búsquedas anteriores (race condition fix)
     const activeControllerRef = useRef(null);
@@ -826,7 +843,7 @@ export function useIA(options = {}) {
                     errorData = { message: rawErrorText };
                 }
 
-                const appearsToBeHtml = /<html|<!doctype|maintenance|mantenimiento|cloudflare/i.test(rawErrorText);
+                const appearsToBeHtml = /<html[\s>]|<!doctype\s/i.test(rawErrorText);
                 if (appearsToBeHtml && !errorData.code) {
                     errorData = {
                         ...errorData,
@@ -847,7 +864,7 @@ export function useIA(options = {}) {
 
             const responseContentType = response.headers.get('content-type') || '';
             const responseText = await response.text().catch(() => '');
-            const responseLooksLikeHtml = /<html|<!doctype|maintenance|mantenimiento|cloudflare/i.test(responseText);
+            const responseLooksLikeHtml = /<html[\s>]|<!doctype\s/i.test(responseText);
 
             let data = null;
             if (responseContentType.includes('application/json') && responseText) {
@@ -909,6 +926,7 @@ export function useIA(options = {}) {
                 const normalized = normalizeSeries(data);
                 setResultados(normalized);
                 saveToCache(trimmed, normalized, cacheConfigRef.current);
+                trackSearch(trimmed);
                 trackIAEvent('ia_search', {
                     query: trimmed,
                     result_count: (data.series || []).length,
@@ -1012,6 +1030,7 @@ export function useIA(options = {}) {
         if (cached && !cached.stale) {
             setResultados(normalizeSeries(cached.data));
             setError(null);
+            trackSearch(sanitized);
             trackIAEvent('ia_search', {
                 query: sanitized,
                 result_count: (cached.data.series || []).length,
@@ -1022,7 +1041,7 @@ export function useIA(options = {}) {
         }
 
         return buscarConIA(sanitized);
-    }, [buscarConIA]);
+    }, [buscarConIA, trackSearch]);
 
     // Restaura resultados desde caché sin llamar a la API
     const restaurarDesdeCache = useCallback((query) => {
@@ -1056,6 +1075,7 @@ export function useIA(options = {}) {
         error,
         nsfwRedirect,
         resultados,
+        searchCount,
         guestAiLimit,
         limpiar,
     };

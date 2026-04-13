@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
     Container, Center, Text, Group,
     Stack, Button, Box, Transition, Card, Modal
@@ -191,6 +191,7 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
     const gridTopRef = useRef(null);
     const chatRef = useRef(null);
     const router = useRouter();
+    const pathname = usePathname();
 
     // 1. Hooks de Datos (IA ya no se usa inline — redirige a /busqueda-ia)
 
@@ -235,8 +236,11 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
     const querySearch = searchParams.get('search') || '';
 
     const filteredSeries = useMemo(() => {
-        // Excluir contenido adulto y series sin capítulos disponibles
-        const base = seriesData.filter(s => !isAdultSeries(s) && hasAvailableChapters(s));
+        // Excluir contenido adulto. Si chapterCount viene desincronizado en 0,
+        // mantener fallback para no vaciar toda la biblioteca.
+        const nonAdultSeries = seriesData.filter((s) => !isAdultSeries(s));
+        const withAvailableChapters = nonAdultSeries.filter((s) => hasAvailableChapters(s));
+        const base = withAvailableChapters.length > 0 ? withAvailableChapters : nonAdultSeries;
 
         // Si hay query `search` en la URL, filtrar por título (case-insensitive)
         if (querySearch && querySearch.trim().length > 0) {
@@ -293,7 +297,11 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
 
     const handleClearFilters = useCallback(() => {
         setCurrentPage(1);
-    }, []);
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('search');
+        const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+        router.replace(nextUrl, { scroll: false });
+    }, [pathname, router, searchParams]);
 
     const handlePageChange = useCallback((page) => {
         setCurrentPage(page);
@@ -437,7 +445,6 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
                                         <IconBook size={22} className={classes.sectionIcon} />
                                         <Text size="lg" fw={700}>{t.imperialCatalog}</Text>
                                     </Group>
-                                    <Text size="xs" c="dimmed">{filteredSeries.length} {t.availableTitles}</Text>
                                 </Group>
 
                                 <div className={classes.gridReleases}>

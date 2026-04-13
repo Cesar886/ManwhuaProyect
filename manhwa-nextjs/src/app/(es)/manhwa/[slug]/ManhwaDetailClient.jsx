@@ -1432,14 +1432,14 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                     if (!isNaN(d.getTime())) {
                       latestDateISO = d.toISOString();
                       const diffDays = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-                      if (diffDays === 0) latestDateLabel = t.today;
-                      else if (diffDays === 1) latestDateLabel = t.dayAgo;
-                      else if (diffDays < 7) latestDateLabel = t.daysAgo.replace('{n}', diffDays);
-                      else if (diffDays < 30) {
-                        const weeks = Math.floor(diffDays / 7);
-                        latestDateLabel = weeks === 1 ? t.weekAgo : t.weeksAgo.replace('{n}', weeks);
+                      if (diffDays === 0) {
+                        latestDateLabel = t.today;
+                      } else if (diffDays < 30) {
+                        latestDateLabel = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' })
+                          .format(-diffDays, 'day');
+                      } else {
+                        latestDateLabel = d.toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' });
                       }
-                      else latestDateLabel = d.toLocaleDateString(lang === 'en' ? 'en-US' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
                     }
                   } catch { /* sin fecha */ }
                 }

@@ -182,7 +182,7 @@ export async function POST(request) {
     const aiRes = await fetch(`${AI_BASE_URL}/api/personalized-carousels`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history, limitRows: 4, limitItems: 10 }),
+      body: JSON.stringify({ history, limitRows: 8, limitItems: 10 }),
       next: { revalidate: 0 },
     });
 

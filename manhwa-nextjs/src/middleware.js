@@ -1,13 +1,70 @@
 import { NextResponse } from 'next/server'
 
-const PROTECTED_ROUTES = ['/perfil', '/pedidos', '/en/profile', '/en/pending']
+const PROTECTED_ROUTES = ['/perfil', '/pedidos']
 const BOT_PATTERNS = /googlebot|bingbot|yandex|duckduckbot|slurp|baiduspider/i
 
-// Rutas "canónicas" por idioma — se usan sólo para sugerir el banner de cambio de idioma
+// Rutas "canónicas" por idioma — se usan para sugerir el banner de cambio de idioma
 const ES_PATHS = ['/home', '/manhwa', '/genero', '/tag', '/populares', '/biblioteca', '/mangas']
 const EN_PATHS = ['/en/home', '/en/manhwa', '/en/genre', '/en/tag', '/en/popular', '/en/library', '/en/manga']
 
 const LANG_COOKIE = 'preferred_lang'
+
+// Segmentos ES que tienen página EN equivalente (para redirect por cookie)
+// Solo incluir segmentos donde existe la ruta /en/<en-segment>
+const ES_TO_EN_SEGMENT = {
+  '': 'home',        // / → /en/home
+  'home': 'home',
+  'biblioteca': 'library',
+  'populares': 'popular',
+  'manhwa': 'manhwa',
+  'genero': 'genre',
+  'acerca-de': 'about',
+  'dmca': 'dmca',
+  'terminos-de-servicio': 'terms-of-service',
+  'politica-de-privacidad': 'privacy-policy',
+  'aviso-legal': 'legal-notice',
+  'mangas': 'manga',
+}
+
+// Segmentos EN que tienen equivalente ES (para redirect ES-cookie → ES)
+const EN_SEGMENT_TO_ES = {
+  'home': 'home',
+  'library': 'biblioteca',
+  'popular': 'populares',
+  'manhwa': 'manhwa',
+  'genre': 'genero',
+  'about': 'acerca-de',
+  'dmca': 'dmca',
+  'terms-of-service': 'terminos-de-servicio',
+  'privacy-policy': 'politica-de-privacidad',
+  'legal-notice': 'aviso-legal',
+  'manga': 'mangas',
+}
+
+function getEnEquivalent(pathname) {
+  // /manhwa/slug/capitulo/N → /en/manhwa/slug/chapter/N
+  if (pathname.startsWith('/manhwa/') && pathname.includes('/capitulo/')) {
+    return '/en' + pathname.replace('/capitulo/', '/chapter/')
+  }
+  const firstSegment = pathname.split('/')[1] || ''
+  const enSegment = ES_TO_EN_SEGMENT[firstSegment]
+  if (enSegment === undefined) return null  // no EN equivalent
+  const rest = pathname.slice(firstSegment.length + 1)  // includes leading /
+  return `/en/${enSegment}${rest}`
+}
+
+function getEsEquivalent(pathname) {
+  // /en/manhwa/slug/chapter/N → /manhwa/slug/capitulo/N
+  const withoutEn = pathname.slice(3)  // remove /en
+  if (withoutEn.startsWith('/manhwa/') && withoutEn.includes('/chapter/')) {
+    return withoutEn.replace('/chapter/', '/capitulo/')
+  }
+  const firstEnSegment = withoutEn.split('/')[1] || ''
+  const esSegment = EN_SEGMENT_TO_ES[firstEnSegment]
+  if (esSegment === undefined) return null
+  const rest = withoutEn.slice(firstEnSegment.length + 1)
+  return `/${esSegment}${rest}`
+}
 
 export function middleware(request) {
   const { pathname } = request.nextUrl
@@ -15,15 +72,7 @@ export function middleware(request) {
   const userAgent = headers.get('user-agent') || ''
   const token = request.cookies.get('token')?.value
 
-  // ─── Clonar headers y exponer el pathname al layout (server component) ──
-  // Esto permite que RootLayout lea el pathname vía `headers()` y decida
-  // dinámicamente `<html lang="en|es">`, hreflang, metadata, etc.
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-pathname', pathname)
-  requestHeaders.set('x-lang', pathname.startsWith('/en') ? 'en' : 'es')
-
-  const forward = () =>
-    NextResponse.next({ request: { headers: requestHeaders } })
+  const forward = () => NextResponse.next()
 
   // 1. Protección de rutas privadas
   const isProtected = PROTECTED_ROUTES.some(
@@ -41,11 +90,27 @@ export function middleware(request) {
     return forward()
   }
 
-  // 3. Si ya tiene cookie de preferencia, respetar
+  // 3. Cookie de preferencia: redirigir al idioma guardado si está en el otro
   const langCookie = request.cookies.get(LANG_COOKIE)?.value
-  if (langCookie) {
+  if (langCookie === 'en' && !pathname.startsWith('/en')) {
+    const target = getEnEquivalent(pathname)
+    if (target) {
+      const url = request.nextUrl.clone()
+      url.pathname = target
+      return NextResponse.redirect(url)
+    }
     return forward()
   }
+  if (langCookie === 'es' && pathname.startsWith('/en')) {
+    const target = getEsEquivalent(pathname)
+    if (target) {
+      const url = request.nextUrl.clone()
+      url.pathname = target
+      return NextResponse.redirect(url)
+    }
+    return forward()
+  }
+  if (langCookie) return forward()
 
   // 4. Detectar idioma del navegador
   const acceptLang = headers.get('accept-language') || ''

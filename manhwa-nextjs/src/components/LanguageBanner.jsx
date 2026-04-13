@@ -52,7 +52,7 @@ export default function LanguageBanner() {
     if (suggestedLang === 'en') {
       // Convertir ruta española a inglesa
       if (pathname === '/' || pathname === '/home') return '/en/home'
-      if (pathname.startsWith('/populares')) return '/en/populares'
+      if (pathname.startsWith('/populares')) return '/en/popular'
       if (pathname.startsWith('/acerca-de')) return '/en/about'
       if (pathname.startsWith('/dmca')) return '/en/dmca'
       if (pathname.startsWith('/terminos')) return '/en/terms-of-service'

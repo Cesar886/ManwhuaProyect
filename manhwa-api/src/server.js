@@ -126,7 +126,7 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'x-api-key', 'x-timezone'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'x-api-key', 'x-timezone', 'x-device-id', 'x-search-context'],
     exposedHeaders: ['Content-Type', 'Cache-Control', 'ETag']
 }));
 
@@ -189,7 +189,7 @@ app.use(requireValidOrigin);
 // rastreaba muchas páginas simultáneamente.
 const limiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+    max: parseInt(process.env.RATE_LIMIT_MAX) || 400,
     message: {
         success: false,
         message: 'Demasiadas peticiones, intenta de nuevo más tarde'
@@ -220,14 +220,15 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
 // Rate limiting para búsqueda (anti-scraping)
-const searchLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000,
-    max: 30,
-    message: {
-        success: false,
-        message: 'Demasiadas búsquedas, intenta de nuevo en un momento'
-    }
-});
+  const searchLimiter = rateLimit({                                                                                                                                                           
+      windowMs: 1 * 60 * 1000,                              
+      max: 120,   // era 30 — aumentado para búsquedas IA con cache hits duplicados
+      message: {                                                                                                                                                                              
+          success: false,
+          message: 'Demasiadas búsquedas, intenta de nuevo en un momento'                                                                                                                     
+      }                                                                                                                                                                                       
+  });
+
 app.use('/api/search', searchLimiter);
 
 // Rate limiting anti-scraping para catálogo de series y spaces

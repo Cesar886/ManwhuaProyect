@@ -50,7 +50,15 @@ const createSeriesValidation = [
     body('coverUrlTmo')
         .optional()
         .trim()
-        .isURL()
+        .isURL(),
+    body('coverUrlOni')
+        .optional()
+        .trim()
+        .isURL(),
+    body('language')
+        .optional()
+        .isIn(['es', 'en'])
+        .withMessage('Idioma debe ser es o en')
 ];
 
 const updateSeriesValidation = [
@@ -79,7 +87,15 @@ const updateSeriesValidation = [
     body('coverUrlTmo')
         .optional()
         .trim()
-        .isURL()
+        .isURL(),
+    body('coverUrlOni')
+        .optional()
+        .trim()
+        .isURL(),
+    body('language')
+        .optional()
+        .isIn(['es', 'en'])
+        .withMessage('Idioma debe ser es o en')
 ];
 
 const slugParam = [

@@ -1,6 +1,5 @@
 import { Outfit, Playfair_Display } from 'next/font/google'
 import Script from 'next/script'
-import { headers } from 'next/headers'
 import './globals.css'
 import '@mantine/core/styles.layer.css'
 import '@mantine/notifications/styles.layer.css'
@@ -11,6 +10,7 @@ import { Providers } from './providers'
 import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateHomePageJsonLd, generateWebApplicationJsonLd, generateDefinedTermSetJsonLd } from '@/lib/seo/jsonld'
 import NavigationProgress from '@/components/NavigationProgress'
 import MainLayout from '@/components/MainLayout'
+import HtmlLangSync from '@/components/HtmlLangSync'
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -122,23 +122,25 @@ export const metadata = {
   // },
 }
 
-export default async function RootLayout({ children }) {
-  // Lee el pathname que el middleware inyecta como header para decidir el
-  // idioma del `<html lang>` y los hreflang en el servidor. Si por alguna
-  // razón el header no está presente, caemos a 'es'.
-  const hdrs = await headers()
-  const pathname = hdrs.get('x-pathname') || '/'
-  const lang = (hdrs.get('x-lang') || (pathname.startsWith('/en') ? 'en' : 'es'))
-  const isEn = lang === 'en'
-
+export default function RootLayout({ children }) {
   return (
     <html
-      lang={isEn ? 'en' : 'es'}
+      lang="es"
       className={`${outfit.variable} ${playfair.variable}`}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <head suppressHydrationWarning>
+        {/* Sincronizar <html lang> de forma síncrona antes de cualquier render.
+            Evita el flash de idioma incorrecto en páginas /en/* y el CLS
+            que ocurriría si solo usáramos HtmlLangSync (asíncrono).
+            HtmlLangSync sigue siendo necesario para navegación SPA posterior. */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var l=location.pathname.startsWith('/en')?'en':'es';document.documentElement.lang=l;})()`
+          }}
+        />
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
@@ -211,13 +213,12 @@ export default async function RootLayout({ children }) {
             __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}`
           }}
         />
-        {/* Ad provider script - servido desde nuestro propio servidor */}
-        <Script src="/8fb659c495.php" strategy="afterInteractive" />
+        <HtmlLangSync />
         <NavigationProgress />
         <MantineProvider theme={imperialTheme} defaultColorScheme="light">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>
-            <MainLayout lang={lang}>
+            <MainLayout>
               {children}
             </MainLayout>
           </Providers>
