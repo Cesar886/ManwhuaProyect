@@ -284,6 +284,25 @@ function getContextPhrase(query) {
 // Ms por carácter para el efecto de stream de la respuesta
 const STREAM_SPEED = 18;
 
+// Géneros populares para el tab "Por género"
+const POPULAR_GENRES = [
+    'Acción', 'Romance', 'Fantasía', 'Sistema',
+    'Murim', 'Regresión', 'Comedia', 'Drama',
+    'Isekai', 'Aventura', 'Terror', 'Ecchi',
+];
+
+// Badge de ranking: #1 → 🔥 ámbar, #2+ → número con intensidad decreciente
+function RankBadge({ rank }) {
+    if (rank === 1) {
+        return <span className="ia-rank-badge ia-rank-fire">🔥</span>;
+    }
+    return (
+        <span className={`ia-rank-badge ia-rank-${Math.min(rank, 5)}`}>
+            {rank}
+        </span>
+    );
+}
+
 // Fisher-Yates shuffle
 function shuffleArray(arr) {
     const s = [...arr];
@@ -450,14 +469,39 @@ function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLA
     return displayed;
 }
 
+// Utilidad: tiempo relativo legible ("hace 2 min", "hace 3h", etc.)
+function timeAgo(isoDate) {
+    if (!isoDate) return '';
+    const diff = Date.now() - new Date(isoDate).getTime();
+    if (diff < 0) return 'ahora';
+    const secs = Math.floor(diff / 1000);
+    if (secs < 60) return 'ahora';
+    const mins = Math.floor(secs / 60);
+    if (mins < 60) return `hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `hace ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'ayer';
+    if (days < 7) return `hace ${days}d`;
+    if (days < 30) return `hace ${Math.floor(days / 7)} sem`;
+    return `hace ${Math.floor(days / 30)} mes${Math.floor(days / 30) > 1 ? 'es' : ''}`;
+}
+
 const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, allowNsfw = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES, thinkingPhrases = EMPTY_PLACEHOLDER_PHRASES }, ref) => {
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
     const [placeholder, setPlaceholder] = useState('');
+    const [activeTab, setActiveTab] = useState('popular');
     const [phrases, setPhrases] = useState([]);
     const [popularSuggestions, setPopularSuggestions] = useState([]);
     const [similarSuggestions, setSimilarSuggestions] = useState([]);
+    const [newestSuggestions, setNewestSuggestions] = useState([]);
+    const [trendingSuggestions, setTrendingSuggestions] = useState([]);
+    const [relatedSuggestions, setRelatedSuggestions] = useState([]);
+    const [afterSearchSuggestions, setAfterSearchSuggestions] = useState([]);
+    const lastSearchedQuery = useRef(''); // para pedir related queries tras búsqueda
+    const phrasesSetAtRef = useRef(0); // timestamp del último seteo de phrases (para no reiniciar el typewriter)
     const [suggestions, setSuggestions] = useState([]);
     const [allSimilarQueries, setAllSimilarQueries] = useState([]);
     const [visibleSimilar, setVisibleSimilar] = useState([]);
@@ -467,6 +511,8 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     const [filteredPhrases, setFilteredPhrases] = useState([]);
     const [autocompleteLoading, setAutocompleteLoading] = useState(false);
     const [nsfwWarning, setNsfwWarning] = useState(null);
+    const [countBumped, setCountBumped] = useState({}); // { queryKey: true } para queries cuyo contador subió
+    const prevCountsRef = useRef({}); // snapshot previo de contadores por query
     const debounceRef = useRef(null);
     const abortRef = useRef(null);
     const placeholderAnimationActive = !loading && !isFocused && query.trim().length === 0;
@@ -483,6 +529,13 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     }, [allSimilarQueries]);
 
     // Fetch único de sugerencias: carga inicial + polling cada 5s con contadores frescos
+    // Inicializar lastSearchedQuery con initialQuery si viene con búsqueda previa
+    useEffect(() => {
+        if (initialQuery && initialQuery.trim()) {
+            lastSearchedQuery.current = initialQuery.trim();
+        }
+    }, [initialQuery]);
+
     useEffect(() => {
         if (incognitoMode) return;
 
@@ -490,22 +543,154 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
 
         const fetchCounters = async () => {
             try {
-                const response = await fetch(`${AI_BASE_URL}/api/search-suggestions?_t=${Date.now()}`, { cache: 'no-store' });
+                const qParam = lastSearchedQuery.current ? `&q=${encodeURIComponent(lastSearchedQuery.current)}` : '';
+                const response = await fetch(`${AI_BASE_URL}/api/search-suggestions?_t=${Date.now()}${qParam}`, { cache: 'no-store' });
                 const data = await response.json();
                 if (cancelled) return;
                 if (data.success) {
+                    // --- Detectar bumps de contadores para animación dorada ---
+                    const allItems = [
+                        ...(data.popular || []),
+                        ...(data.similar || []),
+                        ...(data.newest || []),
+                        ...(data.trending || []),
+                    ];
+                    const newCounts = {};
+                    const bumped = {};
+                    for (const item of allItems) {
+                        if (!item.query || item.count == null) continue;
+                        const key = item.query;
+                        newCounts[key] = item.count;
+                        const prev = prevCountsRef.current[key];
+                        if (prev != null && item.count > prev) {
+                            bumped[key] = true;
+                        }
+                    }
+                    prevCountsRef.current = newCounts;
+                    if (Object.keys(bumped).length > 0) {
+                        setCountBumped(prev => ({ ...prev, ...bumped }));
+                        // Limpiar las clases de animación después de que termine (2.4s)
+                        setTimeout(() => {
+                            setCountBumped(prev => {
+                                const next = { ...prev };
+                                for (const k of Object.keys(bumped)) delete next[k];
+                                return next;
+                            });
+                        }, 2400);
+                    }
+
                     if (Array.isArray(data.popular) && data.popular.length > 0) {
                         setPopularSuggestions(data.popular);
                         setSuggestions(data.popular.slice(0, 5));
-                        setPhrases(prev => {
-                            const fromPopular = data.popular.map(q => q.query);
-                            return [...new Set([...fromPopular, ...prev])];
-                        });
+                    }
+
+                    // --- Placeholder dinámico: 20 queries aleatorias de los usuarios ---
+                    // Combina todas las fuentes (popular + similar + newest + trending),
+                    // deduplica, filtra queries absurdamente largas, mezcla y toma 20.
+                    const allUserQueries = [
+                        ...(data.popular || []),
+                        ...(data.similar || []),
+                        ...(data.newest || []),
+                        ...(data.trending || []),
+                    ]
+                        .map(q => q.query)
+                        .filter(q => typeof q === 'string' && q.length >= 5 && q.length <= 90);
+
+                    const uniqueQueries = [...new Set(allUserQueries)];
+
+                    // Solo refrescar phrases la primera vez o cada 5 minutos,
+                    // para no reiniciar el typewriter en cada poll de 5s
+                    const FIVE_MIN = 5 * 60 * 1000;
+                    const shouldRefreshPhrases = uniqueQueries.length > 0 &&
+                        (phrasesSetAtRef.current === 0 || (Date.now() - phrasesSetAtRef.current) > FIVE_MIN);
+
+                    if (shouldRefreshPhrases) {
+                        const shuffled = shuffleArray(uniqueQueries).slice(0, 20);
+                        // Si tenemos pocas queries de usuario, completamos con FALLBACK_PHRASES
+                        const finalPhrases = shuffled.length >= 20
+                            ? shuffled
+                            : [...shuffled, ...shuffleArray(FALLBACK_PHRASES).slice(0, 20 - shuffled.length)];
+                        setPhrases(finalPhrases);
+                        phrasesSetAtRef.current = Date.now();
                     }
                     if (Array.isArray(data.similar) && data.similar.length > 0) {
                         setSimilarSuggestions(data.similar);
                         setAllSimilarQueries(data.similar);
                         setVisibleSimilar(data.similar.slice(0, 5));
+                    }
+                    // --- Nuevos: usar data.newest del server, sino fallback inteligente ---
+                    if (Array.isArray(data.newest) && data.newest.length > 0) {
+                        setNewestSuggestions(data.newest);
+                    } else {
+                        // Fallback: combinar popular + similar, filtrar queries absurdamente largas,
+                        // ordenar por menor count (las menos buscadas son las más nuevas)
+                        const allQueries = [
+                            ...(data.popular || []),
+                            ...(data.similar || []),
+                        ];
+                        const seen = new Set();
+                        const clean = allQueries.filter(q => {
+                            if (!q.query || q.query.length > 80 || seen.has(q.query)) return false;
+                            seen.add(q.query);
+                            return true;
+                        });
+                        const byLowestCount = [...clean].sort((a, b) => (a.count || 0) - (b.count || 0));
+                        setNewestSuggestions(
+                            byLowestCount.slice(0, 15).map((q, i) => ({ ...q, rank: i + 1 }))
+                        );
+                    }
+
+                    // --- Tendencias: usar data.trending del server, sino fallback ---
+                    if (Array.isArray(data.trending) && data.trending.length > 0) {
+                        setTrendingSuggestions(data.trending);
+                    } else {
+                        // Fallback: top populares (sin "similares a...") = tendencias
+                        const similarRx = /similares?\s*(a\b|al\b)|^similar\s+a\s/i;
+                        const trendFallback = (data.popular || [])
+                            .filter(q => q.query && !similarRx.test(q.query) && q.query.length <= 80);
+                        setTrendingSuggestions(
+                            trendFallback.slice(0, 10).map((q, i) => ({
+                                ...q,
+                                rank: i + 1,
+                                hotScore: q.count || 0,
+                            }))
+                        );
+                    }
+
+                    // --- After-search: "Porque buscaste X, otros buscaron..." ---
+                    if (Array.isArray(data.afterSearch) && data.afterSearch.length > 0) {
+                        setAfterSearchSuggestions(data.afterSearch);
+                    } else {
+                        setAfterSearchSuggestions([]);
+                    }
+
+                    // --- Queries relacionadas: del server o fallback por keywords ---
+                    if (Array.isArray(data.related) && data.related.length > 0) {
+                        setRelatedSuggestions(data.related);
+                    } else if (lastSearchedQuery.current) {
+                        // Fallback cliente: buscar queries que compartan palabras clave con la última búsqueda
+                        const stopwords = new Set(['manhwa', 'manhwas', 'manga', 'similar', 'similares', 'como', 'tipo', 'estilo', 'con', 'de', 'del', 'el', 'la', 'los', 'las', 'un', 'una', 'que', 'para', 'por', 'en', 'a', 'al', 'y', 'o', 'mas', 'the', 'of', 'and', 'to', 'is', 'mejores', 'mejor', 'top', 'buenos']);
+                        const inputWords = lastSearchedQuery.current.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter(w => w.length >= 3 && !stopwords.has(w));
+                        if (inputWords.length > 0) {
+                            const allQ = [...(data.popular || []), ...(data.similar || [])];
+                            const seen = new Set();
+                            const inputKey = lastSearchedQuery.current.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+                            const related = allQ
+                                .filter(q => {
+                                    if (!q.query || seen.has(q.query)) return false;
+                                    const qNorm = q.query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+                                    if (qNorm === inputKey) return false;
+                                    seen.add(q.query);
+                                    const qWords = qNorm.split(/\s+/).filter(w => w.length >= 3 && !stopwords.has(w));
+                                    const shared = inputWords.filter(w => qWords.some(qw => qw.includes(w) || w.includes(qw)));
+                                    return shared.length >= 1;
+                                })
+                                .slice(0, 8)
+                                .map((q, i) => ({ ...q, rank: i + 1 }));
+                            setRelatedSuggestions(related);
+                        } else {
+                            setRelatedSuggestions([]);
+                        }
                     }
                 }
             } catch (_) { }
@@ -836,6 +1021,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
         }
+        lastSearchedQuery.current = value;
         if (typeof onSearch === 'function') onSearch(value);
     };
 
@@ -855,6 +1041,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         }
         setNsfwWarning(null);
 
+        lastSearchedQuery.current = text;
         if (typeof onSearch === 'function') onSearch(text);
     };
 
@@ -867,7 +1054,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     const hasAutocompleteContent = filteredPhrases.length > 0 || autocompleteResults.length > 0 || autocompleteLoading;
     const showIncognitoDropdown = incognitoMode && isFocused && !loading;
     const showDropdown = !incognitoMode && isFocused && !loading && (
-        (query.length === 0 && (suggestions.length > 0 || history.length > 0 || visibleSimilar.length > 0)) ||
+        (query.length === 0 && (suggestions.length > 0 || visibleSimilar.length > 0 || newestSuggestions.length > 0 || trendingSuggestions.length > 0 || relatedSuggestions.length > 0 || afterSearchSuggestions.length > 0)) ||
         (query.length > 0 && hasAutocompleteContent)
     );
 
@@ -994,79 +1181,224 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
             {showDropdown && (
                 <div className="ia-suggestions" role="listbox" aria-label="Sugerencias de búsqueda">
                     {query.length === 0 ? (
-                        /* Modo vacío: historial + populares */
+                        /* Modo vacío: tabs de navegación */
                         <>
-                            {history.length > 0 && (
-                                <>
-                                    <p className="ia-suggestions-label">Búsquedas recientes</p>
-                                    {history.slice(0, 2).map((h) => (
-                                        <div
-                                            key={h.slug}
-                                            className="ia-suggestion-item ia-history-item"
-                                            role="option"
-                                            onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                if (e.target.closest('.ia-history-delete')) return;
-                                                handleSuggestionClick(h.query);
-                                            }}
-                                        >
-                                            <svg className="ia-history-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <circle cx="12" cy="12" r="10" />
-                                                <polyline points="12 6 12 12 16 14" />
-                                            </svg>
-                                            <span className="ia-suggestion-text">{h.query}</span>
+                            {/* ─── Barra de tabs ─── */}
+                            <div className="ia-tabs-bar" role="tablist" aria-label="Categorías de sugerencias">
+                                {[
+                                    { id: 'popular',  label: 'Populares' },
+                                    { id: 'trending', label: '🔥 Tendencias' },
+                                    { id: 'similar',  label: 'Similares a...' },
+                                    { id: 'newest',   label: 'Nuevos' },
+                                    ...(afterSearchSuggestions.length > 0 ? [{ id: 'afterSearch', label: '👥 Porque buscaste' }] : []),
+                                    ...(relatedSuggestions.length > 0 ? [{ id: 'related', label: '🔗 Relacionadas' }] : []),
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={activeTab === tab.id}
+                                        className={[
+                                            'ia-tab',
+                                            activeTab === tab.id ? 'ia-tab-active' : '',
+                                        ].filter(Boolean).join(' ')}
+                                        onMouseDown={(e) => { e.preventDefault(); setActiveTab(tab.id); }}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* ─── Contenido del tab activo ─── */}
+                            <div className="ia-tab-content" role="tabpanel">
+
+                                {/* Populares */}
+                                {activeTab === 'popular' && (
+                                    suggestions.length > 0
+                                        ? suggestions.map((s, i) => (
                                             <button
+                                                key={`pop-${s.query}`}
                                                 type="button"
-                                                className="ia-history-delete"
-                                                onMouseDown={(e) => handleRemoveHistory(h.slug, e)}
-                                                aria-label={`Eliminar "${h.query}" del historial`}
-                                                title="Eliminar del historial"
+                                                className={`ia-suggestion-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
+                                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                role="option"
                                             >
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                                </svg>
+                                                <RankBadge rank={i + 1} />
+                                                <span className="ia-suggestion-text">{s.query}</span>
+                                                {s.count != null && (
+                                                    <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
+                                                        {s.count}x
+                                                    </span>
+                                                )}
                                             </button>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
-                            {suggestions.length > 0 && (
-                                <>
-                                    <p className="ia-suggestions-label">Consultas populares</p>
-                                    {suggestions.map((s, i) => (
-                                        <button
-                                            key={`popular-${s.query}`}
-                                            type="button"
-                                            className="ia-suggestion-item"
-                                            onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
-                                            role="option"
-                                        >
-                                            <span className="ia-suggestion-rank">#{i + 1}</span>
-                                            <span className="ia-suggestion-text">{s.query}</span>
-                                            <span className="ia-suggestion-count">{s.count}x</span>
-                                        </button>
-                                    ))}
-                                </>
-                            )}
-                            {visibleSimilar.length > 0 && (
-                                <>
-                                    <p className="ia-suggestions-label">Similares a...</p>
-                                    {visibleSimilar.map((s, i) => (
-                                        <button
-                                            key={`similar-${s.query}`}
-                                            type="button"
-                                            className="ia-suggestion-item ia-similar-item"
-                                            onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
-                                            role="option"
-                                        >
-                                            <span className="ia-suggestion-rank">#{i + 1}</span>
-                                            <span className="ia-suggestion-text">{s.query}</span>
-                                            <span className="ia-suggestion-count">{s.count}x</span>
-                                        </button>
-                                    ))}
-                                </>
-                            )}
+                                        ))
+                                        : <p className="ia-tab-empty">Sin consultas populares aún</p>
+                                )}
+
+                                {/* Nuevos — consultas más nuevas del servidor con timestamp relativo */}
+                                {activeTab === 'newest' && (
+                                    newestSuggestions.length > 0
+                                        ? newestSuggestions.slice(0, 15).map((s, i) => {
+                                            const isBumped = countBumped[s.query];
+                                            const showNewBadge = i < 3 && (s.count == null || s.count <= 1);
+                                            return (
+                                                <button
+                                                    key={`new-${s.query}-${i}`}
+                                                    type="button"
+                                                    className={`ia-suggestion-item ia-newest-item${isBumped ? ' ia-count-bumped' : ''}`}
+                                                    onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                    role="option"
+                                                >
+                                                    <svg className="ia-newest-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <circle cx="12" cy="12" r="10" />
+                                                        <polyline points="12 6 12 12 16 14" />
+                                                    </svg>
+                                                    <span className="ia-suggestion-text-wrap">
+                                                        <span className="ia-suggestion-text">{s.query}</span>
+                                                        {s.firstSeen && (
+                                                            <span className="ia-newest-time">{timeAgo(s.firstSeen)}</span>
+                                                        )}
+                                                    </span>
+                                                    {s.count != null && s.count > 1 && (
+                                                        <span className={`ia-suggestion-count${isBumped ? ' ia-count-flash' : ''}`}>
+                                                            {s.count}x
+                                                        </span>
+                                                    )}
+                                                    {showNewBadge && <span className="ia-new-badge">NEW</span>}
+                                                </button>
+                                            );
+                                        })
+                                        : <p className="ia-tab-empty">Sin consultas nuevas aún</p>
+                                )}
+
+                                {/* Similares a... */}
+                                {activeTab === 'similar' && (
+                                    visibleSimilar.length > 0
+                                        ? visibleSimilar.map((s, i) => {
+                                            // En mobile acortar "manhwas similares a X" → "Similar a X"
+                                            const shortQuery = s.query.replace(/^.*?similares?\s*(?:a|al)\s+/i, '');
+                                            return (
+                                            <button
+                                                key={`sim-${s.query}`}
+                                                type="button"
+                                                className={`ia-suggestion-item ia-similar-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
+                                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                role="option"
+                                            >
+                                                <RankBadge rank={i + 1} />
+                                                <span className="ia-suggestion-text-wrap">
+                                                    <span className="ia-similar-sublabel">Similares a</span>
+                                                    <span className="ia-suggestion-text ia-similar-full">{s.query}</span>
+                                                    <span className="ia-suggestion-text ia-similar-short">{shortQuery}</span>
+                                                </span>
+                                                {s.count != null && (
+                                                    <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
+                                                        {s.count}x
+                                                    </span>
+                                                )}
+                                            </button>
+                                            );
+                                        })
+                                        : <p className="ia-tab-empty">Sin sugerencias similares aún</p>
+                                )}
+
+                                {/* Tendencias — queries "hot" del día */}
+                                {activeTab === 'trending' && (
+                                    trendingSuggestions.length > 0
+                                        ? trendingSuggestions.slice(0, 10).map((s, i) => (
+                                            <button
+                                                key={`trend-${s.query}-${i}`}
+                                                type="button"
+                                                className={`ia-suggestion-item ia-trending-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
+                                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                role="option"
+                                            >
+                                                <span className={`ia-trending-badge ${i < 3 ? 'ia-trending-hot' : ''}`}>
+                                                    {i < 3 ? '🔥' : `#${i + 1}`}
+                                                </span>
+                                                <span className="ia-suggestion-text-wrap">
+                                                    <span className="ia-suggestion-text">{s.query}</span>
+                                                    {s.lastSeen && (
+                                                        <span className="ia-trending-time">{timeAgo(s.lastSeen)}</span>
+                                                    )}
+                                                </span>
+                                                {s.count != null && (
+                                                    <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
+                                                        {s.count}x
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))
+                                        : <p className="ia-tab-empty">Sin tendencias hoy — las consultas populares aparecerán aquí</p>
+                                )}
+
+                                {/* After-search — "Porque buscaste X, otros buscaron..." (patrón colectivo) */}
+                                {activeTab === 'afterSearch' && (
+                                    afterSearchSuggestions.length > 0
+                                        ? (
+                                            <>
+                                                {lastSearchedQuery.current && (
+                                                    <p className="ia-afterSearch-header">
+                                                        Porque buscaste <strong>{lastSearchedQuery.current}</strong>, otros buscaron:
+                                                    </p>
+                                                )}
+                                                {afterSearchSuggestions.slice(0, 10).map((s, i) => (
+                                                    <button
+                                                        key={`after-${s.query}-${i}`}
+                                                        type="button"
+                                                        className={`ia-suggestion-item ia-afterSearch-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
+                                                        onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                        role="option"
+                                                    >
+                                                        <span className="ia-afterSearch-badge">👥</span>
+                                                        <span className="ia-suggestion-text-wrap">
+                                                            <span className="ia-suggestion-text">{s.query}</span>
+                                                        </span>
+                                                        {s.count != null && (
+                                                            <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
+                                                                {s.count}x
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </>
+                                        )
+                                        : <p className="ia-tab-empty">Busca algo para ver el patrón colectivo</p>
+                                )}
+
+                                {/* Relacionadas — queries por co-ocurrencia de keywords */}
+                                {activeTab === 'related' && (
+                                    relatedSuggestions.length > 0
+                                        ? relatedSuggestions.slice(0, 10).map((s, i) => (
+                                            <button
+                                                key={`rel-${s.query}-${i}`}
+                                                type="button"
+                                                className={`ia-suggestion-item ia-related-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
+                                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                role="option"
+                                            >
+                                                <span className="ia-related-badge">
+                                                    {i < 3 ? '🔗' : `#${i + 1}`}
+                                                </span>
+                                                <span className="ia-suggestion-text-wrap">
+                                                    <span className="ia-suggestion-text">{s.query}</span>
+                                                    {s.sharedKeywords && s.sharedKeywords.length > 0 && (
+                                                        <span className="ia-related-keywords">
+                                                            {s.sharedKeywords.slice(0, 3).join(', ')}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                {s.count != null && (
+                                                    <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
+                                                        {s.count}x
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))
+                                        : <p className="ia-tab-empty">Busca algo para ver queries relacionadas</p>
+                                )}
+
+                            </div>
                         </>
                     ) : (
                         /* Modo escritura: sugerencias IA + resultados visuales */

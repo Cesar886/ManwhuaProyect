@@ -23,7 +23,7 @@ import {
   Input,
   Paper,
 } from '@mantine/core';
-import { filterAvailableSeries } from '@/utils/adultContent';
+import { filterAvailableSeriesForLang } from '@/utils/adultContent';
 import {
   IconArrowLeft,
   IconHeart,
@@ -141,7 +141,8 @@ export default function ColeccionesDetail() {
 
   // Filtrar manhwas según búsqueda
   const filteredManhwas = useMemo(() => {
-    const safeManhwas = filterAvailableSeries(collection.manhwas);
+    // Este file está en (es) — filtrar solo manhwas en español
+    const safeManhwas = filterAvailableSeriesForLang(collection.manhwas, 'es');
     if (!searchQuery) return safeManhwas;
     return safeManhwas.filter(manhwa =>
       manhwa.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

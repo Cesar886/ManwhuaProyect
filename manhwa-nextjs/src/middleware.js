@@ -4,20 +4,24 @@ const PROTECTED_ROUTES = ['/perfil', '/pedidos']
 const BOT_PATTERNS = /googlebot|bingbot|yandex|duckduckbot|slurp|baiduspider/i
 
 // Rutas "canónicas" por idioma — se usan para sugerir el banner de cambio de idioma
-const ES_PATHS = ['/home', '/manhwa', '/genero', '/tag', '/populares', '/biblioteca', '/mangas']
-const EN_PATHS = ['/en/home', '/en/manhwa', '/en/genre', '/en/tag', '/en/popular', '/en/library', '/en/manga']
+// IMPORTANTE: solo listar rutas que TIENEN equivalente real en el otro idioma.
+// Si aparece aquí una ruta sin equivalente (ej. /genero, /tag), el banner de
+// idioma llevaría al usuario a un 404.
+const ES_PATHS = ['/home', '/manhwa', '/populares', '/biblioteca', '/mangas']
+const EN_PATHS = ['/en/home', '/en/manhwa', '/en/popular', '/en/library', '/en/manga']
 
 const LANG_COOKIE = 'preferred_lang'
 
 // Segmentos ES que tienen página EN equivalente (para redirect por cookie)
-// Solo incluir segmentos donde existe la ruta /en/<en-segment>
+// IMPORTANTE: solo incluir segmentos donde la ruta /en/<en-segment> existe
+// realmente en src/app/en/. No agregar aquí 'genero' ni 'colecciones' porque
+// /en/genre y /en/collections NO existen aún → causarían 404 en redirect.
 const ES_TO_EN_SEGMENT = {
   '': 'home',        // / → /en/home
   'home': 'home',
   'biblioteca': 'library',
   'populares': 'popular',
   'manhwa': 'manhwa',
-  'genero': 'genre',
   'acerca-de': 'about',
   'dmca': 'dmca',
   'terminos-de-servicio': 'terms-of-service',
@@ -32,7 +36,6 @@ const EN_SEGMENT_TO_ES = {
   'library': 'biblioteca',
   'popular': 'populares',
   'manhwa': 'manhwa',
-  'genre': 'genero',
   'about': 'acerca-de',
   'dmca': 'dmca',
   'terms-of-service': 'terminos-de-servicio',

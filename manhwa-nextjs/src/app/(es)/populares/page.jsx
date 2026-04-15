@@ -1,6 +1,6 @@
 import PopularesClient from './PopularesClient'
 import { SERVER_API_BASE, SITE_URL } from '@/config'
-import { filterAvailableSeries } from '@/utils/adultContent'
+import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 // SEO: JSON-LD para rankings (ItemList) y breadcrumbs
 import { generateItemListJsonLd, generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
 
@@ -54,7 +54,7 @@ async function fetchSeriesList(path) {
             return []
         }
         
-        const safeSeries = filterAvailableSeries(series)
+        const safeSeries = filterAvailableSeriesForLang(series, 'es')
         
         return safeSeries.map((s, i) => ({
             id: s.id,

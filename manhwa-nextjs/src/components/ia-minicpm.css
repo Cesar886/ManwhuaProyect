@@ -289,7 +289,7 @@
     min-width: 1.35rem;
     height: 1.35rem;
     border-radius: var(--radius-xs, 0.25rem);
-    background: var(--imperial-primary-alpha, rgba(var(--imperial-blue-rgb), 0.1));
+    background: none;
     font-size: 0.62rem;
     font-weight: 800;
     color: var(--imperial-purple);
@@ -299,8 +299,8 @@
 
 /* Destacar el #1 */
 .ia-suggestion-item:first-of-type .ia-suggestion-rank {
-    background: linear-gradient(135deg, var(--imperial-purple), var(--imperial-cyan, #22d3ee));
-    color: #fff;
+    background: none;
+    color: var(--imperial-purple);
 }
 
 /* Texto de la sugerencia */
@@ -322,6 +322,270 @@
     background: var(--subtle-bg);
     padding: 0.15rem 0.4rem;
     border-radius: var(--radius-xs, 0.25rem);
+    position: relative;
+    overflow: hidden;
+    transition: color 0.3s ease, opacity 0.3s ease;
+}
+
+/* ====================================================
+   COUNT BUMP — animación premium cuando el contador sube
+   ==================================================== */
+
+/* Badge del contador: shimmer dorado que fluye por el texto
+   + pulso suave de escala + glow que aparece y se desvanece */
+.ia-count-flash {
+    opacity: 1 !important;
+
+    /* Shimmer de texto dorado */
+    background: linear-gradient(
+        90deg,
+        var(--text-muted) 0%,
+        rgba(251, 191, 36, 0.85) 30%,
+        rgba(245, 158, 11, 1) 50%,
+        rgba(251, 191, 36, 0.85) 70%,
+        var(--text-muted) 100%
+    );
+    background-size: 400% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    animation:
+        ia-count-shimmer 2.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards,
+        ia-count-pulse 2.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards,
+        ia-count-glow 2.2s ease forwards;
+}
+
+/* El shimmer barre 2 veces por el texto */
+@keyframes ia-count-shimmer {
+    0%   { background-position: 120% 0; }
+    50%  { background-position: -20% 0; }
+    100% { background-position: -120% 0; }
+}
+
+/* Micro-pulso de escala: sutil, no agresivo */
+@keyframes ia-count-pulse {
+    0%   { transform: scale(1); }
+    18%  { transform: scale(1.12); }
+    40%  { transform: scale(1); }
+    55%  { transform: scale(1.06); }
+    75%  { transform: scale(1); }
+    100% { transform: scale(1); }
+}
+
+/* Glow dorado suave detrás del badge */
+@keyframes ia-count-glow {
+    0%   { box-shadow: 0 0 0 rgba(251, 191, 36, 0); }
+    20%  { box-shadow: 0 0 8px rgba(251, 191, 36, 0.2), 0 0 2px rgba(245, 158, 11, 0.15); }
+    50%  { box-shadow: 0 0 12px rgba(251, 191, 36, 0.12), 0 0 4px rgba(245, 158, 11, 0.08); }
+    100% { box-shadow: 0 0 0 rgba(251, 191, 36, 0); }
+}
+
+/* La fila: shimmer dorado que barre suave de izquierda a derecha */
+.ia-count-bumped {
+    position: relative;
+    overflow: hidden;
+}
+
+.ia-count-bumped::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -100%;
+    width: 100%;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(245, 158, 11, 0.04) 30%,
+        rgba(251, 191, 36, 0.1) 50%,
+        rgba(245, 158, 11, 0.04) 70%,
+        transparent 100%
+    );
+    animation: ia-shimmer-pass 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes ia-shimmer-pass {
+    0%   { left: -100%; opacity: 0; }
+    8%   { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+}
+
+/* ====================================================
+   TABS BAR — navegación de categorías en el dropdown
+   ==================================================== */
+.ia-tabs-bar {
+    display: flex;
+    gap: 0.3rem;
+    padding: 0.55rem 0.75rem 0.45rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.ia-tabs-bar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Cada tab pill */
+.ia-tab {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.67rem;
+    font-weight: 600;
+    font-family: var(--font-body, inherit);
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition:
+        background var(--transition-fast, 0.12s ease),
+        border-color var(--transition-fast, 0.12s ease),
+        color var(--transition-fast, 0.12s ease);
+}
+
+.ia-tab:hover {
+    border-color: var(--border-medium);
+    color: var(--text-secondary);
+    background: var(--hover-bg);
+}
+
+/* Tab activo: fondo secondary y borde marcado */
+.ia-tab-active {
+    background: var(--subtle-bg);
+    border-color: var(--imperial-purple);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 1px rgba(var(--imperial-blue-rgb), 0.18);
+}
+
+/* Tabs que solo se muestran en desktop */
+.ia-tab-desktop-only {
+    display: none;
+}
+
+@media (min-width: 768px) {
+    .ia-tab-desktop-only {
+        display: inline-flex;
+    }
+}
+
+/* Contenedor del contenido del tab activo */
+.ia-tab-content {
+    /* hereda el scroll del ia-suggestions */
+}
+
+/* Estado vacío de un tab */
+.ia-tab-empty {
+    padding: 1.2rem 1rem;
+    margin: 0;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    opacity: 0.55;
+    font-family: var(--font-body, inherit);
+}
+
+/* ====================================================
+   RANK BADGES — badge de posición premium sin bordes
+   ==================================================== */
+.ia-rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 999px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    flex-shrink: 0;
+    line-height: 1;
+    border: none;
+}
+
+/* #1 — emoji 🔥 sin fondo */
+.ia-rank-fire {
+    font-size: 0.8rem;
+    background: none;
+}
+
+/* #2 — morado */
+.ia-rank-2 {
+    background: none;
+    color: var(--imperial-purple);
+}
+
+/* #3 — tono medio */
+.ia-rank-3 {
+    background: none;
+    color: var(--text-secondary);
+}
+
+/* #4 — gris suave */
+.ia-rank-4 {
+    background: none;
+    color: var(--text-muted);
+    opacity: 0.85;
+}
+
+/* #5+ — gris más apagado */
+.ia-rank-5 {
+    background: none;
+    color: var(--text-muted);
+    opacity: 0.65;
+}
+
+/* ====================================================
+   SIMILAR ITEM — sublabel "Similares a" encima del texto
+   ==================================================== */
+.ia-suggestion-text-wrap {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    gap: 1px;
+}
+
+/* Hereda el ellipsis del padre */
+.ia-suggestion-text-wrap .ia-suggestion-text {
+    /* flex: none ya manejado por el wrapper */
+}
+
+/* Mobile: mostrar solo el título limpio, ocultar la frase completa */
+.ia-similar-full {
+    display: none;
+}
+
+.ia-similar-short {
+    display: block;
+}
+
+@media (min-width: 768px) {
+    .ia-similar-full {
+        display: block;
+    }
+
+    .ia-similar-short {
+        display: none;
+    }
+}
+
+/* Sublabel pequeño sobre el título */
+.ia-similar-sublabel {
+    font-size: 0.56rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    opacity: 0.55;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1;
 }
 
 /* ====== HISTORY ITEMS ====== */
@@ -365,6 +629,209 @@
     opacity: 1 !important;
     background: var(--hover-bg);
     color: var(--text-primary);
+}
+
+/* ====== NEWEST ITEMS ====== */
+.ia-newest-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--imperial-cyan, #22d3ee);
+    opacity: 0.75;
+    transition:
+        opacity var(--transition-fast, 0.12s ease),
+        color var(--transition-fast, 0.12s ease),
+        transform var(--transition-fast, 0.12s ease);
+}
+
+.ia-newest-item:hover .ia-newest-icon {
+    opacity: 1;
+    color: var(--imperial-purple);
+    transform: rotate(15deg);
+}
+
+.ia-newest-time {
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--imperial-cyan, #22d3ee);
+    opacity: 0.5;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    white-space: nowrap;
+    transition: opacity var(--transition-fast, 0.12s ease);
+}
+
+.ia-newest-item:hover .ia-newest-time {
+    opacity: 0.85;
+}
+
+/* Badge "NEW" pill */
+.ia-new-badge {
+    flex-shrink: 0;
+    font-size: 0.5rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--imperial-cyan, #22d3ee);
+    background: rgba(34, 211, 238, 0.1);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    opacity: 0.7;
+    transition: opacity var(--transition-fast, 0.12s ease);
+}
+
+.ia-newest-item:hover .ia-new-badge {
+    opacity: 1;
+}
+
+/* ====== TRENDING ITEMS ====== */
+.ia-trending-item {
+    position: relative;
+}
+
+.ia-trending-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    flex-shrink: 0;
+    line-height: 1;
+    background: var(--subtle-bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+    transition: transform var(--transition-fast, 0.12s ease);
+}
+
+.ia-trending-hot {
+    font-size: 0.8rem;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.15));
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    animation: ia-trending-pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.15);
+}
+
+@keyframes ia-trending-pulse {
+    0%, 100% { transform: scale(1);   box-shadow: 0 0 6px rgba(245, 158, 11, 0.15); }
+    50%       { transform: scale(1.1); box-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
+}
+
+.ia-trending-time {
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    opacity: 0.5;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    white-space: nowrap;
+    transition: opacity var(--transition-fast, 0.12s ease);
+}
+
+.ia-trending-item:hover .ia-trending-time {
+    opacity: 0.85;
+}
+
+.ia-trending-item:hover .ia-trending-badge {
+    transform: scale(1.1);
+}
+
+/* Top 3 trending items: borde lateral sutil dorado */
+.ia-trending-item:nth-child(-n+3) {
+    border-left: 2px solid rgba(245, 158, 11, 0.25);
+}
+
+.ia-trending-item:nth-child(-n+3):hover {
+    border-left-color: rgba(245, 158, 11, 0.5);
+}
+
+/* ====== AFTER-SEARCH ITEMS ("Porque buscaste X, otros buscaron...") ====== */
+.ia-afterSearch-header {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    padding: 0.4rem 0.6rem 0.5rem;
+    margin: 0;
+    line-height: 1.35;
+    opacity: 0.85;
+}
+
+.ia-afterSearch-header strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.ia-afterSearch-badge {
+    flex-shrink: 0;
+    min-width: 22px;
+    font-size: 0.82rem;
+    text-align: center;
+    opacity: 0.75;
+    filter: saturate(0.85);
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.ia-afterSearch-item:hover .ia-afterSearch-badge {
+    opacity: 1;
+    transform: scale(1.12);
+}
+
+.ia-afterSearch-item:nth-child(-n+4) {
+    border-left: 2px solid rgba(59, 130, 246, 0.2);
+}
+
+.ia-afterSearch-item:nth-child(-n+4):hover {
+    border-left-color: rgba(59, 130, 246, 0.45);
+}
+
+/* ====== RELATED ITEMS (queries relacionadas por co-ocurrencia) ====== */
+.ia-related-item {
+    position: relative;
+}
+
+.ia-related-badge {
+    flex-shrink: 0;
+    min-width: 22px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    opacity: 0.85;
+}
+
+.ia-related-keywords {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    opacity: 0.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+    margin-top: 1px;
+}
+
+.ia-related-item:hover .ia-related-keywords {
+    opacity: 0.9;
+    color: var(--imperial-purple);
+}
+
+.ia-related-item:hover .ia-related-badge {
+    opacity: 1;
+    transform: scale(1.08);
+}
+
+.ia-related-item:nth-child(-n+3) {
+    border-left: 2px solid rgba(139, 92, 246, 0.2);
+}
+
+.ia-related-item:nth-child(-n+3):hover {
+    border-left-color: rgba(139, 92, 246, 0.45);
 }
 
 /* ====== SIMILAR ITEMS ====== */

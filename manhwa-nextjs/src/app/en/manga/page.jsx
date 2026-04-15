@@ -1,5 +1,5 @@
 import { SERVER_API_BASE, SITE_URL } from '../../../config'
-import { filterAvailableSeries } from '@/utils/adultContent'
+import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 import { generateBreadcrumbJsonLd, generateWebPageJsonLd } from '@/lib/seo/jsonld'
 import MangasClient from '../../(es)/mangas/MangasClient'
 
@@ -77,7 +77,7 @@ export const metadata = {
 }
 
 export default async function MangaEnPage() {
-  const initialSeries = filterAvailableSeries(await getInitialSeries())
+  const initialSeries = filterAvailableSeriesForLang(await getInitialSeries(), 'en')
 
   const breadcrumbJsonLd = generateBreadcrumbJsonLd([
     { name: 'Home', url: '/en/home' },

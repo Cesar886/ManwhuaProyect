@@ -1,7 +1,7 @@
 import HomeClient from './HomeClient'
 import { endpoint, SITE_URL } from '@/config'
 import { generateFAQJsonLdForHome } from '@/lib/seo/jsonld'
-import { filterAvailableSeries } from '@/utils/adultContent'
+import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 
 // ============================================================================
 // SERVER COMPONENT - Fetches initial data para SSR
@@ -37,7 +37,7 @@ async function getInitialSeries() {
 }
 
 export default async function Home() {
-  const initialSeries = filterAvailableSeries(await getInitialSeries())
+  const initialSeries = filterAvailableSeriesForLang(await getInitialSeries(), 'es')
 
   return (
     <>

@@ -1,7 +1,7 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
 import { META_TEMPLATES } from '@/lib/seo/constants'
 import BibliotecaClient from './BibliotecaClient'
-import { filterAvailableSeries } from '@/utils/adultContent'
+import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 // SEO: JSON-LD para CollectionPage y breadcrumbs
 import { generateBreadcrumbJsonLd, generateWebPageJsonLd } from '@/lib/seo/jsonld'
 
@@ -77,7 +77,7 @@ async function getInitialSeries() {
 export default async function BibliotecaPage() {
   // Fetch ejecutado en el servidor → está en el HTML inicial
   // Filtrar contenido adulto desde el servidor para que no aparezca en el SSR HTML
-  const initialSeries = filterAvailableSeries(await getInitialSeries())
+  const initialSeries = filterAvailableSeriesForLang(await getInitialSeries(), 'es')
 
   // SEO: JSON-LD schemas para crawlers
   const breadcrumbJsonLd = generateBreadcrumbJsonLd([

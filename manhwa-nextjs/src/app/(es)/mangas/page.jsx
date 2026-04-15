@@ -1,5 +1,5 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
-import { filterAvailableSeries } from '@/utils/adultContent'
+import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 import MangasClient from './MangasClient'
 // SEO: JSON-LD para breadcrumbs y WebPage
 import { generateBreadcrumbJsonLd, generateWebPageJsonLd } from '@/lib/seo/jsonld'
@@ -90,7 +90,7 @@ async function getInitialSeries() {
 }
 
 export default async function MangasPage() {
-  const initialSeries = filterAvailableSeries(await getInitialSeries())
+  const initialSeries = filterAvailableSeriesForLang(await getInitialSeries(), 'es')
 
   // SEO: JSON-LD schemas para crawlers
   const breadcrumbJsonLd = generateBreadcrumbJsonLd([

@@ -24,6 +24,7 @@ import styles from './ManhwaDetail.module.css';
 import SeriesEditModalV2 from '@/components/SeriesEditModalV2';
 import Comentarios from '@/components/Comentarios';
 import { normalizeImageUrl } from '@/utils/imageUtils';
+import { setLastViewedSeries } from '@/utils/lastViewed';
 import { Pill, Container, Skeleton, Group, Stack, Box, Avatar, Badge as MantineBadge } from '@mantine/core';
 import ManhwaCover from '@/components/ManhwaCover';
 import Header from '@/components/Header';
@@ -324,6 +325,17 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
     return () => clearTimeout(timer);
   }, [slug, series?.id]);
+
+  // Guardar "última serie vista" en localStorage para personalizar /home
+  // (funciona tanto para usuarios anónimos como autenticados)
+  useEffect(() => {
+    if (!slug || !series?.title) return;
+    setLastViewedSeries({
+      slug,
+      title: series.title,
+      cover: series.coverUrl || series.cover_url || series.cover || null,
+    });
+  }, [slug, series?.title, series?.coverUrl, series?.cover_url, series?.cover]);
 
   // Estados de UI
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);

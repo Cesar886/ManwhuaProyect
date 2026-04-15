@@ -1,5 +1,5 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
-import { isAdultSeries } from '@/utils/adultContent'
+import { isAdultSeries, getSeriesLanguages, DEFAULT_LANG } from '@/utils/adultContent'
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
@@ -48,6 +48,10 @@ export async function fetchAllChaptersFromSpaces() {
       const count = serie.chapterCount
       const lastMod = serie.lastUpdated || serie.updatedAt || serie.updated_at || null
       const isRecentSeries = new Date(lastMod || 0).getTime() >= recentCutoff
+      // Idiomas disponibles de la serie. Legacy sin `language` → [DEFAULT_LANG]
+      // para no perder URLs del sitemap.
+      const langs = getSeriesLanguages(serie)
+      const seriesLangs = langs.length > 0 ? langs : [DEFAULT_LANG]
 
       // Capítulos en orden DESC dentro de cada serie (el más nuevo primero)
       for (let n = count; n >= 1; n--) {
@@ -59,6 +63,8 @@ export async function fetchAllChaptersFromSpaces() {
           isLatest: isRecentSeries && n === count,
           // Todos los capítulos de una serie activa reciben prioridad intermedia
           isRecent: isRecentSeries,
+          // Idiomas en los que la serie debe aparecer en el sitemap
+          languages: seriesLangs,
         })
       }
     }

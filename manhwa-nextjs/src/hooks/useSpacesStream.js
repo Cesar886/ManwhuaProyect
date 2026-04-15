@@ -26,8 +26,8 @@ const SSE_CONFIG = {
   baseReconnectDelay: 1000,
   // Tiempo mínimo entre intentos de conexión (anti-spam)
   connectionDebounce: 200,
-  // Timeout para API fallback (más generoso que SSE)
-  apiFallbackTimeout: 30000,
+  // Timeout para API fallback (60s para conexiones lentas)
+  apiFallbackTimeout: 60000,
   // Cache en sessionStorage (evitar recargas innecesarias)
   useSessionCache: true,
   // TTL del cache de sesión: 5 minutos

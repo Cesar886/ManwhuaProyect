@@ -4,7 +4,7 @@ import { generateSeriesKeywords } from '@/lib/seo/keywords'
 import { getImageAlt } from '@/lib/seo/constants'
 import ManhwaDetail from '../../../(es)/manhwa/[slug]/ManhwaDetailClient'
 import { notFound } from 'next/navigation'
-import { isAdultSeries } from '@/utils/adultContent'
+import { isAdultSeries, matchesLanguage } from '@/utils/adultContent'
 
 export const revalidate = 3600
 
@@ -20,6 +20,12 @@ export async function generateMetadata({ params }) {
   }
 
   if (isAdultSeries(series)) {
+    notFound()
+  }
+
+  // Gate por idioma: /en solo debe mostrar series en inglés.
+  // Series legacy sin `language` se asumen 'es', así que quedan fuera aquí.
+  if (!matchesLanguage(series, 'en')) {
     notFound()
   }
 
@@ -87,6 +93,12 @@ export default async function EnManhwaDetailPage({ params }) {
   }
 
   if (isAdultSeries(series)) {
+    notFound()
+  }
+
+  // Gate por idioma: /en solo debe mostrar series en inglés.
+  // Series legacy sin `language` se asumen 'es', así que quedan fuera aquí.
+  if (!matchesLanguage(series, 'en')) {
     notFound()
   }
 

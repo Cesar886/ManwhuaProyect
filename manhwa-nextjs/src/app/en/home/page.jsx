@@ -1,7 +1,7 @@
 import HomeClient from '../../(es)/home/HomeClient'
 import { endpoint, SITE_URL } from '../../../config'
 import { generateFAQJsonLdForHome } from '@/lib/seo/jsonld'
-import { filterAvailableSeries } from '@/utils/adultContent'
+import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
@@ -38,7 +38,7 @@ export const metadata = {
 }
 
 export default async function EnHome() {
-  const initialSeries = filterAvailableSeries(await getInitialSeries())
+  const initialSeries = filterAvailableSeriesForLang(await getInitialSeries(), 'en')
 
   return (
     <>

@@ -17,9 +17,10 @@ import { endpoint } from '@/config';
 import Header from '@/components/Header';
 import { getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { slugifyQuery, getSearchHistory } from '@/hooks/useIA';
-import { filterAvailableSeries } from '@/utils/adultContent';
+import { filterAvailableSeries, filterAvailableSeriesForLang, filterByLanguage } from '@/utils/adultContent';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecentProgress } from '@/api/progress';
+import { getLastViewedSeries } from '@/utils/lastViewed';
 import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
 import { useLang } from '@/hooks/useLang';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
@@ -270,6 +271,18 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     return recentList.find((item) => item?.series?.slug && item?.series?.title)?.series || null
   }
 
+  // Fallback behavioral: última serie que el usuario visitó (localStorage, anon o logueado)
+  const getLastViewedSourceSeries = (seriesList = []) => {
+    const stored = getLastViewedSeries()
+    if (!stored?.slug || !stored?.title) return null
+    // Intentar resolver contra el catálogo disponible para obtener datos completos
+    const matched = filterAvailableSeries(seriesList)
+      .find((item) => item?.slug && String(item.slug) === String(stored.slug))
+    if (matched) return matched
+    // Si no está en el catálogo cargado, devolver un stub mínimo (slug + title)
+    return { slug: stored.slug, title: stored.title, coverUrl: stored.cover || null }
+  }
+
   const getDailyRotatingSourceSeries = (seriesList = [], date = new Date()) => {
     const availableSeries = filterAvailableSeries(seriesList)
       .filter((item) => item?.slug && item?.title)
@@ -301,7 +314,9 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const result = await res.json()
-        const data = result.data?.series || result.series || []
+        const rawData = result.data?.series || result.series || []
+        // Filtrar por disponibilidad + por idioma según URL (/en → 'en', / → 'es')
+        const data = filterAvailableSeriesForLang(rawData, lang)
         if (!cancelled) {
           // Preservar covers de initialSeries si el fetch no los trae
           const initMap = new Map(initialSeries.map(s => [s.slug, s]))
@@ -399,8 +414,10 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
     const loadSmartRecommendation = async () => {
       const historySourceSeries = user ? getHistorySourceSeries(recentReads) : null
+      const lastViewedSourceSeries = getLastViewedSourceSeries(series)
       const dailySourceSeries = getDailyRotatingSourceSeries(series)
-      const sourceSeries = historySourceSeries || dailySourceSeries || getFeaturedSourceSeries(series)
+      // Prioridad: progreso autenticado → última vista (localStorage) → rotativa diaria → featured
+      const sourceSeries = historySourceSeries || lastViewedSourceSeries || dailySourceSeries || getFeaturedSourceSeries(series)
 
       if (user && recentLoading) {
         setSmartRecommendation((prev) => ({ ...prev, loading: true }))
@@ -418,7 +435,9 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
       const sourceTitle = String(sourceSeries.title || '').trim()
       const sourceSlug = String(sourceSeries.slug || '').trim()
-      const sourceMode = historySourceSeries ? 'history' : 'daily'
+      const sourceMode = historySourceSeries
+        ? 'history'
+        : (lastViewedSourceSeries && sourceSeries === lastViewedSourceSeries ? 'lastViewed' : 'daily')
       const aiQuery = sourceTitle ? `manhwas similares a ${sourceTitle}` : ''
       const availableFallback = filterAvailableSeries(series)
         .filter((item) => item?.slug && item.slug !== sourceSlug)
@@ -479,7 +498,10 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           }
         }
 
-        const cleaned = filterAvailableSeries(Array.isArray(relatedRaw) ? relatedRaw : [])
+        const cleaned = filterByLanguage(
+          filterAvailableSeries(Array.isArray(relatedRaw) ? relatedRaw : []),
+          lang,
+        )
           .filter((item) => item?.slug && item.slug !== sourceSlug)
           .slice(0, 8)
 
@@ -1112,7 +1134,10 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
               const querySlug = rowQuery ? slugifyQuery(rowQuery) : ''
               const rowTitle = String(row?.title || '').trim()
               const rowSubtitle = String(row?.subtitle || '').trim()
-              const rowSeries = filterAvailableSeries(Array.isArray(row?.series) ? row.series : [])
+              const rowSeries = filterByLanguage(
+                filterAvailableSeries(Array.isArray(row?.series) ? row.series : []),
+                lang,
+              )
               const rowCardCover = pickAiCardCover(
                 rowSeries,
                 `${aiDailySeed}-${querySlug || rowQuery || String(rowIdx)}`
@@ -1199,7 +1224,9 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                 <h2 className={styles.queryName}>
                   {smartRecommendation.sourceMode === 'history'
                     ? t.home.becauseYouRead.replace('{title}', smartRecommendation.sourceTitle)
-                    : t.home.todayYouMayLike}
+                    : smartRecommendation.sourceMode === 'lastViewed'
+                      ? (t.home.similarTo || 'Similar a {title}').replace('{title}', smartRecommendation.sourceTitle)
+                      : t.home.todayYouMayLike}
                 </h2>
                 <Link href={getLocalizedPath(`/busqueda-ia/${slugifyQuery(smartRecommendation.aiQuery || `manhwas similares a ${smartRecommendation.sourceTitle}`)}`, lang)} className={styles.queryLink}>
                   {t.home.viewAiResults} →

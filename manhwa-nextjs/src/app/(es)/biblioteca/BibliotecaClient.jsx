@@ -119,7 +119,8 @@ function CustomPagination({ value, onChange, total, color = "cyan", lang = 'es' 
 import classes from './Biblioteca.module.css';
 
 // Usar la utilidad centralizada para detectar contenido adulto
-import { isAdultSeries, hasAvailableChapters } from '@/utils/adultContent';
+import { isAdultSeries, hasAvailableChapters, filterByLanguage } from '@/utils/adultContent';
+import { useLang } from '@/hooks/useLang';
 
 const getSeriesTypeLabel = (series) => {
         const rawType =
@@ -240,7 +241,9 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
         // mantener fallback para no vaciar toda la biblioteca.
         const nonAdultSeries = seriesData.filter((s) => !isAdultSeries(s));
         const withAvailableChapters = nonAdultSeries.filter((s) => hasAvailableChapters(s));
-        const base = withAvailableChapters.length > 0 ? withAvailableChapters : nonAdultSeries;
+        const raw = withAvailableChapters.length > 0 ? withAvailableChapters : nonAdultSeries;
+        // Filtrar por idioma según la URL (/en → 'en', / → 'es')
+        const base = filterByLanguage(raw, lang);
 
         // Si hay query `search` en la URL, filtrar por título (case-insensitive)
         if (querySearch && querySearch.trim().length > 0) {
@@ -249,7 +252,7 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
         }
 
         return base;
-    }, [seriesData, querySearch]);
+    }, [seriesData, querySearch, lang]);
 
     // 4. Memoización de Paginación
     // Evita recalcular tajadas de array en cada render si los datos no cambian
@@ -359,7 +362,7 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
                     <Stack gap="md">
                         {/* IA Search Section — redirige a /busqueda-ia/[query] */}
                         <Stack gap="md">
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                            <div className={classes.iaSearchRow}>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     {mounted && (
                                         <ChatIA

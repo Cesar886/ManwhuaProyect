@@ -4,7 +4,7 @@ import { generateSeriesKeywords } from '@/lib/seo/keywords'
 import { META_TEMPLATES, getImageAlt } from '@/lib/seo/constants'
 import ManhwaDetail from './ManhwaDetailClient'
 import { notFound } from 'next/navigation'
-import { isAdultSeries } from '@/utils/adultContent'
+import { isAdultSeries, matchesLanguage } from '@/utils/adultContent'
 
 // ISR: reconstruye la página cada hora para que Google pueda indexarla
 // Sin esto, Next.js devuelve cache-control: private, no-cache, no-store
@@ -31,6 +31,12 @@ export async function generateMetadata({ params }) {
   }
 
   if (isAdultSeries(series)) {
+    notFound()
+  }
+
+  // Gate por idioma: la ruta (es) solo debe mostrar series en español.
+  // Series sin `language` se tratan como 'es' (legacy), así que pasan.
+  if (!matchesLanguage(series, 'es')) {
     notFound()
   }
 
@@ -96,6 +102,12 @@ export default async function ManhwaDetailPage({ params }) {
   }
 
   if (isAdultSeries(series)) {
+    notFound()
+  }
+
+  // Gate por idioma: la ruta (es) solo debe mostrar series en español.
+  // Series sin `language` se tratan como 'es' (legacy), así que pasan.
+  if (!matchesLanguage(series, 'es')) {
     notFound()
   }
 

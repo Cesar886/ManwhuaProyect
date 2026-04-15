@@ -1,6 +1,6 @@
 import PopularesClient from '../../(es)/populares/PopularesClient'
 import { SERVER_API_BASE, SITE_URL } from '../../../config'
-import { filterAvailableSeries } from '@/utils/adultContent'
+import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 import { generateItemListJsonLd, generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
 
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
@@ -38,7 +38,7 @@ async function fetchSeriesList(path) {
             return []
         }
         
-        const safeSeries = filterAvailableSeries(series)
+        const safeSeries = filterAvailableSeriesForLang(series, 'en')
         
         return safeSeries.map((s, i) => ({
             id: s.id,

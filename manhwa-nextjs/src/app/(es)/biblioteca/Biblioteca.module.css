@@ -445,6 +445,35 @@
 }
 
 /* ============================================
+   IA SEARCH ROW — input + filtros
+   ============================================ */
+.iaSearchRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+@media (max-width: 768px) {
+  .iaSearchRow {
+    position: relative;
+    display: block;
+  }
+
+  /* El input ocupa todo el ancho */
+  .iaSearchRow > div:first-child {
+    width: 100%;
+  }
+
+  /* El icono de filtros flota arriba a la derecha */
+  .iaSearchRow > :last-child {
+    position: absolute;
+    top: -2.2rem;
+    right: 0;
+    z-index: 10;
+  }
+}
+
+/* ============================================
    ARQUITECTURA HÍBRIDA - CARGA PROGRESIVA
    ============================================ */
 

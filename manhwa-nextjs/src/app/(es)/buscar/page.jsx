@@ -22,6 +22,7 @@ import { api } from '@/api/client';
 import { useLang } from '@/hooks/useLang';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
 import { normalizeImageUrl } from '@/utils/imageUtils';
+import { filterByLanguage } from '@/utils/adultContent';
 import styles from './buscar.module.css';
 
 const MIN_QUERY_LENGTH = 2;
@@ -106,7 +107,8 @@ export default function BuscarPage() {
       );
 
       const series = response?.data?.series || [];
-      setResults(Array.isArray(series) ? series : []);
+      const filtered = filterByLanguage(Array.isArray(series) ? series : [], lang);
+      setResults(filtered);
     } catch (err) {
       setResults([]);
       setError(err?.message || (lang === 'en' ? 'Search failed' : 'La busqueda fallo'));

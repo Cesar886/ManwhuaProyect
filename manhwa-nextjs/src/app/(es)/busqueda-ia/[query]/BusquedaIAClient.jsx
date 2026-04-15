@@ -16,7 +16,8 @@ import { useSpaces } from '@/hooks/useSpaces';
 import { normalizeImageUrl } from '@/utils/imageUtils';
 import ManhwaCover from '@/components/ManhwaCover';
 import { PremiumSkeletonGrid } from '@/components/PremiumSkeleton';
-import { filterAvailableSeries } from '@/utils/adultContent';
+import { filterAvailableSeries, filterByLanguage } from '@/utils/adultContent';
+import { useLang } from '@/hooks/useLang';
 import classes from '../../biblioteca/Biblioteca.module.css';
 import homeStyles from '../../home/Home.module.css';
 import dynamic from 'next/dynamic';
@@ -148,6 +149,7 @@ function CustomPagination({ value, onChange, total, color = "cyan" }) {
 
 export default function BusquedaIAClient({ querySlug }) {
     const router = useRouter();
+    const { lang } = useLang();
     const slugDecoded = decodeURIComponent(querySlug || '');
 
     // Restaurar página del paginador desde history.state si existe (navegación atrás)
@@ -259,8 +261,8 @@ export default function BusquedaIAClient({ querySlug }) {
     }, [resultados, catalogBySlug, catalogById, catalogByTitle]);
 
     const filteredSeries = useMemo(() => {
-        return filterAvailableSeries(iaSeriesEnriched);
-    }, [iaSeriesEnriched]);
+        return filterByLanguage(filterAvailableSeries(iaSeriesEnriched), lang);
+    }, [iaSeriesEnriched, lang]);
 
     const paginatedSeries = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;

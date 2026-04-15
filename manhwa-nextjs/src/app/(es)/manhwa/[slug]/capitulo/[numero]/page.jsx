@@ -4,7 +4,7 @@ import { generateChapterKeywords } from '@/lib/seo/keywords'
 import { META_TEMPLATES, getImageAlt } from '@/lib/seo/constants'
 import ChapterReader from './ChapterReaderClient'
 import { notFound } from 'next/navigation'
-import { isAdultSeries } from '@/utils/adultContent'
+import { isAdultSeries, matchesLanguage } from '@/utils/adultContent'
 
 // ISR: reconstruye cada 24h (imágenes de capítulos son estáticas, no cambian)
 // Sin esto, Next.js devuelve cache-control: private, no-cache, no-store
@@ -51,6 +51,10 @@ export async function generateMetadata({ params }) {
   const title = series?.title || slug.replace(/-/g, ' ')
   const titleFormatted = title.charAt(0).toUpperCase() + title.slice(1)
   const coverUrl = series?.coverUrl || series?.cover || null
+
+  if (series && !matchesLanguage(series, 'es')) {
+    notFound()
+  }
 
   if (series && isAdultSeries(series)) {
     notFound()
@@ -123,6 +127,10 @@ export default async function ChapterReaderPage({ params }) {
     fetchChapterRatingForSEO(slug, numero),
     fetchChapterPages(slug, numero),
   ])
+
+  if (series && !matchesLanguage(series, 'es')) {
+    notFound()
+  }
 
   if (series && isAdultSeries(series)) {
     notFound()

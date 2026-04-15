@@ -4,7 +4,7 @@ import { generateChapterKeywords } from '@/lib/seo/keywords'
 import { getImageAlt } from '@/lib/seo/constants'
 import ChapterReader from '../../../../../(es)/manhwa/[slug]/capitulo/[numero]/ChapterReaderClient'
 import { notFound } from 'next/navigation'
-import { isAdultSeries } from '@/utils/adultContent'
+import { isAdultSeries, matchesLanguage } from '@/utils/adultContent'
 
 export const revalidate = 86400
 
@@ -38,6 +38,10 @@ export async function generateMetadata({ params }) {
   const coverUrl = series?.coverUrl || series?.cover || null
 
   if (series && isAdultSeries(series)) {
+    notFound()
+  }
+
+  if (series && !matchesLanguage(series, 'en')) {
     notFound()
   }
 
@@ -109,6 +113,10 @@ export default async function EnChapterReaderPage({ params }) {
   ])
 
   if (series && isAdultSeries(series)) {
+    notFound()
+  }
+
+  if (series && !matchesLanguage(series, 'en')) {
     notFound()
   }
 

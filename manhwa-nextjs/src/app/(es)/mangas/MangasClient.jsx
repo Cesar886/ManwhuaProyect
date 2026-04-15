@@ -118,7 +118,7 @@ function CustomPagination({ value, onChange, total, color = "cyan", lang = 'es' 
 
 import classes from '../biblioteca/Biblioteca.module.css';
 
-import { isAdultSeries, hasAvailableChapters } from '@/utils/adultContent';
+import { isAdultSeries, hasAvailableChapters, filterByLanguage } from '@/utils/adultContent';
 
 const getSeriesChapterCount = (series) => {
     const directCount = Number(
@@ -215,7 +215,9 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
     const querySearch = searchParams.get('search') || '';
 
     const filteredSeries = useMemo(() => {
-        const base = seriesData.filter(s => !isAdultSeries(s) && hasAvailableChapters(s));
+        const clean = seriesData.filter(s => !isAdultSeries(s) && hasAvailableChapters(s));
+        // Filtrar por idioma según la URL (/en → 'en', / → 'es')
+        const base = filterByLanguage(clean, lang);
 
         if (querySearch && querySearch.trim().length > 0) {
             const q = querySearch.trim().toLowerCase();
@@ -223,7 +225,7 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
         }
 
         return base;
-    }, [seriesData, querySearch]);
+    }, [seriesData, querySearch, lang]);
 
     // Paginación
     const paginatedSeries = useMemo(() => {

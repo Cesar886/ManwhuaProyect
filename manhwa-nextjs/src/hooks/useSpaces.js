@@ -21,8 +21,8 @@ const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 // CONFIGURACIÓN
 // ============================================
 const CONFIG = {
-  // Timeout para la petición REST (30 segundos - aumentado para servidores lentos)
-  timeout: 30000,
+  // Timeout para la petición REST (60 segundos - aumentado para conexiones lentas)
+  timeout: 60000,
   // TTL del cache en sessionStorage (5 minutos)
   sessionCacheTtl: 5 * 60 * 1000,
   // Key para sessionStorage
