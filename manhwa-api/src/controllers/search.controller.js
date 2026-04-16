@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { query } = require('../config/database');
 
 const GUEST_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.GUEST_DAILY_IA_LIMIT, 10) || 5);
-const USER_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.USER_DAILY_IA_LIMIT, 10) || 15);
+const USER_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.USER_DAILY_IA_LIMIT, 10) || 10);
 const AI_FETCH_TIMEOUT_MS = Math.max(3000, parseInt(process.env.AI_FETCH_TIMEOUT_MS, 10) || 25000);
 const AI_UPSTREAM_HTML_REGEX = /<html[\s>]|<!doctype\s/i;
 const AI_UPSTREAM_MAINTENANCE_MESSAGE = 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red. Intenta de nuevo en unos minutos.';
@@ -17,11 +17,9 @@ const AI_READ_ENDPOINT = (() => {
 })();
 
 const getClientIp = (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string' && forwarded.trim().length > 0) {
-        return forwarded.split(',')[0].trim();
-    }
-    return req.ip || req.connection?.remoteAddress || null;
+    // req.ip es procesado por Express según trust proxy (más seguro que leer el header crudo,
+    // que un cliente puede falsificar para eludir el fingerprint de cuota)
+    return req.ip || req.socket?.remoteAddress || null;
 };
 
 const normalizeDeviceId = (value) => {
@@ -44,6 +42,15 @@ const buildQuotaState = (limit, quota) => ({
     remaining: quota.remaining,
     blocked: !quota.allowed,
 });
+
+// Segundos hasta medianoche UTC (para Retry-After en 429)
+const secondsUntilMidnight = () => {
+    const now = new Date();
+    const midnight = new Date(Date.UTC(
+        now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1
+    ));
+    return Math.max(1, Math.ceil((midnight - now) / 1000));
+};
 
 const attachQuotaPayload = (payload, { guestLimit = null, userLimit = null } = {}) => {
     const response = payload && typeof payload === 'object' ? { ...payload } : {};
@@ -693,6 +700,10 @@ const advancedSearch = async (req, res, next) => {
  * POST /api/search/ai/read
  */
 const aiRead = async (req, res, next) => {
+    // Declaradas fuera del try para que el catch externo pueda accederlas
+    let guestLimit = null;
+    let userLimit = null;
+
     try {
         const messages = req.body?.messages;
 
@@ -705,8 +716,6 @@ const aiRead = async (req, res, next) => {
         }
 
         const isGuest = !req.user;
-        let guestLimit = null;
-        let userLimit = null;
 
         try {
             if (isGuest) {
@@ -714,22 +723,26 @@ const aiRead = async (req, res, next) => {
                 guestLimit = buildQuotaState(GUEST_DAILY_IA_LIMIT, quota);
 
                 if (!quota.allowed) {
-                    return res.status(429).json(attachQuotaPayload({
-                        success: false,
-                        code: 'AI_GUEST_DAILY_LIMIT',
-                        message: `Has alcanzado el límite diario de ${GUEST_DAILY_IA_LIMIT} consultas IA. Regístrate para seguir usándola.`,
-                    }, { guestLimit }));
+                    return res.status(429)
+                        .set('Retry-After', String(secondsUntilMidnight()))
+                        .json(attachQuotaPayload({
+                            success: false,
+                            code: 'AI_GUEST_DAILY_LIMIT',
+                            message: `Has alcanzado el límite diario de ${GUEST_DAILY_IA_LIMIT} consultas IA. Regístrate para seguir usándola.`,
+                        }, { guestLimit }));
                 }
             } else {
                 const quota = await reserveUserDailyAiQuota(req.user.id);
                 userLimit = buildQuotaState(USER_DAILY_IA_LIMIT, quota);
 
                 if (!quota.allowed) {
-                    return res.status(429).json(attachQuotaPayload({
-                        success: false,
-                        code: 'AI_USER_DAILY_LIMIT',
-                        message: `Has alcanzado el límite diario de ${USER_DAILY_IA_LIMIT} consultas IA.`,
-                    }, { userLimit }));
+                    return res.status(429)
+                        .set('Retry-After', String(secondsUntilMidnight()))
+                        .json(attachQuotaPayload({
+                            success: false,
+                            code: 'AI_USER_DAILY_LIMIT',
+                            message: `Has alcanzado el límite diario de ${USER_DAILY_IA_LIMIT} consultas IA.`,
+                        }, { userLimit }));
                 }
 
                 req._userAiQuota = userLimit;
@@ -815,6 +828,12 @@ const aiRead = async (req, res, next) => {
                     res.set('X-IA-Guest-Used', String(guestLimit.used));
                     res.set('X-IA-Guest-Remaining', String(guestLimit.remaining));
                 }
+                const ul = req._userAiQuota || userLimit;
+                if (ul) {
+                    res.set('X-IA-User-Limit', String(ul.limit));
+                    res.set('X-IA-User-Used', String(ul.used));
+                    res.set('X-IA-User-Remaining', String(ul.remaining));
+                }
                 return res.json(payload);
             }
 
@@ -838,6 +857,12 @@ const aiRead = async (req, res, next) => {
                 res.set('X-IA-Guest-Limit', String(guestLimit.limit));
                 res.set('X-IA-Guest-Used', String(guestLimit.used));
                 res.set('X-IA-Guest-Remaining', String(guestLimit.remaining));
+            }
+            const activeUserLimit = req._userAiQuota || userLimit;
+            if (activeUserLimit) {
+                res.set('X-IA-User-Limit', String(activeUserLimit.limit));
+                res.set('X-IA-User-Used', String(activeUserLimit.used));
+                res.set('X-IA-User-Remaining', String(activeUserLimit.remaining));
             }
 
             if (appearsToBeHtml) {
@@ -875,6 +900,56 @@ const aiRead = async (req, res, next) => {
             guestLimit,
             userLimit: req._userAiQuota || userLimit,
         }));
+    }
+};
+
+/**
+ * Consulta de cuota actual sin consumirla (read-only)
+ * GET /api/search/ai/quota
+ */
+const getAiQuota = async (req, res) => {
+    try {
+        const isGuest = !req.user;
+        const usageDate = new Date().toISOString().slice(0, 10);
+        let fingerprintHash;
+        let dailyLimit;
+
+        if (isGuest) {
+            fingerprintHash = getGuestFingerprint(req);
+            dailyLimit = GUEST_DAILY_IA_LIMIT;
+        } else {
+            fingerprintHash = crypto.createHash('sha256').update(`user:${req.user.id}`).digest('hex');
+            dailyLimit = USER_DAILY_IA_LIMIT;
+        }
+
+        const result = await query(
+            `SELECT request_count FROM ai_guest_daily_usage
+             WHERE usage_date = $1 AND fingerprint_hash = $2`,
+            [usageDate, fingerprintHash]
+        );
+
+        const used = Number(result.rows[0]?.request_count) || 0;
+        const remaining = Math.max(0, dailyLimit - used);
+        const blocked = remaining === 0;
+        const quotaState = { limit: dailyLimit, used, remaining, blocked };
+
+        if (isGuest) {
+            return res.json({ success: true, isGuest: true, guestLimit: quotaState });
+        }
+        return res.json({ success: true, isGuest: false, userLimit: quotaState });
+    } catch {
+        // Fail-open: no bloquear al usuario por error de DB
+        const isGuest = !req.user;
+        if (isGuest) {
+            return res.json({
+                success: true, isGuest: true,
+                guestLimit: { limit: GUEST_DAILY_IA_LIMIT, used: 0, remaining: GUEST_DAILY_IA_LIMIT, blocked: false },
+            });
+        }
+        return res.json({
+            success: true, isGuest: false,
+            userLimit: { limit: USER_DAILY_IA_LIMIT, used: 0, remaining: USER_DAILY_IA_LIMIT, blocked: false },
+        });
     }
 };
 
@@ -947,5 +1022,6 @@ module.exports = {
     autocomplete,
     advancedSearch,
     aiRead,
+    getAiQuota,
     trackAiSearch,
 };

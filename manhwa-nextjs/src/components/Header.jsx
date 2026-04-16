@@ -14,6 +14,7 @@ import {
   IconUser,
   IconFlame,
   IconSearch,
+  IconCrown,
 } from '@tabler/icons-react';
 import {
   Avatar,
@@ -62,6 +63,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   // Items del menú del usuario (dinámicos según idioma)
   const USER_MENU_ITEMS = useMemo(() => [
     { icon: IconUser, label: t.common.profile, color: 'blue', action: 'perfil' },
+    { icon: IconCrown, label: 'VIP', color: 'yellow', action: 'vip' },
     { icon: IconLogout, label: t.common.logout, color: 'red', action: 'cerrar_sesion' },
   ], [t]);
 
@@ -191,8 +193,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   // Stable handler for user menu actions
   const handleUserAction = useMemo(() => ({
     perfil: () => router.push(getLocalizedPath(lang === 'en' ? '/profile' : '/perfil', lang)),
-    // favoritos: () => router.push('/colecciones?tab=favoritos'),
-    // configuracion: () => router.push('/configuracion'),
+    vip: () => router.push(getLocalizedPath('/vip', lang)),
     cerrar_sesion: async () => {
       try { await doLogout(); } catch (e) { console.warn('Logout failed', e); }
       router.push(getLocalizedPath('/home', lang));
@@ -354,27 +355,33 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
                         )}
                       </Box>
 
+                      <Menu.Divider />
+
                       {/* Menu Items */}
                       {USER_MENU_ITEMS.map((item) => {
                         const ItemIcon = item.icon;
+                        const isVIP = item.action === 'vip';
                         return (
                           <div key={item.label}>
                             <Menu.Item
                               leftSection={
                                 <ThemeIcon
-                                  size="md"
+                                  size="lg"
                                   variant="light"
                                   color={item.color}
                                   radius="md"
                                   className={styles.menuItemIcon}
                                 >
-                                  <ItemIcon size={16} />
+                                  <ItemIcon size={18} />
                                 </ThemeIcon>
                               }
                               onClick={handleUserAction[item.action] || (() => router.push('/'))}
-                              className={`${styles.menuItem} ${item.color === 'red' ? styles.menuItemDanger : ''}`}
+                              className={`${styles.menuItem} ${isVIP ? styles.menuItemVip : ''} ${item.color === 'red' ? styles.menuItemDanger : ''}`}
                             >
-                              {item.label}
+                              <Group justify="space-between" w="100%" gap="md">
+                                <span>{item.label}</span>
+                                {isVIP && <Badge size="sm" variant="light" color="yellow">Premium</Badge>}
+                              </Group>
                             </Menu.Item>
                             {item.divider && <Menu.Divider />}
                           </div>

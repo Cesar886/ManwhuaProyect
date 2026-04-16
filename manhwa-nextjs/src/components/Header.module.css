@@ -597,17 +597,30 @@
 
 /* Menu Items - Premium */
 .menuItem {
-  padding: 0.75rem 1rem !important;
+  padding: 0.85rem 1.2rem !important;
   margin: 0.25rem 0.5rem !important;
   border-radius: 10px !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   font-weight: 500 !important;
   cursor: pointer;
+  position: relative;
 }
 
 .menuItem:hover {
   background: var(--subtle-bg) !important;
   transform: translateX(4px);
+}
+
+.menuItemVip {
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.08) 0%, rgba(251, 146, 60, 0.04) 100%) !important;
+  border: 1px solid rgba(250, 204, 21, 0.2) !important;
+  margin: 0.5rem 0.5rem !important;
+}
+
+.menuItemVip:hover {
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.15) 0%, rgba(251, 146, 60, 0.08) 100%) !important;
+  border-color: rgba(250, 204, 21, 0.35) !important;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.15) !important;
 }
 
 .menuItemDanger {
@@ -623,7 +636,7 @@
 }
 
 .menuItem:hover .menuItemIcon {
-  transform: scale(1.1);
+  transform: scale(1.1) rotate(5deg);
 }
 
 /* Action Icons */
@@ -1022,6 +1035,18 @@
 :global([data-theme="light"]) .loginButton:hover {
   box-shadow: 0 6px 20px -3px rgba(184, 134, 11, 0.4),
               0 4px 10px rgba(107, 79, 163, 0.25) !important;
+}
+
+/* VIP Menu Item - Light Mode */
+:global([data-theme="light"]) .menuItemVip {
+  background: linear-gradient(135deg, rgba(184, 134, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%) !important;
+  border: 1px solid rgba(184, 134, 11, 0.2) !important;
+}
+
+:global([data-theme="light"]) .menuItemVip:hover {
+  background: linear-gradient(135deg, rgba(184, 134, 11, 0.18) 0%, rgba(217, 119, 6, 0.1) 100%) !important;
+  border-color: rgba(184, 134, 11, 0.35) !important;
+  box-shadow: 0 0 12px rgba(184, 134, 11, 0.15) !important;
 }
 
 .logoImage {

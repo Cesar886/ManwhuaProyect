@@ -5,6 +5,7 @@ import { endpoint } from '@/config';
 
 const AI_API_URL = endpoint('search', 'ai/read');
 const AI_TRACK_URL = endpoint('search', 'ai/track');
+const AI_QUOTA_URL = endpoint('search', 'ai/quota');
 
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutos
 const DEFAULT_CACHE_PREFIX = 'ia_cache_v3_';
@@ -15,7 +16,7 @@ const MAX_QUERY_LENGTH = 300;
 const MAX_QUERY_LINES = 6;
 const STORAGE_PROBE_KEY = '__ia_storage_probe__';
 const GUEST_DAILY_IA_LIMIT = 5;
-const USER_DAILY_IA_LIMIT = 15;
+const USER_DAILY_IA_LIMIT = 10;
 const IA_DEVICE_ID_KEY = 'ia_device_id_v1';
 const RETRYABLE_AI_STATUS_CODES = new Set([502, 503, 504]);
 const PROMPT_INJECTION_PATTERNS = [
@@ -593,6 +594,9 @@ function classifyError(err) {
     if (err?.body?.code === 'AI_UPSTREAM_HTML_ERROR' || /<html[\s>]|<!doctype\s/i.test(String(err?.body || err?.message || ''))) {
         return 'El servicio IA está en mantenimiento o temporalmente bloqueado por la red. Intenta en unos minutos.';
     }
+    if (err?.status === 429 || err?.body?.code === 'AI_GUEST_DAILY_LIMIT' || err?.body?.code === 'AI_USER_DAILY_LIMIT') {
+        return err.message || 'Has alcanzado el límite diario de consultas IA.';
+    }
     if (err?.status === 504 || err?.body?.code === 'AI_UPSTREAM_TIMEOUT') {
         return 'La IA tardó demasiado en responder. Intenta nuevamente en unos segundos.';
     }
@@ -711,6 +715,47 @@ export function useIA(options = {}) {
     const cacheConfigRef = useRef(buildCacheConfig(options.namespace));
     const promptProtectionRef = useRef(options.promptProtection !== false);
     const userRef = useRef(user);
+    // Refs para pre-bloqueo (evitan closures obsoletos en buscarConIA).
+    // Inicializados con el estado inicial real para que el bloqueo funcione
+    // desde el primer render, antes de que fetchQuota responda.
+    const guestAiLimitRef = useRef(buildGuestAiLimitState({ isGuest: true, used: 0 }));
+    const userAiLimitRef = useRef(null);
+
+    // Mantener refs sincronizados con el state (para acceso sin closures obsoletos)
+    useEffect(() => { guestAiLimitRef.current = guestAiLimit; }, [guestAiLimit]);
+    useEffect(() => { userAiLimitRef.current = userAiLimit; }, [userAiLimit]);
+
+    // Flag para deduplicar fetchQuota concurrentes (ej: doble effect al montar)
+    const fetchQuotaInFlightRef = useRef(false);
+
+    // Consulta cuota actual sin consumirla (read-only)
+    const fetchQuota = useCallback(async () => {
+        if (typeof window === 'undefined') return;
+        if (fetchQuotaInFlightRef.current) return;
+        fetchQuotaInFlightRef.current = true;
+        try {
+            const res = await fetch(AI_QUOTA_URL, {
+                method: 'GET',
+                credentials: 'include',
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data?.success) return;
+
+            if (data.userLimit) {
+                // Usuario registrado
+                setGuestAiLimit(buildGuestAiLimitState({ isGuest: false, used: 0 }));
+                setUserAiLimit(toUserLimitState(data));
+            } else if (data.guestLimit) {
+                // Invitado
+                setGuestAiLimit(toGuestLimitState(data, true));
+                setUserAiLimit(null);
+            }
+        } catch { /* no crítico — ignorar */ }
+        finally {
+            fetchQuotaInFlightRef.current = false;
+        }
+    }, []);
 
     useEffect(() => {
         userRef.current = user;
@@ -718,12 +763,14 @@ export function useIA(options = {}) {
         if (user) {
             setGuestAiLimit(buildGuestAiLimitState({ isGuest: false, used: 0 }));
             setUserAiLimit(null);
-            return;
+        } else {
+            setGuestAiLimit(buildGuestAiLimitState({ isGuest: true, used: 0 }));
+            setUserAiLimit(null);
         }
 
-        setGuestAiLimit(buildGuestAiLimitState({ isGuest: true, used: 0 }));
-        setUserAiLimit(null);
-    }, [user]);
+        // Obtener cuota real del servidor al iniciar o al cambiar sesión
+        fetchQuota();
+    }, [user, fetchQuota]);
 
     useEffect(() => {
         cacheConfigRef.current = buildCacheConfig(options.namespace);
@@ -738,6 +785,7 @@ export function useIA(options = {}) {
         if (!queryText || queryText.length < 2) return;
         fetch(AI_TRACK_URL, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: queryText }),
         })
@@ -755,6 +803,24 @@ export function useIA(options = {}) {
 
     const buscarConIA = useCallback(async (texto) => {
         setNsfwRedirect(false);
+
+        // Pre-bloqueo client-side: evita llamadas innecesarias al API cuando la cuota está agotada
+        {
+            const currentUser = userRef.current;
+            if (!currentUser) {
+                const gl = guestAiLimitRef.current;
+                if (gl?.blocked) {
+                    setError(gl.message || `Has alcanzado el límite diario de ${gl.limit} consultas IA. Regístrate para seguir usándola.`);
+                    return null;
+                }
+            } else {
+                const ul = userAiLimitRef.current;
+                if (ul?.blocked) {
+                    setError(`Has alcanzado el límite diario de ${ul.limit} consultas IA.`);
+                    return null;
+                }
+            }
+        }
 
         if (!texto || texto.trim().length === 0) {
             setError('Por favor escribe una pregunta');
@@ -833,6 +899,7 @@ export function useIA(options = {}) {
             for (let attempt = 0; attempt < 2; attempt++) {
                 response = await fetch(AI_API_URL, {
                     method: 'POST',
+                    credentials: 'include',
                     headers: fetchHeaders,
                     body: JSON.stringify({
                         messages: [{ role: 'user', content: trimmed }]
@@ -1101,7 +1168,8 @@ export function useIA(options = {}) {
         setError(null);
         setNsfwRedirect(false);
         setCargando(false);
-        setUserAiLimit(null);
+        // No reseteamos guestAiLimit ni userAiLimit: la cuota es independiente
+        // de los resultados de búsqueda y debe persistir entre limpiezas.
     }, []);
 
     return {

@@ -127,7 +127,10 @@ app.use(cors({
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'x-api-key', 'x-timezone', 'x-device-id', 'x-search-context'],
-    exposedHeaders: ['Content-Type', 'Cache-Control', 'ETag']
+    exposedHeaders: ['Content-Type', 'Cache-Control', 'ETag',
+        'X-IA-Guest-Limit', 'X-IA-Guest-Used', 'X-IA-Guest-Remaining',
+        'X-IA-User-Limit', 'X-IA-User-Used', 'X-IA-User-Remaining',
+        'Retry-After']
 }));
 
 // Middleware de seguridad estricta para Origin/Referer
