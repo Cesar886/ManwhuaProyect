@@ -34,30 +34,98 @@ const QUERY_HISTORY_FILES = {
     es: path.join(__dirname, 'query_history_es.json'),
     en: path.join(__dirname, 'query_history_en.json'),
 };
+const SUPPORTED_LANGS = Object.freeze(['es', 'en']);
+const DEFAULT_LANG = 'es';
 const queryHistoryByLang = { es: [], en: [] };
 
-// Normaliza el idioma de cualquier fuente (query param, header, arg). Default 'es'.
+// Normaliza el idioma. Solo acepta valores de SUPPORTED_LANGS; cualquier otra cosa → default.
+// Tolera prefijos tipo "en-US", "es_MX", "es-419", espacios y mayúsculas.
 function normalizeLang(value) {
-    const raw = (value || '').toString().toLowerCase().trim();
-    return raw === 'en' ? 'en' : 'es';
+    if (value == null) return DEFAULT_LANG;
+    let raw;
+    try { raw = String(value).toLowerCase().trim(); }
+    catch { return DEFAULT_LANG; }
+    if (!raw) return DEFAULT_LANG;
+    // Tomar solo la porción primaria del tag (es, en) ignorando región
+    const primary = raw.split(/[-_;,\s]/)[0];
+    return SUPPORTED_LANGS.includes(primary) ? primary : DEFAULT_LANG;
 }
 
-// Extrae el idioma del request. Preferencia:
-//   1) ?lang=en|es
-//   2) header X-Lang / X-Language
-//   3) body.lang (para POSTs con JSON)
-//   4) default 'es'
+// Heurística ligera para detectar idioma por contenido. Devuelve 'es', 'en' o null si no es claro.
+// Solo para detectar señales MUY obvias (palabras funcionales exclusivas de un idioma).
+const EN_SIGNAL_RE = /\b(the|with|about|looking|recommend|where|similar to|reincarnat|revenge|system|hunter|tower|dungeon|female|male lead|want|need|please|find me|isekai)\b/i;
+const ES_SIGNAL_RE = /\b(el|la|los|las|con|sobre|buscando|recomienda|donde|similar a|reencarna|venganza|sistema|cazador|torre|mazmorra|chica|protagonista|quiero|necesito|por favor|busca|enseñ|parecid)\b/i;
+function inferLangFromText(text) {
+    if (!text || typeof text !== 'string') return null;
+    const t = text.toLowerCase();
+    const en = EN_SIGNAL_RE.test(t);
+    const es = ES_SIGNAL_RE.test(t);
+    if (en && !es) return 'en';
+    if (es && !en) return 'es';
+    return null;
+}
+
+// Extrae el idioma del request con múltiples fallbacks:
+//   1) ?lang=en|es (explícito)
+//   2) header X-Lang / X-Language (explícito del frontend)
+//   3) body.lang (POST JSON)
+//   4) Referer: si el path empieza con /en o /en/… → en
+//   5) Accept-Language (primera preferencia del navegador)
+//   6) Default ('es')
 function getRequestLang(req) {
-    if (!req) return 'es';
-    const fromQuery = req.query && req.query.lang;
-    const fromHeader = req.headers && (req.headers['x-lang'] || req.headers['x-language']);
-    const fromBody = req.body && req.body.lang;
-    return normalizeLang(fromQuery || fromHeader || fromBody);
+    if (!req) return DEFAULT_LANG;
+
+    try {
+        const q = req.query && req.query.lang;
+        if (q) return normalizeLang(q);
+
+        const h = req.headers || {};
+        const hdrLang = h['x-lang'] || h['x-language'];
+        if (hdrLang) return normalizeLang(hdrLang);
+
+        const bodyLang = req.body && req.body.lang;
+        if (bodyLang) return normalizeLang(bodyLang);
+
+        // Referer: detectar /en o /es como primer segmento de la URL
+        const referer = h.referer || h.referrer;
+        if (referer) {
+            try {
+                const u = new URL(referer);
+                const seg = (u.pathname || '/').split('/').filter(Boolean)[0] || '';
+                if (seg === 'en') return 'en';
+                if (seg === 'es') return 'es';
+            } catch { /* referer malformado: ignorar */ }
+        }
+
+        // Accept-Language: "en-US,en;q=0.9,es;q=0.8" → primera preferencia
+        const al = h['accept-language'];
+        if (al && typeof al === 'string') {
+            const first = al.split(',')[0];
+            if (first) {
+                const norm = normalizeLang(first);
+                if (norm) return norm;
+            }
+        }
+    } catch (err) {
+        // Cualquier error en la detección no debe tirar el request
+        if (typeof logger !== 'undefined' && logger) {
+            logger.warn('getRequestLang falló, usando default', { error: err && err.message });
+        }
+    }
+
+    return DEFAULT_LANG;
 }
 
-// Accesores por idioma
-function H(lang) { return queryHistoryByLang[normalizeLang(lang)]; }
-function setH(lang, arr) { queryHistoryByLang[normalizeLang(lang)] = arr; }
+// Accesores por idioma (siempre normalizan)
+function H(lang) {
+    const L = normalizeLang(lang);
+    if (!Array.isArray(queryHistoryByLang[L])) queryHistoryByLang[L] = [];
+    return queryHistoryByLang[L];
+}
+function setH(lang, arr) {
+    const L = normalizeLang(lang);
+    queryHistoryByLang[L] = Array.isArray(arr) ? arr : [];
+}
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
 
@@ -133,107 +201,237 @@ process.on('unhandledRejection', (reason) => {
     logger.error('unhandledRejection — promesa rechazada sin capturar', reason instanceof Error ? reason : new Error(String(reason)));
 });
 
-// --- DETECTOR DE CONSULTAS SIMPLES (VERSIÓN EXPANDIDA) ---
-// Raíces de palabras que OBLIGAN a usar la IA (se buscan como subcadena)
-const TRIGGER_ROOTS = [
-    // 1. INTENCIÓN Y PREGUNTAS (El usuario le habla al buscador)
-    'trata', 'donde', 'busca', 'recomend', 'dame', 'similar', 'parecid',
-    'mejor', 'top', 'sugier', 'dime', 'cual', 'quiero', 'necesit', 'lista',
-    'leer', 'busco', 'algun', 'enseñ', 'gust', 'encant', 'tipo', 'vibr', 'estilo',
+// --- DETECTOR DE CONSULTAS SIMPLES (VERSIÓN EXPANDIDA, POR IDIOMA) ---
+// Raíces de palabras que OBLIGAN a usar la IA (se buscan como subcadena).
+// Las listas ES siguen intactas y se añade su contraparte EN.
+const TRIGGER_ROOTS_BY_LANG = {
+    es: [
+        // 1. INTENCIÓN Y PREGUNTAS
+        'trata', 'donde', 'busca', 'recomend', 'dame', 'similar', 'parecid',
+        'mejor', 'top', 'sugier', 'dime', 'cual', 'quiero', 'necesit', 'lista',
+        'leer', 'busco', 'algun', 'enseñ', 'gust', 'encant', 'tipo', 'vibr', 'estilo',
+        // 2. TÉRMINOS DEL MEDIO
+        'manhwa', 'webtoon', 'manga', 'manhua', 'comic', 'histori',
+        'shonen', 'shounen', 'seinen', 'shoujo', 'josei', 'genero',
+        // 3. GÉNEROS
+        'accion', 'aventur', 'comedi', 'fantasi', 'romanc', 'terror', 'misteri',
+        'escolar', 'ciencia', 'ficcion', 'harem', 'murim', 'drama', 'suspens',
+        'psicologic', 'vida', 'slice',
+        // 4. ARQUETIPOS
+        'prota', 'heroe', 'villan', 'antihero', 'asesin', 'nigromant', 'necromanc',
+        'invocad', 'demoni', 'vampir', 'zombie', 'no-muert', 'druida', 'cazador',
+        'hunter', 'jugador', 'player', 'dios', 'constelac', 'besti', 'dragon',
+        'duqu', 'emper', 'tiran', 'princes', 'rey', 'realez', 'noble', 'ceo', 'jef',
+        // 5. TROPOS ACCIÓN
+        'sistem', 'nivel', 'artes marcial', 'cultiv', 'tower', 'torre', 'dungeon',
+        'mazmorra', 'portal', 'gremi', 'rango', 'rank', 'apocalip', 'superviv',
+        'espad', 'magi', 'pelea', 'golpe', 'sangr', 'gore', 'matar', 'muert',
+        // 6. TROPOS ROMANCE
+        'amor', 'contrat', 'matrimon', 'casamient', 'divorci', 'infidel', 'engañ',
+        'gemel', 'fals', 'celos', 'oficin', 'espos', 'marid', 'embaraz',
+        // 7. DESARROLLO
+        'reencarn', 'reencar', 'regres', 'volver', 'pasado', 'venganz', 'traicion',
+        'abandon', 'isekai', 'reencarnac', 'reencarnad',
+        // 8. ADJETIVOS / VIBES
+        'poder', 'fuerte', 'debil', 'op', 'chetad', 'rot', 'invencibl', 'badass',
+        'despiadad', 'fri', 'calculad', 'inteligent', 'tont', 'inutil', 'basur',
+        'epico', 'llorar', 'trist', 'feliz', 'gracios', 'divertid', 'adult', 'madur',
+        'lento', 'rapido', 'desarrollo'
+    ],
+    en: [
+        // Intent / questions
+        'about', 'where', 'search', 'recommend', 'give me', 'similar', 'like',
+        'best', 'top', 'suggest', 'tell me', 'which', 'want', 'need', 'list',
+        'read', 'looking', 'any', 'show', 'love', 'enjoy', 'kind of', 'vibe', 'style', 'find',
+        // Medium
+        'manhwa', 'webtoon', 'manga', 'manhua', 'comic', 'story',
+        'shonen', 'shounen', 'seinen', 'shoujo', 'josei', 'genre',
+        // Genres
+        'action', 'adventur', 'comed', 'fantas', 'romanc', 'horror', 'myster',
+        'school', 'sci-fi', 'science fiction', 'harem', 'murim', 'drama', 'suspens',
+        'psycholog', 'slice of life',
+        // Archetypes
+        'protagonist', 'hero', 'villain', 'antihero', 'assassin', 'necromanc',
+        'summoner', 'demon', 'vampir', 'zombie', 'undead', 'druid', 'hunter',
+        'player', 'god', 'constellation', 'beast', 'dragon',
+        'duke', 'emperor', 'tyrant', 'princess', 'king', 'royal', 'noble', 'ceo', 'boss',
+        // Action tropes
+        'system', 'level', 'martial art', 'cultivat', 'tower', 'dungeon',
+        'portal', 'guild', 'rank', 'apocalyps', 'survival',
+        'sword', 'magic', 'fight', 'gore', 'kill', 'death',
+        // Romance tropes
+        'love', 'contract', 'marriage', 'wedding', 'divorce', 'cheat',
+        'twin', 'fake', 'jealous', 'office', 'wife', 'husband', 'pregnan',
+        // Plot
+        'reincarnat', 'regress', 'return', 'past', 'revenge', 'betray',
+        'abandon', 'isekai',
+        // Adjectives
+        'power', 'strong', 'weak', 'op', 'overpowered', 'broken', 'invincibl', 'badass',
+        'ruthless', 'cold', 'calculat', 'smart', 'dumb', 'useless', 'trash',
+        'epic', 'cry', 'sad', 'happy', 'funny', 'adult', 'mature',
+        'slow', 'fast', 'development'
+    ]
+};
+const INTENT_ROOTS_BY_LANG = {
+    es: ['trata', 'donde', 'busca', 'recomend', 'dame', 'similar', 'parecid', 'mejor', 'top', 'sugier', 'dime', 'cual', 'quiero', 'necesit', 'busco', 'enseñ'],
+    en: ['about', 'where', 'search', 'recommend', 'give me', 'similar', 'like', 'best', 'top', 'suggest', 'tell me', 'which', 'want', 'need', 'looking', 'show', 'find']
+};
+// Retrocompatibilidad: export del array ES por si algo externo lo importa
+const TRIGGER_ROOTS = TRIGGER_ROOTS_BY_LANG.es;
 
-    // 2. TÉRMINOS DEL MEDIO Y DEMOGRAFÍA
-    'manhwa', 'webtoon', 'manga', 'manhua', 'comic', 'histori',
-    'shonen', 'shounen', 'seinen', 'shoujo', 'josei', 'genero',
-
-    // 3. GÉNEROS PRINCIPALES
-    'accion', 'aventur', 'comedi', 'fantasi', 'romanc', 'terror', 'misteri',
-    'escolar', 'ciencia', 'ficcion', 'harem', 'murim', 'drama', 'suspens',
-    'psicologic', 'vida', 'slice',
-
-    // 4. ARQUETIPOS DE PERSONAJES (Protas, villanos, clases)
-    'prota', 'heroe', 'villan', 'antihero', 'asesin', 'nigromant', 'necromanc',
-    'invocad', 'demoni', 'vampir', 'zombie', 'no-muert', 'druida', 'cazador',
-    'hunter', 'jugador', 'player', 'dios', 'constelac', 'besti', 'dragon',
-    'duqu', 'emper', 'tiran', 'princes', 'rey', 'realez', 'noble', 'ceo', 'jef',
-
-    // 5. TROPOS DE ACCIÓN / SISTEMAS / MURIM
-    'sistem', 'nivel', 'artes marcial', 'cultiv', 'tower', 'torre', 'dungeon',
-    'mazmorra', 'portal', 'gremi', 'rango', 'rank', 'apocalip', 'superviv',
-    'espad', 'magi', 'pelea', 'golpe', 'sangr', 'gore', 'matar', 'muert',
-
-    // 6. TROPOS DE ROMANCE Y OTOME ISEKAI
-    'amor', 'contrat', 'matrimon', 'casamient', 'divorci', 'infidel', 'engañ',
-    'gemel', 'fals', 'celos', 'oficin', 'espos', 'marid', 'embaraz',
-
-    // 7. DESARROLLO DE TRAMA (Regresión, Venganza, etc.)
-    'reencarn', 'reencar', 'regres', 'volver', 'pasado', 'venganz', 'traicion',
-    'abandon', 'isekai', 'reencarnac', 'reencarnad',
-
-    // 8. ADJETIVOS Y MODIFICADORES DE ESTADO (Vibes)
-    'poder', 'fuerte', 'debil', 'op', 'chetad', 'rot', 'invencibl', 'badass',
-    'despiadad', 'fri', 'calculad', 'inteligent', 'tont', 'inutil', 'basur',
-    'epico', 'llorar', 'trist', 'feliz', 'gracios', 'divertid', 'adult', 'madur',
-    'lento', 'rapido', 'desarrollo'
-];
-
-function isSimpleQuery(msg) {
+function isSimpleQuery(msg, lang = DEFAULT_LANG) {
     if (!msg || typeof msg !== 'string') return false;
-
     const lowerMsg = normalizeQuery(msg);
+    const L = normalizeLang(lang);
 
-    // Solo las raíces de INTENCIÓN directa (preguntas al buscador) activan la IA
-    const intentRoots = ['trata', 'donde', 'busca', 'recomend', 'dame', 'similar', 'parecid', 'mejor', 'top', 'sugier', 'dime', 'cual', 'quiero', 'necesit', 'busco', 'enseñ'];
-
-    // Si tiene una raíz de intención directa, sí o sí va a la IA
-    if (intentRoots.some(root => lowerMsg.includes(root))) return false;
-
-    // ELIMINADA: La regla de "if (words.length > 4) return false;" para no romper títulos largos.
+    // Chequear primero la lista del idioma del request, pero también la del otro
+    // idioma como red de seguridad (un usuario en /en puede escribir en ES y viceversa).
+    const primary = INTENT_ROOTS_BY_LANG[L] || INTENT_ROOTS_BY_LANG[DEFAULT_LANG];
+    const secondary = L === 'en' ? INTENT_ROOTS_BY_LANG.es : INTENT_ROOTS_BY_LANG.en;
+    if (primary.some(root => lowerMsg.includes(root))) return false;
+    if (secondary.some(root => lowerMsg.includes(root))) return false;
 
     return true;
 }
 
-// --- DETECTOR DE NEGACIONES MÁS ROBUSTO ---
-function detectNegative(msg) {
+// --- DETECTOR DE NEGACIONES POR IDIOMA ---
+const NEGATION_PATTERNS_BY_LANG = {
+    es: [
+        /\b(no|sin|menos|excepto|evitar|diferente|distinto|nada)\b/i,
+        /que\s+(no|nunca)\s+/i,
+        /nada\s+de\b/i,
+        /diferente(s)?\s+(a|de)\b/i
+    ],
+    en: [
+        /\b(no|not|without|except|avoid|exclude|don't|dont|doesn't|doesnt|none|never|anything but)\b/i,
+        /\b(other than|different from|apart from|aside from)\b/i,
+        /\bnothing\s+(like|with|about)\b/i
+    ]
+};
+function detectNegative(msg, lang = DEFAULT_LANG) {
     if (!msg || typeof msg !== 'string') return false;
     const lowerMsg = normalizeQuery(msg);
+    const L = normalizeLang(lang);
+    // Siempre chequear ambos sets: negación en el idioma "incorrecto" también cuenta
     const patterns = [
-        /\b(no|sin|menos|excepto|evitar|diferente|distinto|nada)\b/i,
-        /que\s+(no|nunca)\s+/i, // 'que no sean'
-        /nada\s+de\b/i,         // 'nada de romance'
-        /diferente(s)?\s+(a|de)\b/i
+        ...(NEGATION_PATTERNS_BY_LANG[L] || []),
+        ...(NEGATION_PATTERNS_BY_LANG[L === 'en' ? 'es' : 'en'] || [])
     ];
     return patterns.some(p => p.test(lowerMsg));
 }
 
-// --- DETECCIÓN NSFW (module scope para no recrear en cada request) ---
-// Todos los patrones asumen texto normalizado (lowercase, sin diacríticos) via cleanText().
+// --- DETECCIÓN NSFW (module scope, asume texto normalizado por cleanText) ---
+// Mezcla bilingüe ES+EN, ampliada con jerga común EN y variantes de hentai.
 const NSFW_SERVER_PATTERNS = [
-    /\b(hentai|hntai|ecchi|pornhwa|smut)\b/,
-    /\b(erotic[oa]?s?|erotico)\b/,
-    /\b(sexo|sexuales?|follar|coj[eio](r|n|ndo)?|cojiend[oa]|fornicar)\b/,
-    /\b(tetas|pechos?|senos|nalgas|trasero|vagina|pene|polla|verga|pija)\b/,
-    /\b(desnud[oa]s?|nudes?|naked|xxx|nsfw)\b/,
-    /\b(orgias?|trio\s+sexual|threesome|gangbang|bukak+e)\b/,
-    /\b(masturb\w*|pajea\w*|handjob|blowjob|mamada|felacion|cunnilingus)\b/,
-    /\b(violacion(es)?|violar|rape)\b/,
-    /\b(ntr|netorare|netori|cuckold)\b/,
-    /\b(bondage|bdsm|sado(maso)?)\b/,
-    /\b(incest[uo]\w*|milf|dilf|loli|shota)\b/,
+    // Hentai / doujin / adult comic variants
+    /\b(hentai|h-?entai|hntai|ecchi|pornhwa|pornhua|smut|lewd|doujin(shi)?|r-?18|r18)\b/,
+    // Erotic
+    /\b(erotic[oa]?s?|erotico|erotica)\b/,
+    // Sex acts (ES)
+    /\b(sexo|sexuales?|follar|coj[eio](r|n|ndo)?|cojiend[oa]|fornicar|culiar|tirar)\b/,
+    // Sex acts (EN)
+    /\b(fuck(ing|ed)?|fucks?|sex|sexual|banging|screwing|hookup|horny|aroused)\b/,
+    // Body parts (ES)
+    /\b(tetas|pechos?|senos|nalgas|trasero|vagina|pene|polla|verga|pija|coño|concha)\b/,
+    // Body parts (EN)
+    /\b(tits|titties|boobs?|breasts?|ass(hole)?|butt|pussy|cock|dick|penis|vulva)\b/,
+    // Nudity
+    /\b(desnud[oa]s?|nudes?|naked|xxx|nsfw|lewd)\b/,
+    // Group sex
+    /\b(orgias?|orgy|orgies|trio\s+sexual|threesome|foursome|gangbang|bukak+e)\b/,
+    // Masturbation / oral
+    /\b(masturb\w*|pajea\w*|jerk(ing)?\s*off|handjob|hand-job|blowjob|blow-job|mamada|felacion|fellatio|cunnilingus|rimjob)\b/,
+    // Non-consensual
+    /\b(violacion(es)?|violar|rape|rap(ing|ed)|non-?con|dubcon)\b/,
+    // NTR / cuckold
+    /\b(ntr|netorare|netori|cuckold|cuck)\b/,
+    // BDSM
+    /\b(bondage|bdsm|sado(maso)?|sadism|masochis[tm])\b/,
+    // Problematic
+    /\b(incest[uo]\w*|incest|milf|dilf|gilf|loli(con)?|shota(con)?|pedo)\b/,
+    // Futa / trans erotic
     /\b(futanari|futa)\b/,
-    /\b(creampie|semen|eyacul\w*)\b/,
-    /\b(porno?)\b/,
+    // Fluids
+    /\b(creampie|cumshot|semen|cum(ming)?|eyacul\w*|ejacul\w*)\b/,
+    // Porn
+    /\b(porno?|pornography|porno?graphic)\b/,
+    // ES phrases
     /\bescenas?\s+(?:de\s+)?(sexo|sexuales?|cama|calientes?|explicitas?)\b/,
     /\bsubid[oa]s?\s+de\s+tono\b/,
     /\bcontenido\s+adulto\b/,
     /\bpara\s+adultos\b/,
+    // EN phrases
+    /\bsex\s+scenes?\b/,
+    /\bexplicit\s+(content|scenes?)\b/,
+    /\badult\s+content\b/,
+    /\bmature\s+content\b/,
+    /\bfor\s+adults\b/,
+    // +18 markers
     /\+\s*18\b|\b18\s*\+/,
 ];
-const NSFW_REDIRECT_RESPONSE = {
-    success: true,
-    explanation: 'Este tipo de búsqueda pertenece a la sección +18. Usa el buscador en /nsfw para encontrar contenido adulto.',
-    series: [],
-    source: 'nsfw_redirect'
+const NSFW_REDIRECT_BY_LANG = {
+    es: 'Este tipo de búsqueda pertenece a la sección +18. Usa el buscador en /nsfw para encontrar contenido adulto.',
+    en: 'This type of search belongs to the +18 section. Use the /nsfw search to find adult content.'
 };
+function getNsfwRedirectResponse(lang) {
+    const L = normalizeLang(lang);
+    return {
+        success: true,
+        explanation: NSFW_REDIRECT_BY_LANG[L] || NSFW_REDIRECT_BY_LANG[DEFAULT_LANG],
+        series: [],
+        source: 'nsfw_redirect',
+        lang: L
+    };
+}
+// Retrocompat por si algo externo referencia el objeto
+const NSFW_REDIRECT_RESPONSE = getNsfwRedirectResponse(DEFAULT_LANG);
+
+// --- GREETINGS POR IDIOMA ---
+// Se evalúa contra cleanText(msg): lowercase, sin diacríticos.
+const GREETING_REGEX_BY_LANG = {
+    es: /^(hola+|hey+|buenas?|buenos\s+dias|buenas\s+tardes|buenas\s+noches|oye+|porfa|porfavor|por\s+favor|bro|amigo|mano|wey|compa|recomendacion|recomendame|recomiendame|dame|dime|necesito|quiero|busco|puedes|podrias|seria|gracias|los|las|unos|unas|del|al)\b/i,
+    en: /^(hi+|hello+|hey+|yo+|sup|howdy|good\s+(morning|afternoon|evening|night)|please|pls|plz|bro|dude|mate|thanks|thank\s+you|ty|thx|recommendation|recommend\s+me|give\s+me|tell\s+me|i\s+(want|need|am\s+looking)|can\s+you|could\s+you|would\s+you)\b/i
+};
+const GREETING_EXPLANATION_BY_LANG = {
+    es: '¡Hola! Soy el asistente de búsqueda de Manhwa Imperial. Puedes preguntarme cosas como:\n• "Manhwas de acción con protagonista OP"\n• "Solo Leveling"\n• "Recomendaciones de romance escolar"\n• "Manhwas similares a Tower of God"',
+    en: 'Hi! I\'m the Manhwa Imperial search assistant. You can ask me things like:\n• "Action manhwas with an OP protagonist"\n• "Solo Leveling"\n• "School romance recommendations"\n• "Manhwas similar to Tower of God"'
+};
+function isGreeting(cleanMsg, lang = DEFAULT_LANG) {
+    const L = normalizeLang(lang);
+    const primary = GREETING_REGEX_BY_LANG[L];
+    if (primary && primary.test(cleanMsg)) return true;
+    // Red de seguridad: también detectar saludo en el otro idioma
+    const other = GREETING_REGEX_BY_LANG[L === 'en' ? 'es' : 'en'];
+    return !!(other && other.test(cleanMsg));
+}
+function getGreetingExplanation(lang) {
+    const L = normalizeLang(lang);
+    return GREETING_EXPLANATION_BY_LANG[L] || GREETING_EXPLANATION_BY_LANG[DEFAULT_LANG];
+}
+
+// --- MENSAJES DE SISTEMA AL USUARIO POR IDIOMA ---
+const USER_MESSAGES_BY_LANG = {
+    es: {
+        directResults: ({ q }) => `Resultados directos para "${q}"`,
+        semanticResults: ({ q }) => `Resultados semánticos para "${q}"`,
+        foundResults: ({ q }) => `Encontré estos resultados para "${q}"`,
+        noResults: ({ q }) => `No encontré resultados para "${q}". Intenta describir lo que buscas de otra forma.`,
+        resultsFor: ({ q }) => `Resultados para "${q}"`,
+    },
+    en: {
+        directResults: ({ q }) => `Direct results for "${q}"`,
+        semanticResults: ({ q }) => `Semantic results for "${q}"`,
+        foundResults: ({ q }) => `Here's what I found for "${q}"`,
+        noResults: ({ q }) => `No results for "${q}". Try describing what you're looking for differently.`,
+        resultsFor: ({ q }) => `Results for "${q}"`,
+    }
+};
+function t(lang, key, vars = {}) {
+    const L = normalizeLang(lang);
+    const bundle = USER_MESSAGES_BY_LANG[L] || USER_MESSAGES_BY_LANG[DEFAULT_LANG];
+    const fn = bundle[key] || USER_MESSAGES_BY_LANG[DEFAULT_LANG][key];
+    return typeof fn === 'function' ? fn(vars) : (fn || '');
+}
 
 /**
  * Normaliza texto contra evasión NSFW (leetspeak, spacing, repetición).
@@ -277,12 +475,46 @@ function isNsfwContent(text) {
 }
 
 // --- MAPEO DE SEGURIDAD PARA GÉNEROS (claves en español normalizado) ---
+// El catálogo indexa géneros en ES (genreIndexNormalized); para queries EN
+// traducimos el término al alias ES antes de consultar el índice.
 const genreMapping = {
     'accion': 'Acción', 'aventura': 'Aventura', 'comedia': 'Comedia',
     'fantasia': 'Fantasía', 'romance': 'Romance', 'terror': 'Terror',
     'misterio': 'Misterio', 'escolar': 'Escolar', 'ciencia ficcion': 'Ciencia Ficción',
     'harem': 'Harem', 'murim': 'Murim'
 };
+
+// Alias EN→ES para géneros (aplicado antes de buscar en genreIndexNormalized)
+const GENRE_ALIASES_EN_TO_ES = {
+    'action': 'accion',
+    'adventure': 'aventura',
+    'comedy': 'comedia',
+    'fantasy': 'fantasia',
+    'romance': 'romance',
+    'horror': 'terror',
+    'terror': 'terror',
+    'mystery': 'misterio',
+    'school': 'escolar',
+    'school life': 'escolar',
+    'sci-fi': 'ciencia ficcion',
+    'scifi': 'ciencia ficcion',
+    'science fiction': 'ciencia ficcion',
+    'harem': 'harem',
+    'murim': 'murim',
+    'martial arts': 'murim',
+    'drama': 'drama',
+    'thriller': 'suspenso',
+    'psychological': 'psicologico',
+    'tragedy': 'tragedia',
+    'supernatural': 'sobrenatural',
+    'slice of life': 'slice of life'
+};
+
+function translateGenreToEs(token) {
+    if (!token) return token;
+    const k = String(token).toLowerCase().trim();
+    return GENRE_ALIASES_EN_TO_ES[k] || k;
+}
 
 // --- CACHÉ ---
 let seriesCache = [];
@@ -415,6 +647,7 @@ function sanitizeSeriesForResponse(seriesArray) {
         protagonistType: s.protagonistType || null,
         tone: s.tone || null,
         originalTitle: s.originalTitle || null,
+        language: s.language || s.lang || s.idioma || null,
     }));
 }
 
@@ -459,45 +692,62 @@ function setCachedSearch(key, data, ttl = SEARCH_CACHE_TTL, persist = true) {
 // Estadísticas de uso para queries populares
 const searchStats = new Map();
 
-// --- CACHE PREWARM (consultas populares) ---
-const POPULAR_QUERIES = [
-    'romance escolar',
-    'accion aventura',
-    'murim',
-    'reencarnacion',
-    'venganza',
-    'sistema niveles',
-    'fantasia',
-    'los mejores'
-];
+// --- CACHE PREWARM (consultas populares, por idioma) ---
+const POPULAR_QUERIES_BY_LANG = {
+    es: [
+        'romance escolar',
+        'accion aventura',
+        'murim',
+        'reencarnacion',
+        'venganza',
+        'sistema niveles',
+        'fantasia',
+        'los mejores'
+    ],
+    en: [
+        'school romance',
+        'action adventure',
+        'murim',
+        'reincarnation',
+        'revenge',
+        'system leveling',
+        'fantasy',
+        'top rated'
+    ]
+};
+const POPULAR_QUERIES = POPULAR_QUERIES_BY_LANG.es; // retrocompat si algo externo lo lee
 
 async function prewarmCache() {
     logger.info('Iniciando precalentamiento progresivo de caché...');
 
-    // Procesar uno por uno con pausa para no saturar
-    for (const query of POPULAR_QUERIES) {
-        try {
-            const result = await callAI(query);
-            if (result) {
-                const key = cleanText(query);
-                const payload = {
-                    success: true,
-                    explanation: result.reason || ('Prewarm: ' + query),
-                    series: [],
-                    appliedFilter: result
-                };
-                setCachedSearch(key, payload, 1000 * 60 * 30);
+    // Prewarm por idioma para que ambos buckets tengan caché caliente
+    for (const lang of SUPPORTED_LANGS) {
+        const queries = POPULAR_QUERIES_BY_LANG[lang] || [];
+        for (const query of queries) {
+            try {
+                const result = await callAI(query, AI_RETRIES, null, lang);
+                if (result) {
+                    // Clave diferenciada por idioma para evitar colisiones entre ES y EN
+                    const key = `${lang}:${cleanText(query)}`;
+                    const payload = {
+                        success: true,
+                        explanation: result.reason || ('Prewarm: ' + query),
+                        series: [],
+                        appliedFilter: result,
+                        lang
+                    };
+                    setCachedSearch(key, payload, 1000 * 60 * 30);
+                }
+            } catch (e) {
+                logger.warn('Error en prewarm', { lang, query, error: e?.message });
             }
-        } catch (e) {
-            logger.warn('Error en prewarm', { query, error: e?.message });
+            await new Promise(r => setTimeout(r, 3000));
         }
-        // 3 segundos entre cada query para no saturar OpenAI
-        await new Promise(r => setTimeout(r, 3000));
     }
 
     logger.info('Precalentamiento finalizado', {
         cached: searchCache.size,
-        popular: POPULAR_QUERIES.length
+        popular: POPULAR_QUERIES_BY_LANG.es.length + POPULAR_QUERIES_BY_LANG.en.length
     });
 }
 
@@ -1064,33 +1314,56 @@ app.post('/api/cache/clear', (req, res) => {
     res.json({ success: true, cleared: true });
 });
 
-// --- SSE: clientes conectados para actualizaciones en tiempo real ---
-const sseClients = new Set();
+// --- SSE: clientes conectados por idioma ---
+const sseClientsByLang = { es: new Set(), en: new Set() };
+const SSE_KEEPALIVE_MS = 25000; // ping cada 25s para atravesar proxies (timeout típico 30-60s)
+const MAX_SSE_CLIENTS_PER_LANG = 5000;
 
-function getPopularPayload() {
+function getPopularPayload(lang) {
+    const L = normalizeLang(lang);
     const similarRegex = /similares?\s*(a\b|al\b)/i;
-    const sorted = [...queryHistory].sort((a, b) => b.count - a.count);
+    const sorted = [...H(L)].sort((a, b) => (b.count || 0) - (a.count || 0));
     const popular = sorted
-        .filter(q => !similarRegex.test(q.query))
+        .filter(q => q && q.query && !similarRegex.test(q.query))
         .slice(0, 20)
-        .map((q, i) => ({ rank: i + 1, query: q.query, count: q.count }));
+        .map((q, i) => ({ rank: i + 1, query: q.query, count: q.count || 0 }));
     const similar = sorted
-        .filter(q => similarRegex.test(q.query))
+        .filter(q => q && q.query && similarRegex.test(q.query))
         .slice(0, 10)
-        .map((q, i) => ({ rank: i + 1, query: q.query, count: q.count }));
-    return { popular, similar };
+        .map((q, i) => ({ rank: i + 1, query: q.query, count: q.count || 0 }));
+    return { lang: L, popular, similar };
 }
 
-function broadcastPopular() {
-    if (sseClients.size === 0) return;
-    const payload = `data: ${JSON.stringify(getPopularPayload())}\n\n`;
-    for (const client of sseClients) {
-        try { client.write(payload); } catch (_) { sseClients.delete(client); }
+function broadcastPopular(lang) {
+    const L = normalizeLang(lang);
+    const clients = sseClientsByLang[L];
+    if (!clients || clients.size === 0) return;
+    let payload;
+    try { payload = `data: ${JSON.stringify(getPopularPayload(L))}\n\n`; }
+    catch (e) { logger.warn('broadcastPopular serialize falló', { lang: L, error: e && e.message }); return; }
+    for (const client of clients) {
+        try {
+            if (client.writableEnded || client.destroyed) { clients.delete(client); continue; }
+            client.write(payload);
+        } catch (err) {
+            clients.delete(client);
+            try { client.end(); } catch { /* ignore */ }
+        }
     }
 }
 
 // --- ENDPOINT SSE: actualizaciones en tiempo real de contadores ---
 app.get('/api/popular/sse', (req, res) => {
+    const lang = getRequestLang(req);
+    const clients = sseClientsByLang[lang];
+
+    // Proteger memoria: rechazar si pasamos del límite por idioma
+    if (clients.size >= MAX_SSE_CLIENTS_PER_LANG) {
+        res.status(503).end();
+        logger.warn('SSE rechazado: demasiados clientes', { lang, current: clients.size });
+        return;
+    }
+
     const allowedOrigin = process.env.ALLOWED_ORIGINS
         ? process.env.ALLOWED_ORIGINS.split(',')
         : null;
@@ -1103,21 +1376,53 @@ app.get('/api/popular/sse', (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
     }
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
+    res.setHeader('X-Accel-Buffering', 'no'); // evita buffering en Nginx
+    try { res.flushHeaders(); } catch { /* ignore */ }
 
-    // Enviar estado actual al conectar
-    res.write(`data: ${JSON.stringify(getPopularPayload())}\n\n`);
+    // Enviar estado actual al conectar (puede fallar si cliente cortó antes)
+    try {
+        res.write(`retry: 5000\n\n`);
+        res.write(`event: lang\ndata: ${JSON.stringify({ lang })}\n\n`);
+        res.write(`data: ${JSON.stringify(getPopularPayload(lang))}\n\n`);
+    } catch (err) {
+        logger.warn('SSE write inicial falló', { lang, error: err && err.message });
+        try { res.end(); } catch { /* ignore */ }
+        return;
+    }
 
-    sseClients.add(res);
-    req.on('close', () => sseClients.delete(res));
+    clients.add(res);
+
+    // Keepalive: evitar que proxies cierren la conexión por inactividad
+    const ka = setInterval(() => {
+        try {
+            if (res.writableEnded || res.destroyed) { clearInterval(ka); clients.delete(res); return; }
+            res.write(`: ka ${Date.now()}\n\n`);
+        } catch {
+            clearInterval(ka);
+            clients.delete(res);
+            try { res.end(); } catch { /* ignore */ }
+        }
+    }, SSE_KEEPALIVE_MS);
+
+    const cleanup = () => {
+        clearInterval(ka);
+        clients.delete(res);
+    };
+    req.on('close', cleanup);
+    req.on('error', cleanup);
+    res.on('close', cleanup);
+    res.on('error', cleanup);
 });
 
 // --- ENDPOINT PÚBLICO: sugerencias de búsqueda (popular + similar combinados) ---
 app.get('/api/search-suggestions', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('CDN-Cache-Control', 'no-store');
+    const lang = getRequestLang(req);
+    const queryHistory = H(lang);
+    const afterSearchMap = AS(lang);
     const similarRegex = /similares?\s*(a\b|al\b)/i;
     const sorted = [...queryHistory].sort((a, b) => b.count - a.count);
     const popular = sorted
@@ -1243,7 +1548,7 @@ app.get('/api/search-suggestions', (req, res) => {
 
     // --- Queries relacionadas: basadas en la última búsqueda del usuario ---
     const relatedQuery = (req.query.q || '').trim();
-    const related = relatedQuery.length >= 2 ? getRelatedQueries(relatedQuery, 8) : [];
+    const related = relatedQuery.length >= 2 ? getRelatedQueries(relatedQuery, 8, lang) : [];
 
     // --- After-search: "Porque buscaste X, otros buscaron Y" (patrón colectivo) ---
     let afterSearch = [];
@@ -1277,15 +1582,45 @@ app.get('/api/search-suggestions', (req, res) => {
         }
     }
 
-    res.json({ success: true, popular, similar, newest, trending, related, afterSearch });
+    res.json({ success: true, lang, popular, similar, newest, trending, related, afterSearch });
+});
+
+// --- ENDPOINT DE DIAGNÓSTICO: salud del sistema multi-idioma ---
+app.get('/api/lang-health', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const lang = getRequestLang(req);
+    const stats = {};
+    for (const L of SUPPORTED_LANGS) {
+        const list = H(L);
+        const afterMap = AS(L);
+        let afterPairs = 0;
+        for (const m of afterMap.values()) afterPairs += m.size;
+        stats[L] = {
+            historyCount: list.length,
+            historyMax: MAX_QUERY_HISTORY,
+            sseClients: sseClientsByLang[L] ? sseClientsByLang[L].size : 0,
+            afterSearchSources: afterMap.size,
+            afterSearchPairs: afterPairs,
+            pendingWrites: historyPendingWrites[L] || 0,
+            metrics: langMetrics[L],
+        };
+    }
+    res.json({
+        success: true,
+        detectedLang: lang,
+        supported: SUPPORTED_LANGS,
+        default: DEFAULT_LANG,
+        byLang: stats,
+    });
 });
 
 // --- ENDPOINT PÚBLICO: top consultas populares (sin auth) ---
 app.get('/api/popular', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('CDN-Cache-Control', 'no-store');
+    const lang = getRequestLang(req);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
-    const result = [...queryHistory]
+    const result = [...H(lang)]
         .sort((a, b) => b.count - a.count)
         .slice(0, limit)
         .map((q, i) => ({
@@ -1293,16 +1628,17 @@ app.get('/api/popular', (req, res) => {
             query: q.query,
             count: q.count
         }));
-    res.json({ success: true, queries: result });
+    res.json({ success: true, lang, queries: result });
 });
 
 // --- ENDPOINT PÚBLICO: top consultas "similar a..." rankeadas por popularidad ---
 app.get('/api/popular-similar', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('CDN-Cache-Control', 'no-store');
+    const lang = getRequestLang(req);
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || 5));
     const similarRegex = /similares?\s*(a\b|al\b)/i;
-    const result = [...queryHistory]
+    const result = [...H(lang)]
         .filter(q => similarRegex.test(q.query))
         .sort((a, b) => b.count - a.count)
         .slice(0, limit)
@@ -1311,46 +1647,68 @@ app.get('/api/popular-similar', (req, res) => {
             query: q.query,
             count: q.count
         }));
-    res.json({ success: true, queries: result });
+    res.json({ success: true, lang, queries: result });
 });
 
 // --- QUERIES RELACIONADAS: clustering por co-ocurrencia de palabras clave ---
 
-// Stopwords en español (comunes que no aportan semántica para clustering)
-const STOPWORDS = new Set([
+// Stopwords por idioma (palabras que no aportan semántica para clustering/keywords)
+const STOPWORDS_ES = new Set([
     'a', 'al', 'ante', 'bajo', 'con', 'contra', 'de', 'del', 'desde', 'durante',
     'en', 'entre', 'hacia', 'hasta', 'mediante', 'para', 'por', 'segun', 'sin',
     'sobre', 'tras', 'el', 'la', 'lo', 'los', 'las', 'un', 'una', 'uno', 'unos', 'unas',
     'y', 'e', 'ni', 'o', 'u', 'pero', 'sino', 'que', 'como', 'si', 'cuando', 'donde',
     'es', 'son', 'ser', 'estar', 'hay', 'tiene', 'tienen', 'fue', 'era', 'sus', 'su',
-    'me', 'te', 'se', 'nos', 'os', 'le', 'les', 'mi', 'tu', 'yo', 'el',
+    'me', 'te', 'se', 'nos', 'os', 'le', 'les', 'mi', 'tu', 'yo',
     'mas', 'muy', 'mucho', 'poco', 'tan', 'tanto', 'todo', 'toda', 'todos', 'todas',
     'este', 'esta', 'esto', 'estos', 'estas', 'ese', 'esa', 'eso', 'esos', 'esas',
     'no', 'ya', 'tambien', 'solo', 'aun', 'asi', 'aqui', 'ahi', 'alli',
     'manhwa', 'manhwas', 'manga', 'mangas', 'comic', 'comics', 'webtoon', 'webtoons',
     'similares', 'similar', 'parecido', 'parecidos', 'tipo', 'estilo',
     'buscar', 'busca', 'quiero', 'dame', 'recomienda', 'recomendaciones',
-    'mejor', 'mejores', 'top', 'buenos', 'bueno', 'buenas',
-    'the', 'of', 'and', 'in', 'to', 'is', 'with', 'for', 'on', 'at', 'from'
+    'mejor', 'mejores', 'top', 'buenos', 'bueno', 'buenas'
 ]);
 
+const STOPWORDS_EN = new Set([
+    'the', 'a', 'an', 'of', 'and', 'or', 'nor', 'but', 'so', 'yet',
+    'in', 'on', 'at', 'to', 'from', 'by', 'with', 'without', 'about',
+    'for', 'as', 'into', 'onto', 'upon', 'over', 'under', 'between',
+    'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'doing',
+    'this', 'that', 'these', 'those', 'there', 'here', 'where', 'when',
+    'i', 'me', 'my', 'you', 'your', 'he', 'she', 'it', 'its', 'we', 'our', 'they', 'them', 'their',
+    'not', 'no', 'yes', 'also', 'too', 'only', 'just', 'very', 'really',
+    'manhwa', 'manhwas', 'manga', 'mangas', 'comic', 'comics', 'webtoon', 'webtoons',
+    'similar', 'like', 'similar-to', 'kind', 'style', 'type',
+    'search', 'find', 'want', 'need', 'give', 'show', 'tell', 'recommend', 'recommendation', 'recommendations',
+    'best', 'good', 'great', 'top', 'new', 'latest'
+]);
+
+const STOPWORDS_BY_LANG = { es: STOPWORDS_ES, en: STOPWORDS_EN };
+// Unión para clustering cross-lingual (evita que una stopword de un idioma contamine al otro)
+const STOPWORDS = new Set([...STOPWORDS_ES, ...STOPWORDS_EN]);
+
 // Extrae keywords significativas de un texto normalizado
-function extractKeywords(text) {
+// Nota: no aplicamos stemming. Prefijos/sufijos por idioma varían (ES vs Porter EN)
+// y el stemming agresivo genera colisiones; preferimos tokens crudos + sinónimos.
+function extractKeywords(text, lang = DEFAULT_LANG) {
+    const userLang = SUPPORTED_LANGS.includes(lang) ? lang : DEFAULT_LANG;
+    const stops = STOPWORDS_BY_LANG[userLang] || STOPWORDS_ES;
     const normalized = cleanText(text);
-    const words = normalized.split(/\s+/).filter(w => w.length >= 3 && !STOPWORDS.has(w));
-    // Deduplicar y devolver como Set para comparaciones rápidas
+    const words = normalized.split(/\s+/).filter(w => w.length >= 3 && !stops.has(w));
     return [...new Set(words)];
 }
 
-// Construye un mapa de keywords → queries que contienen esa keyword
-function buildKeywordIndex() {
+// Construye un mapa de keywords → queries que contienen esa keyword (por idioma)
+function buildQueryKeywordIndex(lang) {
     const keywordMap = new Map(); // keyword → [{ idx, query, key, count }]
+    const list = H(lang);
 
-    for (let i = 0; i < queryHistory.length; i++) {
-        const q = queryHistory[i];
+    for (let i = 0; i < list.length; i++) {
+        const q = list[i];
         if (!q || !q.query) continue;
 
-        const keywords = extractKeywords(q.query);
+        const keywords = extractKeywords(q.query, lang);
         for (const kw of keywords) {
             if (!keywordMap.has(kw)) keywordMap.set(kw, []);
             keywordMap.get(kw).push({
@@ -1366,12 +1724,12 @@ function buildKeywordIndex() {
 }
 
 // Calcula queries relacionadas por co-ocurrencia de keywords + overlap de resultTitles
-function getRelatedQueries(inputQuery, limit = 10) {
+function getRelatedQueries(inputQuery, limit = 10, lang = 'es') {
     const inputKey = cleanText(inputQuery);
-    const inputKeywords = extractKeywords(inputQuery);
+    const inputKeywords = extractKeywords(inputQuery, lang);
     if (inputKeywords.length === 0) return [];
 
-    const keywordMap = buildKeywordIndex();
+    const keywordMap = buildQueryKeywordIndex(lang);
     const candidateScores = new Map(); // key → { query, score, count, sharedKeywords }
 
     // Para cada keyword del input, encontrar queries que la contengan
@@ -1400,7 +1758,7 @@ function getRelatedQueries(inputQuery, limit = 10) {
     }
 
     // Boost por overlap de resultTitles con la query de entrada
-    const inputEntry = queryHistory.find(q => q && q.key === inputKey);
+    const inputEntry = H(lang).find(q => q && q.key === inputKey);
     if (inputEntry && inputEntry.resultTitles && inputEntry.resultTitles.length > 0) {
         const inputTitles = new Set(inputEntry.resultTitles.map(t => cleanText(t)));
         for (const [, candidate] of candidateScores) {
@@ -1509,21 +1867,45 @@ function recordAfterSearchEvent(deviceId, key, query, lang) {
 
 function loadAfterSearchMap() {
     let anyLoaded = false;
-    for (const lang of ['es', 'en']) {
+    for (const lang of SUPPORTED_LANGS) {
         try {
             const file = AFTER_SEARCH_FILES[lang];
+            // Limpiar tmp huérfanos
+            try {
+                const dir = path.dirname(file);
+                const base = path.basename(file);
+                for (const f of fs.readdirSync(dir)) {
+                    if (f.startsWith(`${base}.`) && f.endsWith('.tmp')) {
+                        try { fs.unlinkSync(path.join(dir, f)); } catch { /* ignore */ }
+                    }
+                }
+            } catch { /* ignore */ }
+
             if (!fs.existsSync(file)) continue;
             const raw = fs.readFileSync(file, 'utf8');
-            const data = JSON.parse(raw || '{}');
+            let data;
+            try { data = JSON.parse(raw || '{}'); }
+            catch (parseErr) {
+                logger.error('after-search corrupto; moviendo a .bak', { lang, error: parseErr && parseErr.message });
+                try { fs.renameSync(file, `${file}.corrupt.${Date.now()}.bak`); } catch { /* ignore */ }
+                continue;
+            }
+            if (!data || typeof data !== 'object') continue;
             const target = AS(lang);
             let pairs = 0;
             for (const [src, nexts] of Object.entries(data)) {
+                if (!nexts || typeof nexts !== 'object') continue;
                 const m = new Map();
-                for (const [k, v] of Object.entries(nexts || {})) {
-                    m.set(k, v);
+                for (const [k, v] of Object.entries(nexts)) {
+                    if (!v || typeof v !== 'object') continue;
+                    m.set(k, {
+                        query: typeof v.query === 'string' ? v.query : k,
+                        count: Number.isFinite(v.count) ? v.count : 1,
+                        lastTs: Number.isFinite(v.lastTs) ? v.lastTs : Date.now(),
+                    });
                     pairs++;
                 }
-                target.set(src, m);
+                if (m.size > 0) target.set(src, m);
             }
             logger.info('🔗 After-search cargado', { lang, sources: target.size, pairs });
             anyLoaded = true;
@@ -1551,37 +1933,51 @@ function loadAfterSearchMap() {
 }
 
 const afterSearchSaveTimers = { es: null, en: null };
+const afterSearchSaveLocks = { es: Promise.resolve(), en: Promise.resolve() };
+
+function serializeAfterSearch(lang) {
+    const obj = {};
+    for (const [src, nexts] of AS(lang)) {
+        obj[src] = {};
+        for (const [k, v] of nexts) obj[src][k] = v;
+    }
+    return obj;
+}
+
+async function saveAfterSearchFor(lang) {
+    const L = normalizeLang(lang);
+    const prev = afterSearchSaveLocks[L];
+    let release;
+    afterSearchSaveLocks[L] = new Promise(res => { release = res; });
+    try {
+        await prev;
+        const snapshot = serializeAfterSearch(L);
+        await atomicWriteJSON(AFTER_SEARCH_FILES[L], snapshot);
+    } catch (e) {
+        logger.warn('after-search save falló', { lang: L, error: e && e.message });
+    } finally {
+        release();
+    }
+}
+
 function scheduleAfterSearchSave(lang) {
     const L = normalizeLang(lang);
     if (afterSearchSaveTimers[L]) clearTimeout(afterSearchSaveTimers[L]);
-    afterSearchSaveTimers[L] = setTimeout(async () => {
-        try {
-            const obj = {};
-            for (const [src, nexts] of AS(L)) {
-                obj[src] = {};
-                for (const [k, v] of nexts) obj[src][k] = v;
-            }
-            await fs.promises.writeFile(AFTER_SEARCH_FILES[L], JSON.stringify(obj));
-        } catch (e) {
-            logger.warn('after-search save falló', { lang: L, error: e && e.message });
-        } finally {
-            afterSearchSaveTimers[L] = null;
-        }
+    afterSearchSaveTimers[L] = setTimeout(() => {
+        afterSearchSaveTimers[L] = null;
+        saveAfterSearchFor(L).catch(() => { /* ya loguea dentro */ });
     }, 10000);
 }
 
 function saveAfterSearchSync() {
-    for (const L of ['es', 'en']) {
+    for (const L of SUPPORTED_LANGS) {
         if (afterSearchSaveTimers[L]) { clearTimeout(afterSearchSaveTimers[L]); afterSearchSaveTimers[L] = null; }
         try {
-            const obj = {};
-            for (const [src, nexts] of AS(L)) {
-                obj[src] = {};
-                for (const [k, v] of nexts) obj[src][k] = v;
-            }
-            fs.writeFileSync(AFTER_SEARCH_FILES[L], JSON.stringify(obj));
+            const tmp = `${AFTER_SEARCH_FILES[L]}.${process.pid}.sync.tmp`;
+            fs.writeFileSync(tmp, JSON.stringify(serializeAfterSearch(L)));
+            fs.renameSync(tmp, AFTER_SEARCH_FILES[L]);
         } catch (e) {
-            logger.error('saveAfterSearchSync error', { lang: L, e });
+            logger.error('saveAfterSearchSync error', { lang: L, error: e && e.message });
         }
     }
 }
@@ -1592,13 +1988,15 @@ loadAfterSearchMap();
 // Endpoint: "Porque buscaste X, otros buscaron..."
 app.get('/api/after-search', (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=60');
+    const lang = getRequestLang(req);
     const q = (req.query.q || '').trim();
     if (!q || q.length < 2) {
-        return res.json({ success: true, query: q, after: [] });
+        return res.json({ success: true, lang, query: q, after: [] });
     }
 
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || 8));
     const srcKey = cleanText(q);
+    const afterSearchMap = AS(lang);
 
     // Match exacto
     let nextMap = afterSearchMap.get(srcKey);
@@ -1618,7 +2016,7 @@ app.get('/api/after-search', (req, res) => {
     }
 
     if (!nextMap || nextMap.size === 0) {
-        return res.json({ success: true, query: q, after: [] });
+        return res.json({ success: true, lang, query: q, after: [] });
     }
 
     // Excluir queries casi idénticas al input (p. ej. variantes menores)
@@ -1637,23 +2035,24 @@ app.get('/api/after-search', (req, res) => {
             lastTs: item.lastTs,
         }));
 
-    logger.info('🔗 After-search', { input: q, found: after.length });
-    res.json({ success: true, query: q, after });
+    logger.info('🔗 After-search', { lang, input: q, found: after.length });
+    res.json({ success: true, lang, query: q, after });
 });
 
 // Endpoint: queries relacionadas por co-ocurrencia
 app.get('/api/related-queries', (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=60');
+    const lang = getRequestLang(req);
     const q = (req.query.q || '').trim();
     if (!q || q.length < 2) {
-        return res.json({ success: true, query: q, related: [] });
+        return res.json({ success: true, lang, query: q, related: [] });
     }
 
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || 10));
-    const related = getRelatedQueries(q, limit);
+    const related = getRelatedQueries(q, limit, lang);
 
-    logger.info('🔗 Related queries', { input: q, found: related.length });
-    res.json({ success: true, query: q, related });
+    logger.info('🔗 Related queries', { lang, input: q, found: related.length });
+    res.json({ success: true, lang, query: q, related });
 });
 
 // --- PERSONALIZACION HOME: carruseles por historial reciente de IA ---
@@ -1989,7 +2388,8 @@ function resolveGenreSeries(genreKeys, limit) {
     const results = [];
 
     for (const key of genreKeys) {
-        const bucket = genreIndexNormalized[cleanText(key)] || [];
+        const normKey = cleanText(translateGenreToEs(key));
+        const bucket = genreIndexNormalized[normKey] || [];
         for (const s of bucket) {
             if (!seen.has(s.id)) {
                 seen.add(s.id);
@@ -2122,6 +2522,7 @@ app.post('/api/personalized-carousels', (req, res) => {
 // --- ENDPOINTS DE HISTORIAL DE CONSULTAS ---
 
 // Listar todas las consultas guardadas, ordenadas por popularidad (rank 1 = más popular)
+// Soporta ?lang=es|en|all — por defecto usa el del request (es).
 app.get('/api/queries', (req, res) => {
     const auth = requireAdmin(req, res);
     if (!auth.ok) return res.status(403).json({ success: false, error: auth.msg });
@@ -2130,8 +2531,18 @@ app.get('/api/queries', (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
     const offset = (page - 1) * limit;
 
+    const rawLang = (req.query.lang || '').toString().toLowerCase().trim();
+    const scope = rawLang === 'all' ? 'all' : getRequestLang(req);
+
     // Ordenar bajo demanda y paginar
-    const sorted = [...queryHistory].sort((a, b) => b.count - a.count);
+    const source = scope === 'all'
+        ? [
+            ...H('es').map(q => ({ ...q, lang: 'es' })),
+            ...H('en').map(q => ({ ...q, lang: 'en' })),
+        ]
+        : H(scope).map(q => ({ ...q, lang: scope }));
+
+    const sorted = [...source].sort((a, b) => (b.count || 0) - (a.count || 0));
     const slice = sorted.slice(offset, offset + limit).map((q, i) => ({
         rank: offset + i + 1,
         ...q
@@ -2139,7 +2550,8 @@ app.get('/api/queries', (req, res) => {
 
     res.json({
         success: true,
-        total: queryHistory.length,
+        lang: scope,
+        total: source.length,
         maxCapacity: MAX_QUERY_HISTORY,
         page,
         limit,
@@ -2147,33 +2559,47 @@ app.get('/api/queries', (req, res) => {
     });
 });
 
-// Eliminar una consulta específica por ID
+// Eliminar una consulta específica por ID. Busca en ambos idiomas.
 app.delete('/api/queries/:id', (req, res) => {
     const auth = requireAdmin(req, res);
     if (!auth.ok) return res.status(403).json({ success: false, error: auth.msg });
 
     const { id } = req.params;
-    const before = queryHistory.length;
-    queryHistory = queryHistory.filter(q => q.id !== id);
-    const deleted = before - queryHistory.length;
+    let deletedLang = null;
+    for (const L of ['es', 'en']) {
+        const before = H(L).length;
+        const next = H(L).filter(q => q.id !== id);
+        if (next.length !== before) {
+            setH(L, next);
+            deletedLang = L;
+            saveQueryHistoryAsyncFor(L).catch(err => logger.warn('Error guardando historial tras delete', { lang: L, error: err && err.message }));
+            break;
+        }
+    }
 
-    if (deleted === 0) return res.status(404).json({ success: false, error: 'Consulta no encontrada' });
+    if (!deletedLang) return res.status(404).json({ success: false, error: 'Consulta no encontrada' });
 
-    saveQueryHistoryAsync().catch(err => logger.warn('Error guardando historial tras delete', { error: err && err.message }));
-    logger.info('🗑️ Consulta eliminada del historial', { id });
-    res.json({ success: true, deleted: true, id });
+    logger.info('🗑️ Consulta eliminada del historial', { id, lang: deletedLang });
+    res.json({ success: true, deleted: true, id, lang: deletedLang });
 });
 
-// Limpiar todo el historial de consultas
+// Limpiar historial de consultas. Por defecto solo el idioma del request; ?lang=all para ambos.
 app.post('/api/queries/clear', (req, res) => {
     const auth = requireAdmin(req, res);
     if (!auth.ok) return res.status(403).json({ success: false, error: auth.msg });
 
-    const count = queryHistory.length;
-    queryHistory = [];
-    saveQueryHistoryAsync().catch(err => logger.warn('Error guardando historial tras clear', { error: err && err.message }));
-    logger.info('🗑️ Historial de consultas limpiado', { deleted: count });
-    res.json({ success: true, deleted: count });
+    const rawLang = (req.query.lang || req.body?.lang || '').toString().toLowerCase().trim();
+    const scope = rawLang === 'all' ? 'all' : getRequestLang(req);
+
+    const targets = scope === 'all' ? ['es', 'en'] : [scope];
+    let total = 0;
+    for (const L of targets) {
+        total += H(L).length;
+        setH(L, []);
+        saveQueryHistoryAsyncFor(L).catch(err => logger.warn('Error guardando historial tras clear', { lang: L, error: err && err.message }));
+    }
+    logger.info('🗑️ Historial de consultas limpiado', { scope, deleted: total });
+    res.json({ success: true, lang: scope, deleted: total });
 });
 
 // --- CONFIGURACIÓN OPTIMIZADA ---
@@ -2182,22 +2608,49 @@ const AI_RETRIES = parseInt(process.env.AI_RETRIES, 10) || 2;
 const OPENAI_API_URL = process.env.OPENAI_API_URL || 'https://api.openai.com/v1/chat/completions';
 
 // URL de la API de OpenAI
-const SYSTEM_PROMPT = `Role: DB Search Optimizer. Output: ONLY valid JSON.
+// Builder del system prompt por idioma. `search_semantic` SIEMPRE se expresa en español
+// porque el catálogo y los embeddings están indexados en español — eso no cambia con el
+// idioma del usuario. Lo que SÍ cambia es el texto de `reason` (se devuelve al usuario)
+// y las palabras-gatillo que se reconocen en la query (negaciones, "new", "+18", etc.).
+const SYSTEM_PROMPT_BY_LANG = {
+    es: `Role: DB Search Optimizer. Output: ONLY valid JSON.
 Task: Analyze user query and extract search parameters for a Manhwa DB.
 DB Context: Consider concepts related to title, synopsis, genres, themes, tone, narrativeTropes, protagonistType, powerSystem, artStyle, targetDemographic, romanceLevel, status, isAdult, isNew.
 
 Rules:
-1. search_semantic: Condense the query into highly relevant Spanish keywords targeting plot, tropes, protagonist traits, or power systems (e.g., "venganza sistema regreso op debil").
-2. genres: Array of recognized genres in the query.
-3. exclude_terms: Array of concepts to exclude based on negations ("sin", "no", "excepto", "cero").
+1. search_semantic: Condense the query into highly relevant Spanish keywords targeting plot, tropes, protagonist traits, or power systems (e.g., "venganza sistema regreso op debil"). ALWAYS in Spanish, regardless of the user's input language, because the database is indexed in Spanish.
+2. genres: Array of recognized genres in the query (Spanish names).
+3. exclude_terms: Array of concepts to exclude based on negations ("sin", "no", "excepto", "cero", "without", "except", "no", "not", "avoid", "exclude").
 4. sort: Map purely to "views", "rating", or "year" if requested. Else empty.
-5. "Similar to [Title]": Do NOT search the title. Instead, extract its core tropes/themes into search_semantic.
-6. Flags: If user asks for "nuevos" add "nuevo" to search_semantic. If they ask for "+18", add "adulto".
+5. "Similar to [Title]" / "Parecido a [Title]": Do NOT search the title. Instead, extract its core tropes/themes into search_semantic.
+6. Flags: If user asks for "nuevos"/"new"/"recent" add "nuevo" to search_semantic. If they ask for "+18"/"adult", add "adulto".
 
-7. reason: Write a SHORT friendly explanation (1 sentence, in Spanish) telling the user WHY these results were chosen. Example: "Busqué manhwas de acción donde el protagonista busca venganza y empieza siendo débil." Do NOT be technical, write as if talking to a friend.
+7. reason: Write a SHORT friendly explanation (1 sentence) IN SPANISH telling the user WHY these results were chosen. Example: "Busqué manhwas de acción donde el protagonista busca venganza y empieza siendo débil." Do NOT be technical, write as if talking to a friend.
 
 Schema:
-{"filter":{"genres":[],"search_semantic":"string","exclude_terms":[]},"sort":"string","reason":"string"}`;
+{"filter":{"genres":[],"search_semantic":"string","exclude_terms":[]},"sort":"string","reason":"string"}`,
+
+    en: `Role: DB Search Optimizer. Output: ONLY valid JSON.
+Task: Analyze user query and extract search parameters for a Manhwa DB.
+DB Context: Consider concepts related to title, synopsis, genres, themes, tone, narrativeTropes, protagonistType, powerSystem, artStyle, targetDemographic, romanceLevel, status, isAdult, isNew.
+
+Rules:
+1. search_semantic: Condense the query into highly relevant SPANISH keywords (the database is indexed in Spanish) targeting plot, tropes, protagonist traits, or power systems (e.g., "venganza sistema regreso op debil"). Translate English concepts into Spanish keywords: revenge→venganza, system→sistema, regression→regresion, weak→debil, overpowered→op, hunter→cazador, tower→torre, dungeon→mazmorra, reincarnation→reencarnacion, villain→villano, apocalypse→apocalipsis, survival→supervivencia, martial arts→artes marciales, cultivation→cultivacion, necromancer→nigromante, assassin→asesino.
+2. genres: Array of recognized genres in the query (output in Spanish: accion, romance, fantasia, terror, misterio, comedia, aventura, murim, ciencia ficcion, etc.).
+3. exclude_terms: Array of concepts to exclude based on negations ("without", "except", "no", "not", "avoid", "exclude", "sin", "no", "excepto"). Output the terms in Spanish.
+4. sort: Map purely to "views", "rating", or "year" if requested. Else empty.
+5. "Similar to [Title]" / "Like [Title]": Do NOT search the title. Instead, extract its core tropes/themes into search_semantic (in Spanish).
+6. Flags: If user asks for "new"/"recent"/"nuevos" add "nuevo" to search_semantic. If they ask for "+18"/"adult"/"mature", add "adulto".
+
+7. reason: Write a SHORT friendly explanation (1 sentence) IN ENGLISH telling the user WHY these results were chosen. Example: "I looked for action manhwas where the protagonist seeks revenge and starts out weak." Do NOT be technical, write as if talking to a friend.
+
+Schema:
+{"filter":{"genres":[],"search_semantic":"string","exclude_terms":[]},"sort":"string","reason":"string"}`,
+};
+
+function getSystemPrompt(lang) {
+    return SYSTEM_PROMPT_BY_LANG[normalizeLang(lang)] || SYSTEM_PROMPT_BY_LANG[DEFAULT_LANG];
+}
 // --- TIJERAS PARA LIMPIAR LA RESPUESTA DE LA IA ---
 function extractJSON(text) {
     if (!text) return null;
@@ -2353,9 +2806,10 @@ async function generateWithRetry(prompt, maxRetries = AI_RETRIES, externalSignal
     return null;
 }
 
-async function callAIWorker(userMsg, retries = AI_RETRIES, externalSignal = null) {
+async function callAIWorker(userMsg, retries = AI_RETRIES, externalSignal = null, lang = DEFAULT_LANG) {
     try {
-        const prompt = `${SYSTEM_PROMPT}\n\nUser query: ${userMsg}`;
+        const systemPrompt = getSystemPrompt(lang);
+        const prompt = `${systemPrompt}\n\nUser query: ${userMsg}`;
         const rawText = await generateWithRetry(prompt, retries, externalSignal);
 
         if (!rawText) return null;
@@ -2379,11 +2833,11 @@ async function callAIWorker(userMsg, retries = AI_RETRIES, externalSignal = null
 }
 
 // Llamada directa a la IA con timeout — sin cola, cada usuario va directo
-async function callAI(userMsg, retries = AI_RETRIES, externalSignal = null) {
+async function callAI(userMsg, retries = AI_RETRIES, externalSignal = null, lang = DEFAULT_LANG) {
     return Promise.race([
-        callAIWorker(userMsg, retries, externalSignal),
+        callAIWorker(userMsg, retries, externalSignal, lang),
         new Promise((resolve) => setTimeout(() => {
-            logger.warn('Timeout en llamada IA', { query: userMsg });
+            logger.warn('Timeout en llamada IA', { query: userMsg, lang });
             resolve(null);
         }, AI_CALL_TIMEOUT))
     ]);
@@ -2489,16 +2943,55 @@ function deduplicateQueryHistory() {
     deduplicateQueryHistoryFor('en');
 }
 
+function sanitizeHistoryEntry(e) {
+    if (!e || typeof e !== 'object') return null;
+    if (typeof e.query !== 'string' || !e.query.trim()) return null;
+    return {
+        id: typeof e.id === 'string' ? e.id : generateQueryId(),
+        query: e.query,
+        key: typeof e.key === 'string' ? e.key : cleanText(e.query),
+        count: Number.isFinite(e.count) && e.count > 0 ? e.count : 1,
+        source: typeof e.source === 'string' ? e.source : 'unknown',
+        lastSource: typeof e.lastSource === 'string' ? e.lastSource : (e.source || 'unknown'),
+        lastResultCount: Number.isFinite(e.lastResultCount) ? e.lastResultCount : 0,
+        explanation: typeof e.explanation === 'string' ? e.explanation : '',
+        resultTitles: Array.isArray(e.resultTitles) ? e.resultTitles.slice(0, 10) : [],
+        firstSeen: typeof e.firstSeen === 'string' ? e.firstSeen : (e.lastSeen || new Date().toISOString()),
+        lastSeen: typeof e.lastSeen === 'string' ? e.lastSeen : new Date().toISOString(),
+    };
+}
+
 function loadQueryHistory() {
     // Cargar cada idioma desde su archivo
     let anyLoaded = false;
-    for (const lang of ['es', 'en']) {
+    for (const lang of SUPPORTED_LANGS) {
         try {
             const file = QUERY_HISTORY_FILES[lang];
+            // Limpiar tmp huérfanos de crashes previos
+            try {
+                const dir = path.dirname(file);
+                const base = path.basename(file);
+                const entries = fs.readdirSync(dir);
+                for (const f of entries) {
+                    if (f.startsWith(`${base}.`) && f.endsWith('.tmp')) {
+                        try { fs.unlinkSync(path.join(dir, f)); } catch { /* ignore */ }
+                    }
+                }
+            } catch { /* ignore */ }
+
             if (fs.existsSync(file)) {
-                const data = fs.readFileSync(file, 'utf8');
-                const parsed = JSON.parse(data || '[]');
-                setH(lang, Array.isArray(parsed) ? parsed : []);
+                const raw = fs.readFileSync(file, 'utf8');
+                let parsed;
+                try { parsed = JSON.parse(raw || '[]'); }
+                catch (parseErr) {
+                    logger.error('Historial corrupto; moviendo a .bak', { lang, error: parseErr && parseErr.message });
+                    try { fs.renameSync(file, `${file}.corrupt.${Date.now()}.bak`); } catch { /* ignore */ }
+                    parsed = [];
+                }
+                const sanitized = (Array.isArray(parsed) ? parsed : [])
+                    .map(sanitizeHistoryEntry)
+                    .filter(Boolean);
+                setH(lang, sanitized);
                 logger.info('📂 Historial cargado', { lang, count: H(lang).length });
                 anyLoaded = true;
             }
@@ -2524,12 +3017,41 @@ function loadQueryHistory() {
     deduplicateQueryHistory();
 }
 
-async function saveQueryHistoryAsyncFor(lang) {
+// --- ESCRITURA ATÓMICA (tmp + rename) + MUTEX POR IDIOMA ---
+// Garantiza que un crash o escritura concurrente nunca deje el archivo corrupto.
+// El mutex serializa las escrituras del mismo idioma; los idiomas no se bloquean entre sí.
+const historySaveLocks = { es: Promise.resolve(), en: Promise.resolve() };
+
+async function atomicWriteJSON(filePath, data) {
+    const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    const payload = JSON.stringify(data, null, 2);
+    let fh;
     try {
-        const L = normalizeLang(lang);
-        await fs.promises.writeFile(QUERY_HISTORY_FILES[L], JSON.stringify(H(L), null, 2));
+        fh = await fs.promises.open(tmp, 'w');
+        await fh.writeFile(payload, 'utf8');
+        // fsync para asegurar que el contenido está en disco antes del rename
+        try { await fh.sync(); } catch { /* algunos FS no soportan fsync */ }
+    } finally {
+        if (fh) { try { await fh.close(); } catch { /* ignore */ } }
+    }
+    // rename es atómico en el mismo FS; reemplaza el destino
+    await fs.promises.rename(tmp, filePath);
+}
+
+async function saveQueryHistoryAsyncFor(lang) {
+    const L = normalizeLang(lang);
+    // Encadenar con el lock previo de este idioma para serializar escrituras
+    const prev = historySaveLocks[L];
+    let release;
+    historySaveLocks[L] = new Promise(res => { release = res; });
+    try {
+        await prev; // esperar al anterior
+        const snapshot = [...H(L)]; // snapshot inmutable del estado actual
+        await atomicWriteJSON(QUERY_HISTORY_FILES[L], snapshot);
     } catch (err) {
-        logger.error('Error guardando historial', err);
+        logger.error('Error guardando historial', { lang: L, error: err && err.message });
+    } finally {
+        release();
     }
 }
 
@@ -2539,29 +3061,50 @@ async function saveQueryHistoryAsync() {
 
 // --- GUARDADO SEGURO CON DEBOUNCE (por idioma) ---
 const historySaveTimeouts = { es: null, en: null };
+const HISTORY_SAVE_DEBOUNCE_MS = 5000;
+// Watchdog: si un idioma acumula muchas escrituras pendientes, forzar flush
+const historyPendingWrites = { es: 0, en: 0 };
+const HISTORY_FORCE_FLUSH_AT = 50;
+
 function scheduleHistorySave(lang) {
     const L = normalizeLang(lang);
+    historyPendingWrites[L]++;
+
+    // Flush inmediato si hay demasiadas escrituras acumuladas
+    if (historyPendingWrites[L] >= HISTORY_FORCE_FLUSH_AT) {
+        if (historySaveTimeouts[L]) { clearTimeout(historySaveTimeouts[L]); historySaveTimeouts[L] = null; }
+        historyPendingWrites[L] = 0;
+        saveQueryHistoryAsyncFor(L)
+            .then(() => logger.info('💾 Historial guardado (force-flush)', { lang: L }))
+            .catch(e => logger.error('Error force-flush historial', { lang: L, error: e && e.message }));
+        return;
+    }
+
     if (historySaveTimeouts[L]) clearTimeout(historySaveTimeouts[L]);
     historySaveTimeouts[L] = setTimeout(async () => {
+        historyPendingWrites[L] = 0;
+        historySaveTimeouts[L] = null;
         try {
-            await fs.promises.writeFile(QUERY_HISTORY_FILES[L], JSON.stringify(H(L), null, 2));
+            await saveQueryHistoryAsyncFor(L);
             logger.info('💾 Historial guardado (debounce)', { lang: L });
         } catch (e) {
-            logger.error('Error IO guardando historial', e);
-        } finally {
-            historySaveTimeouts[L] = null;
+            logger.error('Error IO guardando historial', { lang: L, error: e && e.message });
         }
-    }, 5000);
+    }, HISTORY_SAVE_DEBOUNCE_MS);
 }
 
 function saveQueryHistorySync() {
     // Cancelar debounces pendientes al hacer guardado síncrono (shutdown)
-    for (const L of ['es', 'en']) {
+    for (const L of SUPPORTED_LANGS) {
         if (historySaveTimeouts[L]) { clearTimeout(historySaveTimeouts[L]); historySaveTimeouts[L] = null; }
+        historyPendingWrites[L] = 0;
         try {
-            fs.writeFileSync(QUERY_HISTORY_FILES[L], JSON.stringify(H(L), null, 2));
+            // Escritura sync atómica con rename
+            const tmp = `${QUERY_HISTORY_FILES[L]}.${process.pid}.sync.tmp`;
+            fs.writeFileSync(tmp, JSON.stringify(H(L), null, 2));
+            fs.renameSync(tmp, QUERY_HISTORY_FILES[L]);
         } catch (err) {
-            logger.error('Error guardando historial (sync)', { lang: L, err });
+            logger.error('Error guardando historial (sync)', { lang: L, error: err && err.message });
         }
     }
 }
@@ -2604,9 +3147,37 @@ function getSimilarityScore(s1, s2) {
     return (longer.length - costs[shorter.length]) / parseFloat(longer.length);
 }
 
+// --- Métricas por idioma (para debug y health) ---
+const langMetrics = {
+    es: { recorded: 0, mismatchWarnings: 0, lastRecordedAt: null },
+    en: { recorded: 0, mismatchWarnings: 0, lastRecordedAt: null },
+};
+
 // --- Registro de consultas: ranking, deduplicación y persistencia ---
+// Las consultas se guardan en el historial del idioma del request (ES/EN) para que
+// populares, trending, related y after-search nunca se crucen entre idiomas.
 function recordQuery(rawQuery, key, payload, req) {
     try {
+        if (!rawQuery || typeof rawQuery !== 'string') return;
+
+        let lang = getRequestLang(req);
+
+        // Guardia anti-contaminación: si el idioma declarado parece no coincidir con
+        // el contenido (inferencia fuerte en sentido contrario), logueamos y preferimos
+        // el idioma inferido para NO mezclar consultas en el bucket equivocado.
+        const inferred = inferLangFromText(rawQuery);
+        if (inferred && inferred !== lang) {
+            langMetrics[lang].mismatchWarnings++;
+            logger.warn('🌐 Lang mismatch — reasignando por contenido', {
+                declared: lang,
+                inferred,
+                query: rawQuery.slice(0, 80)
+            });
+            lang = inferred;
+        }
+
+        const queryHistory = H(lang);
+
         const qKey = key || cleanText(rawQuery || '');
         const resultCount = (payload && payload.series) ? payload.series.length : 0;
         const source = (payload && payload.source) || 'unknown';
@@ -2637,7 +3208,7 @@ function recordQuery(rawQuery, key, payload, req) {
             }
         }
 
-        // Si no hay match exacto, buscar fuzzy en todo el historial
+        // Si no hay match exacto, buscar fuzzy en el historial del mismo idioma
         if (bestMatchIdx === -1) {
             for (let i = 0; i < queryHistory.length; i++) {
                 if (!queryHistory[i] || !queryHistory[i].key) continue;
@@ -2666,9 +3237,8 @@ function recordQuery(rawQuery, key, payload, req) {
             existing.resultTitles = resultTitles;
             existing.explanation = (payload && payload.explanation) || existing.explanation;
 
-            // El sort se hace bajo demanda en /api/popular y /api/queries, no aquí
-
             logger.info('🔍 Consulta agrupada (fuzzy)', {
+                lang,
                 id: existing.id,
                 query: rawQuery,
                 matchedKey: existing.key,
@@ -2680,11 +3250,12 @@ function recordQuery(rawQuery, key, payload, req) {
             });
         } else {
             // --- CONSULTA NUEVA ---
-            // Si ya alcanzamos el límite, eliminar la menos popular (última del array)
+            // Si ya alcanzamos el límite (por idioma), eliminar la menos popular
             let evicted = null;
             if (queryHistory.length >= MAX_QUERY_HISTORY) {
-                evicted = queryHistory.pop(); // elimina la última (menos popular)
+                evicted = queryHistory.pop();
                 logger.info('🗑️ Consulta menos popular eliminada por límite', {
+                    lang,
                     id: evicted.id,
                     query: evicted.query,
                     count: evicted.count
@@ -2709,6 +3280,7 @@ function recordQuery(rawQuery, key, payload, req) {
             queryHistory.unshift(newEntry);
 
             logger.info('🔍 Nueva consulta registrada', {
+                lang,
                 id: newEntry.id,
                 query: rawQuery,
                 rank: 1,
@@ -2720,19 +3292,23 @@ function recordQuery(rawQuery, key, payload, req) {
             });
         }
 
-        // Registrar patrón de navegación colectiva (after-search)
+        // Registrar patrón de navegación colectiva (after-search) — separado por idioma
         try {
             const deviceId = getRequestDeviceId(req);
-            if (deviceId) recordAfterSearchEvent(deviceId, qKey, rawQuery);
+            if (deviceId) recordAfterSearchEvent(deviceId, qKey, rawQuery, lang);
         } catch (e) {
             logger.warn('recordAfterSearchEvent falló', { error: e && e.message });
         }
 
-        // Persistir historial con debounce (agrupa escrituras concurrentes)
-        scheduleHistorySave();
+        // Métricas por idioma
+        langMetrics[lang].recorded++;
+        langMetrics[lang].lastRecordedAt = new Date().toISOString();
+
+        // Persistir historial con debounce (un timer por idioma)
+        scheduleHistorySave(lang);
         saveCacheAsync().catch(err => logger.warn('saveCacheAsync falló tras recordQuery', { error: err && err.message }));
-        // Notificar a clientes SSE con los contadores actualizados
-        broadcastPopular();
+        // Notificar solo a clientes SSE del idioma que cambió
+        broadcastPopular(lang);
     } catch (err) {
         logger.error('recordQuery error', err && (err.message || err));
     }
@@ -2841,7 +3417,7 @@ function getCachedSearchSmart(key) {
     return null;
 }
 
-const SYNONYMS = {
+const SYNONYMS_ES = {
     // --- Diccionario de Sinónimos Ampliado ---
     'profesores': 'escolar',
     'estudiantes': 'escolar',
@@ -2889,18 +3465,134 @@ const SYNONYMS = {
     'gremio': 'guild gremio aventurero'
 };
 
-function enrichQuery(text) {
+// SYNONYMS_EN: expand English triggers to Spanish keywords (DB is ES-indexed)
+const SYNONYMS_EN = {
+    'school': 'escolar school',
+    'teacher': 'escolar profesor',
+    'teachers': 'escolar profesor',
+    'student': 'escolar estudiante',
+    'students': 'escolar estudiante',
+    'college': 'universidad escolar',
+    'university': 'universidad escolar',
+    'love': 'romance amor love',
+    'romance': 'romance amor',
+    'boyfriend': 'romance novio',
+    'girlfriend': 'romance novia',
+    'fight': 'accion pelea fight',
+    'fights': 'accion pelea',
+    'fighting': 'accion pelea',
+    'battle': 'accion pelea batalla',
+    'battles': 'accion pelea batalla',
+    'action': 'accion action',
+    'adventure': 'aventura adventure',
+    'horror': 'terror horror',
+    'fear': 'terror miedo',
+    'scary': 'terror',
+    'magic': 'magia fantasia magic',
+    'wizard': 'magia mago fantasia',
+    'witch': 'magia bruja fantasia',
+    'sorcery': 'magia hechiceria fantasia',
+    'superpower': 'fantasia poder superpoderes',
+    'superpowers': 'fantasia poder superpoderes',
+    'friendship': 'amistad drama',
+    'family': 'familia drama',
+    'time travel': 'regresion viajes en el tiempo',
+    'time-travel': 'regresion',
+    'timetravel': 'regresion',
+    'back in time': 'regresion',
+    'go back': 'regresion',
+    'return': 'regresion regreso',
+    'returning': 'regresion',
+    'regression': 'regresion regression',
+    'robot': 'ciencia ficcion robot',
+    'robots': 'ciencia ficcion robot',
+    'sci-fi': 'ciencia ficcion sci-fi',
+    'scifi': 'ciencia ficcion',
+    'science fiction': 'ciencia ficcion',
+    // Fantasy classes / tropes
+    'necromancer': 'nigromante necromancia muertos invocador oscuro undead dark',
+    'necromancy': 'nigromante necromancia muertos invocador oscuro undead',
+    'undead': 'no-muertos undead zombie',
+    'summoner': 'invocador invocacion summoner',
+    'assassin': 'asesino sombras sigilo oscuro assassin',
+    'vampire': 'vampiro sangre oscuro terror vampire',
+    'zombie': 'zombie no-muertos terror apocalipsis',
+    'zombies': 'zombie no-muertos terror apocalipsis',
+    'demon': 'demonio oscuro infierno diablo demon',
+    'demons': 'demonio oscuro infierno diablo',
+    'devil': 'demonio diablo devil',
+    'hunter': 'cazador hunter dungeon mazmorra',
+    'hunters': 'cazador hunter dungeon',
+    'dungeon': 'mazmorra dungeon tower',
+    'dungeons': 'mazmorra dungeon',
+    'tower': 'torre tower escalada',
+    'cultivation': 'cultivation cultivacion murim artes marciales qi',
+    'murim': 'murim cultivation artes marciales qi',
+    'martial arts': 'artes marciales murim cultivation',
+    'martial-arts': 'artes marciales murim',
+    'op': 'overpowered fuerte poderoso op',
+    'overpowered': 'op fuerte poderoso overpowered',
+    'reincarnation': 'reencarnacion isekai otro mundo reincarnation',
+    'reincarnated': 'reencarnacion isekai otro mundo',
+    'isekai': 'reencarnacion otro mundo transmigration isekai',
+    'transmigration': 'reencarnacion transmigration isekai otro mundo',
+    'transmigrated': 'reencarnacion transmigration isekai',
+    'another world': 'reencarnacion isekai otro mundo',
+    'other world': 'reencarnacion isekai otro mundo',
+    'guild': 'gremio guild aventurero',
+    'revenge': 'venganza revenge',
+    'vengeance': 'venganza vengeance',
+    'system': 'sistema system',
+    'leveling': 'nivelar subir nivel leveling',
+    'level up': 'subir nivel leveling',
+    'levelup': 'subir nivel leveling',
+    'villain': 'villano villain antagonista',
+    'villainess': 'villana villainess',
+    'noble': 'noble nobleza',
+    'kingdom': 'reino kingdom',
+    'empire': 'imperio empire',
+    'prince': 'principe prince',
+    'princess': 'princesa princess',
+    'knight': 'caballero knight',
+    'monster': 'monstruo monster',
+    'monsters': 'monstruo monster',
+    'dragon': 'dragon',
+    'dragons': 'dragon',
+    'elf': 'elfo elf',
+    'elves': 'elfo elf',
+    'beast': 'bestia beast',
+    'god': 'dios god deidad',
+    'goddess': 'diosa goddess deidad',
+    'apocalypse': 'apocalipsis apocalypse',
+    'post-apocalyptic': 'apocalipsis post-apocaliptico',
+    'regressor': 'regresion regressor',
+    'tragedy': 'tragedia tragedy',
+    'psychological': 'psicologico psychological',
+    'mystery': 'misterio mystery',
+    'thriller': 'suspenso thriller',
+    'comedy': 'comedia comedy',
+    'slice of life': 'slice of life cotidiano'
+};
+
+const SYNONYMS_BY_LANG = { es: SYNONYMS_ES, en: SYNONYMS_EN };
+
+function enrichQuery(text, lang = DEFAULT_LANG) {
+    const userLang = SUPPORTED_LANGS.includes(lang) ? lang : DEFAULT_LANG;
+    // Merge: user's language dict takes priority, ES fallback catches any ES keywords present
+    const merged = userLang === 'es'
+        ? SYNONYMS_ES
+        : Object.assign({}, SYNONYMS_ES, SYNONYMS_BY_LANG[userLang] || {});
     let enriched = text;
-    Object.keys(SYNONYMS).forEach(key => {
-        if (text.includes(key)) {
-            enriched += ' ' + SYNONYMS[key];
+    const lower = text.toLowerCase();
+    Object.keys(merged).forEach(key => {
+        if (lower.includes(key)) {
+            enriched += ' ' + merged[key];
         }
     });
     return enriched;
 }
 
-// Nuevo: Función para limpiar el texto de entrada eliminando palabras irrelevantes (stopwords)
-// Stopwords MUY conservadoras: solo palabras que NUNCA aportan contexto de búsqueda
+// Stopwords per language — conservative: only pure greetings/courtesy words
 const STOP_WORDS_ES = new Set([
     'hola', 'hey', 'buenas', 'oye', 'porfa', 'porfavor', 'por', 'favor',
     'bro', 'amigo', 'mano', 'wey', 'compa',
@@ -2910,12 +3602,25 @@ const STOP_WORDS_ES = new Set([
     'los', 'las', 'unos', 'unas', 'del', 'al'
 ]);
 
-function cleanInputForAI(text) {
-    // Preservar palabras con contexto semántico (que, es, un, con, de, etc.)
-    // Solo eliminar saludos/cortesías puras y palabras de 1 carácter
+const STOP_WORDS_EN = new Set([
+    'hi', 'hello', 'hey', 'yo', 'sup', 'howdy', 'hiya',
+    'please', 'pls', 'plz', 'thanks', 'thank', 'thx', 'ty',
+    'bro', 'dude', 'man', 'bruh', 'mate', 'fam',
+    'recommend', 'recommendation', 'recommendations', 'suggest', 'suggestion', 'suggestions',
+    'give', 'gimme', 'tell', 'show', 'find',
+    'want', 'need', 'looking', 'searching', 'search',
+    'can', 'could', 'would', 'should', 'please',
+    'the', 'some', 'any', 'any', 'for', 'me'
+]);
+
+const STOP_WORDS_BY_LANG = { es: STOP_WORDS_ES, en: STOP_WORDS_EN };
+
+function cleanInputForAI(text, lang = DEFAULT_LANG) {
+    const userLang = SUPPORTED_LANGS.includes(lang) ? lang : DEFAULT_LANG;
+    const stopWords = STOP_WORDS_BY_LANG[userLang] || STOP_WORDS_ES;
     return text.toLowerCase()
         .split(/\s+/)
-        .filter(word => !STOP_WORDS_ES.has(word) && word.length > 1)
+        .filter(word => !stopWords.has(word) && word.length > 1)
         .join(' ');
 }
 
@@ -3033,6 +3738,8 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         }
 
         const cleanMsg = cleanText(userMsg);
+        // Idioma del request: propagarlo a NSFW, greetings, IA y mensajes al usuario
+        const reqLang = getRequestLang(req);
         // Si el cliente envía este header, no registrar en historial ni caché de queries
         const skipHistory = req.headers['x-skip-history'] === 'true';
 
@@ -3040,17 +3747,17 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         // Si la petición viene del contexto /nsfw (header X-Search-Context), permitir
         const searchContext = (req.headers['x-search-context'] || '').toLowerCase();
         if (searchContext !== 'nsfw' && isNsfwContent(cleanMsg)) {
-            return safeJson(200, NSFW_REDIRECT_RESPONSE);
+            return safeJson(200, getNsfwRedirectResponse(reqLang));
         }
 
-        // 0b. Detectar saludos y mensajes sin contenido de búsqueda
-        const greetings = /^(hola+|hey+|buenas?|oye+|porfa|porfavor|por|favor|bro|amigo|mano|wey|compa|recomendacion|recomendame|recomiendame|dame|dime|necesito|quiero|busco|puedes|podrias|seria|gracias|thanks|los|las|unos|unas|del|al)/i;
-        if (greetings.test(cleanMsg)) {
+        // 0b. Detectar saludos y mensajes sin contenido de búsqueda (por idioma)
+        if (isGreeting(cleanMsg, reqLang)) {
             return safeJson(200, {
                 success: true,
-                explanation: '¡Hola! Soy el asistente de búsqueda de Manhwa Imperial. Puedes preguntarme cosas como:\n• "Manhwas de acción con protagonista OP"\n• "Solo Leveling"\n• "Recomendaciones de romance escolar"\n• "Manhwas similares a Tower of God"',
+                explanation: getGreetingExplanation(reqLang),
                 series: [],
-                source: 'greeting'
+                source: 'greeting',
+                lang: reqLang
             });
         }
 
@@ -3082,9 +3789,10 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             const seriesItems = localResults.map(r => r.item);
             const payload = {
                 success: true,
-                explanation: `Resultados directos para "${userMsg}"`,
+                explanation: t(reqLang, 'directResults', { q: userMsg }),
                 series: sanitizeSeriesForResponse(seriesItems),
-                source: 'local_db_priority'
+                source: 'local_db_priority',
+                lang: reqLang
             };
             setCachedSearch(cleanMsg, payload);
             if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
@@ -3093,7 +3801,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         }
 
         // 3. Si hay negación → ruta directa a Chat Completions AI
-        const hasNegationEarly = detectNegative(userMsg);
+        const hasNegationEarly = detectNegative(userMsg, reqLang);
 
         // 4. VECTOR SEARCH: método primario para queries semánticas
         if (!hasNegationEarly && dbAvailable()) {
@@ -3102,10 +3810,11 @@ app.post('/api/read', aiLimiter, async (req, res) => {
                 const seriesItems = vectorResults.map(r => r.item);
                 const payload = {
                     success: true,
-                    explanation: `Resultados semánticos para "${userMsg}"`,
+                    explanation: t(reqLang, 'semanticResults', { q: userMsg }),
                     series: sanitizeSeriesForResponse(seriesItems),
                     source: 'vector',
-                    topSimilarity: vectorResults[0]?.similarity?.toFixed(3)
+                    topSimilarity: vectorResults[0]?.similarity?.toFixed(3),
+                    lang: reqLang
                 };
                 setCachedSearch(cleanMsg, payload);
                 if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
@@ -3120,21 +3829,23 @@ app.post('/api/read', aiLimiter, async (req, res) => {
 
         // 5. FALLBACK: LLAMAR A LA IA (negaciones, vector no disponible, o sin resultados)
         metrics.aiCalls++;
-        const cleanedInput = cleanInputForAI(userMsg);
-        const enrichedInput = enrichQuery(cleanedInput);
+        const cleanedInput = cleanInputForAI(userMsg, reqLang);
+        const enrichedInput = enrichQuery(cleanedInput, reqLang);
 
-        // Deduplicación de peticiones concurrentes (Promise Coalescing)
+        // Deduplicación de peticiones concurrentes (Promise Coalescing) — key por idioma
+        // para evitar que una query EN reutilice el resultado de una ES equivalente.
         let aiResult;
-        if (inFlightRequests.has(enrichedInput)) {
-            logger.info('Petición en vuelo detectada, esperando resultado compartido', { query: enrichedInput });
-            aiResult = await inFlightRequests.get(enrichedInput);
+        const inflightKey = `${reqLang}:${enrichedInput}`;
+        if (inFlightRequests.has(inflightKey)) {
+            logger.info('Petición en vuelo detectada, esperando resultado compartido', { query: enrichedInput, lang: reqLang });
+            aiResult = await inFlightRequests.get(inflightKey);
         } else {
-            const aiPromise = callAI(enrichedInput, AI_RETRIES, userRequestController.signal);
-            inFlightRequests.set(enrichedInput, aiPromise);
+            const aiPromise = callAI(enrichedInput, AI_RETRIES, userRequestController.signal, reqLang);
+            inFlightRequests.set(inflightKey, aiPromise);
             try {
                 aiResult = await aiPromise;
             } finally {
-                inFlightRequests.delete(enrichedInput);
+                inFlightRequests.delete(inflightKey);
             }
         }
 
@@ -3150,10 +3861,11 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             const payload = {
                 success: true,
                 explanation: fallback.length > 0
-                    ? `Encontré estos resultados para "${userMsg}"`
-                    : `No encontré resultados para "${userMsg}". Intenta describir lo que buscas de otra forma.`,
+                    ? t(reqLang, 'foundResults', { q: userMsg })
+                    : t(reqLang, 'noResults', { q: userMsg }),
                 series: sanitizeSeriesForResponse(fallback),
-                source: 'fallback'
+                source: 'fallback',
+                lang: reqLang
             };
             // Registrar consulta y resultado (fallback)
             if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
@@ -3163,7 +3875,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         // 4. Filtrar series según la respuesta de la IA
         let filtered = [...seriesCache];
         const filter = aiResult.filter;
-        const hasNegation = detectNegative(userMsg);
+        const hasNegation = detectNegative(userMsg, reqLang);
 
         // Filtrar por géneros
         if (filter.genres && filter.genres.length > 0) {
@@ -3281,10 +3993,11 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             const fallback = performFallbackSearch(userMsg).map(r => r.item);
             const payload = {
                 success: true,
-                explanation: aiResult.reason || `Resultados para "${userMsg}"`,
+                explanation: aiResult.reason || t(reqLang, 'resultsFor', { q: userMsg }),
                 series: sanitizeSeriesForResponse(fallback),
                 appliedFilter: aiResult,
-                source: 'fallback_after_filter'
+                source: 'fallback_after_filter',
+                lang: reqLang
             };
             // Registrar consulta y resultado (fallback después del filtro IA)
             if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
@@ -3293,10 +4006,11 @@ app.post('/api/read', aiLimiter, async (req, res) => {
 
         const payload = {
             success: true,
-            explanation: aiResult.reason || `Resultados para "${userMsg}"`,
+            explanation: aiResult.reason || t(reqLang, 'resultsFor', { q: userMsg }),
             series: sanitizeSeriesForResponse(results),
             appliedFilter: aiResult,
-            source: 'ai'
+            source: 'ai',
+            lang: reqLang
         };
 
         // Guardar en caché

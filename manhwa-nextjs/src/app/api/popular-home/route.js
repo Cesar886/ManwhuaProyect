@@ -167,6 +167,7 @@ export async function GET() {
             is_adult: s.is_adult ?? catalog?.is_adult,
             genres: Array.isArray(s.genres) ? s.genres : (catalog?.genres || []),
             contentType: catalog?.contentType || catalog?.content_type || s.contentType || '',
+            language: catalog?.language || catalog?.lang || s.language || s.lang || null,
           };
         }).filter((s) => s.slug && s.title);
         return mapped.length >= 3 ? { query: q.query, count: q.count, type: q.type, series: mapped } : null;

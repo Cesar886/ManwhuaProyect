@@ -381,36 +381,75 @@
     100% { box-shadow: 0 0 0 rgba(251, 191, 36, 0); }
 }
 
-/* La fila: shimmer dorado que barre suave de izquierda a derecha */
+/* ── LIQUID SWEEP — onda fluida que recorre de izquierda a derecha ── */
 .ia-count-bumped {
     position: relative;
     overflow: hidden;
 }
 
+/* Cresta principal: onda luminosa estrecha que viaja horizontalmente */
 .ia-count-bumped::before {
     content: '';
     position: absolute;
     top: 0;
     bottom: 0;
-    left: -100%;
-    width: 100%;
+    left: 0;
+    width: 55%;
     pointer-events: none;
-    border-radius: inherit;
+    transform: translateX(-110%);
     background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(245, 158, 11, 0.04) 30%,
-        rgba(251, 191, 36, 0.1) 50%,
-        rgba(245, 158, 11, 0.04) 70%,
+        rgba(254, 215, 110, 0.08) 18%,
+        rgba(254, 240, 138, 0.32) 42%,
+        rgba(255, 253, 230, 0.55) 55%,
+        rgba(253, 224,  71, 0.30) 68%,
+        rgba(251, 191,  36, 0.10) 85%,
         transparent 100%
     );
-    animation: ia-shimmer-pass 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    filter: blur(0.4px);
+    animation: ia-sweep-crest 2.6s cubic-bezier(0.45, 0.05, 0.35, 1) forwards;
 }
 
-@keyframes ia-shimmer-pass {
-    0%   { left: -100%; opacity: 0; }
-    8%   { opacity: 1; }
-    100% { left: 100%; opacity: 0; }
+/* Estela: brillo cálido más ancho y suave que persigue a la cresta */
+.ia-count-bumped::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 75%;
+    pointer-events: none;
+    transform: translateX(-130%);
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(245, 158, 11, 0.06) 20%,
+        rgba(251, 191, 36, 0.18) 45%,
+        rgba(254, 215, 110, 0.28) 60%,
+        rgba(251, 191, 36, 0.14) 78%,
+        transparent 100%
+    );
+    filter: blur(3px);
+    animation: ia-sweep-trail 2.9s 0.12s cubic-bezier(0.5, 0.0, 0.3, 1) forwards;
+}
+
+/* Cresta: arranca fuera a la izquierda, cruza fluido y sale por la derecha */
+@keyframes ia-sweep-crest {
+    0%   { transform: translateX(-110%); opacity: 0;   }
+    14%  { transform: translateX(-60%);  opacity: 0.7; }
+    50%  { transform: translateX(45%);   opacity: 1;   }
+    86%  { transform: translateX(150%);  opacity: 0.55;}
+    100% { transform: translateX(210%);  opacity: 0;   }
+}
+
+/* Estela: más lenta al arrancar y con curva distinta para romper el sincronismo */
+@keyframes ia-sweep-trail {
+    0%   { transform: translateX(-130%); opacity: 0;   }
+    20%  { transform: translateX(-70%);  opacity: 0.5; }
+    55%  { transform: translateX(20%);   opacity: 0.85;}
+    88%  { transform: translateX(120%);  opacity: 0.35;}
+    100% { transform: translateX(180%);  opacity: 0;   }
 }
 
 /* ====================================================

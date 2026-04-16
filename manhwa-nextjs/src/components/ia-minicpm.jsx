@@ -470,6 +470,15 @@ function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLA
 }
 
 // Utilidad: tiempo relativo legible ("hace 2 min", "hace 3h", etc.)
+function fmtCount(n) {
+    const num = Math.floor(Number(n));
+    if (!isFinite(num) || num < 0) return '';
+    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1).replace('.0', '').replace('.', ',')}M`;
+    if (num >= 10_000)    return `${Math.round(num / 1000)}k`;
+    if (num >= 1_000)     return `${(num / 1000).toFixed(1).replace('.0', '').replace('.', ',')}k`;
+    return String(num);
+}
+
 function timeAgo(isoDate) {
     if (!isoDate) return '';
     const diff = Date.now() - new Date(isoDate).getTime();
@@ -1227,7 +1236,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 <span className="ia-suggestion-text">{s.query}</span>
                                                 {s.count != null && (
                                                     <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
-                                                        {s.count}x
+                                                        {fmtCount(s.count)}
                                                     </span>
                                                 )}
                                             </button>
@@ -1261,7 +1270,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                     </span>
                                                     {s.count != null && s.count > 1 && (
                                                         <span className={`ia-suggestion-count${isBumped ? ' ia-count-flash' : ''}`}>
-                                                            {s.count}x
+                                                            {fmtCount(s.count)}
                                                         </span>
                                                     )}
                                                     {showNewBadge && <span className="ia-new-badge">NEW</span>}
@@ -1293,7 +1302,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 </span>
                                                 {s.count != null && (
                                                     <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
-                                                        {s.count}x
+                                                        {fmtCount(s.count)}
                                                     </span>
                                                 )}
                                             </button>
@@ -1324,7 +1333,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 </span>
                                                 {s.count != null && (
                                                     <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
-                                                        {s.count}x
+                                                        {fmtCount(s.count)}
                                                     </span>
                                                 )}
                                             </button>
@@ -1356,7 +1365,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                         </span>
                                                         {s.count != null && (
                                                             <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
-                                                                {s.count}x
+                                                                {fmtCount(s.count)}
                                                             </span>
                                                         )}
                                                     </button>
@@ -1390,7 +1399,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 </span>
                                                 {s.count != null && (
                                                     <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
-                                                        {s.count}x
+                                                        {fmtCount(s.count)}
                                                     </span>
                                                 )}
                                             </button>

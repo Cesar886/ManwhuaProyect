@@ -171,6 +171,7 @@ export default function BusquedaIAClient({ querySlug }) {
         resultados,
         searchCount,
         guestAiLimit,
+        userAiLimit,
         limpiar: limpiarIA,
     } = useIA();
 
@@ -363,7 +364,7 @@ export default function BusquedaIAClient({ querySlug }) {
                                 <Group justify="space-between" align="center" wrap="wrap" gap="xs">
                                     <Text size="xs" c={guestAiLimit.blocked ? 'red.4' : 'dimmed'}>
                                         {guestAiLimit.blocked
-                                            ? 'Llegaste al limite diario de 10 consultas IA. Registrate para seguir usandolo.'
+                                            ? `Llegaste al limite diario de ${guestAiLimit.limit} consultas IA. Registrate para seguir usandolo.`
                                             : `Te quedan ${guestAiLimit.remaining} de ${guestAiLimit.limit} consultas IA hoy.`}
                                     </Text>
 
@@ -375,6 +376,21 @@ export default function BusquedaIAClient({ querySlug }) {
                                         </Link>
                                     )}
                                 </Group>
+                            </Card>
+                        )}
+
+                        {userAiLimit && (
+                            <Card
+                                p="sm"
+                                radius="md"
+                                bg={userAiLimit.blocked ? 'rgba(255, 80, 80, 0.07)' : 'rgba(255, 255, 255, 0.02)'}
+                                style={{ border: userAiLimit.blocked ? '1px solid rgba(255, 80, 80, 0.35)' : '1px solid var(--border-subtle)' }}
+                            >
+                                <Text size="xs" c={userAiLimit.blocked ? 'red.4' : 'dimmed'}>
+                                    {userAiLimit.blocked
+                                        ? `Llegaste al limite diario de ${userAiLimit.limit} consultas IA.`
+                                        : `Te quedan ${userAiLimit.remaining} de ${userAiLimit.limit} consultas IA hoy.`}
+                                </Text>
                             </Card>
                         )}
 

@@ -3,9 +3,10 @@
  */
 
 const crypto = require('crypto');
-const { query, transaction } = require('../config/database');
+const { query } = require('../config/database');
 
-const GUEST_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.GUEST_DAILY_IA_LIMIT, 10) || 10);
+const GUEST_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.GUEST_DAILY_IA_LIMIT, 10) || 5);
+const USER_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.USER_DAILY_IA_LIMIT, 10) || 15);
 const AI_FETCH_TIMEOUT_MS = Math.max(3000, parseInt(process.env.AI_FETCH_TIMEOUT_MS, 10) || 25000);
 const AI_UPSTREAM_HTML_REGEX = /<html[\s>]|<!doctype\s/i;
 const AI_UPSTREAM_MAINTENANCE_MESSAGE = 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red. Intenta de nuevo en unos minutos.';
@@ -37,73 +38,92 @@ const getGuestFingerprint = (req) => {
     return crypto.createHash('sha256').update(seed).digest('hex');
 };
 
-const reserveGuestDailyAiQuota = async (req) => {
-    const usageDate = new Date().toISOString().slice(0, 10);
-    const fingerprintHash = getGuestFingerprint(req);
-    const ip = getClientIp(req);
-    const userAgent = String(req.get('User-Agent') || '').slice(0, 255) || null;
-    const deviceId = normalizeDeviceId(req.headers['x-device-id']);
+const buildQuotaState = (limit, quota) => ({
+    limit,
+    used: quota.used,
+    remaining: quota.remaining,
+    blocked: !quota.allowed,
+});
 
-    return transaction(async (client) => {
-        const existing = await client.query(
-            `SELECT request_count
-             FROM ai_guest_daily_usage
-             WHERE usage_date = $1 AND fingerprint_hash = $2
-             FOR UPDATE`,
-            [usageDate, fingerprintHash]
-        );
+const attachQuotaPayload = (payload, { guestLimit = null, userLimit = null } = {}) => {
+    const response = payload && typeof payload === 'object' ? { ...payload } : {};
 
-        if (existing.rows.length === 0) {
-            const inserted = await client.query(
-                `INSERT INTO ai_guest_daily_usage (
-                    usage_date,
-                    fingerprint_hash,
-                    ip_address,
-                    device_id,
-                    user_agent,
-                    request_count
-                )
-                VALUES ($1, $2, $3::inet, $4, $5, 1)
-                RETURNING request_count`,
-                [usageDate, fingerprintHash, ip || null, deviceId, userAgent]
-            );
+    if (guestLimit) {
+        response.guestLimit = guestLimit;
+    }
 
-            return {
-                allowed: true,
-                used: inserted.rows[0].request_count,
-                remaining: Math.max(0, GUEST_DAILY_IA_LIMIT - inserted.rows[0].request_count),
-            };
-        }
+    if (userLimit) {
+        response.userLimit = userLimit;
+    }
 
-        const currentCount = Number(existing.rows[0].request_count) || 0;
-        if (currentCount >= GUEST_DAILY_IA_LIMIT) {
-            return {
-                allowed: false,
-                used: currentCount,
-                remaining: 0,
-            };
-        }
-
-        const updated = await client.query(
-            `UPDATE ai_guest_daily_usage
-             SET request_count = request_count + 1,
-                 ip_address = COALESCE($3::inet, ip_address),
-                 device_id = COALESCE($4, device_id),
-                 user_agent = COALESCE($5, user_agent),
-                 updated_at = NOW()
-             WHERE usage_date = $1 AND fingerprint_hash = $2
-             RETURNING request_count`,
-            [usageDate, fingerprintHash, ip || null, deviceId, userAgent]
-        );
-
-        const used = Number(updated.rows[0].request_count) || 0;
-        return {
-            allowed: true,
-            used,
-            remaining: Math.max(0, GUEST_DAILY_IA_LIMIT - used),
-        };
-    });
+    return response;
 };
+
+const reserveDailyAiQuota = async ({ limit, fingerprintHash, ip = null, deviceId = null, userAgent = null }) => {
+    const usageDate = new Date().toISOString().slice(0, 10);
+    const result = await query(
+        `WITH upsert AS (
+            INSERT INTO ai_guest_daily_usage (
+                usage_date,
+                fingerprint_hash,
+                ip_address,
+                device_id,
+                user_agent,
+                request_count
+            )
+            VALUES ($1, $2, $3::inet, $4, $5, 1)
+            ON CONFLICT (usage_date, fingerprint_hash) DO UPDATE
+            SET request_count = CASE
+                    WHEN ai_guest_daily_usage.request_count < $6 THEN ai_guest_daily_usage.request_count + 1
+                    ELSE ai_guest_daily_usage.request_count
+                END,
+                ip_address = COALESCE(EXCLUDED.ip_address, ai_guest_daily_usage.ip_address),
+                device_id = COALESCE(EXCLUDED.device_id, ai_guest_daily_usage.device_id),
+                user_agent = COALESCE(EXCLUDED.user_agent, ai_guest_daily_usage.user_agent),
+                updated_at = NOW()
+            WHERE ai_guest_daily_usage.request_count < $6
+            RETURNING request_count
+        )
+        SELECT request_count, true AS allowed
+        FROM upsert
+        UNION ALL
+        SELECT request_count, false AS allowed
+        FROM ai_guest_daily_usage
+        WHERE usage_date = $1 AND fingerprint_hash = $2
+          AND NOT EXISTS (SELECT 1 FROM upsert)
+        LIMIT 1`,
+        [usageDate, fingerprintHash, ip, deviceId, userAgent, limit]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+        return {
+            allowed: false,
+            used: 0,
+            remaining: 0,
+        };
+    }
+
+    const used = Number(row.request_count) || 0;
+    return {
+        allowed: Boolean(row.allowed),
+        used,
+        remaining: Math.max(0, limit - used),
+    };
+};
+
+const reserveGuestDailyAiQuota = async (req) => reserveDailyAiQuota({
+    limit: GUEST_DAILY_IA_LIMIT,
+    fingerprintHash: getGuestFingerprint(req),
+    ip: getClientIp(req),
+    deviceId: normalizeDeviceId(req.headers['x-device-id']),
+    userAgent: String(req.get('User-Agent') || '').slice(0, 255) || null,
+});
+
+const reserveUserDailyAiQuota = async (userId) => reserveDailyAiQuota({
+    limit: USER_DAILY_IA_LIMIT,
+    fingerprintHash: crypto.createHash('sha256').update(`user:${userId}`).digest('hex'),
+});
 
 /**
  * Búsqueda general
@@ -686,24 +706,36 @@ const aiRead = async (req, res, next) => {
 
         const isGuest = !req.user;
         let guestLimit = null;
+        let userLimit = null;
 
-        if (isGuest) {
-            const quota = await reserveGuestDailyAiQuota(req);
-            guestLimit = {
-                limit: GUEST_DAILY_IA_LIMIT,
-                used: quota.used,
-                remaining: quota.remaining,
-                blocked: !quota.allowed,
-            };
+        try {
+            if (isGuest) {
+                const quota = await reserveGuestDailyAiQuota(req);
+                guestLimit = buildQuotaState(GUEST_DAILY_IA_LIMIT, quota);
 
-            if (!quota.allowed) {
-                return res.status(429).json({
-                    success: false,
-                    code: 'AI_GUEST_DAILY_LIMIT',
-                    message: `Has alcanzado el límite diario de ${GUEST_DAILY_IA_LIMIT} consultas IA. Regístrate para seguir usándola.`,
-                    guestLimit,
-                });
+                if (!quota.allowed) {
+                    return res.status(429).json(attachQuotaPayload({
+                        success: false,
+                        code: 'AI_GUEST_DAILY_LIMIT',
+                        message: `Has alcanzado el límite diario de ${GUEST_DAILY_IA_LIMIT} consultas IA. Regístrate para seguir usándola.`,
+                    }, { guestLimit }));
+                }
+            } else {
+                const quota = await reserveUserDailyAiQuota(req.user.id);
+                userLimit = buildQuotaState(USER_DAILY_IA_LIMIT, quota);
+
+                if (!quota.allowed) {
+                    return res.status(429).json(attachQuotaPayload({
+                        success: false,
+                        code: 'AI_USER_DAILY_LIMIT',
+                        message: `Has alcanzado el límite diario de ${USER_DAILY_IA_LIMIT} consultas IA.`,
+                    }, { userLimit }));
+                }
+
+                req._userAiQuota = userLimit;
             }
+        } catch (quotaError) {
+            console.error('[aiRead] No se pudo verificar la cuota IA; permitiendo request:', quotaError);
         }
 
         const searchContext = req.headers['x-search-context'];
@@ -728,6 +760,7 @@ const aiRead = async (req, res, next) => {
             const appearsToBeHtml = AI_UPSTREAM_HTML_REGEX.test(String(rawText || ''));
 
             let payload = {};
+            let payloadWasInvalid = false;
             if (contentType.includes('application/json') && rawText) {
                 try {
                     payload = JSON.parse(rawText);
@@ -745,6 +778,11 @@ const aiRead = async (req, res, next) => {
                 };
             }
 
+            if (!payload || typeof payload !== 'object') {
+                payloadWasInvalid = true;
+                payload = {};
+            }
+
             if (appearsToBeHtml) {
                 payload = {
                     success: false,
@@ -755,21 +793,20 @@ const aiRead = async (req, res, next) => {
 
             if (!aiResponse.ok) {
                 const status = appearsToBeHtml ? 503 : aiResponse.status;
-                payload = {
+                payload = attachQuotaPayload({
                     success: false,
                     code: payload.code || (status >= 500 ? 'AI_UPSTREAM_UNAVAILABLE' : 'AI_UPSTREAM_ERROR'),
                     message: payload.message || (status >= 500
                         ? 'No se pudo conectar con el servicio IA en este momento.'
                         : `El servicio IA respondió con error ${aiResponse.status}.`),
-                };
+                }, {
+                    guestLimit,
+                    userLimit: req._userAiQuota || userLimit,
+                });
 
                 if (appearsToBeHtml) {
                     payload.code = 'AI_UPSTREAM_HTML_ERROR';
                     payload.message = AI_UPSTREAM_MAINTENANCE_MESSAGE;
-                }
-
-                if (guestLimit) {
-                    payload.guestLimit = guestLimit;
                 }
 
                 res.status(status);
@@ -781,29 +818,37 @@ const aiRead = async (req, res, next) => {
                 return res.json(payload);
             }
 
+            if (payloadWasInvalid) {
+                return res.status(502).json(attachQuotaPayload({
+                    success: false,
+                    code: 'AI_UPSTREAM_INVALID_RESPONSE',
+                    message: 'El servicio IA devolvió una respuesta inválida.',
+                }, {
+                    guestLimit,
+                    userLimit: req._userAiQuota || userLimit,
+                }));
+            }
+
+            payload = attachQuotaPayload(payload, {
+                guestLimit,
+                userLimit: req._userAiQuota || userLimit,
+            });
+
             if (guestLimit) {
-                payload.guestLimit = guestLimit;
                 res.set('X-IA-Guest-Limit', String(guestLimit.limit));
                 res.set('X-IA-Guest-Used', String(guestLimit.used));
                 res.set('X-IA-Guest-Remaining', String(guestLimit.remaining));
             }
 
-            if (!payload || typeof payload !== 'object') {
-                return res.status(502).json({
-                    success: false,
-                    code: 'AI_UPSTREAM_INVALID_RESPONSE',
-                    message: 'El servicio IA devolvió una respuesta inválida.',
-                    ...(guestLimit ? { guestLimit } : {}),
-                });
-            }
-
             if (appearsToBeHtml) {
-                return res.status(503).json({
+                return res.status(503).json(attachQuotaPayload({
                     success: false,
                     code: 'AI_UPSTREAM_HTML_ERROR',
                     message: AI_UPSTREAM_MAINTENANCE_MESSAGE,
-                    ...(guestLimit ? { guestLimit } : {}),
-                });
+                }, {
+                    guestLimit,
+                    userLimit: req._userAiQuota || userLimit,
+                }));
             }
 
             return res.status(200).json(payload);
@@ -812,18 +857,24 @@ const aiRead = async (req, res, next) => {
         }
     } catch (error) {
         if (error?.name === 'AbortError') {
-            return res.status(504).json({
+            return res.status(504).json(attachQuotaPayload({
                 success: false,
                 code: 'AI_UPSTREAM_TIMEOUT',
                 message: 'El servicio IA tardó demasiado en responder.',
-            });
+            }, {
+                guestLimit,
+                userLimit: req._userAiQuota || userLimit,
+            }));
         }
 
-        return res.status(502).json({
+        return res.status(502).json(attachQuotaPayload({
             success: false,
             code: 'AI_UPSTREAM_UNAVAILABLE',
             message: 'No se pudo conectar con el servicio IA en este momento.',
-        });
+        }, {
+            guestLimit,
+            userLimit: req._userAiQuota || userLimit,
+        }));
     }
 };
 

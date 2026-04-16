@@ -14,7 +14,8 @@ const SEARCH_COOLDOWN = 3000; // 3s entre búsquedas a la API
 const MAX_QUERY_LENGTH = 300;
 const MAX_QUERY_LINES = 6;
 const STORAGE_PROBE_KEY = '__ia_storage_probe__';
-const GUEST_DAILY_IA_LIMIT = 10;
+const GUEST_DAILY_IA_LIMIT = 5;
+const USER_DAILY_IA_LIMIT = 15;
 const IA_DEVICE_ID_KEY = 'ia_device_id_v1';
 const RETRYABLE_AI_STATUS_CODES = new Set([502, 503, 504]);
 const PROMPT_INJECTION_PATTERNS = [
@@ -672,6 +673,32 @@ function toGuestLimitState(payload, fallbackIsGuest = true) {
     });
 }
 
+function buildUserAiLimitState({ limit = USER_DAILY_IA_LIMIT, used = 0, remaining = null, blocked = false } = {}) {
+    const safeLimit = Math.max(1, Number(limit) || USER_DAILY_IA_LIMIT);
+    const safeUsed = Math.max(0, Math.min(safeLimit, Number(used) || 0));
+    const safeRemaining = remaining == null
+        ? Math.max(0, safeLimit - safeUsed)
+        : Math.max(0, Math.min(safeLimit, Number(remaining) || 0));
+
+    return {
+        limit: safeLimit,
+        used: safeUsed,
+        remaining: safeRemaining,
+        blocked: Boolean(blocked) || safeRemaining === 0,
+    };
+}
+
+function toUserLimitState(payload) {
+    const limitData = payload?.userLimit;
+    if (!limitData) return null;
+    return buildUserAiLimitState({
+        limit: limitData.limit,
+        used: limitData.used,
+        remaining: limitData.remaining,
+        blocked: limitData.blocked,
+    });
+}
+
 export function useIA(options = {}) {
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState(null);
@@ -680,6 +707,7 @@ export function useIA(options = {}) {
     const [searchCount, setSearchCount] = useState(null);
     const { user } = useAuth();
     const [guestAiLimit, setGuestAiLimit] = useState(() => buildGuestAiLimitState({ isGuest: true, used: 0 }));
+    const [userAiLimit, setUserAiLimit] = useState(null);
     const cacheConfigRef = useRef(buildCacheConfig(options.namespace));
     const promptProtectionRef = useRef(options.promptProtection !== false);
     const userRef = useRef(user);
@@ -689,10 +717,12 @@ export function useIA(options = {}) {
 
         if (user) {
             setGuestAiLimit(buildGuestAiLimitState({ isGuest: false, used: 0 }));
+            setUserAiLimit(null);
             return;
         }
 
         setGuestAiLimit(buildGuestAiLimitState({ isGuest: true, used: 0 }));
+        setUserAiLimit(null);
     }, [user]);
 
     useEffect(() => {
@@ -855,6 +885,9 @@ export function useIA(options = {}) {
                 if (!userRef.current && errorData?.guestLimit) {
                     setGuestAiLimit(toGuestLimitState(errorData, true));
                 }
+                if (userRef.current && errorData?.userLimit) {
+                    setUserAiLimit(toUserLimitState(errorData));
+                }
                 const serverMessage = errorData?.message || errorData?.error || `Error ${response.status}`;
                 const customError = new Error(serverMessage);
                 customError.status = response.status;
@@ -905,6 +938,9 @@ export function useIA(options = {}) {
 
             if (!userRef.current && data?.guestLimit) {
                 setGuestAiLimit(toGuestLimitState(data, true));
+            }
+            if (userRef.current && data?.userLimit) {
+                setUserAiLimit(toUserLimitState(data));
             }
 
             if (controller !== activeControllerRef.current) return null;
@@ -1065,6 +1101,7 @@ export function useIA(options = {}) {
         setError(null);
         setNsfwRedirect(false);
         setCargando(false);
+        setUserAiLimit(null);
     }, []);
 
     return {
@@ -1077,6 +1114,7 @@ export function useIA(options = {}) {
         resultados,
         searchCount,
         guestAiLimit,
+        userAiLimit,
         limpiar,
     };
 }
