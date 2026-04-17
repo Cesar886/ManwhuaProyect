@@ -183,7 +183,7 @@ const seriesToArray = async (seriesMap) => {
             // 2. Usar subconsulta lateral para géneros - evita GROUP BY costoso
             // 3. Un solo parámetro array en lugar de N parámetros
             const dbResult = await query(
-                `SELECT s.slug, s.cover_url, s.cover_url_web, s.title, s.original_title, s.status, s.content_type, s.is_adult,
+                `SELECT s.slug, s.cover_url, s.cover_url_web, s.title, s.original_title, s.status, s.content_type, s.is_adult, s.language,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
                         COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
@@ -226,6 +226,7 @@ const seriesToArray = async (seriesMap) => {
             status: dbData?.status || 'ongoing',
             contentType: dbData?.content_type || 'manhwa',
             isAdult: dbData?.is_adult || false,
+            language: dbData?.language || null,
             author: dbData?.author_name || null,
             genres: dbData?.genres || [],
             rating: parseFloat(dbData?.rating_average || 0),
@@ -271,6 +272,7 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
             status: dbData?.status || 'ongoing',
             contentType: dbData?.content_type || 'manhwa',
             isAdult: dbData?.is_adult || false,
+            language: dbData?.language || null,
             author: dbData?.author_name || null,
             genres: dbData?.genres || [],
             rating: parseFloat(dbData?.rating_average || 0),
@@ -577,7 +579,7 @@ const listManhwasFromDatabase = async (req, res, next) => {
 
         // PASO 4: Fallback a BD (metadata) + chapterCounts de Spaces cache o BD
         const result = await query(`
-            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_web, s.status, s.content_type, s.is_adult, s.updated_at
+            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_web, s.status, s.content_type, s.is_adult, s.language, s.updated_at
             FROM series s
             WHERE s.deleted_at IS NULL
             ORDER BY s.updated_at DESC
@@ -592,6 +594,7 @@ const listManhwasFromDatabase = async (req, res, next) => {
             status: row.status || 'ongoing',
             contentType: row.content_type || 'manhwa',
             isAdult: row.is_adult || false,
+            language: row.language || null,
             chapterCount: getChapterCount(row.slug),
             chapters: [],
             updatedAt: row.updated_at,
@@ -1416,7 +1419,7 @@ const preloadCache = async () => {
             // La BD no depende de Spaces, así ahorramos tiempo
             const dbQueryPromise = query(
                 `SELECT s.slug, s.cover_url, s.cover_url_web, s.title, s.original_title, s.status,
-                        s.content_type, s.is_adult,
+                        s.content_type, s.is_adult, s.language,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
                         COALESCE(
@@ -1429,6 +1432,7 @@ const preloadCache = async () => {
                  FROM series s
                  LEFT JOIN authors a ON s.author_id = a.id
                  WHERE s.deleted_at IS NULL`
+
             ).catch(err => {
                 logger.warn('⚠️ Error pre-consultando BD:', err.message);
                 return { rows: [] };
