@@ -17,11 +17,34 @@ const SPACES_URL = (() => {
 const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || '';
 const QUERY_TTL = 3 * 60 * 1000;
 const MAX_HISTORY = 20;
+const SUPPORTED_LANGS = ['es', 'en'];
 
+// Caché separada por idioma: una query idéntica en /es vs /en no colisiona.
 let queryCache = new Map();
 let catalogCache = null;
 let catalogCacheTime = 0;
 const CATALOG_TTL = 10 * 60 * 1000;
+
+// Resuelve el idioma del request en este orden:
+//   1) ?lang=en|es en el querystring.
+//   2) body.lang (solo en POST).
+//   3) Header Referer: /en/... → 'en', el resto → 'es'.
+//   4) Default 'es'.
+function resolveLang(request, body) {
+  const url = new URL(request.url);
+  const q = url.searchParams.get('lang');
+  if (q && SUPPORTED_LANGS.includes(q)) return q;
+  const bodyLang = body && typeof body.lang === 'string' ? body.lang : null;
+  if (bodyLang && SUPPORTED_LANGS.includes(bodyLang)) return bodyLang;
+  const referer = request.headers.get('referer') || request.headers.get('referrer') || '';
+  try {
+    const r = new URL(referer);
+    const seg = (r.pathname || '/').split('/').filter(Boolean)[0] || '';
+    if (seg === 'en') return 'en';
+    if (seg === 'es') return 'es';
+  } catch { /* referer inválido: ignorar */ }
+  return 'es';
+}
 
 const normTitle = (t) =>
   String(t || '')
@@ -166,36 +189,38 @@ function enrichCarousels(carousels, catalogMaps) {
 export async function POST(request) {
   try {
     const body = await request.json().catch(() => ({}));
+    const lang = resolveLang(request, body);
     const history = sanitizeHistory(body?.history);
 
     if (history.length === 0) {
-      return NextResponse.json({ data: [], fromCache: false });
+      return NextResponse.json({ data: [], fromCache: false, lang });
     }
 
-    const cacheKey = history.map((h) => `${normTitle(h.query)}@${Math.floor(Number(h.ts) / (6 * 60 * 60 * 1000))}`).join('|');
+    // Scoping por idioma: mismo history en /es y /en nunca comparten fila cacheada
+    const cacheKey = `${lang}|` + history.map((h) => `${normTitle(h.query)}@${Math.floor(Number(h.ts) / (6 * 60 * 60 * 1000))}`).join('|');
     pruneQueryCache();
 
     const cached = queryCache.get(cacheKey);
     if (cached && Date.now() - cached.time < QUERY_TTL && Array.isArray(cached.rows)) {
-      return NextResponse.json({ data: cached.rows, fromCache: true });
+      return NextResponse.json({ data: cached.rows, fromCache: true, lang });
     }
 
     const aiRes = await fetch(`${AI_BASE_URL}/api/personalized-carousels`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history, limitRows: 8, limitItems: 10 }),
+      headers: { 'Content-Type': 'application/json', 'X-Lang': lang },
+      body: JSON.stringify({ history, limitRows: 8, limitItems: 10, lang }),
       next: { revalidate: 0 },
     });
 
     if (!aiRes.ok) {
-      return NextResponse.json({ data: [], fromCache: false });
+      return NextResponse.json({ data: [], fromCache: false, lang });
     }
 
     const aiData = await aiRes.json().catch(() => ({}));
     const rawRows = Array.isArray(aiData?.carousels) ? aiData.carousels : [];
 
     if (rawRows.length === 0) {
-      return NextResponse.json({ data: [], fromCache: false });
+      return NextResponse.json({ data: [], fromCache: false, lang });
     }
 
     const catalogMaps = await getCatalogMaps();
@@ -206,7 +231,7 @@ export async function POST(request) {
       time: Date.now(),
     });
 
-    return NextResponse.json({ data: rows, fromCache: false });
+    return NextResponse.json({ data: rows, fromCache: false, lang });
   } catch {
     return NextResponse.json({ data: [], fromCache: false });
   }

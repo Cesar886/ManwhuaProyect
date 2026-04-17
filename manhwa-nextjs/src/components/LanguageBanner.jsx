@@ -6,6 +6,7 @@ import Link from 'next/link'
 import styles from './LanguageBanner.module.css'
 
 export default function LanguageBanner() {
+  return null;
   const [showBanner, setShowBanner] = useState(false)
   const [suggestedLang, setSuggestedLang] = useState(null)
   const pathname = usePathname()

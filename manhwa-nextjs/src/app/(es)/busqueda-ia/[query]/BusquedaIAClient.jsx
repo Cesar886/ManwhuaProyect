@@ -18,6 +18,7 @@ import ManhwaCover from '@/components/ManhwaCover';
 import { PremiumSkeletonGrid } from '@/components/PremiumSkeleton';
 import { filterAvailableSeries, filterByLanguage } from '@/utils/adultContent';
 import { useLang } from '@/hooks/useLang';
+import { getLocalizedPath } from '@/utils/i18nRoutes';
 import classes from '../../biblioteca/Biblioteca.module.css';
 import homeStyles from '../../home/Home.module.css';
 import dynamic from 'next/dynamic';
@@ -274,8 +275,8 @@ export default function BusquedaIAClient({ querySlug }) {
 
     const handleIASearch = useCallback((pregunta) => {
         const slug = slugifyQuery(pregunta);
-        router.push(`/busqueda-ia/${slug}`);
-    }, [router]);
+        router.push(getLocalizedPath(`/busqueda-ia/${slug}`, lang));
+    }, [router, lang]);
 
     const handleRetry = useCallback(() => {
         if (searchQuery) buscarConIACached(searchQuery);
@@ -283,8 +284,8 @@ export default function BusquedaIAClient({ querySlug }) {
 
     const handleClearFilters = useCallback(() => {
         limpiarIA();
-        router.push('/biblioteca');
-    }, [limpiarIA, router]);
+        router.push(getLocalizedPath('/biblioteca', lang));
+    }, [limpiarIA, router, lang]);
 
     // --- Share button state ---
     const [copied, setCopied] = useState(false);
@@ -292,7 +293,7 @@ export default function BusquedaIAClient({ querySlug }) {
         const url = window.location.href;
         if (navigator.share) {
             try {
-                await navigator.share({ title: 'Búsqueda IA - Manhwa Imperial', url });
+                await navigator.share({ title: lang === 'en' ? 'AI Search - Manhwa Imperial' : 'Búsqueda IA - Manhwa Imperial', url });
                 return;
             } catch (err) {
                 // Si el usuario canceló el diálogo, no hacer nada más
@@ -364,14 +365,18 @@ export default function BusquedaIAClient({ querySlug }) {
                                 <Group justify="space-between" align="center" wrap="wrap" gap="xs">
                                     <Text size="xs" c={guestAiLimit.blocked ? 'red.4' : 'dimmed'}>
                                         {guestAiLimit.blocked
-                                            ? `Llegaste al limite diario de ${guestAiLimit.limit} consultas IA. Registrate para seguir usandolo.`
-                                            : `Te quedan ${guestAiLimit.remaining} de ${guestAiLimit.limit} consultas IA hoy.`}
+                                            ? (lang === 'en'
+                                                ? `You've reached the daily limit of ${guestAiLimit.limit} AI queries. Sign up to keep using it.`
+                                                : `Llegaste al limite diario de ${guestAiLimit.limit} consultas IA. Registrate para seguir usandolo.`)
+                                            : (lang === 'en'
+                                                ? `You have ${guestAiLimit.remaining} of ${guestAiLimit.limit} AI queries left today.`
+                                                : `Te quedan ${guestAiLimit.remaining} de ${guestAiLimit.limit} consultas IA hoy.`)}
                                     </Text>
 
                                     {guestAiLimit.blocked && (
                                         <Link href="/register">
                                             <Button variant="light" color="red" size="compact-xs" radius="md">
-                                                Registrarme
+                                                {lang === 'en' ? 'Sign up' : 'Registrarme'}
                                             </Button>
                                         </Link>
                                     )}
@@ -388,8 +393,12 @@ export default function BusquedaIAClient({ querySlug }) {
                             >
                                 <Text size="xs" c={userAiLimit.blocked ? 'red.4' : 'dimmed'}>
                                     {userAiLimit.blocked
-                                        ? `Llegaste al limite diario de ${userAiLimit.limit} consultas IA.`
-                                        : `Te quedan ${userAiLimit.remaining} de ${userAiLimit.limit} consultas IA hoy.`}
+                                        ? (lang === 'en'
+                                            ? `You've reached the daily limit of ${userAiLimit.limit} AI queries.`
+                                            : `Llegaste al limite diario de ${userAiLimit.limit} consultas IA.`)
+                                        : (lang === 'en'
+                                            ? `You have ${userAiLimit.remaining} of ${userAiLimit.limit} AI queries left today.`
+                                            : `Te quedan ${userAiLimit.remaining} de ${userAiLimit.limit} consultas IA hoy.`)}
                                 </Text>
                             </Card>
                         )}
@@ -403,9 +412,9 @@ export default function BusquedaIAClient({ querySlug }) {
                             color="cyan"
                             size="compact-sm"
                             leftSection={<IconArrowLeft size={16} />}
-                            onClick={() => router.push('/biblioteca')}
+                            onClick={() => router.push(getLocalizedPath('/biblioteca', lang))}
                         >
-                            Volver al catálogo
+                            {lang === 'en' ? 'Back to catalog' : 'Volver al catálogo'}
                         </Button>
                     </Group>
 
@@ -415,7 +424,7 @@ export default function BusquedaIAClient({ querySlug }) {
                             <Group justify="space-between">
                                 <Group gap="xs">
                                     <IconBook size={22} className={classes.sectionIcon} />
-                                    <Text size="lg" fw={700}>Buscando resultados...</Text>
+                                    <Text size="lg" fw={700}>{lang === 'en' ? 'Searching results...' : 'Buscando resultados...'}</Text>
                                 </Group>
                             </Group>
                             <div className={classes.gridReleases}>
@@ -425,21 +434,21 @@ export default function BusquedaIAClient({ querySlug }) {
                     )}
 
                     {/* Manhwa Grid */}
-                    <div role="region" aria-label="Resultados de búsqueda IA" aria-live="polite">
+                    <div role="region" aria-label={lang === 'en' ? 'AI Search Results' : 'Resultados de búsqueda IA'} aria-live="polite">
                     {paginatedSeries.length > 0 ? (
                         <Stack gap="sm">
                             <Group ref={gridTopRef} justify="space-between">
                                 <Group gap="xs">
                                     <IconBook size={22} className={classes.sectionIcon} />
-                                    <Text size="lg" fw={700}>Resultados Personalizados</Text>
+                                    <Text size="lg" fw={700}>{lang === 'en' ? 'Personalized Results' : 'Resultados Personalizados'}</Text>
                                 </Group>
                                 <Group gap="xs">
-                                    <Text size="xs" c="dimmed">{filteredSeries.length} títulos encontrados</Text>
+                                    <Text size="xs" c="dimmed">{filteredSeries.length} {lang === 'en' ? 'titles found' : 'títulos encontrados'}</Text>
                                     {searchCount > 0 && (
                                         <Group gap={4}>
                                             <IconSearch size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
                                             <Text size="xs" c="dimmed">
-                                                {searchCount} {searchCount === 1 ? 'búsqueda' : 'búsquedas'}
+                                                {searchCount} {lang === 'en' ? (searchCount === 1 ? 'search' : 'searches') : (searchCount === 1 ? 'búsqueda' : 'búsquedas')}
                                             </Text>
                                         </Group>
                                     )}
@@ -451,7 +460,7 @@ export default function BusquedaIAClient({ querySlug }) {
                                         onClick={handleShare}
                                         style={{ fontSize: '0.7rem' }}
                                     >
-                                        {copied ? '¡Enlace copiado!' : 'Compartir'}
+                                        {copied ? (lang === 'en' ? 'Link copied!' : '¡Enlace copiado!') : (lang === 'en' ? 'Share' : 'Compartir')}
                                     </Button>
                                 </Group>
                             </Group>
@@ -462,7 +471,7 @@ export default function BusquedaIAClient({ querySlug }) {
                                         <Link href={`/manhwa/${series.slug}`} className={classes.releaseCoverContainer}>
                                             <div className={classes.releaseCoverWrapper}>
                                                 <span className={classes.chapterBadge}>
-                                                    {getSeriesChapterCount(series)} caps
+                                                    {getSeriesChapterCount(series)} {lang === 'en' ? 'chs' : 'caps'}
                                                 </span>
                                                 <span className={homeStyles.statusBadge}>
                                                     {series.contentType || series.content_type || series.type || series.seriesType || series.series_type || 'Manhwa'}
@@ -471,7 +480,7 @@ export default function BusquedaIAClient({ querySlug }) {
                                                     src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
                                                     fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
                                                     slug={series.slug}
-                                                    alt={`Portada del manhwa ${series.title} - Leer en español online gratis en Manhwa Imperial`}
+                                                    alt={lang === 'en' ? `${series.title} manhwa cover - Read online free at Manhwa Imperial` : `Portada del manhwa ${series.title} - Leer en español online gratis en Manhwa Imperial`}
                                                     className={classes.popularImg}
                                                     priority={currentPage === 1 && index < 8}
                                                     sizes="(max-width: 480px) 45vw, (max-width: 768px) 30vw, (max-width: 1200px) 22vw, 200px"
@@ -501,39 +510,45 @@ export default function BusquedaIAClient({ querySlug }) {
                             <Stack align="center" gap="sm">
                                 <Text fw={600}>
                                     {nsfwRedirect
-                                        ? iaError || 'Este tipo de búsqueda pertenece a la sección +18.'
+                                        ? iaError || (lang === 'en' ? 'This type of search belongs to the +18 section.' : 'Este tipo de búsqueda pertenece a la sección +18.')
                                         : iaError
                                             ? iaError
-                                            : 'No hay resultados para tu búsqueda'}
+                                            : (lang === 'en' ? 'No results for your search' : 'No hay resultados para tu búsqueda')}
                                 </Text>
                                 {nsfwRedirect ? (
                                     <Link href="/nsfw">
                                         <Button variant="light" color="red" radius="md">
-                                            Ir a la sección +18
+                                            {lang === 'en' ? 'Go to +18 section' : 'Ir a la sección +18'}
                                         </Button>
                                     </Link>
                                 ) : (
-                                    <Text size="sm" c="dimmed">Prueba con géneros diferentes o una descripción más amplia.</Text>
+                                    <Text size="sm" c="dimmed">{lang === 'en' ? 'Try different genres or a broader description.' : 'Prueba con géneros diferentes o una descripción más amplia.'}</Text>
                                 )}
 
                                 {!iaError && !nsfwRedirect && (
                                     <>
-                                        <Text size="xs" c="dimmed" mt="xs">Intenta buscar:</Text>
+                                        <Text size="xs" c="dimmed" mt="xs">{lang === 'en' ? 'Try searching:' : 'Intenta buscar:'}</Text>
                                         <Group gap="xs" justify="center" wrap="wrap">
-                                            {[
+                                            {(lang === 'en' ? [
+                                                { label: 'OP Action', slug: 'op-action' },
+                                                { label: 'Historical Romance', slug: 'historical-romance' },
+                                                { label: 'Murim', slug: 'murim' },
+                                                { label: 'Regression', slug: 'regression' },
+                                                { label: 'BL/Yaoi', slug: 'bl-yaoi' },
+                                            ] : [
                                                 { label: 'Acción OP', slug: 'accion-op' },
                                                 { label: 'Romance de época', slug: 'romance-de-epoca' },
                                                 { label: 'Murim', slug: 'murim' },
                                                 { label: 'Regresión', slug: 'regresion' },
                                                 { label: 'BL/Yaoi', slug: 'bl-yaoi' },
-                                            ].map(chip => (
+                                            ]).map(chip => (
                                                 <Button
                                                     key={chip.slug}
                                                     variant="light"
                                                     color="violet"
                                                     size="compact-xs"
                                                     radius="xl"
-                                                    onClick={() => router.push(`/busqueda-ia/${chip.slug}`)}
+                                                    onClick={() => router.push(getLocalizedPath(`/busqueda-ia/${chip.slug}`, lang))}
                                                     style={{ fontSize: '0.75rem' }}
                                                 >
                                                     {chip.label}
@@ -546,7 +561,7 @@ export default function BusquedaIAClient({ querySlug }) {
                                 <Group gap="xs">
                                     {iaError && !nsfwRedirect && (
                                         <Button variant="light" color="cyan" radius="md" leftSection={<IconRefresh size={16} />} onClick={handleRetry}>
-                                            Reintentar búsqueda
+                                            {lang === 'en' ? 'Retry search' : 'Reintentar búsqueda'}
                                         </Button>
                                     )}
                                     <Button variant="light" color="cyan" radius="md" onClick={handleClearFilters}>

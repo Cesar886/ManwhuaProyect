@@ -1,5 +1,6 @@
 // src/hooks/useIA.js
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { endpoint } from '@/config';
 
@@ -715,6 +716,14 @@ export function useIA(options = {}) {
     const cacheConfigRef = useRef(buildCacheConfig(options.namespace));
     const promptProtectionRef = useRef(options.promptProtection !== false);
     const userRef = useRef(user);
+    // Idioma activo: si el caller lo pasa explícito (options.lang), gana; si no, se deriva
+    // del pathname (/en → 'en', resto → 'es'). Se propaga al servidor como header X-Lang
+    // y en el body, para que las queries de /en nunca se guarden/sirvan desde el bucket ES.
+    const pathname = usePathname();
+    const detectedLang = (pathname && pathname.startsWith('/en')) ? 'en' : 'es';
+    const lang = options.lang || detectedLang;
+    const langRef = useRef(lang);
+    useEffect(() => { langRef.current = lang; }, [lang]);
     // Refs para pre-bloqueo (evitan closures obsoletos en buscarConIA).
     // Inicializados con el estado inicial real para que el bloqueo funcione
     // desde el primer render, antes de que fetchQuota responda.
@@ -886,7 +895,14 @@ export function useIA(options = {}) {
             const timeoutId = setTimeout(() => controller.abort(), 45000);
 
             const t0 = performance.now();
-            const fetchHeaders = { 'Content-Type': 'application/json' };
+            const activeLang = langRef.current || 'es';
+            const fetchHeaders = {
+                'Content-Type': 'application/json',
+                // Idioma del request: garantiza que el backend use el bucket correcto
+                // (historial, caché, populares, after-search). Sin este header el
+                // servidor cae a Referer / Accept-Language.
+                'X-Lang': activeLang,
+            };
             // Informar al servidor del contexto para que no bloquee queries NSFW en /nsfw
             if (cacheConfigRef.current.namespace === 'nsfw') {
                 fetchHeaders['X-Search-Context'] = 'nsfw';
@@ -902,7 +918,8 @@ export function useIA(options = {}) {
                     credentials: 'include',
                     headers: fetchHeaders,
                     body: JSON.stringify({
-                        messages: [{ role: 'user', content: trimmed }]
+                        messages: [{ role: 'user', content: trimmed }],
+                        lang: activeLang
                     }),
                     signal: controller.signal
                 });

@@ -18,7 +18,7 @@ import styles from './SimilarManhwas.module.css';
  * @param {Object} props
  * @param {Object} props.currentSeries - Serie actual (para extraer géneros y slug)
  */
-export default function SimilarManhwas({ currentSeries, basePath = '/manhwa' }) {
+export default function SimilarManhwas({ currentSeries, basePath = '/manhwa', lang = 'es' }) {
   const { series: allSeries } = useSpaces();
 
   const similarManhwas = useMemo(() => {
@@ -52,10 +52,12 @@ export default function SimilarManhwas({ currentSeries, basePath = '/manhwa' }) 
   return (
     <section className={styles.section}>
       <h2 className={styles.title}>
-        {SEO_CONTENT.manhwaDetail.getSimilarTitle(currentSeries.title)}
+        {SEO_CONTENT.manhwaDetail.getSimilarTitle(currentSeries.title, lang)}
       </h2>
       <p className={styles.subtitle}>
-        Si te gusta {currentSeries.title}, estos manhwas también te encantarán
+        {lang === 'en'
+          ? `If you like ${currentSeries.title}, you'll love these manhwas too`
+          : `Si te gusta ${currentSeries.title}, estos manhwas también te encantarán`}
       </p>
       <div className={styles.grid}>
         {similarManhwas.map((series) => (

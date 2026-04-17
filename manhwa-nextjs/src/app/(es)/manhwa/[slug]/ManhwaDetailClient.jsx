@@ -31,6 +31,7 @@ import Header from '@/components/Header';
 import AdsterraNativeBanner from '@/components/AdsterraNativeBanner';
 import SimilarManhwas from '@/components/SimilarManhwas';
 import { slugifyQuery } from '@/hooks/useIA';
+import { getLocalizedPath } from '@/utils/i18nRoutes';
 import { useManhwaReaders } from '@/hooks/useManhwaReaders';
 import LinkedSynopsis from '@/components/LinkedSynopsis';
 import SeriesRating from '@/components/SeriesRating';
@@ -630,15 +631,18 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
     if (showAdultBadge) {
       return {
-        pathname: '/nsfw',
+        pathname: lang === 'en' ? '/en/nsfw' : '/nsfw',
         query: {
-          ia: `similares a ${currentTitle}`,
+          ia: lang === 'en' ? `similar to ${currentTitle}` : `similares a ${currentTitle}`,
         },
       };
     }
 
-    return `/busqueda-ia/${slugifyQuery(`manhwas similares a ${currentTitle}`)}`;
-  }, [effectiveSeries?.title, series?.title, showAdultBadge]);
+    const query = lang === 'en'
+      ? `manhwas similar to ${currentTitle}`
+      : `manhwas similares a ${currentTitle}`;
+    return getLocalizedPath(`/busqueda-ia/${slugifyQuery(query)}`, lang);
+  }, [effectiveSeries?.title, series?.title, showAdultBadge, lang]);
 
   // Handlers
   const handleToggleFavorite = async () => {
@@ -1248,7 +1252,8 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
         {SEO_CONTENT.manhwaDetail.getIntroText(
           effectiveSeries?.title || series?.title,
           (effectiveSeries?.genres || series?.genres || []).map(g => typeof g === 'string' ? g : g?.name).filter(Boolean),
-          series.chapters?.length || 0
+          series.chapters?.length || 0,
+          lang
         )}
       </p>
 
@@ -1287,7 +1292,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
             {/* Filtros de capítulos */}
             <div className={styles.chaptersHeader}>
               <h2 className={styles.sectionTitle}>
-                {SEO_CONTENT.manhwaDetail.getChaptersTitle(effectiveSeries?.title || series?.title)}
+                {SEO_CONTENT.manhwaDetail.getChaptersTitle(effectiveSeries?.title || series?.title, lang)}
                 <span className={styles.chapterCount}>({filteredChapters.length})</span>
               </h2>
 
@@ -1696,6 +1701,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
               detailRequest={series}
               openLogin={openLogin}
               user={user}
+              lang={lang}
             />
           </div>
         )}
@@ -1704,7 +1710,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
       {/* ================================================================== */}
       {/* SEO: MANHWAS SIMILARES - Enlazado interno entre obras */}
       {/* ================================================================== */}
-      <SimilarManhwas currentSeries={effectiveSeries || series} basePath={basePath} />
+      <SimilarManhwas currentSeries={effectiveSeries || series} basePath={basePath} lang={lang} />
 
       {/* Botón fijo en móvil - SIEMPRE VISIBLE si hay capítulos */}
       {series?.chapters?.length > 0 && (

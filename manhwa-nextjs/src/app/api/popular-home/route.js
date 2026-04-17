@@ -24,11 +24,25 @@ const MAX_EACH = 5;              // 5 populares + 5 similares = 10 total
 const READ_TIMEOUT_MS = 5000;    // máx por llamada individual a /api/read
 const TOTAL_TIMEOUT_MS = 8000;   // máx total antes de devolver resultados parciales
 const RETRYABLE_AI_STATUS_CODES = new Set([502, 503, 504]);
+const SUPPORTED_LANGS = ['es', 'en'];
 
-// Caché en memoria del servidor
-let serverCache = null;
-let serverCacheTime = 0;
-let inFlightRefresh = null;
+// Caché en memoria del servidor, SEPARADA por idioma: ES y EN nunca se mezclan.
+const serverCacheByLang = { es: { data: null, time: 0 }, en: { data: null, time: 0 } };
+const inFlightRefreshByLang = { es: null, en: null };
+
+function resolveLang(request) {
+  const url = new URL(request.url);
+  const q = url.searchParams.get('lang');
+  if (q && SUPPORTED_LANGS.includes(q)) return q;
+  const referer = request.headers.get('referer') || request.headers.get('referrer') || '';
+  try {
+    const r = new URL(referer);
+    const seg = (r.pathname || '/').split('/').filter(Boolean)[0] || '';
+    if (seg === 'en') return 'en';
+    if (seg === 'es') return 'es';
+  } catch { /* ignorar */ }
+  return 'es';
+}
 
 // Caché del catálogo (se renueva cada 10 min)
 let catalogCache = null;
@@ -95,29 +109,33 @@ function getChapters(s) {
   return s?.chapterCount ?? s?.chaptersCount ?? s?.chapters_count ?? s?.totalChapters ?? s?.chapter_count ?? 0;
 }
 
-export async function GET() {
-  // Devolver caché si está fresco
-  if (serverCache && Date.now() - serverCacheTime < CACHE_TTL) {
-    return NextResponse.json({ data: serverCache, fromCache: true });
+export async function GET(request) {
+  const lang = resolveLang(request);
+  const bucket = serverCacheByLang[lang];
+
+  // Devolver caché si está fresco (del idioma correcto)
+  if (bucket.data && Date.now() - bucket.time < CACHE_TTL) {
+    return NextResponse.json({ data: bucket.data, fromCache: true, lang });
   }
 
-  if (inFlightRefresh) {
-    return inFlightRefresh;
+  if (inFlightRefreshByLang[lang]) {
+    return inFlightRefreshByLang[lang];
   }
 
-  inFlightRefresh = (async () => {
+  inFlightRefreshByLang[lang] = (async () => {
     // Cargar catálogo para enriquecer covers
     const { bySlug, byTitle } = await getCatalogMaps();
 
     // 1. Obtener populares y similares por separado desde /api/search-suggestions
-    const sugRes = await fetchWithRetry(`${AI_BASE_URL}/api/search-suggestions`, {
-      headers: { 'Accept': 'application/json' },
+    //    Pasamos lang para que el servidor use el bucket correcto.
+    const sugRes = await fetchWithRetry(`${AI_BASE_URL}/api/search-suggestions?lang=${lang}`, {
+      headers: { 'Accept': 'application/json', 'X-Lang': lang },
       next: { revalidate: 0 },
     });
-    if (!sugRes.ok) return NextResponse.json({ data: [] });
+    if (!sugRes.ok) return NextResponse.json({ data: [], lang });
 
     const sugData = await sugRes.json();
-    if (!sugData.success) return NextResponse.json({ data: [] });
+    if (!sugData.success) return NextResponse.json({ data: [], lang });
 
     const popularQueries = (sugData.popular || [])
       .filter((q) => q.query && q.query.trim().length > 3)
@@ -135,7 +153,7 @@ export async function GET() {
       if (i < similarQueries.length) interleaved.push({ ...similarQueries[i], type: 'similar' });
     }
 
-    if (interleaved.length === 0) return NextResponse.json({ data: [] });
+    if (interleaved.length === 0) return NextResponse.json({ data: [], lang });
 
     // 2. Llamar a /api/read en paralelo con timeout por llamada
     const callRead = async (q) => {
@@ -144,8 +162,8 @@ export async function GET() {
       try {
         const res = await fetchWithRetry(`${AI_BASE_URL}/api/read`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [{ role: 'user', content: q.query }] }),
+          headers: { 'Content-Type': 'application/json', 'X-Lang': lang },
+          body: JSON.stringify({ messages: [{ role: 'user', content: q.query }], lang }),
           signal: controller.signal,
           next: { revalidate: 0 },
         }, 0); // sin reintentos en paralelo
@@ -196,16 +214,16 @@ export async function GET() {
     const accumulated = rawResults.filter(Boolean);
 
     if (accumulated.length > 0) {
-      serverCache = accumulated;
-      serverCacheTime = Date.now();
+      bucket.data = accumulated;
+      bucket.time = Date.now();
     }
 
-    return NextResponse.json({ data: accumulated, fromCache: false });
+    return NextResponse.json({ data: accumulated, fromCache: false, lang });
   })()
-    .catch(() => NextResponse.json({ data: [] }))
+    .catch(() => NextResponse.json({ data: [], lang }))
     .finally(() => {
-      inFlightRefresh = null;
+      inFlightRefreshByLang[lang] = null;
     });
 
-  return inFlightRefresh;
+  return inFlightRefreshByLang[lang];
 }

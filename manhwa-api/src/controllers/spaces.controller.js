@@ -183,7 +183,7 @@ const seriesToArray = async (seriesMap) => {
             // 2. Usar subconsulta lateral para géneros - evita GROUP BY costoso
             // 3. Un solo parámetro array en lugar de N parámetros
             const dbResult = await query(
-                `SELECT s.slug, s.cover_url, s.cover_url_web, s.title, s.original_title, s.status, s.content_type, s.is_adult, s.language,
+                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.title, s.original_title, s.status, s.content_type, s.is_adult, s.language,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
                         COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
@@ -218,10 +218,11 @@ const seriesToArray = async (seriesMap) => {
         seriesArray.push({
             slug: series.slug,
             title: dbData?.title || series.title,
-            cover: dbData?.cover_url || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
+            cover: dbData?.cover_url || dbData?.cover_url_tmo || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
                 ? chapters[0].pages[0].url
                 : null),
-            coverUrl: dbData?.cover_url || series.cover, // Campo adicional por compatibilidad
+            coverUrl: dbData?.cover_url || dbData?.cover_url_tmo || series.cover,
+            coverUrlTmo: dbData?.cover_url_tmo || null,
             coverUrlWeb: dbData?.cover_url_web || null,
             status: dbData?.status || 'ongoing',
             contentType: dbData?.content_type || 'manhwa',
@@ -264,10 +265,11 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
         seriesArray.push({
             slug: series.slug,
             title: dbData?.title || series.title,
-            cover: dbData?.cover_url || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
+            cover: dbData?.cover_url || dbData?.cover_url_tmo || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
                 ? chapters[0].pages[0].url
                 : null),
-            coverUrl: dbData?.cover_url || series.cover,
+            coverUrl: dbData?.cover_url || dbData?.cover_url_tmo || series.cover,
+            coverUrlTmo: dbData?.cover_url_tmo || null,
             coverUrlWeb: dbData?.cover_url_web || null,
             status: dbData?.status || 'ongoing',
             contentType: dbData?.content_type || 'manhwa',
@@ -579,7 +581,7 @@ const listManhwasFromDatabase = async (req, res, next) => {
 
         // PASO 4: Fallback a BD (metadata) + chapterCounts de Spaces cache o BD
         const result = await query(`
-            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_web, s.status, s.content_type, s.is_adult, s.language, s.updated_at
+            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.status, s.content_type, s.is_adult, s.language, s.updated_at
             FROM series s
             WHERE s.deleted_at IS NULL
             ORDER BY s.updated_at DESC
@@ -588,8 +590,9 @@ const listManhwasFromDatabase = async (req, res, next) => {
         const series = result.rows.map(row => ({
             slug: row.slug,
             title: row.title,
-            cover: row.cover_url,
-            coverUrl: row.cover_url,
+            cover: row.cover_url || row.cover_url_tmo,
+            coverUrl: row.cover_url || row.cover_url_tmo,
+            coverUrlTmo: row.cover_url_tmo || null,
             coverUrlWeb: row.cover_url_web || null,
             status: row.status || 'ongoing',
             contentType: row.content_type || 'manhwa',
@@ -855,9 +858,9 @@ const getManhwaFromSpaces = async (req, res, next) => {
         try {
             // Consulta unificada: serie + autor + géneros en una sola query
             const dbResult = await query(
-                `SELECT s.id, s.cover_url, s.title, s.original_title, s.synopsis, s.status,
+                `SELECT s.id, s.cover_url, s.cover_url_tmo, s.title, s.original_title, s.synopsis, s.status,
                         s.rating_average, s.rating_count, s.release_year, s.view_count,
-                        s.is_adult,
+                        s.is_adult, s.language,
                         a.name as author_name,
                         COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
                  FROM series s
@@ -874,9 +877,10 @@ const getManhwaFromSpaces = async (req, res, next) => {
 
             if (dbResult.rows.length > 0) {
                 const dbSeries = dbResult.rows[0];
-                if (dbSeries.cover_url) {
-                    coverUrl = dbSeries.cover_url;
+                if (dbSeries.cover_url || dbSeries.cover_url_tmo) {
+                    coverUrl = dbSeries.cover_url || dbSeries.cover_url_tmo;
                 }
+                if (dbSeries.cover_url_tmo) dbMetadata.coverUrlTmo = dbSeries.cover_url_tmo;
                 if (dbSeries.title)          dbMetadata.title         = dbSeries.title;
                 if (dbSeries.original_title) dbMetadata.originalTitle = dbSeries.original_title;
                 if (dbSeries.synopsis)       dbMetadata.synopsis      = dbSeries.synopsis;
@@ -888,6 +892,7 @@ const getManhwaFromSpaces = async (req, res, next) => {
                 if (dbSeries.view_count)     dbMetadata.views         = dbSeries.view_count;
                 if (dbSeries.genres?.length) dbMetadata.genres        = dbSeries.genres;
                 dbMetadata.isAdult = dbSeries.is_adult || false;
+                dbMetadata.language = dbSeries.language || null;
             }
         } catch (dbError) {
             // No fallar si la consulta a BD falla, solo loguear
@@ -912,7 +917,8 @@ const getManhwaFromSpaces = async (req, res, next) => {
                 title: dbMetadata.title || series.title,
                 originalTitle: dbMetadata.originalTitle || null,
                 coverUrl: coverUrl,
-                cover: coverUrl, // Mantener ambos por compatibilidad
+                cover: coverUrl,
+                coverUrlTmo: dbMetadata.coverUrlTmo || null,
                 synopsis: dbMetadata.synopsis || null,
                 status: dbMetadata.status || 'ongoing',
                 author: dbMetadata.author || null,
@@ -922,6 +928,7 @@ const getManhwaFromSpaces = async (req, res, next) => {
                 releaseYear: dbMetadata.releaseYear || null,
                 views: dbMetadata.views || 0,
                 isAdult: dbMetadata.isAdult || false,
+                language: dbMetadata.language || null,
                 chapterCount: chapters.length,
                 chapters,
                 lastUpdated: series.lastModified
@@ -1418,7 +1425,7 @@ const preloadCache = async () => {
             // Ejecutar listado de Spaces y consulta BD en PARALELO
             // La BD no depende de Spaces, así ahorramos tiempo
             const dbQueryPromise = query(
-                `SELECT s.slug, s.cover_url, s.cover_url_web, s.title, s.original_title, s.status,
+                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.title, s.original_title, s.status,
                         s.content_type, s.is_adult, s.language,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,

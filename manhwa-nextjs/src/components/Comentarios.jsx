@@ -312,7 +312,7 @@ const hybridSortComments = (arr, BOOST_MINUTES = 10) => {
 }
 
 
-export default function Comentarios({ detailRequest, openLogin, user, maxReplyDepth = 2, boostMinutes = 10, username }) {
+export default function Comentarios({ detailRequest, openLogin, user, maxReplyDepth = 2, boostMinutes = 10, username, lang = 'es' }) {
   const [commentText, setCommentText] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentSuccess, setCommentSuccess] = useState(false)
@@ -2303,7 +2303,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           </div>
           <div>
             <Text fw={700} size="lg" style={{ color: 'var(--text-color)', letterSpacing: '-0.01em' }}>
-              Comentarios
+              {lang === 'en' ? 'Comments' : 'Comentarios'}
             </Text>
           </div>
         </Group>
@@ -2358,7 +2358,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           )}
           <div style={{ flex: 1 }}>
             <Textarea
-              placeholder="Comparte tu opinión sobre esta serie..."
+              placeholder={lang === 'en' ? 'Share your opinion about this series...' : 'Comparte tu opinión sobre esta serie...'}
               minRows={3}
               variant="unstyled"
               value={commentText}
@@ -2913,10 +2913,10 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                   <IconMessage size={28} style={{ color: 'rgb(var(--accent-cyan))', opacity: 0.6 }} />
                 </div>
                 <Text fw={600} size="md" style={{ color: 'var(--text-color)', marginBottom: 6 }}>
-                  Sin comentarios aún
+                  {lang === 'en' ? 'No comments yet' : 'Sin comentarios aún'}
                 </Text>
                 <Text c="dimmed" size="sm" style={{ maxWidth: 280, margin: '0 auto' }}>
-                  ¡Sé el primero en compartir tu opinión sobre esta serie!
+                  {lang === 'en' ? 'Be the first to share your opinion about this series!' : '¡Sé el primero en compartir tu opinión sobre esta serie!'}
                 </Text>
               </div>
             )}

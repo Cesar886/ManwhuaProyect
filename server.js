@@ -22,8 +22,15 @@ let fuse; // Declarar variable global faltante
 // Mapa de peticiones a la IA que están actualmente en proceso (Promise Coalescing)
 const inFlightRequests = new Map();
 
-// Archivo donde guardaremos la "memoria"
-const CACHE_FILE_PATH = path.join(__dirname, 'ai_search_cache.json');
+// Archivos donde guardaremos la "memoria" de payloads IA, SEPARADOS POR IDIOMA.
+// Cada entrada se guarda en el archivo cuyo prefijo coincide con la clave
+// (cacheKey(lang, key) → "es:..." o "en:..."). Así un payload ES nunca se
+// mezcla con uno EN, ni siquiera en disco.
+const CACHE_FILE_PATH_LEGACY = path.join(__dirname, 'ai_search_cache.json'); // legacy (pre-split)
+const CACHE_FILES = {
+    es: path.join(__dirname, 'ai_search_cache_es.json'),
+    en: path.join(__dirname, 'ai_search_cache_en.json'),
+};
 
 // Archivos donde guardaremos el historial de consultas, SEPARADO POR IDIOMA.
 // Las queries hechas desde /en se guardan en un archivo distinto al de /es
@@ -125,6 +132,12 @@ function H(lang) {
 function setH(lang, arr) {
     const L = normalizeLang(lang);
     queryHistoryByLang[L] = Array.isArray(arr) ? arr : [];
+}
+
+// Clave de caché scoping por idioma: evita que el payload IA generado para /es
+// (con explanation en español) se sirva a un usuario de /en y viceversa.
+function cacheKey(lang, key) {
+    return `${normalizeLang(lang)}:${key}`;
 }
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
@@ -2301,8 +2314,8 @@ function sanitizeIncomingHistory(rawHistory) {
     return cleaned;
 }
 
-function resolveHistorySeries(queryText, queryKey) {
-    const cached = getCachedSearchSmart(queryKey);
+function resolveHistorySeries(queryText, queryKey, lang = DEFAULT_LANG) {
+    const cached = getCachedSearchSmart(cacheKey(lang, queryKey));
     if (cached && cached.data) {
         const cachedSeries = cached.data.series || [];
         const normalized = cachedSeries.length > 0 && typeof cachedSeries[0] === 'object'
@@ -2411,6 +2424,7 @@ function resolveGenreSeries(genreKeys, limit) {
 app.post('/api/personalized-carousels', (req, res) => {
     try {
         const body = req.body || {};
+        const reqLang = getRequestLang(req);
         const safeLimitRows = Math.min(10, Math.max(1, parseInt(body.limitRows, 10) || 3));
         const safeLimitItems = Math.min(15, Math.max(3, parseInt(body.limitItems, 10) || 8));
         const history = sanitizeIncomingHistory(body.history);
@@ -2425,7 +2439,7 @@ app.post('/api/personalized-carousels', (req, res) => {
         const usedQueries = new Set();
 
         // Carrusel principal: ultima busqueda del usuario
-        const latestResolved = resolveHistorySeries(latest.raw, latest.key);
+        const latestResolved = resolveHistorySeries(latest.raw, latest.key, reqLang);
         if (latestResolved.series.length > 0) {
             rows.push({
                 type: 'latest_query',
@@ -2449,7 +2463,7 @@ app.post('/api/personalized-carousels', (req, res) => {
             const candidateKey = normalizeQuery(candidate.query);
             if (usedQueries.has(candidateKey)) continue;
 
-            const resolved = resolveHistorySeries(candidate.query, candidateKey);
+            const resolved = resolveHistorySeries(candidate.query, candidateKey, reqLang);
             if (resolved.series.length < 3) continue;
 
             const humanTitle = pickStableVariant(candidate.titleVariants, `${candidate.id}:${latest.key}`) || candidate.title;
@@ -2498,7 +2512,7 @@ app.post('/api/personalized-carousels', (req, res) => {
             const item = history[i];
             if (usedQueries.has(item.key)) continue;
 
-            const resolved = resolveHistorySeries(item.raw, item.key);
+            const resolved = resolveHistorySeries(item.raw, item.key, reqLang);
             if (resolved.series.length < 3) continue;
 
             rows.push({
@@ -2847,32 +2861,74 @@ const PORT = process.env.PORT || 3003;
 
 // --- GESTIÓN UNIFICADA DE PERSISTENCIA ---
 
+// Particiona entries del searchCache según el prefijo de idioma de la clave
+// (cacheKey(lang, key) → "es:..." o "en:..."). Entradas legacy sin prefijo
+// se ignoran al guardar (evita propagar keys sin scoping).
+function partitionCacheEntriesByLang() {
+    const buckets = { es: [], en: [] };
+    for (const [k, v] of searchCache.entries()) {
+        if (typeof k !== 'string') continue;
+        const sep = k.indexOf(':');
+        if (sep <= 0) continue;
+        const prefix = k.slice(0, sep);
+        if (buckets[prefix]) buckets[prefix].push([k, v]);
+    }
+    return buckets;
+}
+
+// Aplica una entrada ya cargada al searchCache respetando TTL/persist.
+function applyLoadedCacheEntry(key, val, now) {
+    if (val && val.persist) {
+        searchCache.set(key, val, { ttl: 0 });
+        return true;
+    }
+    const hardCutoff = 1000 * 60 * 60 * 24; // 24h
+    if (now - (val.timestamp || 0) < hardCutoff) {
+        const remainingTtl = Math.max(0, (val.ttl || SEARCH_CACHE_TTL) - (now - (val.timestamp || 0)));
+        searchCache.set(key, val, { ttl: remainingTtl || SEARCH_CACHE_TTL });
+        return true;
+    }
+    return false;
+}
+
 // Carga síncrona (Solo para el inicio del servidor)
 function loadCacheSync() {
+    const now = Date.now();
+    let loaded = 0;
     try {
-        if (fs.existsSync(CACHE_FILE_PATH)) {
-            const data = fs.readFileSync(CACHE_FILE_PATH, 'utf8');
-            const rawEntries = JSON.parse(data);
-
-            const now = Date.now();
-            let loaded = 0;
-            rawEntries.forEach(([key, val]) => {
-                if (val && val.persist) {
-                    searchCache.set(key, val, { ttl: 0 }); // sin expiración para persistentes
-                    loaded++;
-                    return;
+        for (const lang of SUPPORTED_LANGS) {
+            const file = CACHE_FILES[lang];
+            if (!fs.existsSync(file)) continue;
+            try {
+                const rawEntries = JSON.parse(fs.readFileSync(file, 'utf8'));
+                for (const [key, val] of rawEntries) {
+                    // Defensa: solo aceptar entradas cuya key empiece con el lang del archivo
+                    if (typeof key !== 'string' || !key.startsWith(`${lang}:`)) continue;
+                    if (applyLoadedCacheEntry(key, val, now)) loaded++;
                 }
-
-                const hardCutoff = 1000 * 60 * 60 * 24; // 24h
-                if (now - (val.timestamp || 0) < hardCutoff) {
-                    const remainingTtl = Math.max(0, (val.ttl || SEARCH_CACHE_TTL) - (now - (val.timestamp || 0)));
-                    searchCache.set(key, val, { ttl: remainingTtl || SEARCH_CACHE_TTL });
-                    loaded++;
-                }
-            });
-
-            logger.info('📂 Caché cargada desde disco (Sync)', { loaded });
+            } catch (err) {
+                logger.error('Error leyendo caché por idioma', { lang, error: err && err.message });
+            }
         }
+
+        // Migración legacy: si aún existe el archivo pre-split, rellenar con prefijo 'es'
+        // (asumimos que todo el legacy era ES, que es el default histórico).
+        if (loaded === 0 && fs.existsSync(CACHE_FILE_PATH_LEGACY)) {
+            try {
+                const rawEntries = JSON.parse(fs.readFileSync(CACHE_FILE_PATH_LEGACY, 'utf8'));
+                for (const [key, val] of rawEntries) {
+                    const scoped = (typeof key === 'string' && key.includes(':'))
+                        ? key
+                        : `${DEFAULT_LANG}:${key}`;
+                    if (applyLoadedCacheEntry(scoped, val, now)) loaded++;
+                }
+                logger.info('📂 Migración legacy → caché separada aplicada', { migrated: loaded });
+            } catch (err) {
+                logger.error('Error migrando caché legacy', err);
+            }
+        }
+
+        logger.info('📂 Caché cargada desde disco (Sync)', { loaded });
     } catch (err) {
         logger.error('Error cargando caché desde disco', err);
     }
@@ -2881,9 +2937,14 @@ function loadCacheSync() {
 // Guardado asíncrono (Para el intervalo periódico)
 async function saveCacheAsync() {
     try {
-        const data = JSON.stringify(Array.from(searchCache.entries()).map(([k, v]) => [k, v]));
-        await fs.promises.writeFile(CACHE_FILE_PATH, data);
-        logger.info('💾 Caché guardada (Async)', { entries: searchCache.size });
+        const buckets = partitionCacheEntriesByLang();
+        let total = 0;
+        await Promise.all(SUPPORTED_LANGS.map(async (lang) => {
+            const entries = buckets[lang] || [];
+            total += entries.length;
+            await fs.promises.writeFile(CACHE_FILES[lang], JSON.stringify(entries));
+        }));
+        logger.info('💾 Caché guardada (Async)', { entries: total, byLang: { es: buckets.es.length, en: buckets.en.length } });
     } catch (e) {
         logger.error('Error en guardado periódico', e);
     }
@@ -2892,9 +2953,14 @@ async function saveCacheAsync() {
 // Guardado síncrono (Solo para emergencias/apagado)
 function saveCacheSync() {
     try {
-        const data = JSON.stringify(Array.from(searchCache.entries()).map(([k, v]) => [k, v]));
-        fs.writeFileSync(CACHE_FILE_PATH, data);
-        logger.info('💾 Caché guardada (Sync - Shutdown)', { entries: searchCache.size });
+        const buckets = partitionCacheEntriesByLang();
+        let total = 0;
+        for (const lang of SUPPORTED_LANGS) {
+            const entries = buckets[lang] || [];
+            total += entries.length;
+            fs.writeFileSync(CACHE_FILES[lang], JSON.stringify(entries));
+        }
+        logger.info('💾 Caché guardada (Sync - Shutdown)', { entries: total });
     } catch (e) {
         logger.error('Error guardando caché al cerrar', e);
     }
@@ -3184,9 +3250,9 @@ function recordQuery(rawQuery, key, payload, req) {
         const ts = new Date().toISOString();
         const resultTitles = (payload && payload.series || []).slice(0, 5).map(s => s.title || s.id);
 
-        // Asegurar que la entrada se persista en searchCache
+        // Asegurar que la entrada se persista en searchCache (scoped por idioma)
         try {
-            setCachedSearch(qKey, payload, undefined, true);
+            setCachedSearch(cacheKey(lang, qKey), payload, undefined, true);
         } catch (e) {
             logger.warn('setCachedSearch falló en recordQuery', { error: e && e.message });
         }
@@ -3761,8 +3827,9 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             });
         }
 
-        // 1. Revisar caché
-        const cached = getCachedSearchSmart(cleanMsg);
+        // 1. Revisar caché (scoped por idioma: /es y /en NUNCA comparten payload)
+        const scopedKey = cacheKey(reqLang, cleanMsg);
+        const cached = getCachedSearchSmart(scopedKey);
         if (cached && cached.status === 'fresh') {
             metrics.cacheHits++;
             // cached.data.series puede ser ya objetos completos o IDs (compatibilidad)
@@ -3771,7 +3838,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
                 ? seriesField
                 : seriesField.map(id => seriesCache.find(s => s.id === id)).filter(Boolean);
 
-            logger.info('Cache HIT (fresh)', { query: cleanMsg });
+            logger.info('Cache HIT (fresh)', { query: cleanMsg, lang: reqLang });
             const payload = { ...cached.data, series: sanitizeSeriesForResponse(fullSeries) };
             // Registrar la consulta y su resultado
             if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
@@ -3794,7 +3861,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
                 source: 'local_db_priority',
                 lang: reqLang
             };
-            setCachedSearch(cleanMsg, payload);
+            setCachedSearch(scopedKey, payload);
             if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
             logger.info('Match de titulo exacto', { query: userMsg, results: seriesItems.length, bestScore: localResults[0].score.toFixed(3) });
             return safeJson(200, payload);
@@ -3816,7 +3883,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
                     topSimilarity: vectorResults[0]?.similarity?.toFixed(3),
                     lang: reqLang
                 };
-                setCachedSearch(cleanMsg, payload);
+                setCachedSearch(scopedKey, payload);
                 if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
                 logger.info('Vector search exitoso', {
                     query: userMsg,
@@ -4013,12 +4080,13 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             lang: reqLang
         };
 
-        // Guardar en caché
-        setCachedSearch(cleanMsg, payload);
+        // Guardar en caché (scoped por idioma)
+        setCachedSearch(scopedKey, payload);
 
-        // Estadísticas
-        const count = searchStats.get(cleanMsg) || { count: 0 };
-        searchStats.set(cleanMsg, { count: count.count + 1, lastUsed: Date.now() });
+        // Estadísticas (scoped por idioma)
+        const statsKey = scopedKey;
+        const count = searchStats.get(statsKey) || { count: 0 };
+        searchStats.set(statsKey, { count: count.count + 1, lastUsed: Date.now() });
 
         // Métricas de tiempo
         const elapsed = Date.now() - startTime;

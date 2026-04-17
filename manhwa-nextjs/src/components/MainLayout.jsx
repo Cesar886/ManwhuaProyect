@@ -4,8 +4,6 @@ import { usePathname } from 'next/navigation';
 import GlobalBreadcrumbs from '@/components/GlobalBreadcrumbs';
 import Footer from '@/components/Footer';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import LangBanner from '@/components/LangBanner';
-
 // Rutas donde NO queremos mostrar los breadcrumbs ni el footer
 const NO_BREADCRUMBS_PATHS = [
   '/login',
@@ -21,7 +19,6 @@ export default function MainLayout({ children, lang }) {
 
   return (
     <>
-      <LangBanner />
       {!shouldHideBreadcrumbs && <GlobalBreadcrumbs lang={activeLang} />}
       <ErrorBoundary>
         {children}

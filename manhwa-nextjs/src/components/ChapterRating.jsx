@@ -11,7 +11,7 @@ import { apiUrl } from '../config';
  * Persiste votos en localStorage para que las estrellas se mantengan al recargar.
  * No depende de la tabla chapters (vacía); usa series_slug + chapter_number directamente.
  */
-export default function ChapterRating({ slug, chapterNum, onRated }) {
+export default function ChapterRating({ slug, chapterNum, onRated, lang = 'es' }) {
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -215,7 +215,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
           color: 'var(--imperial-gold, #f4c542)',
           margin: 0,
         }}>
-          {displayRating} ({ratingCount} {ratingCount === 1 ? 'voto' : 'votos'})
+          {displayRating} ({ratingCount} {lang === 'en' ? (ratingCount === 1 ? 'vote' : 'votes') : (ratingCount === 1 ? 'voto' : 'votos')})
         </p>
       )}
 
@@ -260,7 +260,7 @@ export default function ChapterRating({ slug, chapterNum, onRated }) {
           color: '#fbbf24',
           fontStyle: 'italic',
         }}>
-          Califica este capítulo
+          {lang === 'en' ? 'Rate this chapter' : 'Califica este capítulo'}
         </small>
       )}
 

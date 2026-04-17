@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { slugifyQuery } from '@/hooks/useIA';
+import { getLocalizedPath } from '@/utils/i18nRoutes';
 
 const ChatIA = dynamic(() => import('@/components/ia-minicpm'), {
   ssr: false,
@@ -183,6 +184,8 @@ export default function SearchModal() {
   const chatRef = useRef(null);
   const router = useRouter();
 
+  const pathname = usePathname();
+  const lang = pathname?.startsWith('/en') ? 'en' : 'es';
   const closeModal = useCallback(() => setOpen(false), []);
 
   // Ctrl+K / Cmd+K
@@ -217,10 +220,10 @@ export default function SearchModal() {
   const handleSearch = useCallback((query) => {
     const slug = slugifyQuery(query);
     setNavigating(true);
-    router.push(`/busqueda-ia/${slug}`);
+    router.push(getLocalizedPath(`/busqueda-ia/${slug}`, lang));
     closeModal();
     setNavigating(false);
-  }, [router, closeModal]);
+  }, [router, closeModal, lang]);
 
   if (!open) return null;
 

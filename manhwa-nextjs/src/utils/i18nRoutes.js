@@ -16,7 +16,8 @@ const ES_TO_EN = {
   '/pedidos': '/pending',
   '/mangas': '/manga',
   '/manhwa': '/manhwa',
-  '/busqueda-ia': '/busqueda-ia',
+  '/busqueda-ia': '/search-ai',
+
   '/buscar': '/buscar',
   '/colecciones': '/colecciones',
 }
@@ -38,8 +39,10 @@ export const ROUTE_MAP = {
   '/perfil': '/profile',
   '/pedidos': '/pending',
   '/mangas': '/manga',
+  '/busqueda-ia': '/search-ai',
 
   // Inglés -> Español (inverso)
+  '/search-ai': '/busqueda-ia',
   '/library': '/biblioteca',
   '/popular': '/populares',
   '/about': '/acerca-de',

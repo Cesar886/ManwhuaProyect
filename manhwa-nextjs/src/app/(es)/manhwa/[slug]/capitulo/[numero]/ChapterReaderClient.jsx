@@ -43,6 +43,7 @@ function ComentariosWrapper({ chapterRequest, slug, chapterNum, openLogin, user,
       detailRequest={detailRequest}
       openLogin={openLogin}
       user={user}
+      lang={lang}
       refetch={() => { }}
     />
   );
@@ -235,6 +236,8 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   const [currentPage, setCurrentPage] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [showHeader] = useState(true);
+  const [readerCompact, setReaderCompact] = useState(false);
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
   // Modo de lectura: 'scroll' (por defecto para manhwa) o 'page'
   const [readingMode] = useState('scroll');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -586,21 +589,32 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           </h2>
 
           {/* Imágenes del capítulo - carga secuencial */}
-          {pages.map((page, index) => (
-            <ChapterImage
-              key={page.number || index}
-              page={page}
-              index={index}
-              status={imageStatuses[index] || 'pending'}
-              onLoad={markLoaded}
-              onError={markError}
-              registerRef={registerRef}
-              totalPages={pages.length}
-              alt={lang === 'en'
-                ? `Page ${page.number || index + 1} of ${series?.title || slug.replace(/-/g, ' ')} Chapter ${chapterNum} - Korean webtoon image in English`
-                : `Página ${page.number || index + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Imagen del webtoon coreano en español`}
-            />
-          ))}
+          <div
+            onDoubleClick={() => { if (isDesktop) setReaderCompact(c => !c); }}
+            style={{
+              width: '100%',
+              maxWidth: isDesktop ? (readerCompact ? '560px' : '800px') : '100%',
+              transition: 'max-width 0.3s ease',
+              cursor: isDesktop ? 'pointer' : undefined,
+            }}
+            title={isDesktop ? (readerCompact ? 'Doble clic para ampliar' : 'Doble clic para compactar') : undefined}
+          >
+            {pages.map((page, index) => (
+              <ChapterImage
+                key={page.number || index}
+                page={page}
+                index={index}
+                status={imageStatuses[index] || 'pending'}
+                onLoad={markLoaded}
+                onError={markError}
+                registerRef={registerRef}
+                totalPages={pages.length}
+                alt={lang === 'en'
+                  ? `Page ${page.number || index + 1} of ${series?.title || slug.replace(/-/g, ' ')} Chapter ${chapterNum} - Korean webtoon image in English`
+                  : `Página ${page.number || index + 1} del manhwa ${series?.title || slug.replace(/-/g, ' ')} Capítulo ${chapterNum} - Imagen del webtoon coreano en español`}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -656,6 +670,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
         <ChapterRating
           slug={slug}
           chapterNum={chapterNum}
+          lang={lang}
         />
       </div>
 

@@ -266,12 +266,22 @@ export const SEO_CONTENT = {
     getH1: (title) => title, // El título es el H1
     getInfoSection: (title) => `Información del Manhwa ${title}`,
     getSynopsisTitle: (title) => `Sinopsis de ${title} Manhwa`,
-    getChaptersTitle: (title) => `Capítulos de ${title} - Leer Manhwa Online`,
-    getSimilarTitle: (title) => `Manhwas Similares a ${title}`,
+    getChaptersTitle: (title, lang = 'es') => lang === 'en'
+      ? `Chapters of ${title} - Read Manhwa Online`
+      : `Capítulos de ${title} - Leer Manhwa Online`,
+    getSimilarTitle: (title, lang = 'es') => lang === 'en'
+      ? `Manhwas Similar to ${title}`
+      : `Manhwas Similares a ${title}`,
     getFaqTitle: (title) => `Preguntas Frecuentes sobre ${title}`,
-    getIntroText: (title, genres = [], chapterCount = 0) => {
-      const genreText = genres.length > 0 
-        ? `Es un manhwa de ${genres.slice(0, 2).join(' y ')}.` 
+    getIntroText: (title, genres = [], chapterCount = 0, lang = 'es') => {
+      if (lang === 'en') {
+        const genreText = genres.length > 0
+          ? `It is a ${genres.slice(0, 2).join(' and ')} manhwa.`
+          : ''
+        return `Read ${title} full manhwa in English for free. ${genreText} ${chapterCount > 0 ? `It has ${chapterCount} chapters available to read online.` : ''} Enjoy this manhwa on ${SITE_NAME} with the best image quality.`
+      }
+      const genreText = genres.length > 0
+        ? `Es un manhwa de ${genres.slice(0, 2).join(' y ')}.`
         : ''
       return `Lee ${title} manhwa completo en español gratis. ${genreText} ${chapterCount > 0 ? `Tiene ${chapterCount} capítulos disponibles para leer online.` : ''} Disfruta de este manhwa en ${SITE_NAME} con la mejor calidad de imagen.`
     },
@@ -423,7 +433,9 @@ export const WEBSITE_DATA = {
 // HELPERS DE ALT TEXT PARA IMÁGENES
 // ============================================================================
 export const getImageAlt = {
-  cover: (title) => `${title} manhwa - Leer en español`,
+  cover: (title, lang = 'es') => lang === 'en'
+    ? `${title} manhwa - Read in English`
+    : `${title} manhwa - Leer en español`,
   chapterPage: (title, chapterNum, pageNum) => `${title} Capítulo ${chapterNum} - Página ${pageNum}`,
   genreBanner: (genre) => `Manhwas de ${genre} - Leer online`,
 }

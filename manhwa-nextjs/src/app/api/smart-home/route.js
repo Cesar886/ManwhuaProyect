@@ -18,10 +18,26 @@ const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || '';
 const CATALOG_TTL = 10 * 60 * 1000;
 const QUERY_TTL = 5 * 60 * 1000;
 const QUERY_MAX_ITEMS = 15;
+const SUPPORTED_LANGS = ['es', 'en'];
 
 let catalogCache = null;
 let catalogCacheTime = 0;
+// Caché key-prefix por idioma: /es y /en nunca comparten similares
 let queryCache = new Map();
+
+function resolveLang(request) {
+  const url = new URL(request.url);
+  const q = url.searchParams.get('lang');
+  if (q && SUPPORTED_LANGS.includes(q)) return q;
+  const referer = request.headers.get('referer') || request.headers.get('referrer') || '';
+  try {
+    const r = new URL(referer);
+    const seg = (r.pathname || '/').split('/').filter(Boolean)[0] || '';
+    if (seg === 'en') return 'en';
+    if (seg === 'es') return 'es';
+  } catch { /* ignorar */ }
+  return 'es';
+}
 
 const normTitle = (t) =>
   String(t || '')
@@ -98,13 +114,18 @@ export async function GET(request) {
     const excludeSlug = String(searchParams.get('exclude') || '').trim();
     const limitRaw = Number(searchParams.get('limit') || 8);
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), QUERY_MAX_ITEMS) : 8;
+    const lang = resolveLang(request);
 
     if (!title) {
-      return NextResponse.json({ data: [], query: '' });
+      return NextResponse.json({ data: [], query: '', lang });
     }
 
-    const query = `manhwas similares a ${title}`;
-    const titleKey = normTitle(title);
+    // Query en el idioma del visitante: en /en pedimos "similar to X", en /es lo dejamos en español.
+    const query = lang === 'en'
+      ? `manhwas similar to ${title}`
+      : `manhwas similares a ${title}`;
+    // Clave scoped por idioma para que ES/EN no compartan el payload del IA.
+    const titleKey = `${lang}|${normTitle(title)}`;
 
     pruneQueryCache();
 
@@ -120,13 +141,13 @@ export async function GET(request) {
     if (!baseMapped) {
       const aiRes = await fetch(`${AI_BASE_URL}/api/read`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: query }] }),
+        headers: { 'Content-Type': 'application/json', 'X-Lang': lang },
+        body: JSON.stringify({ messages: [{ role: 'user', content: query }], lang }),
         next: { revalidate: 0 },
       });
 
       if (!aiRes.ok) {
-        return NextResponse.json({ data: [], query, fromCache: false });
+        return NextResponse.json({ data: [], query, fromCache: false, lang });
       }
 
       const aiData = await aiRes.json();
@@ -166,7 +187,7 @@ export async function GET(request) {
       .filter((s) => !excludeSlug || s.slug !== excludeSlug)
       .slice(0, limit);
 
-    return NextResponse.json({ data: mapped, query, fromCache });
+    return NextResponse.json({ data: mapped, query, fromCache, lang });
   } catch {
     return NextResponse.json({ data: [], query: '' });
   }

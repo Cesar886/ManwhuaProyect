@@ -18,6 +18,7 @@ const DISMISSED_KEY = 'langBannerDismissed';
  *  - Y el usuario no ha descartado el banner ni fijado cookie.
  */
 export default function LangBanner() {
+  return null;
   const pathname = usePathname() || '/';
   const router = useRouter();
   const currentLang = pathname.startsWith('/en') ? 'en' : 'es';

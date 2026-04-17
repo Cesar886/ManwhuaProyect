@@ -354,8 +354,8 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     const loadPopular = async () => {
       try {
         setPopularLoading(true)
-        const res = await fetch('/api/popular-home', {
-          headers: { 'Accept': 'application/json' },
+        const res = await fetch(`/api/popular-home?lang=${lang}`, {
+          headers: { 'Accept': 'application/json', 'X-Lang': lang },
         })
         if (!res.ok || cancelled) return
         let data
@@ -374,7 +374,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     }
     loadPopular()
     return () => { cancelled = true }
-  }, [])
+  }, [lang])
 
   useEffect(() => {
     let cancelled = false
@@ -438,7 +438,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
       const sourceMode = historySourceSeries
         ? 'history'
         : (lastViewedSourceSeries && sourceSeries === lastViewedSourceSeries ? 'lastViewed' : 'daily')
-      const aiQuery = sourceTitle ? `manhwas similares a ${sourceTitle}` : ''
+      const aiQuery = sourceTitle ? (lang === 'en' ? `manhwas similar to ${sourceTitle}` : `manhwas similares a ${sourceTitle}`) : ''
       const availableFallback = filterAvailableSeries(series)
         .filter((item) => item?.slug && item.slug !== sourceSlug)
         .slice(0, 8)
@@ -558,10 +558,14 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           return
         }
 
-        const res = await fetch('/api/personalized-home', {
+        const res = await fetch(`/api/personalized-home?lang=${lang}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ history: historyQueries }),
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-Lang': lang,
+          },
+          body: JSON.stringify({ history: historyQueries, lang }),
         })
 
         if (!res.ok || cancelled) return
@@ -589,7 +593,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [lang])
 
   useEffect(() => {
     if (!Array.isArray(personalizedRows) || personalizedRows.length === 0) return
@@ -811,7 +815,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const aiDailySeed = new Date().toISOString().slice(0, 10)
 
   const smartRecommendationQuerySlug = slugifyQuery(
-    smartRecommendation.aiQuery || `manhwas similares a ${smartRecommendation.sourceTitle}`
+    smartRecommendation.aiQuery || (lang === 'en' ? `manhwas similar to ${smartRecommendation.sourceTitle}` : `manhwas similares a ${smartRecommendation.sourceTitle}`)
   )
   const smartRecommendationCardCover = pickAiCardCover(
     smartRecommendation.items,
@@ -983,7 +987,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   </div>
 
                   <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroCoverWrap} tabIndex={-1}>
-                    <ManhwaCover src={heroCover} fallbackSrc={heroCover} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
+                    <ManhwaCover src={heroCover} fallbackSrc={heroCover} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
                     <div className={styles.heroCoverGlow} style={{ backgroundImage: `url(${heroCover})` }} />
                   </Link>
                 </>
@@ -1075,7 +1079,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                           src={normalizeImageUrl(cover) || ''}
                           fallbackSrc={normalizeImageUrl(cover) || ''}
                           slug={slug}
-                          alt={getImageAlt.cover(title)}
+                          alt={getImageAlt.cover(title, lang)}
                           className={styles.popularImg}
                           priority={i < 4}
                           sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
@@ -1174,7 +1178,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                             src={normalizeImageUrl(item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web) || ''}
                             fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
                             slug={item.slug}
-                            alt={getImageAlt.cover(item.title)}
+                            alt={getImageAlt.cover(item.title, lang)}
                             className={styles.popularImg}
                             priority={rowIdx === 0 && i < 4}
                             sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
@@ -1206,7 +1210,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                             </svg>
                           </span>
                           <span className={styles.aiMoreBadge}>IA Imperial</span>
-                          <p className={styles.aiMoreMicro}>Ver todo</p>
+                          <p className={styles.aiMoreMicro}>{t.common?.viewAll || (lang === 'en' ? 'View all' : 'Ver todo')}</p>
                         </div>
                       </Link>
                     )}
@@ -1245,7 +1249,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         src={normalizeImageUrl(item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web) || ''}
                         fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
                         slug={item.slug}
-                        alt={getImageAlt.cover(item.title)}
+                        alt={getImageAlt.cover(item.title, lang)}
                         className={styles.popularImg}
                         priority={i < 4}
                         sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
@@ -1324,7 +1328,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   <div className={styles.queryHeader}>
                     <h2 className={styles.queryName}>{cat.query}</h2>
                     {/* SEO: Anchor text descriptivo — nunca "Ver más" solo */}
-                    <Link href={`/busqueda-ia/${slug}`} className={styles.queryLink}>
+                    <Link href={getLocalizedPath(`/busqueda-ia/${slug}`, lang)} className={styles.queryLink}>
                       {t.home.exploreManhwa.replace('{query}', cat.query.toLowerCase())} →
                     </Link>
                   </div>
@@ -1340,7 +1344,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                             src={normalizeImageUrl(item.cover) || ''}
                             fallbackSrc={normalizeImageUrl(item.cover) || ''}
                             slug={item.slug}
-                            alt={getImageAlt.cover(item.title)}
+                            alt={getImageAlt.cover(item.title, lang)}
                             className={styles.popularImg}
                             priority={catIdx === 0 && i < 4}
                             sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 import { getSearchHistory, removeFromHistory, detectNsfwQuery } from '@/hooks/useIA';
@@ -498,6 +498,10 @@ function timeAgo(isoDate) {
 
 const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, allowNsfw = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES, thinkingPhrases = EMPTY_PLACEHOLDER_PHRASES }, ref) => {
     const router = useRouter();
+    const pathname = usePathname();
+    // Idioma activo para scoping de sugerencias (popular / similar / trending / newest / after-search / related).
+    // Se pasa en querystring y header para que el servidor use el bucket correcto y nunca mezcle ES↔EN.
+    const lang = (pathname && pathname.startsWith('/en')) ? 'en' : 'es';
     const [query, setQuery] = useState(initialQuery);
     const [isTyping, setIsTyping] = useState(false);
     const [placeholder, setPlaceholder] = useState('');
@@ -553,7 +557,10 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         const fetchCounters = async () => {
             try {
                 const qParam = lastSearchedQuery.current ? `&q=${encodeURIComponent(lastSearchedQuery.current)}` : '';
-                const response = await fetch(`${AI_BASE_URL}/api/search-suggestions?_t=${Date.now()}${qParam}`, { cache: 'no-store' });
+                const response = await fetch(
+                    `${AI_BASE_URL}/api/search-suggestions?lang=${lang}&_t=${Date.now()}${qParam}`,
+                    { cache: 'no-store' }
+                );
                 const data = await response.json();
                 if (cancelled) return;
                 if (data.success) {
@@ -714,7 +721,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
             cancelled = true;
             clearInterval(interval);
         };
-    }, [incognitoMode]);
+    }, [incognitoMode, lang]);
 
     const localAutocompletePhrasePool = useMemo(() => {
         const merged = [...FALLBACK_PHRASES, ...popularSuggestions.map(s => s.query), ...similarSuggestions.map(s => s.query)];
@@ -1144,7 +1151,9 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                         </svg>
                         <span className="ia-response-title">IA Imperial</span>
                         <span className="ia-response-badge">
-                            {loading ? 'Procesando' : 'Búsqueda Inteligente'}
+                            {loading
+                                ? (lang === 'en' ? 'Processing' : 'Procesando')
+                                : (lang === 'en' ? 'Smart Search' : 'Búsqueda Inteligente')}
                         </span>
 
                         {/* Botón cerrar — solo cuando ya hay respuesta */}
@@ -1195,12 +1204,12 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                             {/* ─── Barra de tabs ─── */}
                             <div className="ia-tabs-bar" role="tablist" aria-label="Categorías de sugerencias">
                                 {[
-                                    { id: 'popular',  label: 'Populares' },
-                                    { id: 'trending', label: '🔥 Tendencias' },
-                                    { id: 'similar',  label: 'Similares a...' },
-                                    { id: 'newest',   label: 'Nuevos' },
-                                    ...(afterSearchSuggestions.length > 0 ? [{ id: 'afterSearch', label: '👥 Porque buscaste' }] : []),
-                                    ...(relatedSuggestions.length > 0 ? [{ id: 'related', label: '🔗 Relacionadas' }] : []),
+                                    { id: 'popular',  label: lang === 'en' ? 'Popular' : 'Populares' },
+                                    { id: 'trending', label: lang === 'en' ? '🔥 Trending' : '🔥 Tendencias' },
+                                    { id: 'similar',  label: lang === 'en' ? 'Similar to...' : 'Similares a...' },
+                                    { id: 'newest',   label: lang === 'en' ? 'New' : 'Nuevos' },
+                                    ...(afterSearchSuggestions.length > 0 ? [{ id: 'afterSearch', label: lang === 'en' ? '👥 Because you searched' : '👥 Porque buscaste' }] : []),
+                                    ...(relatedSuggestions.length > 0 ? [{ id: 'related', label: lang === 'en' ? '🔗 Related' : '🔗 Relacionadas' }] : []),
                                 ].map(tab => (
                                     <button
                                         key={tab.id}
@@ -1241,7 +1250,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 )}
                                             </button>
                                         ))
-                                        : <p className="ia-tab-empty">Sin consultas populares aún</p>
+                                        : <p className="ia-tab-empty">{lang === 'en' ? 'No popular queries yet' : 'Sin consultas populares aún'}</p>
                                 )}
 
                                 {/* Nuevos — consultas más nuevas del servidor con timestamp relativo */}
@@ -1277,7 +1286,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 </button>
                                             );
                                         })
-                                        : <p className="ia-tab-empty">Sin consultas nuevas aún</p>
+                                        : <p className="ia-tab-empty">{lang === 'en' ? 'No new queries yet' : 'Sin consultas nuevas aún'}</p>
                                 )}
 
                                 {/* Similares a... */}
@@ -1285,7 +1294,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                     visibleSimilar.length > 0
                                         ? visibleSimilar.map((s, i) => {
                                             // En mobile acortar "manhwas similares a X" → "Similar a X"
-                                            const shortQuery = s.query.replace(/^.*?similares?\s*(?:a|al)\s+/i, '');
+                                            const shortQuery = s.query.replace(/^.*?similares?\s*(?:a|al)\s+/i, '').replace(/^.*?similar\s+to\s+/i, '');
                                             return (
                                             <button
                                                 key={`sim-${s.query}`}
@@ -1296,7 +1305,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                             >
                                                 <RankBadge rank={i + 1} />
                                                 <span className="ia-suggestion-text-wrap">
-                                                    <span className="ia-similar-sublabel">Similares a</span>
+                                                    <span className="ia-similar-sublabel">{lang === 'en' ? 'Similar to' : 'Similares a'}</span>
                                                     <span className="ia-suggestion-text ia-similar-full">{s.query}</span>
                                                     <span className="ia-suggestion-text ia-similar-short">{shortQuery}</span>
                                                 </span>
@@ -1308,7 +1317,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                             </button>
                                             );
                                         })
-                                        : <p className="ia-tab-empty">Sin sugerencias similares aún</p>
+                                        : <p className="ia-tab-empty">{lang === 'en' ? 'No similar suggestions yet' : 'Sin sugerencias similares aún'}</p>
                                 )}
 
                                 {/* Tendencias — queries "hot" del día */}
@@ -1338,7 +1347,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 )}
                                             </button>
                                         ))
-                                        : <p className="ia-tab-empty">Sin tendencias hoy — las consultas populares aparecerán aquí</p>
+                                        : <p className="ia-tab-empty">{lang === 'en' ? 'No trends today — popular queries will appear here' : 'Sin tendencias hoy — las consultas populares aparecerán aquí'}</p>
                                 )}
 
                                 {/* After-search — "Porque buscaste X, otros buscaron..." (patrón colectivo) */}
@@ -1372,7 +1381,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 ))}
                                             </>
                                         )
-                                        : <p className="ia-tab-empty">Busca algo para ver el patrón colectivo</p>
+                                        : <p className="ia-tab-empty">{lang === 'en' ? 'Search something to see the collective pattern' : 'Busca algo para ver el patrón colectivo'}</p>
                                 )}
 
                                 {/* Relacionadas — queries por co-ocurrencia de keywords */}
@@ -1404,7 +1413,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 )}
                                             </button>
                                         ))
-                                        : <p className="ia-tab-empty">Busca algo para ver queries relacionadas</p>
+                                        : <p className="ia-tab-empty">{lang === 'en' ? 'Search something to see related queries' : 'Busca algo para ver queries relacionadas'}</p>
                                 )}
 
                             </div>
