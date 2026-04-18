@@ -113,6 +113,7 @@ router.get('/popular', requireApiKeyOrAuth, validate(paginationValidation), seri
 router.get('/latest', requireApiKeyOrAuth, validate(paginationValidation), seriesController.getLatestSeries);
 router.get('/trending', requireApiKeyOrAuth, validate(paginationValidation), seriesController.getTrendingSeries);
 router.get('/new-releases', requireApiKeyOrAuth, validate(paginationValidation), seriesController.getNewReleases);
+router.get('/top10-by-country', requireApiKeyOrAuth, seriesController.getTop10ByCountry);
 router.get('/:slug', requireApiKeyOrAuth, optionalAuth, validate(slugParam), seriesController.getSeriesDetail);
 router.get('/:slug/chapters', requireApiKeyOrAuth, validate(slugParam), seriesController.getSeriesChapters);
 router.get('/:slug/comments', requireApiKeyOrAuth, optionalAuth, validate(slugParam), seriesController.getSeriesComments);

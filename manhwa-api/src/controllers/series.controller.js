@@ -1870,6 +1870,352 @@ const getSeriesMerch = async (req, res, next) => {
 // Patrones de bots conocidos (User-Agent)
 const BOT_UA_PATTERN = /bot|crawler|spider|scraper|curl|wget|python-requests|go-http|java\/|ruby|php|perl|axios\/0\.|node-fetch|got\/|undici|lighthouse|headless|phantomjs|puppeteer|playwright|selenium/i;
 
+// ============================================
+// SCHEMA PROBE — country_code opcional
+// ============================================
+// Detecta una sola vez por proceso si series_views.country_code existe.
+// Permite que la app siga funcionando aunque la migración 007 aún no se
+// haya aplicado (deploy staggered, rollback, bootstraps en cold DB, etc.).
+let _countryColumnProbe = null; // null = no chequeado, true/false = resultado.
+
+async function seriesViewsHasCountryColumn() {
+    if (_countryColumnProbe !== null) return _countryColumnProbe;
+    try {
+        const r = await query(
+            `SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'series_views'
+                  AND column_name = 'country_code'
+             ) AS has_col`
+        );
+        _countryColumnProbe = r.rows[0]?.has_col === true;
+    } catch (err) {
+        logger.warn('No se pudo verificar schema de series_views:', err?.message);
+        _countryColumnProbe = false;
+    }
+    return _countryColumnProbe;
+}
+
+// ============================================
+// GeoIP OPCIONAL (fallback cuando no hay edge CDN)
+// ============================================
+// `geoip-lite` es una dependencia opcional. Si está instalada, se usa como
+// último recurso cuando el request no trae header de país (p. ej. dev local
+// o deploys sin Cloudflare/Vercel). Si no está instalada, no pasa nada —
+// simplemente no se intenta la resolución por IP.
+let _geoip = null;
+let _geoipProbed = false;
+function loadGeoipIfAvailable() {
+    if (_geoipProbed) return _geoip;
+    _geoipProbed = true;
+    try {
+        // eslint-disable-next-line global-require
+        _geoip = require('geoip-lite');
+        logger.info('geoip-lite detectado: fallback IP→país habilitado');
+    } catch {
+        _geoip = null; // módulo no instalado — sigue sin fallback
+    }
+    return _geoip;
+}
+
+// ============================================
+// TOP 10 BY COUNTRY (Netflix-style)
+// ============================================
+// Cache in-memory por país+ventana. 10 min TTL fresco + 30 min stale
+// (patrón stale-while-revalidate). Esto cumple tres objetivos:
+//   1) Respuestas en <1ms una vez calentado el cache.
+//   2) Si un pico de tráfico vacía el cache simultáneamente, un solo
+//      request recalcula y los demás esperan la misma Promise
+//      (in-flight dedup) → evita thundering herd sobre la BD.
+//   3) Cuando expira, se sirve el dato viejo inmediato y se revalida
+//      en background → percibido siempre instantáneo.
+const TOP10_CACHE_FRESH_MS = 10 * 60 * 1000;   // 10 min "fresco"
+const TOP10_CACHE_STALE_MS = 30 * 60 * 1000;   // 30 min adicionales "stale"
+const TOP10_MIN_VIEWS_FOR_COUNTRY = 50;        // umbral para usar country vs. global
+const TOP10_WINDOW_DAYS = 7;                   // ventana temporal de ranking
+const top10Cache = new Map();                  // key → { freshUntil, staleUntil, payload }
+const top10InFlight = new Map();               // key → Promise en curso
+const _top10FallbackLog = { lastAt: 0 };       // rate-limit del log de fallback
+
+function top10CacheKey(country, lang, adult) {
+    return `${country || 'GLOBAL'}|${lang || 'all'}|${adult ? '1' : '0'}`;
+}
+
+function purgeExpiredTop10Cache(now = Date.now()) {
+    for (const [k, v] of top10Cache.entries()) {
+        if ((v.staleUntil || 0) <= now) top10Cache.delete(k);
+    }
+}
+
+function mapTop10Row(row, index) {
+    return {
+        rank: index + 1,
+        id: row.id,
+        title: row.title,
+        slug: row.slug,
+        synopsis: row.synopsis,
+        coverUrl: row.cover_url,
+        coverUrlWeb: row.cover_url_web,
+        bannerUrl: row.banner_url,
+        contentType: row.content_type,
+        status: row.status,
+        country: row.country,
+        originalLanguage: row.original_language,
+        chapterCount: row.chapter_count,
+        rating: row.rating_average !== null ? parseFloat(row.rating_average) : null,
+        ratingCount: row.rating_count,
+        views: row.view_count,
+        periodViews: parseInt(row.period_views, 10) || 0,
+        isAdult: row.is_adult,
+    };
+}
+
+/**
+ * Computa el Top 10 de forma pura (sin tocar req/res/cache). Se usa tanto
+ * en el path síncrono como en la revalidación background.
+ */
+async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }) {
+    // Si la migración 007 no se aplicó todavía, la columna country_code
+    // no existe → forzamos ranking global (sin filtro de país).
+    const hasCountryCol = await seriesViewsHasCountryColumn();
+    const effectiveCountry = hasCountryCol ? country : null;
+
+    // Query parametrizada al 100%: ningún valor se interpola directo.
+    const params = [];
+    let paramCount = 0;
+
+    // INTERVAL '7 days' → parametrizado como int * INTERVAL '1 day'.
+    paramCount++;
+    params.push(TOP10_WINDOW_DAYS);
+    const windowParamIdx = paramCount;
+
+    let countryFilter = '';
+    if (effectiveCountry) {
+        paramCount++;
+        countryFilter = `AND sv.country_code = $${paramCount}`;
+        params.push(effectiveCountry);
+    }
+
+    let langFilter = '';
+    if (lang) {
+        paramCount++;
+        langFilter = `AND COALESCE(s.language, s.original_language) = $${paramCount}`;
+        params.push(lang);
+    }
+
+    const adultFilter = includeAdult ? '' : 'AND s.is_adult = false';
+
+    // Ranking = visitantes únicos (DISTINCT por user/visitor/ip) en la ventana.
+    // Evita que un mismo usuario infle el ranking con refreshes.
+    const sql = `
+        WITH ranked AS (
+            SELECT
+                sv.series_id,
+                COUNT(DISTINCT COALESCE(sv.user_id::text, sv.visitor_id, sv.ip_address)) AS period_views
+            FROM series_views sv
+            JOIN series s ON s.id = sv.series_id
+            WHERE sv.viewed_at > NOW() - ($${windowParamIdx}::int * INTERVAL '1 day')
+              AND s.deleted_at IS NULL
+              ${countryFilter}
+              ${langFilter}
+              ${adultFilter}
+            GROUP BY sv.series_id
+        )
+        SELECT s.id, s.title, s.slug, s.synopsis,
+               s.cover_url, s.cover_url_web, s.banner_url,
+               s.content_type, s.status, s.country, s.original_language,
+               s.chapter_count, s.rating_average, s.rating_count,
+               s.view_count, s.is_adult,
+               r.period_views
+        FROM ranked r
+        JOIN series s ON s.id = r.series_id
+        ORDER BY r.period_views DESC, s.view_count DESC
+        LIMIT 10`;
+
+    let result = await query(sql, params);
+
+    // Fallback a ranking global si:
+    //   - La columna country_code no existe (imposible filtrar),
+    //   - El país pedido tiene muy pocas vistas en la ventana (< umbral),
+    //   - O no hay suficientes series (< 10).
+    let usedFallback = false;
+    const totalViews = result.rows.reduce(
+        (acc, r) => acc + (parseInt(r.period_views, 10) || 0),
+        0
+    );
+    const shouldFallback = !hasCountryCol
+        || (effectiveCountry && (totalViews < TOP10_MIN_VIEWS_FOR_COUNTRY || result.rows.length < 10));
+
+    if (shouldFallback) {
+        const globalParams = [];
+        let gp = 0;
+        let globalLang = '';
+        if (lang) {
+            gp++;
+            globalLang = `AND COALESCE(s.language, s.original_language) = $${gp}`;
+            globalParams.push(lang);
+        }
+        const globalSql = `
+            SELECT s.id, s.title, s.slug, s.synopsis,
+                   s.cover_url, s.cover_url_web, s.banner_url,
+                   s.content_type, s.status, s.country, s.original_language,
+                   s.chapter_count, s.rating_average, s.rating_count,
+                   s.view_count, s.is_adult,
+                   s.weekly_views AS period_views
+            FROM series s
+            WHERE s.deleted_at IS NULL
+              ${globalLang}
+              ${adultFilter}
+            ORDER BY s.weekly_views DESC NULLS LAST, s.view_count DESC
+            LIMIT 10`;
+        result = await query(globalSql, globalParams);
+        usedFallback = true;
+
+        // Log throttled — no saturar logs cuando no hay data en un país.
+        const nowTs = Date.now();
+        if (nowTs - _top10FallbackLog.lastAt > 60_000) {
+            _top10FallbackLog.lastAt = nowTs;
+            logger.info(
+                `Top10 fallback: country=${effectiveCountry || 'null'} lang=${lang || 'any'} ` +
+                `views=${totalViews} rows=${result.rows.length} reason=${!hasCountryCol ? 'schema' : 'low-traffic'}`
+            );
+        }
+    }
+
+    return {
+        success: true,
+        data: {
+            country: usedFallback ? null : effectiveCountry,
+            resolvedFrom,
+            window: `${TOP10_WINDOW_DAYS} days`,
+            usedGlobalFallback: usedFallback,
+            series: result.rows.map(mapTop10Row),
+        },
+    };
+}
+
+/**
+ * Ejecuta o reutiliza una computación en curso para la misma key.
+ * Un solo request pega la BD; los demás esperan la misma Promise.
+ */
+function computeTop10WithDedup(cacheKey, params) {
+    const inflight = top10InFlight.get(cacheKey);
+    if (inflight) return inflight;
+
+    const p = computeTop10Payload(params)
+        .then((payload) => {
+            const now = Date.now();
+            top10Cache.set(cacheKey, {
+                freshUntil: now + TOP10_CACHE_FRESH_MS,
+                staleUntil: now + TOP10_CACHE_FRESH_MS + TOP10_CACHE_STALE_MS,
+                payload,
+            });
+            return payload;
+        })
+        .finally(() => {
+            top10InFlight.delete(cacheKey);
+        });
+
+    top10InFlight.set(cacheKey, p);
+    return p;
+}
+
+/**
+ * Top 10 manhwas por país del visitante (últimos 7 días), al estilo Netflix.
+ * GET /api/series/top10-by-country
+ *
+ * Query params:
+ *   - country: ISO alpha-2 opcional (override: ?country=MX)
+ *   - lang:    'es' | 'en' (opcional; filtra por idioma)
+ *   - adult:   'true' para incluir contenido adulto (default excluye)
+ *
+ * Política de resolución del país:
+ *   1) ?country= validado (2 letras, no XX/T1)
+ *   2) Header del edge (CF-IPCountry, Vercel, Fastly, GAE)
+ *   3) geoip-lite si está instalado
+ *   4) null → ranking global
+ *
+ * Capas de caché:
+ *   - Memoria del proceso (10min fresco + 30min stale-while-revalidate)
+ *   - CDN via Cache-Control (s-maxage=300, SWR=600)
+ *   - Navegador: 60s
+ *
+ * Robustez:
+ *   - Degrada a global si la migración 007 no existe.
+ *   - Dedup in-flight evita N queries simultáneas a la BD.
+ *   - Si la query falla pero hay cache stale, lo servimos y logueamos.
+ */
+const getTop10ByCountry = async (req, res, next) => {
+    try {
+        // ── 1. Validar inputs ───────────────────────────────────────────
+        const override = String(req.query.country || '').trim().toUpperCase();
+        const validOverride = /^[A-Z]{2}$/.test(override) && override !== 'XX' && override !== 'T1'
+            ? override
+            : null;
+        const detected = validOverride ? null : extractCountryCode(req);
+        const country = validOverride || detected;
+
+        const lang = (req.query.lang === 'en' || req.query.lang === 'es')
+            ? req.query.lang
+            : null;
+        const includeAdult = req.query.adult === 'true';
+
+        const resolvedFrom = validOverride ? 'query' : (detected ? 'header-or-geoip' : 'none');
+        const cacheKey = top10CacheKey(country, lang, includeAdult);
+        const now = Date.now();
+
+        // Headers CDN comunes a fresh y stale.
+        const sendCacheHeaders = () => res.set({
+            'Cache-Control': 'public, s-maxage=300, max-age=60, stale-while-revalidate=600',
+            'Vary': 'Accept-Encoding, x-lang',
+        });
+
+        // ── 2. Cache hit fresco ─────────────────────────────────────────
+        const cached = top10Cache.get(cacheKey);
+        if (cached && cached.freshUntil > now) {
+            sendCacheHeaders();
+            res.set('X-Cache', 'HIT');
+            return res.json(cached.payload);
+        }
+
+        // ── 3. Cache stale → servir ya, revalidar en background ─────────
+        if (cached && cached.staleUntil > now) {
+            sendCacheHeaders();
+            res.set('X-Cache', 'STALE');
+            res.json(cached.payload);
+            // Revalidación asíncrona sin bloquear al cliente.
+            computeTop10WithDedup(cacheKey, {
+                country, lang, includeAdult, resolvedFrom,
+            }).catch((err) => logger.error('Top10 revalidation error:', err?.message));
+            return;
+        }
+
+        // ── 4. Miss total → calcular con dedup ─────────────────────────
+        try {
+            const payload = await computeTop10WithDedup(cacheKey, {
+                country, lang, includeAdult, resolvedFrom,
+            });
+            sendCacheHeaders();
+            res.set('X-Cache', 'MISS');
+            res.json(payload);
+        } catch (err) {
+            // Último recurso: si teníamos algo stale-expired en cache, servilo.
+            if (cached?.payload) {
+                logger.warn('Top10 compute falló, sirviendo cache expirado:', err?.message);
+                sendCacheHeaders();
+                res.set('X-Cache', 'STALE-FALLBACK');
+                return res.json(cached.payload);
+            }
+            throw err;
+        }
+
+        // Purga oportunista (nunca durante el hot path del request).
+        if (top10Cache.size > 300) setImmediate(() => purgeExpiredTop10Cache());
+    } catch (err) {
+        next(err);
+    }
+};
+
 /**
  * Extraer IP real del request, manejando proxies y formatos IPv6.
  */
@@ -1878,6 +2224,48 @@ function extractIp(req) {
     const raw = forwarded ? forwarded.split(',')[0].trim() : (req.ip || '');
     // Quitar prefijo IPv6 ::ffff: para consistencia con IPv4
     return raw.replace(/^::ffff:/, '');
+}
+
+/**
+ * Extraer código ISO-3166 alpha-2 desde cabeceras de CDN/edge.
+ * Prioridad: Cloudflare → Vercel → Fastly → GAE → geoip-lite (opcional).
+ * Devuelve null si no hay header válido (XX/T1/anónimo incluidos).
+ *
+ * Robustez:
+ *   - Acepta mayús/minús y espacios alrededor.
+ *   - Rechaza "XX" y "T1" (Cloudflare los usa para Tor/desconocido).
+ *   - Si hay geoip-lite instalado y ningún header acierta, intenta con IP.
+ *   - Nunca lanza: un fallo en geoip-lite degrada a null.
+ */
+function extractCountryCode(req) {
+    const h = req.headers || {};
+    const raw = (
+        h['cf-ipcountry']
+        || h['x-vercel-ip-country']
+        || h['x-country-code']
+        || h['x-appengine-country']
+        || ''
+    );
+    const code = String(raw).trim().toUpperCase();
+    if (/^[A-Z]{2}$/.test(code) && code !== 'XX' && code !== 'T1') return code;
+
+    // Fallback opcional vía geoip-lite (solo si la dep está instalada).
+    const geoip = loadGeoipIfAvailable();
+    if (!geoip) return null;
+
+    try {
+        const ip = extractIp(req);
+        if (!ip) return null;
+        // Descartar IPs locales/privadas sin intentar geoip.
+        if (/^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1|fe80:)/.test(ip)) {
+            return null;
+        }
+        const lookup = geoip.lookup(ip);
+        const cc = lookup?.country ? String(lookup.country).trim().toUpperCase() : '';
+        return /^[A-Z]{2}$/.test(cc) ? cc : null;
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -1908,6 +2296,8 @@ const recordView = async (req, res, next) => {
         const userId = req.user?.id || null;
         const ip = extractIp(req);
         const userAgent = ua.slice(0, 512) || null; // truncar para la BD
+        const hasCountryCol = await seriesViewsHasCountryColumn();
+        const countryCode = hasCountryCol ? extractCountryCode(req) : null;
 
         // 3. Buscar la serie
         const seriesResult = await query(
@@ -1963,12 +2353,22 @@ const recordView = async (req, res, next) => {
             // El INSERT es tolerante a columnas que aún no existan (user_agent): si falla
             // esa parte la BD lanzará error, pero el catch de la transacción lo propagará.
             // La migración 007 ya debería haber añadido user_agent.
-            await client.query(
-                `INSERT INTO series_views
-                    (series_id, user_id, visitor_id, ip_address, user_agent)
-                 VALUES ($1, $2, $3, $4, $5)`,
-                [seriesId, userId, visitorId, ip, userAgent]
-            );
+            if (hasCountryCol) {
+                await client.query(
+                    `INSERT INTO series_views
+                        (series_id, user_id, visitor_id, ip_address, user_agent, country_code)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [seriesId, userId, visitorId, ip, userAgent, countryCode]
+                );
+            } else {
+                // Pre-migración 007: insertar sin country_code para no romper el flujo.
+                await client.query(
+                    `INSERT INTO series_views
+                        (series_id, user_id, visitor_id, ip_address, user_agent)
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [seriesId, userId, visitorId, ip, userAgent]
+                );
+            }
             await client.query(
                 `UPDATE series SET
                     view_count    = view_count    + 1,
@@ -2012,5 +2412,6 @@ module.exports = {
     getUserRating,
     getSeriesRating,
     getSeriesMerch,
-    recordView
+    recordView,
+    getTop10ByCountry
 };

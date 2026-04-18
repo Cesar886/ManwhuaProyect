@@ -255,6 +255,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const [personalizedRows, setPersonalizedRows] = useState([])
   const [personalizedLoading, setPersonalizedLoading] = useState(true)
   const [persistentFeedbackByQuery, setPersistentFeedbackByQuery] = useState({})
+  const [top10, setTop10] = useState({ loading: true, country: null, series: [] })
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroDir, setHeroDir] = useState(1)
   const { user } = useAuth()
@@ -594,6 +595,106 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
       cancelled = true
     }
   }, [lang])
+
+  // ── Top 10 por país (estilo Netflix) ────────────────────────────────
+  // Robustez:
+  //  - AbortController: cancela el fetch si el componente se desmonta o lang cambia.
+  //  - Retry con backoff exponencial (3 intentos) para errores transitorios (5xx, red).
+  //  - Dedup cliente por slug/id por si el backend devuelve duplicados.
+  //  - Normaliza rank y filtra items sin slug/title (no romper el render).
+  useEffect(() => {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+    let cancelled = false
+    let attempt = 0
+
+    const isRetriableError = (err, res) => {
+      if (err?.name === 'AbortError') return false
+      if (!res) return true // network error
+      return res.status >= 500 || res.status === 429
+    }
+
+    const loadTop10 = async () => {
+      const url = `${endpoint('series', 'top10-by-country')}?lang=${encodeURIComponent(lang)}`
+
+      while (attempt < 3 && !cancelled) {
+        let res = null
+        try {
+          setTop10((prev) => ({ ...prev, loading: prev.series.length === 0 }))
+          res = await fetch(url, {
+            credentials: 'include',
+            signal: ctrl?.signal,
+            headers: {
+              'Accept': 'application/json',
+              'X-Lang': lang,
+              ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+            },
+          })
+
+          if (!res.ok) {
+            if (!isRetriableError(null, res) || attempt >= 2) break
+            attempt++
+            await new Promise((r) => setTimeout(r, 400 * 2 ** attempt))
+            continue
+          }
+
+          const json = await res.json().catch(() => null)
+          if (cancelled) return
+          if (!json?.success) {
+            // Respuesta no success → no reintentar (es un 200 intencional).
+            setTop10({ loading: false, country: null, series: [] })
+            return
+          }
+
+          const rawItems = Array.isArray(json.data?.series) ? json.data.series : []
+          const seen = new Set()
+          const items = rawItems
+            .filter((it) => it && it.slug && it.title)
+            .filter((it) => {
+              const key = String(it.id || it.slug)
+              if (seen.has(key)) return false
+              seen.add(key)
+              return true
+            })
+            .slice(0, 10)
+            .map((it, idx) => ({ ...it, rank: it.rank || idx + 1 }))
+
+          setTop10({
+            loading: false,
+            country: json.data?.country || null,
+            series: items,
+          })
+          return
+        } catch (err) {
+          if (err?.name === 'AbortError') return
+          if (!isRetriableError(err, null) || attempt >= 2) break
+          attempt++
+          await new Promise((r) => setTimeout(r, 400 * 2 ** attempt))
+        }
+      }
+
+      // Se agotaron retries: dejar estado neutro — la UI oculta la sección.
+      if (!cancelled) setTop10({ loading: false, country: null, series: [] })
+    }
+
+    loadTop10()
+    return () => {
+      cancelled = true
+      try { ctrl?.abort() } catch { /* noop */ }
+    }
+  }, [lang])
+
+  // Etiqueta amable del país ("México", "United States", etc.) vía Intl.
+  const top10CountryLabel = (() => {
+    const code = top10.country
+    if (!code) return null
+    try {
+      const regionLocale = lang === 'en' ? 'en' : 'es'
+      const dn = new Intl.DisplayNames([regionLocale], { type: 'region' })
+      return dn.of(code) || code
+    } catch {
+      return code
+    }
+  })()
 
   useEffect(() => {
     if (!Array.isArray(personalizedRows) || personalizedRows.length === 0) return
@@ -1031,6 +1132,83 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
         {/* Adsterra Banner Display 468x60 */}
         <AdsterraBannerDisplay />
+
+        {/* ================================================================== */}
+        {/* TOP 10 — Estilo Netflix (hoy, por país del visitante)            */}
+        {/* ================================================================== */}
+        {(top10.loading || top10.series.length > 0) && (
+          <section className={styles.top10Section} aria-label="Top 10 Manhwas">
+            <div className={styles.top10Header}>
+              <div className={styles.top10Badge}>
+                <span className={styles.top10BadgeMark}>TOP</span>
+                <span className={styles.top10BadgeNum}>10</span>
+              </div>
+              <div className={styles.top10Titles}>
+                <h2 className={styles.top10Title}>
+                  {lang === 'en' ? 'Top 10 Manhwas' : 'Top 10 Manhwas'}
+                  {top10CountryLabel && (
+                    <>
+                      {' '}
+                      <span className={styles.top10TitleAccent}>
+                        {lang === 'en' ? `in ${top10CountryLabel}` : `en ${top10CountryLabel}`}
+                      </span>
+                    </>
+                  )}
+                </h2>
+                <p className={styles.top10Subtitle}>
+                  {lang === 'en'
+                    ? 'Today · Based on readers like you'
+                    : 'Hoy · Basado en lectores como tú'}
+                </p>
+              </div>
+            </div>
+
+            <div className={styles.top10Scroll}>
+              {top10.loading && top10.series.length === 0 && (
+                Array.from({ length: 10 }).map((_, i) => (
+                  <div key={`sk-${i}`} className={styles.top10Item} aria-hidden="true">
+                    <span className={styles.top10Rank} data-rank={i + 1}>{i + 1}</span>
+                    <div className={`${styles.top10Card} ${styles.top10Skeleton}`} />
+                  </div>
+                ))
+              )}
+
+              {!top10.loading && top10.series.map((item, i) => {
+                const cover = normalizeImageUrl(
+                  item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web
+                ) || ''
+                return (
+                  <Link
+                    href={getLocalizedPath(`/manhwa/${item.slug}`, lang)}
+                    key={item.id || item.slug}
+                    className={styles.top10Item}
+                  >
+                    <span className={styles.top10Rank} data-rank={i + 1}>{i + 1}</span>
+                    <div className={styles.top10Card}>
+                      <ManhwaCover
+                        src={cover}
+                        fallbackSrc={cover}
+                        slug={item.slug}
+                        alt={getImageAlt.cover(item.title, lang)}
+                        className={styles.top10Img}
+                        priority={i < 3}
+                        sizes="(max-width: 480px) 120px, (max-width: 768px) 150px, 180px"
+                      />
+                      <div className={styles.top10CardOverlay}>
+                        <h3 className={styles.top10CardTitle}>{item.title}</h3>
+                        {item.chapterCount > 0 && (
+                          <span className={styles.top10CardMeta}>
+                            {item.chapterCount} {t.home.chaptersShort}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         <div className={styles.querySectionsWrapper}>
 
