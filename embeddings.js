@@ -143,7 +143,39 @@ const QUERY_EXPANSIONS = {
     'militar': 'militar guerra ejercito batalla estrategia',
     'deportes': 'deportes competicion torneo entrenamiento rival',
     'slice of life': 'slice of life vida cotidiana tranquilo relajado dia a dia',
-    'politica': 'politica reino imperio poder trono conspiracion intriga'
+    'politica': 'politica reino imperio poder trono conspiracion intriga',
+
+    // Inglés — los embeddings de las series están en español, pero
+    // text-embedding-3-small es cross-lingual. Aun así conviene inyectar
+    // sinónimos bilingües para queries EN: mejora recall y empata con
+    // el vocabulario usado en sinopsis/temas.
+    'weak': 'weak to strong debil zero to hero underdog growth protagonist',
+    'strong': 'strong protagonist overpowered op powerful invincible fuerte',
+    'overpowered': 'overpowered op strong powerful invincible from the start fuerte',
+    'smart': 'smart protagonist strategist calculating genius brilliant mind inteligente',
+    'cold': 'cold protagonist calculating emotionless ruthless frio',
+    'ruthless': 'ruthless cruel antihero despiadado villain no mercy',
+    'revenge': 'revenge betrayal retribution payback vengeance venganza',
+    'betrayal': 'betrayal revenge abandoned stabbed in the back traicion',
+    'regression': 'regression go back to past second chance time travel regresion',
+    'reincarnation': 'reincarnation isekai another world second life transmigration reencarnacion',
+    'tower': 'tower climbing floors challenges torre',
+    'dungeon': 'dungeon monsters portal exploration mazmorra',
+    'hunter': 'hunter monsters dungeon rank cazador',
+    'necromancer': 'necromancer undead skeletons dark summoner nigromante',
+    'assassin': 'assassin shadows stealth dagger poison asesino',
+    'mage': 'mage magic wizard sorcerer mana spells arcane mago',
+    'swordsman': 'swordsman sword warrior blade master espadachin',
+    'martial arts': 'martial arts murim cultivation wuxia qi kung fu artes marciales',
+    'cultivation': 'cultivation murim martial arts qi inner power sects cultivacion',
+    'apocalypse': 'apocalypse end of the world survival zombies monsters chaos apocalipsis',
+    'survival': 'survival apocalypse survive death game supervivencia',
+    'system': 'system levels status window RPG level stats sistema',
+    'leveling': 'leveling up system growth power level up',
+    'school': 'school high school students campus classroom escolar',
+    'romance': 'romance love couple relationship feelings',
+    'villainess': 'villainess otome isekai duchess noble reincarnation novel otome',
+    'harem': 'harem multiple love interests surrounded by girls'
 };
 
 /**

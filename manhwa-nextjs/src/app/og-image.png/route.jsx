@@ -6,11 +6,14 @@ import { ImageResponse } from 'next/og';
 // optimizado bajo demanda, con cache HTTP largo para CDN.
 
 export const runtime = 'edge';
-export const contentType = 'image/png';
-export const size = { width: 1200, height: 630 };
 
 // Revalidar una vez al día en el CDN — el contenido es estático (branding), no hace falta más.
 export const revalidate = 86400;
+
+// Dimensiones del OG image. No se exportan (los Route Handlers sólo aceptan
+// exports específicos: GET/POST/runtime/revalidate/etc; `size` y `contentType`
+// pertenecen a la convención `opengraph-image.jsx`, no a `route.jsx`).
+const size = { width: 1200, height: 630 };
 
 const BRAND = {
     bg: '#0F0F14',

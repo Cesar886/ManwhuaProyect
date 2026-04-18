@@ -1194,67 +1194,192 @@ function performFallbackSearch(userMsg, reqLang = DEFAULT_LANG) {
 
 // --- BÚSQUEDA VECTORIAL CON EMBEDDINGS ---
 
+// Stop-words que no deben puntuar en el re-ranking. Son relleno que aparece en
+// prácticamente cualquier query ("similar to X", "recomienda un manhwa de X") y
+// sesgarían el boost de metadata hacia matches espurios (p.ej. "to" o "a"
+// estarían en casi todas las sinopsis).
+const QUERY_STOP_WORDS = new Set([
+    // EN
+    'similar', 'similars', 'like', 'the', 'and', 'for', 'with', 'about',
+    'recommend', 'recommendation', 'recommendations', 'where', 'can', 'read',
+    'find', 'please', 'something', 'anything', 'good', 'best', 'new',
+    'manhwa', 'manhwas', 'manga', 'mangas', 'manhua', 'manhuas', 'webtoon', 'webtoons',
+    // ES
+    'parecido', 'parecidos', 'parecida', 'parecidas', 'como', 'similar',
+    'similares', 'recomienda', 'recomiendame', 'recomiendame', 'recomendacion',
+    'recomendaciones', 'algo', 'algun', 'alguna', 'bueno', 'buena', 'buenos',
+    'nuevo', 'nueva', 'donde', 'puedo', 'leer', 'por', 'favor', 'sobre',
+    'que', 'cual', 'cuales', 'tenga', 'tengan', 'sea', 'para', 'con', 'los',
+    'las', 'una', 'uno', 'del', 'este', 'esta', 'estos', 'estas'
+]);
+
 /**
- * Calcula el threshold dinámico de similitud según la query.
- * Queries cortas (2-3 palabras) → threshold alto (0.40) porque son ambiguas.
- * Queries largas (4+ palabras) → threshold bajo (0.25) porque son más específicas.
+ * Detecta si la query referencia una serie existente del pool
+ * (ej. "manhwas similar to Nano Machine" → devuelve la serie Nano Machine).
+ * Usa títulos principales + títulos alternativos + título original.
+ * Devuelve la serie con el match más largo (para preferir "Nano Machine" sobre "Nano").
  */
-function getDynamicThreshold(queryText) {
+function findReferenceSeries(userMsg, pool) {
+    const cleanMsg = cleanText(userMsg);
+    if (!cleanMsg) return null;
+
+    let best = null;
+    let bestLen = 0;
+
+    for (const s of pool) {
+        const candidates = [s._searchTitle];
+        if (Array.isArray(s.alternativeTitles)) {
+            for (const alt of s.alternativeTitles) candidates.push(cleanText(alt));
+        }
+        if (s.originalTitle) candidates.push(cleanText(s.originalTitle));
+
+        for (const cand of candidates) {
+            if (!cand || cand.length < 4) continue; // ignorar títulos ultra-cortos
+            if (cleanMsg.includes(cand) && cand.length > bestLen) {
+                best = s;
+                bestLen = cand.length;
+            }
+        }
+    }
+
+    return best;
+}
+
+/**
+ * Construye un texto aumentado para embebir cuando la query referencia una
+ * serie existente. Combina la intención del usuario con la "huella semántica"
+ * (sinopsis + géneros + temas + tropos) de la serie referencia, empujando el
+ * embedding hacia títulos realmente similares a ella.
+ */
+function buildAugmentedQueryText(userMsg, reference) {
+    if (!reference) return userMsg;
+    const parts = [userMsg];
+    const genres = Array.isArray(reference.genres)
+        ? reference.genres.map(g => (g && (g.name || g)) || '').filter(Boolean)
+        : [];
+    if (genres.length) parts.push(`Generos: ${genres.join(', ')}`);
+    if (Array.isArray(reference.themes) && reference.themes.length)
+        parts.push(`Temas: ${reference.themes.join(', ')}`);
+    if (Array.isArray(reference.narrativeTropes) && reference.narrativeTropes.length)
+        parts.push(`Tropos: ${reference.narrativeTropes.join(', ')}`);
+    if (reference.protagonistType) parts.push(`Protagonista: ${reference.protagonistType}`);
+    if (reference.powerSystem) parts.push(`Sistema de poder: ${reference.powerSystem}`);
+    if (reference.tone) parts.push(`Tono: ${reference.tone}`);
+    if (reference.synopsis) parts.push(`Sinopsis de referencia: ${reference.synopsis}`);
+    return parts.join('. ').substring(0, 2000);
+}
+
+/**
+ * Calcula el threshold dinámico de similitud según la query y el tamaño del
+ * pool. Queries cortas → threshold alto (más ambiguas); queries largas → bajo.
+ * Además, pools pequeños (idiomas minoritarios) reciben una relajación para
+ * no perder candidatos borderline cuando hay pocas series con las que comparar.
+ */
+function getDynamicThreshold(queryText, poolSize = null) {
     const words = queryText.trim().split(/\s+/).length;
-    if (words <= 2) return 0.42;
-    if (words <= 3) return 0.38;
-    if (words <= 5) return 0.32;
-    return 0.25; // Queries muy descriptivas: threshold bajo
+    let base;
+    if (words <= 2) base = 0.42;
+    else if (words <= 3) base = 0.38;
+    else if (words <= 5) base = 0.32;
+    else base = 0.25;
+
+    if (typeof poolSize === 'number') {
+        if (poolSize < 100) base -= 0.08;
+        else if (poolSize < 200) base -= 0.05;
+        else if (poolSize < 400) base -= 0.02;
+    }
+
+    return Math.max(base, 0.15);
 }
 
 /**
  * Re-ranking híbrido: combina similitud vectorial con señales de metadata local.
  * Boost si la serie tiene keywords de la query en sus géneros, temas o tropos.
+ * Si se provee `reference` (serie que el usuario mencionó), también boostea
+ * series que comparten géneros/temas con ella ("similar a Nano Machine" ⇒
+ * series con murim/cultivación ganan).
  */
-function hybridRerank(results, userMsg) {
+function hybridRerank(results, userMsg, options = {}) {
+    const reference = options.reference || null;
     const queryClean = cleanText(userMsg);
-    const queryWords = queryClean.split(/\s+/).filter(w => w.length > 2);
+    const queryWords = queryClean
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !QUERY_STOP_WORDS.has(w));
 
-    if (queryWords.length === 0) return results;
+    // Huella semántica de la serie referencia, para medir overlap con candidatos
+    const refGenres = reference
+        ? (Array.isArray(reference.genres)
+            ? reference.genres.map(g => cleanText((g && (g.name || g)) || '')).filter(Boolean)
+            : [])
+        : [];
+    const refThemes = reference
+        ? (reference.themes || []).map(t => cleanText(t)).filter(Boolean)
+        : [];
+    const refTropes = reference
+        ? (reference.narrativeTropes || []).map(t => cleanText(t)).filter(Boolean)
+        : [];
+    const refId = reference ? reference.id : null;
 
     return results.map(r => {
         let boost = 0;
         const series = r.item;
 
-        // Boost por match en géneros (+0.08 por cada género que coincide)
-        const seriesGenres = series._searchGenres || [];
-        for (const word of queryWords) {
-            if (seriesGenres.some(g => g.includes(word))) {
-                boost += 0.08;
+        if (queryWords.length > 0) {
+            // Boost por match en géneros (+0.08 por cada género que coincide)
+            const seriesGenres = series._searchGenres || [];
+            for (const word of queryWords) {
+                if (seriesGenres.some(g => g.includes(word))) {
+                    boost += 0.08;
+                }
+            }
+
+            // Boost por match en temas/tropos (+0.06 por cada match)
+            const themes = (series.themes || []).map(t => cleanText(t));
+            const tropes = (series.narrativeTropes || []).map(t => cleanText(t));
+            const allMeta = [...themes, ...tropes];
+            for (const word of queryWords) {
+                if (allMeta.some(m => m.includes(word))) {
+                    boost += 0.06;
+                }
+            }
+
+            // Boost por match en protagonistType o powerSystem (+0.05)
+            const prota = cleanText(series.protagonistType || '');
+            const power = cleanText(series.powerSystem || '');
+            const tone = cleanText(series.tone || '');
+            for (const word of queryWords) {
+                if (prota.includes(word) || power.includes(word) || tone.includes(word)) {
+                    boost += 0.05;
+                }
+            }
+
+            // Boost por match en sinopsis (+0.03 por palabra encontrada)
+            const synopsis = series._searchSynopsis || '';
+            for (const word of queryWords) {
+                if (synopsis.includes(word)) {
+                    boost += 0.03;
+                }
             }
         }
 
-        // Boost por match en temas/tropos (+0.06 por cada match)
-        const themes = (series.themes || []).map(t => cleanText(t));
-        const tropes = (series.narrativeTropes || []).map(t => cleanText(t));
-        const allMeta = [...themes, ...tropes];
-        for (const word of queryWords) {
-            if (allMeta.some(m => m.includes(word))) {
-                boost += 0.06;
+        // Boost por overlap con la serie referencia (si la hay).
+        // Cap conservador para no sepultar la señal vectorial.
+        let refBoost = 0;
+        if (reference && series.id !== refId) {
+            const candGenres = series._searchGenres || [];
+            const candThemes = (series.themes || []).map(t => cleanText(t));
+            const candTropes = (series.narrativeTropes || []).map(t => cleanText(t));
+            for (const g of refGenres) {
+                if (g && candGenres.some(cg => cg.includes(g))) refBoost += 0.05;
             }
-        }
-
-        // Boost por match en protagonistType o powerSystem (+0.05)
-        const prota = cleanText(series.protagonistType || '');
-        const power = cleanText(series.powerSystem || '');
-        const tone = cleanText(series.tone || '');
-        for (const word of queryWords) {
-            if (prota.includes(word) || power.includes(word) || tone.includes(word)) {
-                boost += 0.05;
+            for (const t of refThemes) {
+                if (t && candThemes.some(ct => ct.includes(t))) refBoost += 0.04;
             }
-        }
-
-        // Boost por match en sinopsis (+0.03 por palabra encontrada)
-        const synopsis = series._searchSynopsis || '';
-        for (const word of queryWords) {
-            if (synopsis.includes(word)) {
-                boost += 0.03;
+            for (const tr of refTropes) {
+                if (tr && candTropes.some(ct => ct.includes(tr))) refBoost += 0.03;
             }
+            refBoost = Math.min(refBoost, 0.18);
+            boost += refBoost;
         }
 
         // Pequeño boost por popularidad (views/rating) para desempatar
@@ -1268,7 +1393,8 @@ function hybridRerank(results, userMsg) {
             similarity: finalSimilarity,
             score: 1 - finalSimilarity,
             vectorSimilarity: r.similarity, // Preservar la original
-            metadataBoost: boost
+            metadataBoost: boost,
+            referenceBoost: refBoost
         };
     }).sort((a, b) => b.similarity - a.similarity); // Re-ordenar por similitud ajustada
 }
@@ -1277,23 +1403,6 @@ async function performVectorSearch(userMsg, reqLang = DEFAULT_LANG) {
     if (!dbAvailable()) return null;
 
     try {
-        const queryKey = cleanText(userMsg);
-
-        // Threshold dinámico según longitud de la query
-        const minSimilarity = getDynamicThreshold(userMsg);
-
-        // Buscar embedding cacheado de la query
-        let queryEmbedding = await getCachedQueryEmbedding(queryKey);
-
-        // Si no existe, generar y cachear (query expansion ocurre dentro de getQueryEmbedding)
-        if (!queryEmbedding) {
-            queryEmbedding = await getQueryEmbedding(userMsg);
-            // Cachear en background (no bloquear)
-            cacheQueryEmbedding(queryKey, queryEmbedding).catch(err =>
-                logger.warn('Error cacheando query embedding', { error: err.message })
-            );
-        }
-
         // Pre-filtrado por idioma ANTES de tocar el vector DB: computamos los IDs
         // del bucket del idioma solicitado y se los pasamos a `vectorSearch` como
         // `allowedIds`. Así pgvector calcula similitud sólo sobre series EN (o ES)
@@ -1309,10 +1418,61 @@ async function performVectorSearch(userMsg, reqLang = DEFAULT_LANG) {
         if (langPool.length === 0) return null;
         const allowedIds = langPool.map(s => s.id);
 
+        // Detección de serie referencia: si la query menciona el título de una
+        // serie existente ("similar to Nano Machine"), usamos su metadata para
+        // empujar el embedding hacia la vecindad correcta y para sumar boosts
+        // de overlap en el re-rank. La búsqueda se hace contra el pool de
+        // idioma para que una serie EN no "atraiga" resultados vía referencia.
+        const reference = findReferenceSeries(userMsg, langPool)
+            || (reqLang && reqLang !== DEFAULT_LANG ? findReferenceSeries(userMsg, seriesCache) : null);
+
+        // Texto a embebir: query original + huella semántica de la referencia
+        // (si la hay). `queryKey` conserva sólo la query original para que el
+        // caché de embeddings no se fragmente por idioma/referencia.
+        const augmentedText = buildAugmentedQueryText(userMsg, reference);
+        const queryKey = cleanText(userMsg) + (reference ? `|ref:${reference.id}` : '');
+
+        // Threshold dinámico: depende de longitud de query y tamaño del pool.
+        // Pools pequeños (idiomas minoritarios) reciben relajación automática.
+        const minSimilarity = getDynamicThreshold(userMsg, langPool.length);
+
+        // Buscar embedding cacheado de la query (por clave que incluye referencia)
+        let queryEmbedding = await getCachedQueryEmbedding(queryKey);
+
+        // Si no existe, generar y cachear (query expansion ocurre dentro de getQueryEmbedding)
+        if (!queryEmbedding) {
+            queryEmbedding = await getQueryEmbedding(augmentedText);
+            // Cachear en background (no bloquear)
+            cacheQueryEmbedding(queryKey, queryEmbedding).catch(err =>
+                logger.warn('Error cacheando query embedding', { error: err.message })
+            );
+        }
+
         // Pool amplio (1000): con el pre-filtrado por idioma el coste real lo pone
-        // el tamaño del bucket del idioma, no este número. Queda alto para que no
-        // sea el limitante perceptible.
-        const vectorResults = await vectorSearch(queryEmbedding, 1000, minSimilarity, { allowedIds });
+        // el tamaño del bucket del idioma, no este número.
+        let vectorResults = await vectorSearch(queryEmbedding, 1000, minSimilarity, { allowedIds });
+
+        // Retry multi-pasada: si la primera pasada trae pocos candidatos, bajamos
+        // el umbral (× 0.7) y volvemos a consultar. Rescata series borderline que
+        // estaban justo debajo del threshold — vital en pools chicos donde la
+        // distribución de similitud es más dispersa.
+        let retryUsed = false;
+        if (!vectorResults || vectorResults.length < 10) {
+            retryUsed = true;
+            const relaxed = Math.max(minSimilarity * 0.7, 0.15);
+            const extra = await vectorSearch(queryEmbedding, 1000, relaxed, { allowedIds });
+            if (extra && extra.length > 0) {
+                // Merge + dedupe por id, preservando la mayor similitud
+                const seen = new Map();
+                for (const r of (vectorResults || [])) seen.set(r.id, r);
+                for (const r of extra) {
+                    const prev = seen.get(r.id);
+                    if (!prev || r.similarity > prev.similarity) seen.set(r.id, r);
+                }
+                vectorResults = Array.from(seen.values())
+                    .sort((a, b) => b.similarity - a.similarity);
+            }
+        }
 
         if (!vectorResults || vectorResults.length === 0) return null;
 
@@ -1334,14 +1494,18 @@ async function performVectorSearch(userMsg, reqLang = DEFAULT_LANG) {
 
         if (rawResults.length === 0) return null;
 
-        // Re-ranking híbrido: combinar similitud vectorial con metadata local
-        const results = hybridRerank(rawResults, userMsg);
+        // Re-ranking híbrido: combinar similitud vectorial con metadata local +
+        // overlap con la serie referencia (si la hay).
+        const results = hybridRerank(rawResults, userMsg, { reference });
 
         metrics.vectorSearches++;
         logger.info('Vector search completado', {
             query: userMsg,
             lang: reqLang,
+            poolSize: langPool.length,
             threshold: minSimilarity,
+            retryUsed,
+            reference: reference ? reference.title : null,
             rawResults: rawResults.length,
             results: results.length,
             topSimilarity: results[0]?.similarity?.toFixed(3),
