@@ -21,10 +21,11 @@ export default function NotFound() {
 
     const handleIASearch = useCallback((pregunta) => {
         const slug = slugifyQuery(pregunta);
+        const targetPath = getLocalizedPath(`/busqueda-ia/${slug}`, lang);
         setNavigating(true);
-        router.prefetch(`/busqueda-ia/${slug}`);
-        router.push(`/busqueda-ia/${slug}`);
-    }, [router]);
+        router.prefetch(targetPath);
+        router.push(targetPath);
+    }, [router, lang]);
 
     return (
         <AppLayout>

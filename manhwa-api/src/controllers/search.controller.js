@@ -752,7 +752,9 @@ const aiRead = async (req, res, next) => {
         }
 
         const searchContext = req.headers['x-search-context'];
-        const aiHeaders = { 'Content-Type': 'application/json' };
+        const rawLang = req.headers['x-lang'] || req.body?.lang;
+        const lang = String(rawLang || '').toLowerCase() === 'en' ? 'en' : 'es';
+        const aiHeaders = { 'Content-Type': 'application/json', 'X-Lang': lang };
         if (searchContext) {
             aiHeaders['X-Search-Context'] = String(searchContext);
         }
@@ -764,7 +766,7 @@ const aiRead = async (req, res, next) => {
             const aiResponse = await fetch(AI_READ_ENDPOINT, {
                 method: 'POST',
                 headers: aiHeaders,
-                body: JSON.stringify({ messages }),
+                body: JSON.stringify({ messages, lang }),
                 signal: timeoutController.signal,
             });
 

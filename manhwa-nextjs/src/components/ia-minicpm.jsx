@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 import { getSearchHistory, removeFromHistory, detectNsfwQuery } from '@/hooks/useIA';
+import { getLocalizedPath } from '@/utils/i18nRoutes';
 import { api } from '@/api/client';
 import './ia-minicpm.css';
 
@@ -14,7 +15,7 @@ const AI_BASE_URL = (process.env.NEXT_PUBLIC_AI_API_URL || 'https://ai.manhwaimp
 const EMPTY_PLACEHOLDER_PHRASES = Object.freeze([]);
 
 // Frases de respaldo si la API aún no tiene datos
-const FALLBACK_PHRASES = [
+const FALLBACK_PHRASES_ES = [
     // --- LOS CLÁSICOS DE ACCIÓN Y SISTEMAS ---
     'Manhwas de acción con protagonista OP',
     'Similar a Solo Leveling pero con nigromantes',
@@ -59,11 +60,59 @@ const FALLBACK_PHRASES = [
     'Seinen oscuro y psicológico',
 ];
 
-const FALLBACK_SUGGESTIONS = FALLBACK_PHRASES.slice(0, 5).map((q, i) => ({
-    query: q,
-    count: null,
-    rank: i + 1,
-}));
+const FALLBACK_PHRASES_EN = [
+    // --- ACTION & SYSTEMS CLASSICS ---
+    'Action manhwas with an OP protagonist',
+    'Similar to Solo Leveling but with necromancers',
+    'The weakest hero becomes the strongest',
+    'Hunter and dungeon system',
+    'Surviving a deadly game',
+    'Dark fantasy with monsters and blood',
+    'Ruthless protagonist who shows no mercy',
+
+    // --- MURIM & MARTIAL ARTS ---
+    'Murim with a leveling system',
+    'The demonic cult leader returns',
+    'Martial arts, sects and cultivation',
+    'Revenge in the world of Murim',
+
+    // --- REGRESSION & REVENGE ---
+    'Protagonist who returns to the past',
+    'Betrayed by his guild, seeks revenge',
+    'The best revenge manhwas',
+    'Back to academy days to change the future',
+    'Leveling system with reincarnation',
+
+    // --- OTOME ISEKAI & ROMANTIC FANTASY ---
+    'I reincarnated as the villainess of the novel',
+    'Contract marriage with the cold duke',
+    'Period romance with the tyrant of the north',
+    'The heroine breaks off her engagement',
+    'Raising the original villain\'s son',
+
+    // --- COMEDY, SCHOOL & SLICE OF LIFE ---
+    'School romance without drama',
+    'Office romance with a cold boss',
+    'Light comedy to laugh out loud',
+    'Protagonist who just wants peace but is a genius',
+    'Quiet life cultivating in another world',
+
+    // --- VIBE CHECK ---
+    'Fantasy manhwa with epic magic',
+    'Stunning art and intense battles',
+    'A sad manhwa that will make me cry',
+    'Pure action, zero romance',
+    'Dark and psychological seinen',
+];
+
+function pickFallbackPhrases(lang) {
+    return lang === 'en' ? FALLBACK_PHRASES_EN : FALLBACK_PHRASES_ES;
+}
+
+function pickFallbackSuggestions(lang) {
+    const source = pickFallbackPhrases(lang);
+    return source.slice(0, 5).map((q, i) => ({ query: q, count: null, rank: i + 1 }));
+}
 
 const TYPING_SPEED = 55;   // ms por carácter escribiendo
 const DELETING_SPEED = 28;   // ms por carácter borrando
@@ -71,7 +120,7 @@ const PAUSE_AFTER = 3000; // ms de pausa tras escribir completo
 const PAUSE_BEFORE = 450;  // ms de pausa antes del siguiente
 
 // Frases de "pensando" que rotan mientras carga
-const THINKING_PHRASES = [
+const THINKING_PHRASES_ES = [
     // --- LAS ORIGINALES MEJORADAS ---
     'Analizando el catálogo imperial...',
     'Consultando la base de datos de manhwas...',
@@ -121,6 +170,42 @@ const THINKING_PHRASES = [
     'Preparando tu próxima obsesión...',
     'Afilando las espadas y preparando los hechizos...',
 ];
+
+const THINKING_PHRASES_EN = [
+    'Scanning the imperial catalog...',
+    'Querying the manhwa database...',
+    'Searching the best titles for you...',
+    'Processing your query with Artificial Intelligence...',
+    'Identifying narrative patterns and tropes...',
+    'Waking up the imperial oracle...',
+    'Walking the halls of the Great Library...',
+    'Dusting off ancient scrolls...',
+    'Asking the Emperor for recommendations...',
+    'Translating ancient texts...',
+    'Looking for hidden gems in the imperial treasury...',
+    'The System is calculating the results...',
+    'Summoning the database spirits...',
+    'Gathering Qi to process your request...',
+    'Rewinding time to find your ideal manhwa...',
+    'The constellations are evaluating your search...',
+    'Surviving the data dungeon...',
+    'Searching for the most OP protagonist...',
+    'The Imperial AI is analyzing your request...',
+    'Connecting neural networks to the Great Library...',
+    'The archive automaton is looking for matches...',
+    'Syncing the algorithm with the ancient scrolls...',
+    'The Imperial AI System is scanning thousands of chapters...',
+    'Summoning the search golems...',
+    'Extracting data from memory crystals...',
+    'Analyzing synopses...',
+    'Matching your tastes with the perfect manhwa...',
+    'Preparing your next obsession...',
+    'Sharpening the swords and readying the spells...',
+];
+
+function pickThinkingPhrases(lang) {
+    return lang === 'en' ? THINKING_PHRASES_EN : THINKING_PHRASES_ES;
+}
 
 const THINKING_PHRASES_HUMOR = [
     'Buscando el One Piece (esto puede tardar)...',
@@ -349,7 +434,7 @@ const THINKING_GAP = 280;         // ms de silencio entre borrar y escribir sigu
 const HUMOR_PROBABILITY = 0.04;   // 4% — rarísimo pero sale
 const CONTEXT_PROBABILITY = 0.30; // 30% — si hay keyword match, aparece primero
 
-function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLACEHOLDER_PHRASES) {
+function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLACEHOLDER_PHRASES, lang = 'es') {
     const [displayed, setDisplayed] = useState('');
     // pool: 'normal' | 'humor'
     const stateRef = useRef({ phase: 'typing', charIdx: 0, phraseIdx: 0, pool: 'normal', lastPool: null, lastIdx: -1 });
@@ -357,14 +442,17 @@ function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLA
 
     const normalThinkingPhrases = Array.isArray(customThinkingPhrases) && customThinkingPhrases.length > 0
         ? customThinkingPhrases
-        : THINKING_PHRASES;
+        : pickThinkingPhrases(lang);
 
     const getPhrase = (pool, idx) =>
         pool === 'humor' ? THINKING_PHRASES_HUMOR[idx] : normalThinkingPhrases[idx];
 
-    // Elige siguiente frase — 4% humor, 96% normal; nunca repite la misma seguida
+    // Elige siguiente frase — 4% humor, 96% normal; nunca repite la misma seguida.
+    // El pool de humor y las frases contextuales son ES-only (palabras clave y modismos),
+    // así que sólo se activan cuando lang === 'es'. En EN usamos siempre el pool normal.
+    const humorAllowed = lang !== 'en';
     const pickNext = (lastPool, lastIdx) => {
-        const isHumor = Math.random() < HUMOR_PROBABILITY;
+        const isHumor = humorAllowed && Math.random() < HUMOR_PROBABILITY;
         const pool = isHumor ? THINKING_PHRASES_HUMOR : normalThinkingPhrases;
         const poolKey = isHumor ? 'humor' : 'normal';
         let idx;
@@ -382,8 +470,9 @@ function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLA
             return;
         }
 
-        // Decidir si la frase contextual aparece como PRIMERA (30% de prob si hay match)
-        const contextPhrase = getContextPhrase(query);
+        // Decidir si la frase contextual aparece como PRIMERA (30% de prob si hay match).
+        // Gate a ES porque HUMOR_CONTEXT_MAP usa keywords en español.
+        const contextPhrase = humorAllowed ? getContextPhrase(query) : null;
         const showContextFirst = !!(contextPhrase && Math.random() < CONTEXT_PROBABILITY);
 
         if (showContextFirst) {
@@ -464,7 +553,7 @@ function useThinkingStream(active, query = '', customThinkingPhrases = EMPTY_PLA
 
         timerRef.current = setTimeout(tick, STREAM_SPEED);
         return () => clearTimeout(timerRef.current);
-    }, [active, customThinkingPhrases]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [active, customThinkingPhrases, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return displayed;
 }
@@ -479,21 +568,27 @@ function fmtCount(n) {
     return String(num);
 }
 
-function timeAgo(isoDate) {
+function timeAgo(isoDate, lang = 'es') {
     if (!isoDate) return '';
     const diff = Date.now() - new Date(isoDate).getTime();
-    if (diff < 0) return 'ahora';
+    const isEn = lang === 'en';
+    if (diff < 0) return isEn ? 'now' : 'ahora';
     const secs = Math.floor(diff / 1000);
-    if (secs < 60) return 'ahora';
+    if (secs < 60) return isEn ? 'now' : 'ahora';
     const mins = Math.floor(secs / 60);
-    if (mins < 60) return `hace ${mins} min`;
+    if (mins < 60) return isEn ? `${mins} min ago` : `hace ${mins} min`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `hace ${hours}h`;
+    if (hours < 24) return isEn ? `${hours}h ago` : `hace ${hours}h`;
     const days = Math.floor(hours / 24);
-    if (days === 1) return 'ayer';
-    if (days < 7) return `hace ${days}d`;
-    if (days < 30) return `hace ${Math.floor(days / 7)} sem`;
-    return `hace ${Math.floor(days / 30)} mes${Math.floor(days / 30) > 1 ? 'es' : ''}`;
+    if (days === 1) return isEn ? 'yesterday' : 'ayer';
+    if (days < 7) return isEn ? `${days}d ago` : `hace ${days}d`;
+    if (days < 30) {
+        const weeks = Math.floor(days / 7);
+        return isEn ? `${weeks}w ago` : `hace ${weeks} sem`;
+    }
+    const months = Math.floor(days / 30);
+    if (isEn) return `${months}mo ago`;
+    return `hace ${months} mes${months > 1 ? 'es' : ''}`;
 }
 
 const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQuery = '', incognitoMode = false, allowNsfw = false, placeholderPhrases = EMPTY_PLACEHOLDER_PHRASES, thinkingPhrases = EMPTY_PLACEHOLDER_PHRASES }, ref) => {
@@ -548,6 +643,21 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
             lastSearchedQuery.current = initialQuery.trim();
         }
     }, [initialQuery]);
+
+    // Cerrar el dropdown cuando el usuario toca fuera del wrapper.
+    // Necesario porque después de pulsar un tab el input queda sin foco (para que se cierre
+    // el teclado móvil), así que onBlur del input ya no puede hacerse cargo del cierre.
+    useEffect(() => {
+        if (!isFocused) return;
+        const onPointerDownOutside = (e) => {
+            const root = wrapperRef.current;
+            if (!root) return;
+            if (e.target instanceof Node && root.contains(e.target)) return;
+            setIsFocused(false);
+        };
+        document.addEventListener('pointerdown', onPointerDownOutside);
+        return () => document.removeEventListener('pointerdown', onPointerDownOutside);
+    }, [isFocused]);
 
     useEffect(() => {
         if (incognitoMode) return;
@@ -622,10 +732,11 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
 
                     if (shouldRefreshPhrases) {
                         const shuffled = shuffleArray(uniqueQueries).slice(0, 20);
-                        // Si tenemos pocas queries de usuario, completamos con FALLBACK_PHRASES
+                        // Si tenemos pocas queries de usuario, completamos con frases fallback (según lang)
+                        const fallbackPool = pickFallbackPhrases(lang);
                         const finalPhrases = shuffled.length >= 20
                             ? shuffled
-                            : [...shuffled, ...shuffleArray(FALLBACK_PHRASES).slice(0, 20 - shuffled.length)];
+                            : [...shuffled, ...shuffleArray(fallbackPool).slice(0, 20 - shuffled.length)];
                         setPhrases(finalPhrases);
                         phrasesSetAtRef.current = Date.now();
                     }
@@ -724,9 +835,9 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     }, [incognitoMode, lang]);
 
     const localAutocompletePhrasePool = useMemo(() => {
-        const merged = [...FALLBACK_PHRASES, ...popularSuggestions.map(s => s.query), ...similarSuggestions.map(s => s.query)];
+        const merged = [...pickFallbackPhrases(lang), ...popularSuggestions.map(s => s.query), ...similarSuggestions.map(s => s.query)];
         return [...new Set(merged)];
-    }, [popularSuggestions, similarSuggestions]);
+    }, [lang, popularSuggestions, similarSuggestions]);
 
 
     // Refrescar historial cuando se enfoca el input
@@ -736,17 +847,17 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
             return;
         }
         try {
-            setHistory(getSearchHistory(5));
+            setHistory(getSearchHistory(5, { lang }));
         } catch { setHistory([]); }
-    }, [incognitoMode]);
+    }, [incognitoMode, lang]);
 
     const handleRemoveHistory = useCallback((slug, e) => {
         if (incognitoMode) return;
         e.stopPropagation();
         e.preventDefault();
-        removeFromHistory(slug);
+        removeFromHistory(slug, { lang });
         refreshHistory();
-    }, [incognitoMode, refreshHistory]);
+    }, [incognitoMode, refreshHistory, lang]);
 
     // Sincronizar initialQuery cuando cambia (ej: navegación entre rutas)
     const prevInitialQuery = useRef(initialQuery);
@@ -801,7 +912,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
     const streamedExplanation = useStreamingText(explanation || '', !!explanation && !loading);
 
     // Frase de pensando con ciclo completo escribe/borra (aleatorio + contextual)
-    const thinkingStream = useThinkingStream(loading, query, thinkingPhrases);
+    const thinkingStream = useThinkingStream(loading, query, thinkingPhrases, lang);
 
     // Determinar qué texto mostrar en el card
     const cardVisible = loading || !!explanation;
@@ -821,9 +932,9 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         }
 
         // Poner fallback de inmediato para que el dropdown funcione desde el primer click
-        setSuggestions(FALLBACK_SUGGESTIONS);
-        setPhrases(shuffleArray(FALLBACK_PHRASES));
-    }, [incognitoMode, placeholderPhrases]);
+        setSuggestions(pickFallbackSuggestions(lang));
+        setPhrases(shuffleArray(pickFallbackPhrases(lang)));
+    }, [incognitoMode, placeholderPhrases, lang]);
 
     // (Polling de contadores unificado en el useEffect de arriba)
 
@@ -937,7 +1048,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         debounceRef.current = setTimeout(async () => {
             // Detección NSFW en tiempo real mientras escribe (debounced 300ms)
             if (!allowNsfw) {
-                const nsfwCheck = detectNsfwQuery(value);
+                const nsfwCheck = detectNsfwQuery(value, lang);
                 if (nsfwCheck.isNsfw) {
                     setNsfwWarning(nsfwCheck.message);
                     setAutocompleteResults([]);
@@ -1021,7 +1132,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         // Detectar consultas NSFW y mostrar advertencia (solo en contextos no-adultos)
         if (!allowNsfw) {
             try {
-                const nsfwCheck = detectNsfwQuery(value);
+                const nsfwCheck = detectNsfwQuery(value, lang);
                 if (nsfwCheck && nsfwCheck.isNsfw) {
                     setNsfwWarning(nsfwCheck.message);
                     clearAutocomplete();
@@ -1048,7 +1159,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
 
         if (!allowNsfw) {
             try {
-                const nsfwCheck = detectNsfwQuery(text);
+                const nsfwCheck = detectNsfwQuery(text, lang);
                 if (nsfwCheck && nsfwCheck.isNsfw) {
                     setNsfwWarning(nsfwCheck.message);
                     return;
@@ -1081,7 +1192,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                 onSubmit={handleSubmit}
                 aria-label="IA Imperial"
             >
-                {loading && <span className="sr-only" role="status">Buscando resultados...</span>}
+                {loading && <span className="sr-only" role="status">{lang === 'en' ? 'Searching for results...' : 'Buscando resultados...'}</span>}
                 <div className="ia-shimmer" aria-hidden="true" />
 
                 <svg className="ia-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1102,18 +1213,29 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                         refreshHistory();
                         rotateSimilar();
                     }}
-                    onBlur={() => setTimeout(() => setIsFocused(false), 150)}
+                    onBlur={(e) => {
+                        // Si el foco se movió a un hijo del wrapper (tab / sugerencia), dejamos
+                        // que el input pierda el foco real (así el teclado móvil se cierra) pero
+                        // mantenemos el dropdown abierto.
+                        const next = e.relatedTarget;
+                        if (next instanceof Node && wrapperRef.current && wrapperRef.current.contains(next)) {
+                            return;
+                        }
+                        // Foco fuera del wrapper (o desconocido): cerrar dropdown con un pequeño
+                        // delay para permitir que clicks en links del dropdown se completen.
+                        setTimeout(() => setIsFocused(false), 150);
+                    }}
                     className="ia-input"
                     disabled={loading}
                     spellCheck="false"
                     autoComplete="off"
                     maxLength={300}
-                    placeholder={loading ? 'Buscando...' : (placeholder)}
-                    aria-label="Escribe tu consulta"
+                    placeholder={loading ? (lang === 'en' ? 'Searching...' : 'Buscando...') : (placeholder)}
+                    aria-label={lang === 'en' ? 'Type your query' : 'Escribe tu consulta'}
                 />
 
                 {loading && (
-                    <div className="ia-dots" aria-label="Procesando">
+                    <div className="ia-dots" aria-label={lang === 'en' ? 'Processing' : 'Procesando'}>
                         <span /><span /><span />
                     </div>
                 )}
@@ -1131,7 +1253,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                         <span>{nsfwWarning}</span>
                     </div>
                     <Link href="/nsfw" className="ia-nsfw-warning-link">
-                        Ir a /nsfw
+                        {lang === 'en' ? 'Go to /nsfw' : 'Ir a /nsfw'}
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="5" y1="12" x2="19" y2="12" />
                             <polyline points="12 5 19 12 12 19" />
@@ -1161,7 +1283,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                             <button
                                 className="ia-response-close"
                                 onClick={onClear}
-                                aria-label="Cerrar respuesta IA"
+                                aria-label={lang === 'en' ? 'Close AI response' : 'Cerrar respuesta IA'}
                                 type="button"
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -1179,7 +1301,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
             )}
 
             {showIncognitoDropdown && (
-                <div className="ia-suggestions" role="status" aria-label="Modo incógnito">
+                <div className="ia-suggestions" role="status" aria-label={lang === 'en' ? 'Incognito mode' : 'Modo incógnito'}>
                     <div className="ia-incognito-note" aria-hidden="true">
                         <div className="ia-incognito-icon-wrap">
                             <svg className="ia-incognito-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1188,8 +1310,8 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                             </svg>
                         </div>
                         <div className="ia-incognito-copy">
-                            <span className="ia-incognito-title">Modo incognito</span>
-                            <span className="ia-incognito-subtitle">No se muestra historial ni sugerencias públicas.</span>
+                            <span className="ia-incognito-title">{lang === 'en' ? 'Incognito mode' : 'Modo incognito'}</span>
+                            <span className="ia-incognito-subtitle">{lang === 'en' ? 'History and public suggestions are hidden.' : 'No se muestra historial ni sugerencias públicas.'}</span>
                         </div>
                     </div>
                 </div>
@@ -1197,12 +1319,12 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
 
             {/* Dropdown de historial + consultas populares / autocomplete */}
             {showDropdown && (
-                <div className="ia-suggestions" role="listbox" aria-label="Sugerencias de búsqueda">
+                <div className="ia-suggestions" role="listbox" aria-label={lang === 'en' ? 'Search suggestions' : 'Sugerencias de búsqueda'}>
                     {query.length === 0 ? (
                         /* Modo vacío: tabs de navegación */
                         <>
                             {/* ─── Barra de tabs ─── */}
-                            <div className="ia-tabs-bar" role="tablist" aria-label="Categorías de sugerencias">
+                            <div className="ia-tabs-bar" role="tablist" aria-label={lang === 'en' ? 'Suggestion categories' : 'Categorías de sugerencias'}>
                                 {[
                                     { id: 'popular',  label: lang === 'en' ? 'Popular' : 'Populares' },
                                     { id: 'trending', label: lang === 'en' ? '🔥 Trending' : '🔥 Tendencias' },
@@ -1220,7 +1342,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                             'ia-tab',
                                             activeTab === tab.id ? 'ia-tab-active' : '',
                                         ].filter(Boolean).join(' ')}
-                                        onMouseDown={(e) => { e.preventDefault(); setActiveTab(tab.id); }}
+                                        onClick={() => setActiveTab(tab.id)}
                                     >
                                         {tab.label}
                                     </button>
@@ -1238,7 +1360,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 key={`pop-${s.query}`}
                                                 type="button"
                                                 className={`ia-suggestion-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
-                                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                onClick={() => handleSuggestionClick(s.query)}
                                                 role="option"
                                             >
                                                 <RankBadge rank={i + 1} />
@@ -1264,7 +1386,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                     key={`new-${s.query}-${i}`}
                                                     type="button"
                                                     className={`ia-suggestion-item ia-newest-item${isBumped ? ' ia-count-bumped' : ''}`}
-                                                    onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                    onClick={() => handleSuggestionClick(s.query)}
                                                     role="option"
                                                 >
                                                     <svg className="ia-newest-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1274,7 +1396,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                     <span className="ia-suggestion-text-wrap">
                                                         <span className="ia-suggestion-text">{s.query}</span>
                                                         {s.firstSeen && (
-                                                            <span className="ia-newest-time">{timeAgo(s.firstSeen)}</span>
+                                                            <span className="ia-newest-time">{timeAgo(s.firstSeen, lang)}</span>
                                                         )}
                                                     </span>
                                                     {s.count != null && s.count > 1 && (
@@ -1300,7 +1422,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 key={`sim-${s.query}`}
                                                 type="button"
                                                 className={`ia-suggestion-item ia-similar-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
-                                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                onClick={() => handleSuggestionClick(s.query)}
                                                 role="option"
                                             >
                                                 <RankBadge rank={i + 1} />
@@ -1328,7 +1450,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 key={`trend-${s.query}-${i}`}
                                                 type="button"
                                                 className={`ia-suggestion-item ia-trending-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
-                                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                onClick={() => handleSuggestionClick(s.query)}
                                                 role="option"
                                             >
                                                 <span className={`ia-trending-badge ${i < 3 ? 'ia-trending-hot' : ''}`}>
@@ -1337,7 +1459,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 <span className="ia-suggestion-text-wrap">
                                                     <span className="ia-suggestion-text">{s.query}</span>
                                                     {s.lastSeen && (
-                                                        <span className="ia-trending-time">{timeAgo(s.lastSeen)}</span>
+                                                        <span className="ia-trending-time">{timeAgo(s.lastSeen, lang)}</span>
                                                     )}
                                                 </span>
                                                 {s.count != null && (
@@ -1357,7 +1479,11 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                             <>
                                                 {lastSearchedQuery.current && (
                                                     <p className="ia-afterSearch-header">
-                                                        Porque buscaste <strong>{lastSearchedQuery.current}</strong>, otros buscaron:
+                                                        {lang === 'en' ? (
+                                                            <>Because you searched <strong>{lastSearchedQuery.current}</strong>, others also searched:</>
+                                                        ) : (
+                                                            <>Porque buscaste <strong>{lastSearchedQuery.current}</strong>, otros buscaron:</>
+                                                        )}
                                                     </p>
                                                 )}
                                                 {afterSearchSuggestions.slice(0, 10).map((s, i) => (
@@ -1365,7 +1491,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                         key={`after-${s.query}-${i}`}
                                                         type="button"
                                                         className={`ia-suggestion-item ia-afterSearch-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
-                                                        onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                        onClick={() => handleSuggestionClick(s.query)}
                                                         role="option"
                                                     >
                                                         <span className="ia-afterSearch-badge">👥</span>
@@ -1392,7 +1518,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                 key={`rel-${s.query}-${i}`}
                                                 type="button"
                                                 className={`ia-suggestion-item ia-related-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
-                                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s.query); }}
+                                                onClick={() => handleSuggestionClick(s.query)}
                                                 role="option"
                                             >
                                                 <span className="ia-related-badge">
@@ -1423,13 +1549,13 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                         <>
                             {filteredPhrases.length > 0 && (
                                 <>
-                                    <p className="ia-suggestions-label">Sugerencias IA</p>
+                                    <p className="ia-suggestions-label">{lang === 'en' ? 'AI Suggestions' : 'Sugerencias IA'}</p>
                                     {filteredPhrases.map((phrase) => (
                                         <button
                                             key={phrase}
                                             type="button"
                                             className="ia-suggestion-item"
-                                            onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(phrase); }}
+                                            onClick={() => handleSuggestionClick(phrase)}
                                             role="option"
                                         >
                                             <svg className="ia-ai-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1442,18 +1568,17 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                             )}
                             {autocompleteResults.length > 0 && (
                                 <>
-                                    <p className="ia-suggestions-label">Resultados</p>
+                                    <p className="ia-suggestions-label">{lang === 'en' ? 'Results' : 'Resultados'}</p>
                                     {autocompleteResults.map((r) => (
                                         <a
                                             key={r.slug}
-                                            href={`/series/${r.slug}`}
+                                            href={getLocalizedPath(`/manhwa/${r.slug}`, lang)}
                                             className="ia-suggestion-item ia-series-result"
-                                            onMouseDown={(e) => { e.preventDefault(); }}
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 clearAutocomplete();
                                                 setIsFocused(false);
-                                                router.push(`/manhwa/${r.slug}`);
+                                                router.push(getLocalizedPath(`/manhwa/${r.slug}`, lang));
                                             }}
                                             role="option"
                                         >
@@ -1481,7 +1606,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                             )}
                             {autocompleteLoading && autocompleteResults.length === 0 && (
                                 <div className="ia-autocomplete-loading">
-                                    <div className="ia-dots" aria-label="Cargando">
+                                    <div className="ia-dots" aria-label={lang === 'en' ? 'Loading' : 'Cargando'}>
                                         <span /><span /><span />
                                     </div>
                                 </div>

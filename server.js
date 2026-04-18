@@ -58,6 +58,144 @@ function normalizeLang(value) {
     return SUPPORTED_LANGS.includes(primary) ? primary : DEFAULT_LANG;
 }
 
+// --- Filtrado del catálogo por idioma del request ---
+// Alineado con manhwa-nextjs/src/utils/adultContent.js para que cliente y servidor
+// usen el mismo criterio (evita resultados fantasma).
+const SERIES_LANG_ALIASES = {
+    es: 'es', spa: 'es', esp: 'es', spanish: 'es', 'español': 'es', espanol: 'es',
+    'es-es': 'es', 'es-mx': 'es', 'es-la': 'es', 'es-419': 'es', castellano: 'es',
+    en: 'en', eng: 'en', english: 'en', ingles: 'en', 'inglés': 'en',
+    'en-us': 'en', 'en-gb': 'en',
+};
+
+function normalizeLangCode(value, _depth = 0) {
+    if (value === null || value === undefined) return null;
+    // Evitar recursión infinita con objetos/arrays auto-referenciados
+    if (_depth > 4) return null;
+
+    try {
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                const code = normalizeLangCode(item, _depth + 1);
+                if (code) return code;
+            }
+            return null;
+        }
+
+        if (typeof value === 'object') {
+            return normalizeLangCode(
+                value.code || value.lang || value.language || value.locale || null,
+                _depth + 1
+            );
+        }
+
+        const raw = String(value).toLowerCase().trim();
+        if (!raw) return null;
+
+        if (Object.prototype.hasOwnProperty.call(SERIES_LANG_ALIASES, raw)) {
+            return SERIES_LANG_ALIASES[raw];
+        }
+
+        const short = raw.split(/[-_]/)[0].slice(0, 3);
+        if (Object.prototype.hasOwnProperty.call(SERIES_LANG_ALIASES, short)) {
+            return SERIES_LANG_ALIASES[short];
+        }
+
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+// Computa el conjunto de idiomas declarados por la serie (vacío = legacy sin etiqueta).
+// Nunca lanza: datos malformados → Set vacío (interpretado como legacy → 'es').
+function computeSeriesLangs(series) {
+    const found = new Set();
+    if (!series || typeof series !== 'object') return found;
+
+    try {
+        const candidates = [series.language, series.languages, series.lang, series.locale, series.idioma];
+        for (const candidate of candidates) {
+            if (candidate === null || candidate === undefined) continue;
+
+            if (Array.isArray(candidate)) {
+                for (const item of candidate) {
+                    const code = normalizeLangCode(item);
+                    if (code) found.add(code);
+                }
+                continue;
+            }
+
+            if (typeof candidate === 'string' && candidate.includes(',')) {
+                for (const part of candidate.split(',')) {
+                    const code = normalizeLangCode(part);
+                    if (code) found.add(code);
+                }
+                continue;
+            }
+
+            const code = normalizeLangCode(candidate);
+            if (code) found.add(code);
+        }
+    } catch (err) {
+        // Serie con datos corruptos: tratar como legacy sin idioma
+        try { logger.warn('computeSeriesLangs: datos corruptos', { id: series && series.id, error: err && err.message }); } catch { /* logger no disponible aún */ }
+    }
+
+    return found;
+}
+
+// Series sin idioma declarado (legacy) se asignan a DEFAULT_LANG ('es') para
+// no vaciar la biblioteca antes de migrar todo el catálogo. En /en quedan fuera.
+function matchesRequestLang(series, reqLang) {
+    if (!series || typeof series !== 'object') return false;
+    const target = SUPPORTED_LANGS.includes(reqLang) ? reqLang : DEFAULT_LANG;
+    const langs = series._langs instanceof Set ? series._langs : computeSeriesLangs(series);
+    if (langs.size === 0) return target === DEFAULT_LANG;
+    return langs.has(target);
+}
+
+function filterByRequestLang(seriesArray, reqLang) {
+    if (!Array.isArray(seriesArray) || seriesArray.length === 0) return [];
+    const target = SUPPORTED_LANGS.includes(reqLang) ? reqLang : DEFAULT_LANG;
+    const indexed = seriesIndexByLang.get(target);
+    // Si el índice está disponible y corresponde al catálogo actual, usarlo (O(1) lookup).
+    if (Array.isArray(indexed) && seriesArray === seriesCache) return indexed;
+    // Fallback genérico para arrays arbitrarios (ej. subconjuntos ya filtrados).
+    return seriesArray.filter(s => matchesRequestLang(s, target));
+}
+
+// Índice precomputado de series por idioma. Se rebuildea cada vez que seriesCache cambia.
+// Clave = código de idioma soportado; valor = array de series. Evita O(n) en cada request.
+const seriesIndexByLang = new Map();
+
+function rebuildLanguageIndex() {
+    seriesIndexByLang.clear();
+    for (const lang of SUPPORTED_LANGS) seriesIndexByLang.set(lang, []);
+
+    if (!Array.isArray(seriesCache) || seriesCache.length === 0) return;
+
+    for (const s of seriesCache) {
+        try {
+            const langs = s && s._langs instanceof Set ? s._langs : computeSeriesLangs(s);
+            if (langs.size === 0) {
+                // Legacy sin idioma → DEFAULT_LANG
+                const bucket = seriesIndexByLang.get(DEFAULT_LANG);
+                if (bucket) bucket.push(s);
+                continue;
+            }
+            for (const code of langs) {
+                const bucket = seriesIndexByLang.get(code);
+                if (bucket) bucket.push(s);
+            }
+        } catch {
+            // Serie corrupta: al bucket por defecto
+            const bucket = seriesIndexByLang.get(DEFAULT_LANG);
+            if (bucket) bucket.push(s);
+        }
+    }
+}
+
 // Heurística ligera para detectar idioma por contenido. Devuelve 'es', 'en' o null si no es claro.
 // Solo para detectar señales MUY obvias (palabras funcionales exclusivas de un idioma).
 const EN_SIGNAL_RE = /\b(the|with|about|looking|recommend|where|similar to|reincarnat|revenge|system|hunter|tower|dungeon|female|male lead|want|need|please|find me|isekai)\b/i;
@@ -850,7 +988,8 @@ function normalizeData(data) {
             _views: parseInt(s.views) || 0,
             _weeklyViews: parseInt(s.weeklyViews) || 0,
             _monthlyViews: parseInt(s.monthlyViews) || 0,
-            _year: parseInt(s.releaseYear) || 0
+            _year: parseInt(s.releaseYear) || 0,
+            _langs: computeSeriesLangs(s),
         };
     });
 }
@@ -895,6 +1034,7 @@ async function refreshCache() {
             seriesCache = normalizeData(rawList);
             buildGenreIndex(); // Construir índice invertido tras normalizar datos
             buildKeywordIndex(); // Índice O(1) para palabras sueltas
+            rebuildLanguageIndex(); // Índice por idioma (O(1) filter en /api/read)
 
             // Sincronizar embeddings de series nuevas en background
             if (dbAvailable()) {
@@ -919,7 +1059,12 @@ async function refreshCache() {
             fuse = new Fuse(seriesCache, fuseOptions);
 
             lastFetchTime = Date.now();
-            logger.info('Cache actualizado', { count: seriesCache.length });
+            const langDist = {};
+            for (const lang of SUPPORTED_LANGS) {
+                const bucket = seriesIndexByLang.get(lang);
+                langDist[lang] = Array.isArray(bucket) ? bucket.length : 0;
+            }
+            logger.info('Cache actualizado', { count: seriesCache.length, langDist });
             return true;
         } catch (err) {
             logger.error('Error en refreshCache', err);
@@ -933,7 +1078,9 @@ async function refreshCache() {
 }
 
 // --- BÚSQUEDA INTELIGENTE: subcadena + fuzzy ---
-function performFallbackSearch(userMsg) {
+// Opera sobre el subconjunto del catálogo correspondiente al idioma del request.
+// Series sin idioma declarado (legacy) se incluyen en el bucket DEFAULT_LANG.
+function performFallbackSearch(userMsg, reqLang = DEFAULT_LANG) {
     const query = cleanText(userMsg);
     if (!query || query.length < 2) return [];
 
@@ -941,9 +1088,13 @@ function performFallbackSearch(userMsg) {
     const seen = new Set();
     const results = [];
 
+    // Fuente primaria: series ya filtradas por idioma (O(1) lookup vía índice).
+    const pool = filterByRequestLang(seriesCache, reqLang);
+    if (pool.length === 0) return [];
+
     // Paso 1: Título contiene la query completa como subcadena
     // "solo lev" -> "Solo Leveling" ✓
-    for (const s of seriesCache) {
+    for (const s of pool) {
         if (s._searchTitle && s._searchTitle.includes(query)) {
             seen.add(s.id);
             // Score basado en qué tan exacto es el match (título corto = más relevante)
@@ -955,7 +1106,7 @@ function performFallbackSearch(userMsg) {
     }
 
     // Paso 2: Títulos alternativos / título original contiene la query
-    for (const s of seriesCache) {
+    for (const s of pool) {
         if (seen.has(s.id)) continue;
         const altMatch = (s.alternativeTitles || []).some(alt => cleanText(alt).includes(query));
         const origMatch = s.originalTitle && cleanText(s.originalTitle).includes(query);
@@ -968,7 +1119,7 @@ function performFallbackSearch(userMsg) {
     // Paso 3: Todas las palabras del query aparecen en el título (orden libre)
     // "leveling solo" -> "Solo Leveling" ✓
     if (queryWords.length > 1) {
-        for (const s of seriesCache) {
+        for (const s of pool) {
             if (seen.has(s.id)) continue;
             const title = s._searchTitle || '';
             const allMatch = queryWords.every(w => title.includes(w));
@@ -981,11 +1132,13 @@ function performFallbackSearch(userMsg) {
 
     // Paso 3.5: Keyword Index O(1) — búsqueda instantánea por palabras clave
     // "sistema" -> todas las series con "sistema" en el título
+    // El keyword index es global, así que filtramos por idioma inline.
     for (const word of queryWords) {
         const indexed = keywordIndex[word];
         if (indexed) {
             for (const s of indexed) {
                 if (seen.has(s.id)) continue;
+                if (!matchesRequestLang(s, reqLang)) continue;
                 seen.add(s.id);
                 results.push({ item: s, score: 0.22, source: 'keyword_index' });
             }
@@ -994,25 +1147,26 @@ function performFallbackSearch(userMsg) {
 
     // Paso 4: Fuse.js fuzzy (typos, mala ortografía)
     // "sollo levelig" -> "Solo Leveling" ✓
+    // Fuse opera sobre seriesCache completo; filtramos por idioma al consumir.
     if (fuse) {
         try {
             const fuseResults = fuse.search(userMsg);
             for (const r of fuseResults) {
                 if (!r || !r.item || seen.has(r.item.id)) continue;
-                if (r.score <= 0.45) {
-                    seen.add(r.item.id);
-                    results.push({ item: r.item, score: 0.3 + r.score, source: 'fuzzy' });
-                }
+                if (r.score > 0.45) continue;
+                if (!matchesRequestLang(r.item, reqLang)) continue;
+                seen.add(r.item.id);
+                results.push({ item: r.item, score: 0.3 + r.score, source: 'fuzzy' });
             }
         } catch (fuseErr) {
-            logger.warn('Fuse.js falló en búsqueda', { error: fuseErr.message });
+            logger.warn('Fuse.js falló en búsqueda', { error: fuseErr && fuseErr.message });
         }
     }
 
     // Paso 5: Búsqueda en texto completo (sinopsis, géneros, temas) — complementar resultados
     // "protagonista op" busca en sinopsis y metadata
     if (queryWords.length > 0) {
-        for (const s of seriesCache) {
+        for (const s of pool) {
             if (seen.has(s.id)) continue;
             const text = s._fullText || '';
             const matchCount = queryWords.filter(w => text.includes(w)).length;
@@ -1031,6 +1185,7 @@ function performFallbackSearch(userMsg) {
     logger.info('Búsqueda inteligente', {
         query: userMsg,
         results: results.length,
+        lang: reqLang,
         sources: results.slice(0, 5).map(r => `${r.source}(${r.score.toFixed(2)})`)
     });
     // Devolver objetos con score para que el endpoint pueda evaluar calidad
@@ -1118,7 +1273,7 @@ function hybridRerank(results, userMsg) {
     }).sort((a, b) => b.similarity - a.similarity); // Re-ordenar por similitud ajustada
 }
 
-async function performVectorSearch(userMsg) {
+async function performVectorSearch(userMsg, reqLang = DEFAULT_LANG) {
     if (!dbAvailable()) return null;
 
     try {
@@ -1139,17 +1294,35 @@ async function performVectorSearch(userMsg) {
             );
         }
 
-        // Ejecutar búsqueda vectorial con threshold dinámico
-        // Pedir más resultados (50) para tener margen de re-ranking y devolver 40+
-        const vectorResults = await vectorSearch(queryEmbedding, 50, minSimilarity);
+        // Pre-filtrado por idioma ANTES de tocar el vector DB: computamos los IDs
+        // del bucket del idioma solicitado y se los pasamos a `vectorSearch` como
+        // `allowedIds`. Así pgvector calcula similitud sólo sobre series EN (o ES)
+        // en lugar de devolver top-K global y filtrar después. Ventajas:
+        //   1. El top-K refleja realmente las más similares *dentro* del idioma,
+        //      no lo que sobrevivió a un recorte posterior.
+        //   2. Evita perder candidatos válidos cuando el idioma es minoritario
+        //      en el catálogo (ej: EN ~6%).
+        // Fallback: si el índice por idioma está vacío o el embeddings service
+        // corre una versión vieja que ignora `allowedIds`, el filtro en memoria
+        // de abajo sigue actuando como red de seguridad.
+        const langPool = filterByRequestLang(seriesCache, reqLang);
+        if (langPool.length === 0) return null;
+        const allowedIds = langPool.map(s => s.id);
+
+        // Pool amplio (1000): con el pre-filtrado por idioma el coste real lo pone
+        // el tamaño del bucket del idioma, no este número. Queda alto para que no
+        // sea el limitante perceptible.
+        const vectorResults = await vectorSearch(queryEmbedding, 1000, minSimilarity, { allowedIds });
 
         if (!vectorResults || vectorResults.length === 0) return null;
 
-        // Mapear resultados a objetos de seriesCache por ID
+        // Mapear resultados a objetos de seriesCache por ID. Re-aplicamos
+        // `matchesRequestLang` como red de seguridad por si el servicio de
+        // embeddings aún no soporta `allowedIds` (versión antigua desplegada).
         const rawResults = [];
         for (const vr of vectorResults) {
             const series = seriesCache.find(s => s.id === vr.id);
-            if (series) {
+            if (series && matchesRequestLang(series, reqLang)) {
                 rawResults.push({
                     item: series,
                     score: 1 - vr.similarity,
@@ -1167,6 +1340,7 @@ async function performVectorSearch(userMsg) {
         metrics.vectorSearches++;
         logger.info('Vector search completado', {
             query: userMsg,
+            lang: reqLang,
             threshold: minSimilarity,
             rawResults: rawResults.length,
             results: results.length,
@@ -2330,7 +2504,7 @@ function resolveHistorySeries(queryText, queryKey, lang = DEFAULT_LANG) {
         }
     }
 
-    const fallback = performFallbackSearch(queryText).slice(0, 15).map(r => r.item);
+    const fallback = performFallbackSearch(queryText, lang).slice(0, 15).map(r => r.item);
     return {
         series: sanitizeSeriesForResponse(fallback),
         source: 'fallback'
@@ -3809,6 +3983,20 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         // Si el cliente envía este header, no registrar en historial ni caché de queries
         const skipHistory = req.headers['x-skip-history'] === 'true';
 
+        // Validar que exista catálogo para el idioma solicitado. Si no hay series en reqLang
+        // (ej. EN aún sin migrar), degradar con mensaje claro en lugar de respuestas vacías.
+        const langBucket = seriesIndexByLang.get(reqLang) || [];
+        if (langBucket.length === 0) {
+            logger.warn('Catálogo vacío para el idioma solicitado', { reqLang, catalogSize: seriesCache.length });
+            return safeJson(200, {
+                success: true,
+                explanation: t(reqLang, 'noResults', { q: userMsg }),
+                series: [],
+                source: 'empty_catalog_for_lang',
+                lang: reqLang
+            });
+        }
+
         // 0a. Detectar consultas NSFW y redirigir a /nsfw
         // Si la petición viene del contexto /nsfw (header X-Search-Context), permitir
         const searchContext = (req.headers['x-search-context'] || '').toLowerCase();
@@ -3845,8 +4033,8 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             return safeJson(200, payload);
         }
 
-        // 2. BÚSQUEDA LOCAL: solo para matches de título exacto/subcadena
-        const localResults = performFallbackSearch(userMsg);
+        // 2. BÚSQUEDA LOCAL: solo para matches de título exacto/subcadena (filtrado por idioma)
+        const localResults = performFallbackSearch(userMsg, reqLang);
 
         // Solo retornar local si es un match de título exacto (source 'exact' o 'alt_title')
         // Esto cubre búsquedas como "Solo Leveling", "Omniscient Reader" etc.
@@ -3870,9 +4058,9 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         // 3. Si hay negación → ruta directa a Chat Completions AI
         const hasNegationEarly = detectNegative(userMsg, reqLang);
 
-        // 4. VECTOR SEARCH: método primario para queries semánticas
+        // 4. VECTOR SEARCH: método primario para queries semánticas (filtrado por idioma)
         if (!hasNegationEarly && dbAvailable()) {
-            const vectorResults = await performVectorSearch(userMsg);
+            const vectorResults = await performVectorSearch(userMsg, reqLang);
             if (vectorResults && vectorResults.length > 0) {
                 const seriesItems = vectorResults.map(r => r.item);
                 const payload = {
@@ -3917,11 +4105,11 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         }
 
         if (!aiResult || !aiResult.filter) {
-            // Fallback: búsqueda con query enriquecido (sinónimos aplicados)
-            let fallbackRaw = performFallbackSearch(enrichedInput);
+            // Fallback: búsqueda con query enriquecido (sinónimos aplicados), filtrado por idioma
+            let fallbackRaw = performFallbackSearch(enrichedInput, reqLang);
             // Si el enriquecido no dio resultados, intentar con el original
             if (fallbackRaw.length === 0) {
-                fallbackRaw = performFallbackSearch(userMsg);
+                fallbackRaw = performFallbackSearch(userMsg, reqLang);
             }
             const fallback = fallbackRaw.map(r => r.item);
             metrics.fallbackSearches++;
@@ -3939,8 +4127,8 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             return safeJson(200, payload);
         }
 
-        // 4. Filtrar series según la respuesta de la IA
-        let filtered = [...seriesCache];
+        // 4. Filtrar series según la respuesta de la IA (arrancar desde catálogo ya filtrado por idioma)
+        let filtered = filterByRequestLang(seriesCache, reqLang);
         const filter = aiResult.filter;
         const hasNegation = detectNegative(userMsg, reqLang);
 
@@ -4055,9 +4243,9 @@ app.post('/api/read', aiLimiter, async (req, res) => {
 
         const results = filtered;
 
-        // Si no hay resultados filtrados, fallback
+        // Si no hay resultados filtrados, fallback (filtrado por idioma)
         if (results.length === 0) {
-            const fallback = performFallbackSearch(userMsg).map(r => r.item);
+            const fallback = performFallbackSearch(userMsg, reqLang).map(r => r.item);
             const payload = {
                 success: true,
                 explanation: aiResult.reason || t(reqLang, 'resultsFor', { q: userMsg }),

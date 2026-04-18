@@ -178,12 +178,13 @@ export default function BusquedaIAClient({ querySlug }) {
 
     const { series: catalogSeries = [] } = useSpaces();
 
-    // Derivar query: intentar recuperar original del caché, sino humanizar el slug
+    // Derivar query: intentar recuperar original del caché, sino humanizar el slug.
+    // Pasamos lang para que el lookup use el bucket correcto (evita que EN caiga en ES).
     const searchQuery = useMemo(() => {
-        const original = getOriginalQuery(slugDecoded);
+        const original = getOriginalQuery(slugDecoded, { lang });
         if (original) return original;
         return slugDecoded.replace(/-/g, ' ');
-    }, [slugDecoded]);
+    }, [slugDecoded, lang]);
 
     // Buscar cuando cambia el slug (incluye mount inicial y navegación SPA sin desmontaje)
     useEffect(() => {
@@ -565,7 +566,7 @@ export default function BusquedaIAClient({ querySlug }) {
                                         </Button>
                                     )}
                                     <Button variant="light" color="cyan" radius="md" onClick={handleClearFilters}>
-                                        Volver al catálogo
+                                        {lang === 'en' ? 'Back to catalog' : 'Volver al catálogo'}
                                     </Button>
                                 </Group>
                             </Stack>

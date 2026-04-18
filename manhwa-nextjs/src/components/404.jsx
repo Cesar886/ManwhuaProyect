@@ -21,10 +21,10 @@ export default function NotFound() {
     const handleIASearch = useCallback((pregunta) => {
         const slug = slugifyQuery(pregunta);
         setNavigating(true);
-        const targetPath = `/busqueda-ia/${slug}`;
+        const targetPath = getLocalizedPath(`/busqueda-ia/${slug}`, lang);
         router.prefetch(targetPath);
         router.push(targetPath);
-    }, [router]);
+    }, [router, lang]);
 
     return (
         <div className={classes.root}>

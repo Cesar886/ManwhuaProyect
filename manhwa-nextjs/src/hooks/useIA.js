@@ -29,8 +29,72 @@ const PROMPT_INJECTION_PATTERNS = [
     /<(system|assistant|developer)>[\s\S]*?<\/(system|assistant|developer)>/i,
 ];
 
+// --- Mensajes localizables (ES/EN) ---
+const I18N = {
+    nsfwRedirect: {
+        es: 'Este tipo de búsqueda pertenece a la sección +18. Usa el buscador en /nsfw para encontrar contenido adulto.',
+        en: 'This type of search belongs to the +18 section. Use the search at /nsfw to find adult content.',
+    },
+    emptyQuery: { es: 'Por favor escribe una pregunta', en: 'Please enter a question' },
+    invalidQuery: { es: 'Por favor escribe una pregunta válida', en: 'Please enter a valid question' },
+    promptBlocked: {
+        es: 'Tu consulta parece contener instrucciones no permitidas. Reformúlala como una búsqueda de manhwa.',
+        en: 'Your query looks like it contains disallowed instructions. Rephrase it as a manhwa search.',
+    },
+    guestLimit: {
+        es: (n) => `Has alcanzado el límite diario de ${n} consultas IA. Regístrate para seguir usándola.`,
+        en: (n) => `You've reached the daily limit of ${n} AI queries. Sign up to keep using it.`,
+    },
+    userLimit: {
+        es: (n) => `Has alcanzado el límite diario de ${n} consultas IA.`,
+        en: (n) => `You've reached the daily limit of ${n} AI queries.`,
+    },
+    dailyLimitGeneric: {
+        es: 'Has alcanzado el límite diario de consultas IA.',
+        en: "You've reached the daily AI query limit.",
+    },
+    errAiMaintenance: {
+        es: 'El servicio IA está en mantenimiento o temporalmente bloqueado por la red. Intenta en unos minutos.',
+        en: 'The AI service is under maintenance or temporarily blocked. Try again in a few minutes.',
+    },
+    errAiTimeout: {
+        es: 'La IA tardó demasiado en responder. Intenta nuevamente en unos segundos.',
+        en: 'The AI took too long to respond. Try again in a few seconds.',
+    },
+    errAiUnavailable: {
+        es: 'No se pudo conectar con el servicio IA. Verifica la conectividad y vuelve a intentar.',
+        en: 'Could not reach the AI service. Check your connection and try again.',
+    },
+    errNoInternet: {
+        es: 'Sin conexión a internet. Revisa tu red e intenta de nuevo.',
+        en: 'No internet connection. Check your network and try again.',
+    },
+    errNetwork: {
+        es: 'No se pudo conectar con el servidor. Intenta de nuevo en unos segundos.',
+        en: 'Could not reach the server. Try again in a few seconds.',
+    },
+    err5xx: {
+        es: 'El servidor de IA está temporalmente sobrecargado. Intenta en unos minutos.',
+        en: 'The AI server is temporarily overloaded. Try again in a few minutes.',
+    },
+    errGeneric: {
+        es: 'Error al conectar con la IA',
+        en: 'Error connecting to the AI',
+    },
+    errProcess: {
+        es: 'La IA no pudo procesar la solicitud correctamente',
+        en: 'The AI could not process the request correctly',
+    },
+};
+
+export function tMsg(key, lang, ...args) {
+    const entry = I18N[key];
+    if (!entry) return '';
+    const value = entry[lang === 'en' ? 'en' : 'es'];
+    return typeof value === 'function' ? value(...args) : value;
+}
+
 // --- Detección de contenido NSFW para redirigir a /nsfw ---
-const NSFW_REDIRECT_MESSAGE = 'Este tipo de búsqueda pertenece a la sección +18. Usa el buscador en /nsfw para encontrar contenido adulto.';
 const NSFW_SAFE = Object.freeze({ isNsfw: false, message: null });
 
 // NOTA: Todos los patrones asumen texto ya normalizado (lowercase, sin diacríticos,
@@ -155,7 +219,7 @@ function normalizeForNsfw(text) {
  * @param {string} query
  * @returns {{ isNsfw: boolean, message: string | null }}
  */
-export function detectNsfwQuery(query) {
+export function detectNsfwQuery(query, lang = 'es') {
     try {
         const raw = typeof query === 'string' ? query : String(query || '');
         if (raw.length < 2) return NSFW_SAFE;
@@ -165,7 +229,7 @@ export function detectNsfwQuery(query) {
 
         for (let i = 0; i < NSFW_PATTERNS.length; i++) {
             if (NSFW_PATTERNS[i].test(sample)) {
-                return { isNsfw: true, message: NSFW_REDIRECT_MESSAGE };
+                return { isNsfw: true, message: tMsg('nsfwRedirect', lang) };
             }
         }
         return NSFW_SAFE;
@@ -180,22 +244,25 @@ const storageAvailability = {
     session: null,
 };
 
-function buildCacheConfig(namespace = 'default') {
+function buildCacheConfig(namespace = 'default', lang = 'es') {
+    const safeLang = lang === 'en' ? 'en' : 'es';
     const normalizedNamespace = String(namespace || 'default').trim().toLowerCase();
     if (normalizedNamespace === 'default') {
         return {
             namespace: 'default',
-            cachePrefix: DEFAULT_CACHE_PREFIX,
-            cacheIndexKey: DEFAULT_CACHE_INDEX_KEY,
+            lang: safeLang,
+            cachePrefix: `${DEFAULT_CACHE_PREFIX}${safeLang}_`,
+            cacheIndexKey: `${DEFAULT_CACHE_INDEX_KEY}_${safeLang}`,
             storage: 'session',
         };
     }
 
-    const safeNamespace = normalizedNamespace.replace(/[^a-z0-9_-]/g, '');
+    const safeNamespace = normalizedNamespace.replace(/[^a-z0-9_-]/g, '') || 'default';
     return {
-        namespace: safeNamespace || 'default',
-        cachePrefix: `${DEFAULT_CACHE_PREFIX}${safeNamespace || 'default'}_`,
-        cacheIndexKey: `${DEFAULT_CACHE_INDEX_KEY}_${safeNamespace || 'default'}`,
+        namespace: safeNamespace,
+        lang: safeLang,
+        cachePrefix: `${DEFAULT_CACHE_PREFIX}${safeLang}_${safeNamespace}_`,
+        cacheIndexKey: `${DEFAULT_CACHE_INDEX_KEY}_${safeLang}_${safeNamespace}`,
         storage: 'local',
     };
 }
@@ -539,7 +606,7 @@ function saveToCache(query, data, config = buildCacheConfig()) {
 
 // Devuelve las últimas N búsquedas del historial de caché
 export function getSearchHistory(limit = 5, options = {}) {
-    const cacheConfig = buildCacheConfig(options.namespace);
+    const cacheConfig = buildCacheConfig(options.namespace, options.lang);
     const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.min(50, limit)) : 5;
     const index = getCacheIndex(cacheConfig);
     return index
@@ -558,7 +625,7 @@ export function getSearchHistory(limit = 5, options = {}) {
 export function removeFromHistory(slug, options = {}) {
     if (typeof window === 'undefined') return;
     try {
-        const cacheConfig = buildCacheConfig(options.namespace);
+        const cacheConfig = buildCacheConfig(options.namespace, options.lang);
         const storage = resolveStorage(cacheConfig);
         if (!storage) return;
         const safeSlug = String(slug || '').trim();
@@ -574,7 +641,7 @@ export function removeFromHistory(slug, options = {}) {
 export function getOriginalQuery(slug, options = {}) {
     if (typeof window === 'undefined') return null;
     try {
-        const cacheConfig = buildCacheConfig(options.namespace);
+        const cacheConfig = buildCacheConfig(options.namespace, options.lang);
         const storage = resolveStorage(cacheConfig);
         if (!storage) return null;
         const safeSlug = String(slug || '').trim();
@@ -591,35 +658,35 @@ export function getOriginalQuery(slug, options = {}) {
 }
 
 // Clasificar error para dar mensajes claros al usuario
-function classifyError(err) {
+function classifyError(err, lang = 'es') {
     if (err?.body?.code === 'AI_UPSTREAM_HTML_ERROR' || /<html[\s>]|<!doctype\s/i.test(String(err?.body || err?.message || ''))) {
-        return 'El servicio IA está en mantenimiento o temporalmente bloqueado por la red. Intenta en unos minutos.';
+        return tMsg('errAiMaintenance', lang);
     }
     if (err?.status === 429 || err?.body?.code === 'AI_GUEST_DAILY_LIMIT' || err?.body?.code === 'AI_USER_DAILY_LIMIT') {
-        return err.message || 'Has alcanzado el límite diario de consultas IA.';
+        return err.message || tMsg('dailyLimitGeneric', lang);
     }
     if (err?.status === 504 || err?.body?.code === 'AI_UPSTREAM_TIMEOUT') {
-        return 'La IA tardó demasiado en responder. Intenta nuevamente en unos segundos.';
+        return tMsg('errAiTimeout', lang);
     }
     if (err?.status === 502 || err?.status === 503 || err?.status === 500 || err?.body?.code === 'AI_UPSTREAM_UNAVAILABLE') {
-        return 'No se pudo conectar con el servicio IA. Verifica la conectividad y vuelve a intentar.';
+        return tMsg('errAiUnavailable', lang);
     }
     if (err.name === 'AbortError') {
-        return 'La IA tardó demasiado en responder. Intenta de nuevo.';
+        return tMsg('errAiTimeout', lang);
     }
     if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError') || err.message?.includes('net::')) {
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-            return 'Sin conexión a internet. Revisa tu red e intenta de nuevo.';
+            return tMsg('errNoInternet', lang);
         }
-        return 'No se pudo conectar con el servidor. Intenta de nuevo en unos segundos.';
+        return tMsg('errNetwork', lang);
     }
     if (err.message?.startsWith('Error 5')) {
-        return 'El servidor de IA está temporalmente sobrecargado. Intenta en unos minutos.';
+        return tMsg('err5xx', lang);
     }
     if (err.message?.startsWith('Error 4')) {
         return err.message;
     }
-    return err.message || 'Error al conectar con la IA';
+    return err.message || tMsg('errGeneric', lang);
 }
 
 function getIaDeviceId() {
@@ -663,7 +730,8 @@ function buildGuestAiLimitState({ isGuest, used = 0, limit = GUEST_DAILY_IA_LIMI
         used: safeUsed,
         remaining,
         blocked: isBlocked,
-        message: isBlocked ? `Has alcanzado el límite diario de ${safeLimit} consultas IA. Regístrate para seguir usándola.` : null,
+        // El mensaje se construye en el consumer según lang (ver tMsg('guestLimit', lang, n)).
+        message: null,
     };
 }
 
@@ -705,6 +773,13 @@ function toUserLimitState(payload) {
 }
 
 export function useIA(options = {}) {
+    // Idioma activo: si el caller lo pasa explícito (options.lang), gana; si no, se deriva
+    // del pathname (/en → 'en', resto → 'es'). Se propaga al servidor como header X-Lang
+    // y en el body, y además se usa como key del caché para evitar colisiones ES↔EN.
+    const pathname = usePathname();
+    const detectedLang = (pathname && pathname.startsWith('/en')) ? 'en' : 'es';
+    const lang = options.lang || detectedLang;
+
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState(null);
     const [resultados, setResultados] = useState(null);
@@ -713,15 +788,9 @@ export function useIA(options = {}) {
     const { user } = useAuth();
     const [guestAiLimit, setGuestAiLimit] = useState(() => buildGuestAiLimitState({ isGuest: true, used: 0 }));
     const [userAiLimit, setUserAiLimit] = useState(null);
-    const cacheConfigRef = useRef(buildCacheConfig(options.namespace));
+    const cacheConfigRef = useRef(buildCacheConfig(options.namespace, lang));
     const promptProtectionRef = useRef(options.promptProtection !== false);
     const userRef = useRef(user);
-    // Idioma activo: si el caller lo pasa explícito (options.lang), gana; si no, se deriva
-    // del pathname (/en → 'en', resto → 'es'). Se propaga al servidor como header X-Lang
-    // y en el body, para que las queries de /en nunca se guarden/sirvan desde el bucket ES.
-    const pathname = usePathname();
-    const detectedLang = (pathname && pathname.startsWith('/en')) ? 'en' : 'es';
-    const lang = options.lang || detectedLang;
     const langRef = useRef(lang);
     useEffect(() => { langRef.current = lang; }, [lang]);
     // Refs para pre-bloqueo (evitan closures obsoletos en buscarConIA).
@@ -782,8 +851,8 @@ export function useIA(options = {}) {
     }, [user, fetchQuota]);
 
     useEffect(() => {
-        cacheConfigRef.current = buildCacheConfig(options.namespace);
-    }, [options.namespace]);
+        cacheConfigRef.current = buildCacheConfig(options.namespace, lang);
+    }, [options.namespace, lang]);
 
     useEffect(() => {
         promptProtectionRef.current = options.promptProtection !== false;
@@ -813,38 +882,40 @@ export function useIA(options = {}) {
     const buscarConIA = useCallback(async (texto) => {
         setNsfwRedirect(false);
 
+        const activeLang = langRef.current || 'es';
+
         // Pre-bloqueo client-side: evita llamadas innecesarias al API cuando la cuota está agotada
         {
             const currentUser = userRef.current;
             if (!currentUser) {
                 const gl = guestAiLimitRef.current;
                 if (gl?.blocked) {
-                    setError(gl.message || `Has alcanzado el límite diario de ${gl.limit} consultas IA. Regístrate para seguir usándola.`);
+                    setError(gl.message || tMsg('guestLimit', activeLang, gl.limit));
                     return null;
                 }
             } else {
                 const ul = userAiLimitRef.current;
                 if (ul?.blocked) {
-                    setError(`Has alcanzado el límite diario de ${ul.limit} consultas IA.`);
+                    setError(tMsg('userLimit', activeLang, ul.limit));
                     return null;
                 }
             }
         }
 
         if (!texto || texto.trim().length === 0) {
-            setError('Por favor escribe una pregunta');
+            setError(tMsg('emptyQuery', activeLang));
             return null;
         }
 
         const sanitized = sanitizeQueryForIA(texto);
         if (!sanitized) {
-            setError('Por favor escribe una pregunta válida');
+            setError(tMsg('invalidQuery', activeLang));
             return null;
         }
 
         // Bloquear contenido NSFW en contextos no-adultos (cualquier namespace que no sea 'nsfw')
         if (cacheConfigRef.current.namespace !== 'nsfw') {
-            const nsfwCheck = detectNsfwQuery(sanitized);
+            const nsfwCheck = detectNsfwQuery(sanitized, activeLang);
             if (nsfwCheck.isNsfw) {
                 setNsfwRedirect(true);
                 setError(nsfwCheck.message);
@@ -860,8 +931,7 @@ export function useIA(options = {}) {
 
         const risk = getPromptInjectionRisk(sanitized);
         if (promptProtectionRef.current && risk.level === 'high') {
-            const blockedMessage = 'Tu consulta parece contener instrucciones no permitidas. Reformúlala como una búsqueda de manhwa.';
-            setError(blockedMessage);
+            setError(tMsg('promptBlocked', activeLang));
             trackIAEvent('ia_search_blocked', {
                 query: sanitized,
                 reason: 'prompt_injection_high',
@@ -895,7 +965,6 @@ export function useIA(options = {}) {
             const timeoutId = setTimeout(() => controller.abort(), 45000);
 
             const t0 = performance.now();
-            const activeLang = langRef.current || 'es';
             const fetchHeaders = {
                 'Content-Type': 'application/json',
                 // Idioma del request: garantiza que el backend use el bucket correcto
@@ -962,7 +1031,7 @@ export function useIA(options = {}) {
                     errorData = {
                         ...errorData,
                         code: 'AI_UPSTREAM_HTML_ERROR',
-                        message: 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red.',
+                        message: tMsg('errAiMaintenance', activeLang),
                     };
                 }
 
@@ -991,7 +1060,7 @@ export function useIA(options = {}) {
                     data = {
                         success: false,
                         code: 'AI_UPSTREAM_INVALID_JSON',
-                        message: responseText || 'Respuesta inválida del servicio IA',
+                        message: responseText || tMsg('errAiUnavailable', activeLang),
                     };
                 }
             } else if (responseText) {
@@ -999,7 +1068,7 @@ export function useIA(options = {}) {
                     success: false,
                     code: responseLooksLikeHtml ? 'AI_UPSTREAM_HTML_ERROR' : 'AI_UPSTREAM_INVALID_RESPONSE',
                     message: responseLooksLikeHtml
-                        ? 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red.'
+                        ? tMsg('errAiMaintenance', activeLang)
                         : responseText,
                 };
             }
@@ -1008,7 +1077,7 @@ export function useIA(options = {}) {
                 data = {
                     success: false,
                     code: 'AI_UPSTREAM_HTML_ERROR',
-                    message: 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red.',
+                    message: tMsg('errAiMaintenance', activeLang),
                 };
             }
 
@@ -1016,7 +1085,7 @@ export function useIA(options = {}) {
                 data = {
                     success: false,
                     code: 'AI_UPSTREAM_EMPTY_RESPONSE',
-                    message: 'El servicio IA devolvió una respuesta vacía.',
+                    message: tMsg('errAiUnavailable', activeLang),
                 };
             }
 
@@ -1033,7 +1102,7 @@ export function useIA(options = {}) {
                 // Si el servidor detectó NSFW y devolvió redirect, propagarlo
                 if (data.source === 'nsfw_redirect') {
                     setNsfwRedirect(true);
-                    setError(data.explanation || NSFW_REDIRECT_MESSAGE);
+                    setError(data.explanation || tMsg('nsfwRedirect', activeLang));
                     setCargando(false);
                     trackIAEvent('ia_search_blocked', {
                         query: trimmed,
@@ -1055,7 +1124,7 @@ export function useIA(options = {}) {
                     prompt_risk: risk.level,
                 });
             } else {
-                const upstreamError = new Error(data.message || 'La IA no pudo procesar la solicitud correctamente');
+                const upstreamError = new Error(data.message || tMsg('errProcess', activeLang));
                 upstreamError.status = response.status;
                 upstreamError.body = data;
                 throw upstreamError;
@@ -1070,7 +1139,7 @@ export function useIA(options = {}) {
                 return null;
             }
 
-            const errorMsg = classifyError(err);
+            const errorMsg = classifyError(err, activeLang);
 
             // Intentar usar caché stale como fallback si la API falla
             const staleCache = getFromCache(trimmed, cacheConfigRef.current, { allowStale: true });
@@ -1107,20 +1176,22 @@ export function useIA(options = {}) {
     const buscarConIACached = useCallback(async (texto) => {
         setNsfwRedirect(false);
 
+        const activeLang = langRef.current || 'es';
+
         if (!texto || texto.trim().length === 0) {
-            setError('Por favor escribe una pregunta');
+            setError(tMsg('emptyQuery', activeLang));
             return null;
         }
 
         const sanitized = sanitizeQueryForIA(texto);
         if (!sanitized) {
-            setError('Por favor escribe una pregunta válida');
+            setError(tMsg('invalidQuery', activeLang));
             return null;
         }
 
         // Bloquear contenido NSFW en contextos no-adultos
         if (cacheConfigRef.current.namespace !== 'nsfw') {
-            const nsfwCheck = detectNsfwQuery(sanitized);
+            const nsfwCheck = detectNsfwQuery(sanitized, activeLang);
             if (nsfwCheck.isNsfw) {
                 setNsfwRedirect(true);
                 setError(nsfwCheck.message);
@@ -1136,8 +1207,7 @@ export function useIA(options = {}) {
 
         const risk = getPromptInjectionRisk(sanitized);
         if (promptProtectionRef.current && risk.level === 'high') {
-            const blockedMessage = 'Tu consulta parece contener instrucciones no permitidas. Reformúlala como una búsqueda de manhwa.';
-            setError(blockedMessage);
+            setError(tMsg('promptBlocked', activeLang));
             trackIAEvent('ia_search_blocked', {
                 query: sanitized,
                 reason: 'prompt_injection_high',

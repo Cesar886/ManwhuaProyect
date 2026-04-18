@@ -33,25 +33,23 @@ export async function generateMetadata({ params }) {
 
   const series = await fetchSeriesForSEO(slug)
 
-  const title = series?.title || slug.replace(/-/g, ' ')
-  const titleFormatted = title.charAt(0).toUpperCase() + title.slice(1)
-  const coverUrl = series?.coverUrl || series?.cover || null
-
-  if (series && isAdultSeries(series)) {
-    notFound()
-  }
-
-  if (series && !matchesLanguage(series, 'en')) {
-    notFound()
-  }
-
   if (!series) {
-    return {
-      title: `Chapter ${numero} - ${titleFormatted} | Read Manhwa Online`,
-      description: `Read ${titleFormatted} Chapter ${numero} manhwa online free in English at ${SITE_NAME}. The best site to read manhwa online.`,
-      robots: { index: true, follow: true },
-    }
+    notFound()
   }
+
+  if (isAdultSeries(series)) {
+    notFound()
+  }
+
+  // Gate por idioma: /en solo debe mostrar series en inglés.
+  // Series legacy sin `language` se asumen 'es', así que quedan fuera aquí.
+  if (!matchesLanguage(series, 'en')) {
+    notFound()
+  }
+
+  const title = series.title || slug.replace(/-/g, ' ')
+  const titleFormatted = title.charAt(0).toUpperCase() + title.slice(1)
+  const coverUrl = series.coverUrl || series.cover || null
 
   const description = series.descriptionEn ?? series.description ?? `Read ${titleFormatted} Chapter ${numero} online free in English.`
   const metaTitle = `${titleFormatted} Chapter ${numero} - Read Online | ${SITE_NAME}`
@@ -112,16 +110,22 @@ export default async function EnChapterReaderPage({ params }) {
     fetchChapterPages(slug, numero),
   ])
 
-  if (series && isAdultSeries(series)) {
+  if (!series) {
     notFound()
   }
 
-  if (series && !matchesLanguage(series, 'en')) {
+  if (isAdultSeries(series)) {
     notFound()
   }
 
-  const title = series?.title || slug.replace(/-/g, ' ')
-  const chapterJsonLd = generateChapterJsonLd(series || { slug, title }, numero, null, chapterRating, 'en')
+  // Gate por idioma: /en solo debe mostrar series en inglés.
+  // Series legacy sin `language` se asumen 'es', así que quedan fuera aquí.
+  if (!matchesLanguage(series, 'en')) {
+    notFound()
+  }
+
+  const title = series.title || slug.replace(/-/g, ' ')
+  const chapterJsonLd = generateChapterJsonLd(series, numero, null, chapterRating, 'en')
   const breadcrumbJsonLd = generateBreadcrumbJsonLd([
     { name: 'Home', url: '/en/home' },
     { name: `${title} Manhwa`, url: `/en/manhwa/${slug}` },

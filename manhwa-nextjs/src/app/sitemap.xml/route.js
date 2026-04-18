@@ -17,8 +17,9 @@ export const dynamic = 'force-dynamic'
 const BILINGUAL_STATIC_PAGES = [
   { es: '/home',       en: '/en/home',     priority: '1.0', freq: 'daily'   },
   { es: '/populares',  en: '/en/popular',  priority: '0.9', freq: 'daily'   },
-  { es: '/biblioteca', en: '/en/library',  priority: '0.8', freq: 'daily'   },
-  { es: '/mangas',     en: '/en/manga',    priority: '0.8', freq: 'daily'   },
+  { es: '/biblioteca',   en: '/en/library',    priority: '0.8', freq: 'daily'   },
+  { es: '/mangas',       en: '/en/manga',      priority: '0.8', freq: 'daily'   },
+  { es: '/busqueda-ia',  en: '/en/search-ai',  priority: '0.7', freq: 'weekly'  },
   // Legales (existen en ambos idiomas)
   { es: '/acerca-de',               en: '/en/about',            priority: '0.4', freq: 'monthly' },
   { es: '/dmca',                    en: '/en/dmca',             priority: '0.3', freq: 'yearly'  },

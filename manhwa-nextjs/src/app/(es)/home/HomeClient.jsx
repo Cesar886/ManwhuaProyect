@@ -543,7 +543,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
       try {
         setPersonalizedLoading(true)
 
-        const recentHistory = getSearchHistory(8)
+        const recentHistory = getSearchHistory(8, { lang })
         const historyQueries = Array.isArray(recentHistory)
           ? recentHistory
             .map((entry) => ({

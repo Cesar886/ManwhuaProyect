@@ -279,10 +279,11 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
     // 6. Callbacks Memoizados
     const handleIASearch = useCallback((pregunta) => {
         const slug = slugifyQuery(pregunta);
+        const targetPath = getLocalizedPath(`/busqueda-ia/${slug}`, lang);
         setNavigatingToIA(true);
-        router.prefetch(`/busqueda-ia/${slug}`);
-        router.push(`/busqueda-ia/${slug}`);
-    }, [router]);
+        router.prefetch(targetPath);
+        router.push(targetPath);
+    }, [router, lang]);
 
     useEffect(() => { setMounted(true); }, []);
 

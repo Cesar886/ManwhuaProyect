@@ -85,16 +85,15 @@ const STATUS_PERKS = [
 
 const COMPARISON = [
     { feature: 'Leer manhwas',               free: true,  vip: true  },
-    { feature: 'Buscador IA',                freeLabel: '10 / día', vipLabel: '∞ Ilimitadas' },
-    { feature: 'XP por capítulo',            freeLabel: '×1',       vipLabel: '×2' },
-    { feature: 'Listas personalizadas',      freeLabel: 'Solo Favoritos', vipLabel: '∞ Ilimitadas' },
+    { feature: 'Buscador IA (Básico)',       freeLabel: '10 búsquedas / día', vipLabel: '×' },
+    { feature: 'IA Imperial Pro',            freeLabel: '×', vipLabel: 'Ilimitado + Mayor Precisión' },
+    { feature: 'XP por capítulo',            freeLabel: '×1',       vipLabel: '×3' },
     { feature: 'Scroll infinito',            free: false, vip: true  },
     { feature: 'Descarga offline',           free: false, vip: true  },
     { feature: 'Sin anuncios',               free: false, vip: true  },
     { feature: 'Badge & perfil VIP',         free: false, vip: true  },
     { feature: 'Reacciones exclusivas',      free: false, vip: true  },
     { feature: 'Fijar comentarios',          free: false, vip: true  },
-    { feature: 'Comentarios destacados',     free: false, vip: true  },
     { feature: 'Perfil con estadísticas',    free: false, vip: true  },
     { feature: 'Funciones beta',             free: false, vip: true  },
 ];
