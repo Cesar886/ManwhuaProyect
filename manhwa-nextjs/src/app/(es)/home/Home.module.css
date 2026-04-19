@@ -2518,6 +2518,11 @@
   margin: 1.5rem 0 2.25rem;
   padding: 0;
   isolation: isolate;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 .top10Header {
@@ -2525,7 +2530,9 @@
   align-items: center;
   gap: 0.9rem;
   margin-bottom: 1rem;
-  padding: 0 0.25rem;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .top10Badge {
@@ -2573,22 +2580,19 @@
   font-family: var(--font-heading);
   font-size: 1.25rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: var(--text-primary, #f3f4f6);
   letter-spacing: -0.01em;
   line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-.top10TitleAccent {
-  background: linear-gradient(
-    90deg,
-    var(--imperial-gold) 0%,
-    rgba(var(--imperial-gold-rgb), 0.65) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  font-weight: 900;
+
+:global([data-theme="light"]) .top10Title,
+:global([data-mantine-color-scheme="light"]) .top10Title {
+  color: #1f2937;
+  text-shadow: none;
 }
+
 
 .top10Subtitle {
   margin: 0.25rem 0 0;
@@ -2599,13 +2603,21 @@
 
 .top10Scroll {
   display: flex;
-  gap: 0;
+  gap: 0.5rem;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding: 2.5rem 0 1rem 3.5rem; /* espacio izquierdo para el "1" sobresaliente */
+  padding: 0.35rem 0 1rem;
+  margin: 0;
   scroll-snap-type: x proximity;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  box-sizing: border-box;
 }
 
 .top10Scroll::-webkit-scrollbar {
@@ -2617,8 +2629,8 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: flex-end;
-  padding-left: 68px; /* espacio donde "respira" el número */
-  margin-right: 0.25rem;
+  padding-left: 0;
+  margin-right: 0;
   text-decoration: none;
   color: inherit;
   scroll-snap-align: start;
@@ -2646,44 +2658,39 @@
    deja respirar el fondo, no un bloque sólido. */
 .top10Rank {
   position: absolute;
-  left: -22px;
-  bottom: -18px;
-  z-index: -1;
+  left: 8px;
+  top: 8px;
+  z-index: 4;
   font-family: var(--font-heading);
-  font-size: 10rem;
+  font-size: 1.05rem;
   font-weight: 900;
-  line-height: 0.85;
-  color: transparent;
-  -webkit-text-stroke: 2px rgba(255, 255, 255, 0.18);
-  background: linear-gradient(
-    180deg,
-    rgba(var(--imperial-gold-rgb), 0.22) 0%,
-    rgba(0, 0, 0, 0.6) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  letter-spacing: -0.08em;
+  line-height: 1;
+  color: rgba(var(--imperial-gold-rgb), 1);
+  -webkit-text-stroke: 0.65px rgba(62, 40, 8, 0.8);
+  letter-spacing: 0;
   pointer-events: none;
   user-select: none;
-  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
-              -webkit-text-stroke-color 300ms ease;
-  text-shadow: 0 4px 22px rgba(0, 0, 0, 0.55);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+              filter 220ms ease;
+  text-shadow:
+    0 1px 0 rgba(58, 41, 10, 0.85),
+    0 2px 8px rgba(0, 0, 0, 0.55),
+    0 0 12px rgba(var(--imperial-gold-rgb), 0.6);
 }
 
 .top10Rank[data-rank="10"] {
-  font-size: 9rem;
-  left: -38px;
-  letter-spacing: -0.12em;
+  letter-spacing: -0.01em;
 }
 
 .top10Item:hover .top10Rank {
-  transform: translateX(6px) scale(1.04);
-  -webkit-text-stroke-color: rgba(var(--imperial-gold-rgb), 0.65);
+  transform: translateY(-1px) scale(1.04);
+  filter: brightness(1.08);
 }
 
 .top10Card {
   position: relative;
-  width: 148px;
+  z-index: 1;
+  width: 140px;
   aspect-ratio: 2 / 3;
   border-radius: 10px;
   overflow: hidden;
@@ -2755,18 +2762,16 @@
 @media (min-width: 768px) {
   .top10Title { font-size: 1.55rem; }
   .top10Subtitle { font-size: 0.9rem; }
-  .top10Scroll { padding: 3rem 0 1.25rem 4.5rem; }
-  .top10Item { padding-left: 90px; }
-  .top10Card { width: 180px; border-radius: 12px; }
+  .top10Scroll { padding: 0.4rem 0 1rem; }
+  .top10Item { padding-left: 0; }
+  .top10Card { width: 140px; border-radius: 12px; }
   .top10Rank {
-    font-size: 14rem;
-    left: -32px;
-    bottom: -26px;
-    -webkit-text-stroke-width: 2.5px;
+    left: 9px;
+    top: 9px;
+    font-size: 1.12rem;
   }
   .top10Rank[data-rank="10"] {
-    font-size: 12.5rem;
-    left: -52px;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -2776,18 +2781,16 @@
   .top10Header { gap: 0.6rem; }
   .top10Title { font-size: 1.05rem; }
   .top10Subtitle { font-size: 0.72rem; }
-  .top10Scroll { padding: 1.75rem 0 0.75rem 2.5rem; }
-  .top10Item { padding-left: 48px; }
-  .top10Card { width: 118px; border-radius: 8px; }
+  .top10Scroll { padding: 0.3rem 0 0.9rem; }
+  .top10Item { padding-left: 0; }
+  .top10Card { width: 105px; border-radius: 8px; }
   .top10Rank {
-    font-size: 7rem;
-    left: -14px;
-    bottom: -10px;
-    -webkit-text-stroke-width: 1.5px;
+    left: 6px;
+    top: 6px;
+    font-size: 0.92rem;
   }
   .top10Rank[data-rank="10"] {
-    font-size: 6.3rem;
-    left: -24px;
+    letter-spacing: -0.01em;
   }
   /* En mobile, el overlay siempre visible para que se vea el título */
   .top10CardOverlay {
@@ -2849,7 +2852,7 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.45);
-  color: #ffffff;
+  color: rgba(var(--imperial-gold-rgb, 212, 175, 55), 1);
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
@@ -2870,8 +2873,8 @@
    (el overlay del top10 aparece con hover, pero el rating debe ser constante) */
 .top10RatingBadge {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  bottom: 8px;
+  right: 8px;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -2881,7 +2884,7 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.5);
-  color: #ffffff;
+  color: rgba(255, 223, 120, 1);
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1;
@@ -2893,7 +2896,7 @@
 }
 
 .top10RatingBadge svg {
-  color: rgba(var(--imperial-gold-rgb, 212, 175, 55), 1);
+  color: rgba(255, 223, 120, 1);
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
   flex-shrink: 0;
 }
@@ -2906,8 +2909,8 @@
     font-size: 0.62rem;
   }
   .top10RatingBadge {
-    top: 6px;
-    left: 6px;
+    bottom: 6px;
+    right: 6px;
     padding: 0.16rem 0.36rem;
     font-size: 0.58rem;
   }

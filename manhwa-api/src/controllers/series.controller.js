@@ -2011,7 +2011,7 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
         WITH ranked AS (
             SELECT
                 sv.series_id,
-                COUNT(DISTINCT COALESCE(sv.user_id::text, sv.visitor_id, sv.ip_address)) AS period_views
+                COUNT(DISTINCT COALESCE(sv.user_id::text, sv.visitor_id, sv.ip_address::text)) AS period_views
             FROM series_views sv
             JOIN series s ON s.id = sv.series_id
             WHERE sv.viewed_at > NOW() - ($${windowParamIdx}::int * INTERVAL '1 day')
@@ -2085,7 +2085,8 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
     return {
         success: true,
         data: {
-            country: usedFallback ? null : effectiveCountry,
+            // Mantener el país detectado para UI aunque el ranking degrade a global.
+            country: effectiveCountry,
             resolvedFrom,
             window: `${TOP10_WINDOW_DAYS} days`,
             usedGlobalFallback: usedFallback,

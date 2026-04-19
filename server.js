@@ -12,6 +12,23 @@ const { Server } = require("socket.io");
 const http = require('http');
 const { initDB, dbAvailable, healthCheck: dbHealthCheck, setLogger: setDbLogger, getSeriesEmbeddingCount, cleanQueryCache } = require('./db');
 const { buildEmbeddingText, getQueryEmbedding, getEmbeddings, upsertSeriesEmbedding, vectorSearch, getCachedQueryEmbedding, cacheQueryEmbedding, syncEmbeddings, setLogger: setEmbeddingsLogger } = require('./embeddings');
+const { rewriteQuery, setLogger: setRewriterLogger } = require('./query-rewriter');
+const {
+    SUPPORTED_LANGS: I18N_SUPPORTED_LANGS,
+    DEFAULT_LANG: I18N_DEFAULT_LANG,
+    normalizeLang: normalizeLangHelper,
+    inferLangFromText: inferLangFromTextHelper,
+} = require('./i18n-helpers');
+const { SpamTracker, isGibberishQuery, extractIp } = require('./spam-detector');
+
+// Detector de spam/bot. No bloquea al cliente (no queremos alertar al bot);
+// solo marca las queries como suspicious para excluirlas de /popular, trending
+// y related. Umbrales conservadores: 30 requests en 10s es claramente no humano.
+const spamTracker = new SpamTracker({
+    maxIPs: parseInt(process.env.SPAM_TRACKER_MAX_IPS, 10) || 10000,
+    maxSamples: parseInt(process.env.SPAM_TRACKER_BURST_COUNT, 10) || 30,
+    windowMs: parseInt(process.env.SPAM_TRACKER_WINDOW_MS, 10) || 10_000,
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -41,22 +58,11 @@ const QUERY_HISTORY_FILES = {
     es: path.join(__dirname, 'query_history_es.json'),
     en: path.join(__dirname, 'query_history_en.json'),
 };
-const SUPPORTED_LANGS = Object.freeze(['es', 'en']);
-const DEFAULT_LANG = 'es';
+const SUPPORTED_LANGS = I18N_SUPPORTED_LANGS;
+const DEFAULT_LANG = I18N_DEFAULT_LANG;
 const queryHistoryByLang = { es: [], en: [] };
 
-// Normaliza el idioma. Solo acepta valores de SUPPORTED_LANGS; cualquier otra cosa → default.
-// Tolera prefijos tipo "en-US", "es_MX", "es-419", espacios y mayúsculas.
-function normalizeLang(value) {
-    if (value == null) return DEFAULT_LANG;
-    let raw;
-    try { raw = String(value).toLowerCase().trim(); }
-    catch { return DEFAULT_LANG; }
-    if (!raw) return DEFAULT_LANG;
-    // Tomar solo la porción primaria del tag (es, en) ignorando región
-    const primary = raw.split(/[-_;,\s]/)[0];
-    return SUPPORTED_LANGS.includes(primary) ? primary : DEFAULT_LANG;
-}
+const normalizeLang = normalizeLangHelper;
 
 // --- Filtrado del catálogo por idioma del request ---
 // Alineado con manhwa-nextjs/src/utils/adultContent.js para que cliente y servidor
@@ -196,19 +202,7 @@ function rebuildLanguageIndex() {
     }
 }
 
-// Heurística ligera para detectar idioma por contenido. Devuelve 'es', 'en' o null si no es claro.
-// Solo para detectar señales MUY obvias (palabras funcionales exclusivas de un idioma).
-const EN_SIGNAL_RE = /\b(the|with|about|looking|recommend|where|similar to|reincarnat|revenge|system|hunter|tower|dungeon|female|male lead|want|need|please|find me|isekai)\b/i;
-const ES_SIGNAL_RE = /\b(el|la|los|las|con|sobre|buscando|recomienda|donde|similar a|reencarna|venganza|sistema|cazador|torre|mazmorra|chica|protagonista|quiero|necesito|por favor|busca|enseñ|parecid)\b/i;
-function inferLangFromText(text) {
-    if (!text || typeof text !== 'string') return null;
-    const t = text.toLowerCase();
-    const en = EN_SIGNAL_RE.test(t);
-    const es = ES_SIGNAL_RE.test(t);
-    if (en && !es) return 'en';
-    if (es && !en) return 'es';
-    return null;
-}
+const inferLangFromText = inferLangFromTextHelper;
 
 // Extrae el idioma del request con múltiples fallbacks:
 //   1) ?lang=en|es (explícito)
@@ -270,6 +264,14 @@ function H(lang) {
 function setH(lang, arr) {
     const L = normalizeLang(lang);
     queryHistoryByLang[L] = Array.isArray(arr) ? arr : [];
+}
+
+// Vista pública del historial: excluye entradas marcadas suspicious (spam/bot)
+// para que /popular, /trending, /search-suggestions y related no las expongan.
+// Las entradas sospechosas siguen persistiéndose (H / guardado a disco) para
+// que se puedan analizar patrones de abuso, pero no contaminan las métricas.
+function publicHistory(lang) {
+    return H(lang).filter(q => q && !q.suspicious);
 }
 
 // Clave de caché scoping por idioma: evita que el payload IA generado para /es
@@ -1673,7 +1675,7 @@ const MAX_SSE_CLIENTS_PER_LANG = 5000;
 function getPopularPayload(lang) {
     const L = normalizeLang(lang);
     const similarRegex = /similares?\s*(a\b|al\b)/i;
-    const sorted = [...H(L)].sort((a, b) => (b.count || 0) - (a.count || 0));
+    const sorted = [...publicHistory(L)].sort((a, b) => (b.count || 0) - (a.count || 0));
     const popular = sorted
         .filter(q => q && q.query && !similarRegex.test(q.query))
         .slice(0, 20)
@@ -1772,7 +1774,7 @@ app.get('/api/search-suggestions', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('CDN-Cache-Control', 'no-store');
     const lang = getRequestLang(req);
-    const queryHistory = H(lang);
+    const queryHistory = publicHistory(lang);
     const afterSearchMap = AS(lang);
     const similarRegex = /similares?\s*(a\b|al\b)/i;
     const sorted = [...queryHistory].sort((a, b) => b.count - a.count);
@@ -1971,7 +1973,7 @@ app.get('/api/popular', (req, res) => {
     res.setHeader('CDN-Cache-Control', 'no-store');
     const lang = getRequestLang(req);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
-    const result = [...H(lang)]
+    const result = [...publicHistory(lang)]
         .sort((a, b) => b.count - a.count)
         .slice(0, limit)
         .map((q, i) => ({
@@ -1989,7 +1991,7 @@ app.get('/api/popular-similar', (req, res) => {
     const lang = getRequestLang(req);
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit, 10) || 5));
     const similarRegex = /similares?\s*(a\b|al\b)/i;
-    const result = [...H(lang)]
+    const result = [...publicHistory(lang)]
         .filter(q => similarRegex.test(q.query))
         .sort((a, b) => b.count - a.count)
         .slice(0, limit)
@@ -2051,9 +2053,10 @@ function extractKeywords(text, lang = DEFAULT_LANG) {
 }
 
 // Construye un mapa de keywords → queries que contienen esa keyword (por idioma)
+// Usa publicHistory para que las queries related no incluyan spam/bot.
 function buildQueryKeywordIndex(lang) {
     const keywordMap = new Map(); // keyword → [{ idx, query, key, count }]
-    const list = H(lang);
+    const list = publicHistory(lang);
 
     for (let i = 0; i < list.length; i++) {
         const q = list[i];
@@ -3406,19 +3409,127 @@ function loadQueryHistory() {
     }
 
     // Migración legacy: si no existen los nuevos archivos pero SÍ el antiguo
-    // `query_history.json`, cargarlo como ES (comportamiento previo a i18n).
+    // `query_history.json`, repartir entries por idioma inferido con
+    // `inferLangFromText`. Queries sin señal clara caen en DEFAULT_LANG (ES),
+    // que era el comportamiento previo a i18n.
     if (!anyLoaded && fs.existsSync(QUERY_HISTORY_FILE_LEGACY)) {
         try {
             const data = fs.readFileSync(QUERY_HISTORY_FILE_LEGACY, 'utf8');
             const parsed = JSON.parse(data || '[]');
-            setH('es', Array.isArray(parsed) ? parsed : []);
-            logger.info('📂 Historial legacy migrado a ES', { count: H('es').length });
+            const list = Array.isArray(parsed) ? parsed : [];
+            const esBucket = [];
+            const enBucket = [];
+            for (const raw of list) {
+                const entry = sanitizeHistoryEntry(raw);
+                if (!entry) continue;
+                const signal = entry.key || '';
+                const inferred = inferLangFromText(signal);
+                if (inferred === 'en') enBucket.push(entry);
+                else esBucket.push(entry);
+            }
+            setH('es', esBucket);
+            setH('en', enBucket);
+            logger.info('📂 Historial legacy migrado con split por idioma', {
+                total: list.length,
+                es: esBucket.length,
+                en: enBucket.length
+            });
+            // Dejar marker para que la re-distribución one-off de ES→EN no
+            // duplique trabajo: ya repartimos por idioma en el mismo paso.
+            try {
+                fs.writeFileSync(LANG_MIGRATION_MARKER, JSON.stringify({
+                    completedAt: new Date().toISOString(),
+                    source: 'legacy_split',
+                    inspected: list.length,
+                    movedToEn: enBucket.length
+                }));
+            } catch (err) {
+                logger.warn('No se pudo escribir marker de migración legacy', { error: err && err.message });
+            }
         } catch (err) {
             logger.error('Error migrando historial legacy', err);
         }
     }
 
     deduplicateQueryHistory();
+
+    // One-off: redistribuir entries ya presentes en ES cuyo `key` infiera EN.
+    // Útil cuando el server corrió versiones previas a que recordQuery aplicara
+    // inferLangFromText: esas queries quedaron "contaminadas" en el bucket ES.
+    // Idempotente — un marker en disco evita re-ejecución en cada startup.
+    try {
+        redistributeHistoryByInferredLang();
+    } catch (err) {
+        logger.error('Error en redistribución por idioma inferido', err);
+    }
+}
+
+// Marker de migración one-off. Solo se crea una vez; presencia indica
+// que el split por idioma ya se aplicó sobre el historial existente.
+const LANG_MIGRATION_MARKER = path.join(__dirname, '.lang_migration_v1.done');
+
+function redistributeHistoryByInferredLang() {
+    if (fs.existsSync(LANG_MIGRATION_MARKER)) return { skipped: true };
+
+    const esList = H('es');
+    const enList = H('en');
+    if (!Array.isArray(esList) || esList.length === 0) {
+        try {
+            fs.writeFileSync(LANG_MIGRATION_MARKER, JSON.stringify({
+                completedAt: new Date().toISOString(),
+                source: 'noop_empty_es'
+            }));
+        } catch { /* ignore */ }
+        return { inspected: 0, moved: 0 };
+    }
+
+    const keep = [];
+    let moved = 0;
+
+    for (const entry of esList) {
+        const signal = entry && entry.key ? entry.key : '';
+        const inferred = signal ? inferLangFromText(signal) : null;
+        if (inferred === 'en') {
+            enList.push(entry);
+            moved++;
+        } else {
+            keep.push(entry);
+        }
+    }
+
+    if (moved > 0) {
+        setH('es', keep);
+        setH('en', enList);
+        // Persistir inmediatamente para que un crash post-migración no haga
+        // perder el trabajo (el marker ya refleja que la migración corrió).
+        for (const L of SUPPORTED_LANGS) {
+            try {
+                saveQueryHistoryAsyncFor(L).catch(err =>
+                    logger.warn('Error guardando tras redistribución', { lang: L, error: err && err.message })
+                );
+            } catch { /* ignore */ }
+        }
+    }
+
+    try {
+        fs.writeFileSync(LANG_MIGRATION_MARKER, JSON.stringify({
+            completedAt: new Date().toISOString(),
+            source: 'post_load_redistribution',
+            inspected: esList.length,
+            moved
+        }));
+    } catch (err) {
+        logger.warn('No se pudo escribir marker de migración', { error: err && err.message });
+    }
+
+    logger.info('📦 Redistribución one-off por idioma aplicada', {
+        inspected: esList.length,
+        moved,
+        finalEs: H('es').length,
+        finalEn: H('en').length
+    });
+
+    return { inspected: esList.length, moved };
 }
 
 // --- ESCRITURA ATÓMICA (tmp + rename) + MUTEX POR IDIOMA ---
@@ -3560,9 +3671,13 @@ const langMetrics = {
 // --- Registro de consultas: ranking, deduplicación y persistencia ---
 // Las consultas se guardan en el historial del idioma del request (ES/EN) para que
 // populares, trending, related y after-search nunca se crucen entre idiomas.
-function recordQuery(rawQuery, key, payload, req) {
+function recordQuery(rawQuery, key, payload, req, options = {}) {
     try {
         if (!rawQuery || typeof rawQuery !== 'string') return;
+
+        // Flag de spam/bot: la entrada se guarda pero se marca para que
+        // /popular, trending, related y after-search la excluyan.
+        const suspicious = !!options.suspicious;
 
         let lang = getRequestLang(req);
 
@@ -3640,6 +3755,11 @@ function recordQuery(rawQuery, key, payload, req) {
             existing.lastSource = source;
             existing.resultTitles = resultTitles;
             existing.explanation = (payload && payload.explanation) || existing.explanation;
+            // Una vez sospechosa, siempre sospechosa: si cualquier hit fue
+            // marcado bot/gibberish, el grupo entero queda fuera de popular.
+            // Si alguna vez llegan hits legítimos a la misma key, NO limpiamos
+            // el flag — preferimos perder un grupo contaminado.
+            if (suspicious) existing.suspicious = true;
 
             logger.info('🔍 Consulta agrupada (fuzzy)', {
                 lang,
@@ -3677,7 +3797,8 @@ function recordQuery(rawQuery, key, payload, req) {
                 explanation: (payload && payload.explanation) || '',
                 resultTitles,
                 firstSeen: ts,
-                lastSeen: ts
+                lastSeen: ts,
+                ...(suspicious ? { suspicious: true } : {})
             };
 
             // Insertar al inicio → rank 1 (las repetidas subirán por count)
@@ -3723,6 +3844,7 @@ async function startServer() {
     // Pasar logger a módulos de DB y embeddings
     setDbLogger(logger);
     setEmbeddingsLogger(logger);
+    setRewriterLogger(logger);
 
     // Inicializar PostgreSQL (no-crítico, solo log si falla)
     await initDB();
@@ -4147,6 +4269,23 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         // Si el cliente envía este header, no registrar en historial ni caché de queries
         const skipHistory = req.headers['x-skip-history'] === 'true';
 
+        // Detección de spam/bot: marcar la query para excluirla de /popular y
+        // métricas, sin bloquear la respuesta (no queremos alertar al bot).
+        // Dos señales independientes, cualquiera dispara el flag:
+        //   - IP burst: >30 requests en 10s desde la misma IP
+        //   - Gibberish léxico: query con patrones no-humanos
+        const clientIp = extractIp(req);
+        const ipBurst = spamTracker.track(clientIp);
+        const gibberish = isGibberishQuery(userMsg);
+        const suspicious = ipBurst || gibberish;
+        if (suspicious) {
+            logger.warn('🚫 Query sospechosa', {
+                ip: clientIp,
+                reason: ipBurst ? (gibberish ? 'burst+gibberish' : 'burst') : 'gibberish',
+                preview: userMsg.slice(0, 80)
+            });
+        }
+
         // Validar que exista catálogo para el idioma solicitado. Si no hay series en reqLang
         // (ej. EN aún sin migrar), degradar con mensaje claro en lugar de respuestas vacías.
         const langBucket = seriesIndexByLang.get(reqLang) || [];
@@ -4179,8 +4318,18 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             });
         }
 
+        // 0c. Reescritura de typos: corrige errores ortográficos en conceptos
+        // ("nicromante" → "nigromante") y títulos ("solo levling" → "Solo Leveling")
+        // antes de tocar cachés o motores de búsqueda. El texto original se
+        // conserva para la respuesta al usuario; el reescrito alimenta la
+        // búsqueda y la clave de caché para que typos comunes converjan a la
+        // misma entrada. Si no hay correcciones confiables, devuelve el texto tal cual.
+        const rewritten = rewriteQuery(userMsg, { seriesCache });
+        const searchMsg = rewritten.text;
+        const searchCleanMsg = rewritten.changed ? cleanText(searchMsg) : cleanMsg;
+
         // 1. Revisar caché (scoped por idioma: /es y /en NUNCA comparten payload)
-        const scopedKey = cacheKey(reqLang, cleanMsg);
+        const scopedKey = cacheKey(reqLang, searchCleanMsg);
         const cached = getCachedSearchSmart(scopedKey);
         if (cached && cached.status === 'fresh') {
             metrics.cacheHits++;
@@ -4193,12 +4342,12 @@ app.post('/api/read', aiLimiter, async (req, res) => {
             logger.info('Cache HIT (fresh)', { query: cleanMsg, lang: reqLang });
             const payload = { ...cached.data, series: sanitizeSeriesForResponse(fullSeries) };
             // Registrar la consulta y su resultado
-            if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
+            if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req, { suspicious });
             return safeJson(200, payload);
         }
 
         // 2. BÚSQUEDA LOCAL: solo para matches de título exacto/subcadena (filtrado por idioma)
-        const localResults = performFallbackSearch(userMsg, reqLang);
+        const localResults = performFallbackSearch(searchMsg, reqLang);
 
         // Solo retornar local si es un match de título exacto (source 'exact' o 'alt_title')
         // Esto cubre búsquedas como "Solo Leveling", "Omniscient Reader" etc.
@@ -4213,18 +4362,19 @@ app.post('/api/read', aiLimiter, async (req, res) => {
                 source: 'local_db_priority',
                 lang: reqLang
             };
+            if (rewritten.changed) payload.rewrittenQuery = searchMsg;
             setCachedSearch(scopedKey, payload);
-            if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
-            logger.info('Match de titulo exacto', { query: userMsg, results: seriesItems.length, bestScore: localResults[0].score.toFixed(3) });
+            if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req, { suspicious });
+            logger.info('Match de titulo exacto', { query: userMsg, searched: searchMsg, results: seriesItems.length, bestScore: localResults[0].score.toFixed(3) });
             return safeJson(200, payload);
         }
 
         // 3. Si hay negación → ruta directa a Chat Completions AI
-        const hasNegationEarly = detectNegative(userMsg, reqLang);
+        const hasNegationEarly = detectNegative(searchMsg, reqLang);
 
         // 4. VECTOR SEARCH: método primario para queries semánticas (filtrado por idioma)
         if (!hasNegationEarly && dbAvailable()) {
-            const vectorResults = await performVectorSearch(userMsg, reqLang);
+            const vectorResults = await performVectorSearch(searchMsg, reqLang);
             if (vectorResults && vectorResults.length > 0) {
                 const seriesItems = vectorResults.map(r => r.item);
                 const payload = {
@@ -4235,10 +4385,12 @@ app.post('/api/read', aiLimiter, async (req, res) => {
                     topSimilarity: vectorResults[0]?.similarity?.toFixed(3),
                     lang: reqLang
                 };
+                if (rewritten.changed) payload.rewrittenQuery = searchMsg;
                 setCachedSearch(scopedKey, payload);
-                if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
+                if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req, { suspicious });
                 logger.info('Vector search exitoso', {
                     query: userMsg,
+                    searched: searchMsg,
                     results: seriesItems.length,
                     topSimilarity: vectorResults[0]?.similarity?.toFixed(3)
                 });
@@ -4248,7 +4400,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
 
         // 5. FALLBACK: LLAMAR A LA IA (negaciones, vector no disponible, o sin resultados)
         metrics.aiCalls++;
-        const cleanedInput = cleanInputForAI(userMsg, reqLang);
+        const cleanedInput = cleanInputForAI(searchMsg, reqLang);
         const enrichedInput = enrichQuery(cleanedInput, reqLang);
 
         // Deduplicación de peticiones concurrentes (Promise Coalescing) — key por idioma
@@ -4271,9 +4423,9 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         if (!aiResult || !aiResult.filter) {
             // Fallback: búsqueda con query enriquecido (sinónimos aplicados), filtrado por idioma
             let fallbackRaw = performFallbackSearch(enrichedInput, reqLang);
-            // Si el enriquecido no dio resultados, intentar con el original
+            // Si el enriquecido no dio resultados, intentar con el reescrito (o el original si no hubo cambio)
             if (fallbackRaw.length === 0) {
-                fallbackRaw = performFallbackSearch(userMsg, reqLang);
+                fallbackRaw = performFallbackSearch(searchMsg, reqLang);
             }
             const fallback = fallbackRaw.map(r => r.item);
             metrics.fallbackSearches++;
@@ -4287,7 +4439,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
                 lang: reqLang
             };
             // Registrar consulta y resultado (fallback)
-            if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
+            if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req, { suspicious });
             return safeJson(200, payload);
         }
 
@@ -4409,7 +4561,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
 
         // Si no hay resultados filtrados, fallback (filtrado por idioma)
         if (results.length === 0) {
-            const fallback = performFallbackSearch(userMsg, reqLang).map(r => r.item);
+            const fallback = performFallbackSearch(searchMsg, reqLang).map(r => r.item);
             const payload = {
                 success: true,
                 explanation: aiResult.reason || t(reqLang, 'resultsFor', { q: userMsg }),
@@ -4419,7 +4571,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
                 lang: reqLang
             };
             // Registrar consulta y resultado (fallback después del filtro IA)
-            if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
+            if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req, { suspicious });
             return safeJson(200, payload);
         }
 
@@ -4454,7 +4606,7 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         }
 
         // Registrar consulta y resultado (IA)
-        if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req);
+        if (!skipHistory) recordQuery(userMsg, cleanMsg, payload, req, { suspicious });
         return safeJson(200, payload);
 
     } catch (err) {

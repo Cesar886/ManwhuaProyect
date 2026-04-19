@@ -1,0 +1,16 @@
+{
+    "name": "manhwa-search-service",
+    "version": "1.0.0",
+    "private": true,
+    "description": "AI-powered search service (Express) for Manhwa Imperial. Handles embeddings, query history and per-language cache.",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "test": "node --test tests/",
+        "test:i18n": "node --test tests/i18n.test.js",
+        "test:rewriter": "node --test tests/query-rewriter.test.js"
+    },
+    "engines": {
+        "node": ">=18"
+    }
+}

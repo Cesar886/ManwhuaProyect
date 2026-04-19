@@ -248,7 +248,10 @@ function getSeriesRating(item) {
   for (const c of candidates) {
     const n = Number(c)
     if (Number.isFinite(n) && n >= 0.1) {
-      return n.toFixed(1)
+      // Normaliza a escala 5: si viene en 10, lo convertimos a /5.
+      const normalized = n > 5 ? n / 2 : n
+      const clamped = Math.min(5, Math.max(0, normalized))
+      return clamped.toFixed(1)
     }
   }
   return null
@@ -257,7 +260,7 @@ function getSeriesRating(item) {
 function RatingBadge({ value, className }) {
   if (!value) return null
   return (
-    <span className={className} aria-label={`Rating ${value}`}>
+    <span className={className} aria-label={`Rating ${value} de 5`}>
       <svg
         viewBox="0 0 24 24"
         width="10"
@@ -267,7 +270,7 @@ function RatingBadge({ value, className }) {
       >
         <path d="M12 2l2.9 6.9L22 10l-5.5 4.8L18.2 22 12 18.3 5.8 22l1.7-7.2L2 10l7.1-1.1L12 2z" />
       </svg>
-      {value}
+      {value}/5
     </span>
   )
 }
@@ -705,7 +708,12 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
           setTop10({
             loading: false,
-            country: json.data?.country || null,
+            country:
+              json.data?.country
+              || json.data?.countryCode
+              || json.data?.country_code
+              || json.data?.detectedCountry
+              || null,
             series: items,
           })
           return
@@ -730,15 +738,28 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
   // Etiqueta amable del país ("México", "United States", etc.) vía Intl.
   const top10CountryLabel = (() => {
-    const code = top10.country
-    if (!code) return null
-    try {
-      const regionLocale = lang === 'en' ? 'en' : 'es'
-      const dn = new Intl.DisplayNames([regionLocale], { type: 'region' })
-      return dn.of(code) || code
-    } catch {
-      return code
+    const raw = String(top10.country || '').trim()
+
+    const resolveRegionName = (value) => {
+      if (!value) return null
+      try {
+        const regionLocale = lang === 'en' ? 'en' : 'es'
+        const dn = new Intl.DisplayNames([regionLocale], { type: 'region' })
+        return dn.of(value) || value
+      } catch {
+        return value
+      }
     }
+
+    if (raw) {
+      const normalized = raw.toUpperCase()
+      if (/^[A-Z]{2}$/.test(normalized)) {
+        return resolveRegionName(normalized)
+      }
+      return raw
+    }
+
+    return lang === 'en' ? 'your country' : 'tu país'
   })()
 
   useEffect(() => {
@@ -1184,27 +1205,11 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
         {(top10.loading || top10.series.length > 0) && (
           <section className={styles.top10Section} aria-label="Top 10 Manhwas">
             <div className={styles.top10Header}>
-              <div className={styles.top10Badge}>
-                <span className={styles.top10BadgeMark}>TOP</span>
-                <span className={styles.top10BadgeNum}>10</span>
-              </div>
               <div className={styles.top10Titles}>
                 <h2 className={styles.top10Title}>
-                  {lang === 'en' ? 'Top 10 Manhwas' : 'Top 10 Manhwas'}
-                  {top10CountryLabel && (
-                    <>
-                      {' '}
-                      <span className={styles.top10TitleAccent}>
-                        {lang === 'en' ? `in ${top10CountryLabel}` : `en ${top10CountryLabel}`}
-                      </span>
-                    </>
-                  )}
+                  {lang === 'en' ? 'Top 10 Manhwas in ' : 'Top 10 Manhwas en '}
+                  {top10CountryLabel}
                 </h2>
-                <p className={styles.top10Subtitle}>
-                  {lang === 'en'
-                    ? 'Today · Based on readers like you'
-                    : 'Hoy · Basado en lectores como tú'}
-                </p>
               </div>
             </div>
 
@@ -1237,7 +1242,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         alt={getImageAlt.cover(item.title, lang)}
                         className={styles.top10Img}
                         priority={i < 3}
-                        sizes="(max-width: 480px) 120px, (max-width: 768px) 150px, 180px"
+                        sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
                       />
                       <RatingBadge value={getSeriesRating(item)} className={styles.top10RatingBadge} />
                       <div className={styles.top10CardOverlay}>
