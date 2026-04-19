@@ -26,10 +26,11 @@ let authClient = null
 async function getAuthClient() {
   if (authClient) return authClient
 
-  const credentialsPath = path.resolve(
-    process.env.GOOGLE_CREDENTIALS_PATH ||
-    path.join(__dirname, '..', '..', 'manhwa-api', 'src', 'config', 'google-indexing-credentials.json')
-  )
+  // GSC-SEO: Resolver relativo a la raíz del pipeline (no al CWD)
+  const rawPath = process.env.GOOGLE_CREDENTIALS_PATH || 'service-account.json'
+  const credentialsPath = path.isAbsolute(rawPath)
+    ? rawPath
+    : path.resolve(__dirname, '..', rawPath)
 
   if (!fs.existsSync(credentialsPath)) {
     throw new Error(
@@ -106,6 +107,14 @@ async function querySearchAnalytics(params) {
       )
     }
     if (error.response?.status === 403) {
+      const reason = error.response?.data?.error?.details?.[0]?.reason
+      const activationUrl = error.response?.data?.error?.details?.[0]?.metadata?.activationUrl
+      if (reason === 'SERVICE_DISABLED') {
+        throw new Error(
+          `GSC-CRÍTICO ⚠: La Search Console API está DESHABILITADA en tu proyecto GCP.\n` +
+          `→ Habilítala aquí: ${activationUrl || 'https://console.developers.google.com/apis/api/searchconsole.googleapis.com/overview'}`
+        )
+      }
       throw new Error(
         'GSC-CRÍTICO ⚠: Sin permisos en GSC → Agregar el email del Service Account como usuario en Search Console'
       )

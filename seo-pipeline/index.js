@@ -63,11 +63,13 @@ const {
 // -- NOTIFICACIONES --
 const { notify, generateReportJson } = require('./notifications/notifier')
 
+// -- CONFIG --
+const { AGENT } = require('./config/agentConfig')
+
 // -- CONSTANTES --
 const REPORTS_DIR = path.resolve(process.env.REPORTS_DIR || './reports')
-const DATA_RAW_DIR = path.resolve('./data/raw')
+const DATA_RAW_DIR = path.resolve(__dirname, 'data/raw')
 const ADMIN_REPORTS_DIR = process.env.ADMIN_REPORTS_DIR || AGENT.ADMIN_REPORTS_DIR
-const { AGENT } = require('./config/agentConfig')
 
 // == UTILIDADES ==
 

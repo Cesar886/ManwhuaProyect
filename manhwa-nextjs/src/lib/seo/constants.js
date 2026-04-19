@@ -323,10 +323,15 @@ export const META_TEMPLATES = {
     const genres = (series?.genres || []).map(g => typeof g === 'string' ? g : g?.name).filter(Boolean)
     const status = series?.status === 'completed' ? 'Completo' : series?.status === 'paused' ? 'Pausado' : 'En emisión'
     const chapterCount = series?.chapters?.length || series?.chapterCount || '?'
-    
+
+    // SEO-agent: priorizar meta_title/meta_description de BD (escritos por IMPERIAL-AGENT).
+    // Fallback a plantilla generada si la BD no tiene valor.
+    const dbMetaTitle = series?.metaTitle || series?.meta_title || null
+    const dbMetaDescription = series?.metaDescription || series?.meta_description || null
+
     return {
-      title: `Leer ${title} Manhwa Online Gratis en Español | ${SITE_NAME}`,
-      description: `Lee ${title} manhwa completo en español gratis. ${chapterCount} capítulos disponibles. Géneros: ${genres.join(', ') || 'Manhwa'}. Estado: ${status}. El mejor sitio para leer manhwas.`,
+      title: dbMetaTitle || `Leer ${title} Manhwa Online Gratis en Español | ${SITE_NAME}`,
+      description: dbMetaDescription || `Lee ${title} manhwa completo en español gratis. ${chapterCount} capítulos disponibles. Géneros: ${genres.join(', ') || 'Manhwa'}. Estado: ${status}. El mejor sitio para leer manhwas.`,
       keywords: [
         `leer ${title}`,
         `${title} manhwa`,
@@ -346,10 +351,17 @@ export const META_TEMPLATES = {
   chapter: (series, chapterNum) => {
     const title = series?.title || 'Manhwa'
     const genres = (series?.genres || []).map(g => typeof g === 'string' ? g : g?.name).filter(Boolean).slice(0, 2)
-    
+
+    // SEO-agent: si la serie tiene meta_title/meta_description en BD, usarlos como base del capítulo.
+    const dbMetaTitle = series?.metaTitle || series?.meta_title || null
+    const dbMetaDescription = series?.metaDescription || series?.meta_description || null
+
     return {
-      title: `${title} Capítulo ${chapterNum} - Leer Manhwa Online Gratis | ${SITE_NAME}`,
-      description: `Lee ${title} Capítulo ${chapterNum} manhwa online gratis en español. ${genres.length > 0 ? `Manhwa de ${genres.join(' y ')}.` : ''} Siguiente capítulo disponible.`,
+      title: dbMetaTitle
+        ? `${dbMetaTitle} - Capítulo ${chapterNum}`
+        : `${title} Capítulo ${chapterNum} - Leer Manhwa Online Gratis | ${SITE_NAME}`,
+      description: dbMetaDescription
+        || `Lee ${title} Capítulo ${chapterNum} manhwa online gratis en español. ${genres.length > 0 ? `Manhwa de ${genres.join(' y ')}.` : ''} Siguiente capítulo disponible.`,
       keywords: [
         `${title} capítulo ${chapterNum}`,
         `leer ${title} capitulo ${chapterNum}`,

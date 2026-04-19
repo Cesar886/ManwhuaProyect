@@ -51,8 +51,14 @@ export async function generateMetadata({ params }) {
   const titleFormatted = title.charAt(0).toUpperCase() + title.slice(1)
   const coverUrl = series.coverUrl || series.cover || null
 
-  const description = series.descriptionEn ?? series.description ?? `Read ${titleFormatted} Chapter ${numero} online free in English.`
-  const metaTitle = `${titleFormatted} Chapter ${numero} - Read Online | ${SITE_NAME}`
+  // SEO-agent: si la serie tiene meta_title/meta_description en BD, usarlos como base para el capítulo.
+  const dbMetaTitle = series.metaTitle || series.meta_title || null
+  const dbMetaDescription = series.metaDescription || series.meta_description || null
+
+  const description = dbMetaDescription ?? series.descriptionEn ?? series.description ?? `Read ${titleFormatted} Chapter ${numero} online free in English.`
+  const metaTitle = dbMetaTitle
+    ? `${dbMetaTitle} - Chapter ${numero}`
+    : `${titleFormatted} Chapter ${numero} - Read Online | ${SITE_NAME}`
 
   return {
     title: { absolute: metaTitle },

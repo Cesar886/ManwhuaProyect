@@ -2831,3 +2831,91 @@
   }
 }
 
+/* ============================================================================
+   RATING BADGE - Estrella + puntuación sobre cada card
+   Se posiciona justo encima del título para que sea siempre legible sin
+   competir con chapterBadge (top-left) ni statusBadge (top-right).
+   ============================================================================ */
+.ratingBadge {
+  position: absolute;
+  bottom: 44px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0.22rem 0.48rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.45);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  z-index: 6;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ratingBadge svg {
+  color: rgba(var(--imperial-gold-rgb, 212, 175, 55), 1);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  flex-shrink: 0;
+}
+
+/* Variante para los cards del Top 10 — más pequeña y siempre visible
+   (el overlay del top10 aparece con hover, pero el rating debe ser constante) */
+.top10RatingBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0.2rem 0.42rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.5);
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  z-index: 7;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.top10RatingBadge svg {
+  color: rgba(var(--imperial-gold-rgb, 212, 175, 55), 1);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .ratingBadge {
+    bottom: 38px;
+    right: 8px;
+    padding: 0.18rem 0.4rem;
+    font-size: 0.62rem;
+  }
+  .top10RatingBadge {
+    top: 6px;
+    left: 6px;
+    padding: 0.16rem 0.36rem;
+    font-size: 0.58rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ratingBadge,
+  .top10RatingBadge {
+    transition: none !important;
+  }
+}

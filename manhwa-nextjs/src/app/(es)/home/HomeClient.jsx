@@ -228,6 +228,51 @@ function sendPersistentRecommendationClick({ impressionId, seriesId }) {
 }
 
 // ============================================================================
+// RATING HELPERS
+// Distintos endpoints devuelven el rating bajo nombres distintos (rating,
+// ratingAverage, rating_average, score…) y a veces dentro de `series`.
+// Este helper acepta cualquiera de ellos y devuelve un string listo para
+// mostrar, o null si no hay rating útil (< 0.1 → se considera "sin votos").
+// ============================================================================
+function getSeriesRating(item) {
+  if (!item || typeof item !== 'object') return null
+  const candidates = [
+    item.rating,
+    item.ratingAverage,
+    item.rating_average,
+    item.score,
+    item.series?.rating,
+    item.series?.ratingAverage,
+    item.series?.rating_average,
+  ]
+  for (const c of candidates) {
+    const n = Number(c)
+    if (Number.isFinite(n) && n >= 0.1) {
+      return n.toFixed(1)
+    }
+  }
+  return null
+}
+
+function RatingBadge({ value, className }) {
+  if (!value) return null
+  return (
+    <span className={className} aria-label={`Rating ${value}`}>
+      <svg
+        viewBox="0 0 24 24"
+        width="10"
+        height="10"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path d="M12 2l2.9 6.9L22 10l-5.5 4.8L18.2 22 12 18.3 5.8 22l1.7-7.2L2 10l7.1-1.1L12 2z" />
+      </svg>
+      {value}
+    </span>
+  )
+}
+
+// ============================================================================
 // COMPONENTE CLIENTE - Recibe datos iniciales del Server Component (SSR)
 // Si no hay datos iniciales, los carga client-side como fallback
 // ============================================================================
@@ -1194,6 +1239,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         priority={i < 3}
                         sizes="(max-width: 480px) 120px, (max-width: 768px) 150px, 180px"
                       />
+                      <RatingBadge value={getSeriesRating(item)} className={styles.top10RatingBadge} />
                       <div className={styles.top10CardOverlay}>
                         <h3 className={styles.top10CardTitle}>{item.title}</h3>
                         {item.chapterCount > 0 && (
@@ -1270,6 +1316,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         <span className={styles.statusBadge}>
                           {progress > 0 ? `${progress}%` : t.home.story}
                         </span>
+                        <RatingBadge value={getSeriesRating(item)} className={styles.ratingBadge} />
                         <h3 className={styles.titleLink}>{title}</h3>
                         <div style={{ position: 'absolute', left: 8, right: 8, bottom: 8, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                           <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, var(--imperial-cyan), var(--imperial-gold))' }} />
@@ -1369,6 +1416,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                           <span className={styles.statusBadge}>
                             {item.contentType || item.content_type || 'Manhwa'}
                           </span>
+                          <RatingBadge value={getSeriesRating(item)} className={styles.ratingBadge} />
                           <h3 className={styles.titleLink}>{item.title}</h3>
                         </div>
                       </Link>
@@ -1440,6 +1488,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                       <span className={styles.statusBadge}>
                         {item.contentType || item.content_type || 'Manhwa'}
                       </span>
+                      <RatingBadge value={getSeriesRating(item)} className={styles.ratingBadge} />
                       <h3 className={styles.titleLink}>{item.title}</h3>
                     </div>
                   </Link>
@@ -1535,6 +1584,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                           <span className={styles.statusBadge}>
                             {item.contentType || 'Manhwa'}
                           </span>
+                          <RatingBadge value={getSeriesRating(item)} className={styles.ratingBadge} />
                           <h3 className={styles.titleLink}>{item.title}</h3>
                         </div>
                       </Link>

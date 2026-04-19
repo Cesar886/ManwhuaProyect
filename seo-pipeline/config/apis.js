@@ -10,10 +10,10 @@ const GSC = {
   SCOPE: 'https://www.googleapis.com/auth/webmasters.readonly',
   INDEXING_SCOPE: 'https://indexing.googleapis.com/v3/urlNotifications:publish',
   SITE_URL: process.env.GSC_SITE_URL || 'https://manhwaimperial.site',
-  CREDENTIALS_PATH: path.resolve(
-    process.env.GOOGLE_CREDENTIALS_PATH ||
-    path.join(__dirname, '..', '..', 'manhwa-api', 'src', 'config', 'google-indexing-credentials.json')
-  ),
+  CREDENTIALS_PATH: (() => {
+    const raw = process.env.GOOGLE_CREDENTIALS_PATH || 'service-account.json'
+    return path.isAbsolute(raw) ? raw : path.resolve(__dirname, '..', raw)
+  })(),
   MAX_ROWS: 25000,
   DATA_DELAY_DAYS: 3,
   // Rate limits

@@ -1,10 +1,16 @@
 node_modules/
 .env
+.env.*
+!.env.example
+service-account.json
+*-credentials.json
+google-*.json
 reports/*.json
 logs/*.json
 drafts/*.json
 data/raw/*.json
 data/agent_memory.json
+data/seo_history.json
 !logs/.gitkeep
 !drafts/.gitkeep
 !data/.gitkeep

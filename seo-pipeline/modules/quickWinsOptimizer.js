@@ -19,6 +19,7 @@ const { AGENT } = require('../config/agentConfig')
 const { gptCall } = require('../core/gptClient')
 const { wasRecentlyOptimized, markOptimized, addDraft } = require('../core/agentMemory')
 const { updateMeta } = require('../core/dbClient')
+const { revalidateSeries } = require('../core/revalidate')
 const titlePrompt = require('../prompts/titleOptimizer.prompt')
 const { logAction } = require('./autonomousExecutor')
 
@@ -192,19 +193,45 @@ async function runQuickWinsOptimizer(quickWinsData) {
     const score = parsed.confidence_score || 0
 
     if (score >= AGENT.CONFIDENCE_THRESHOLD) {
-      // Publicar directamente en DB
+      // Publicar directamente en DB (validado + registrado en seo_history)
       const slug = currentMeta.slug || extractSlug(url)
       const dbResult = await updateMeta(slug, {
         title: parsed.title,
         meta_description: parsed.meta_description,
         schema_jsonld: parsed.schema_jsonld,
-      })
+      }, { module: 'quickWins' })
 
       if (dbResult.success) {
         markOptimized(url, 'quickWins')
-        logAction('quickWins_publish', { url, query, title: parsed.title, score })
+        logAction('quickWins_publish', {
+          url, query, score,
+          before: {
+            title: dbResult.before?.title,
+            meta_description: dbResult.before?.meta_description,
+          },
+          after: {
+            title: dbResult.after?.title,
+            meta_description: dbResult.after?.meta_description,
+          },
+          truncated: dbResult.truncated || [],
+        })
         results.optimized++
-        console.log(`    -> Publicado (score: ${score})`)
+        console.log(`    -> Publicado (score: ${score})${dbResult.truncated?.length ? ` [truncado: ${dbResult.truncated.join(',')}]` : ''}`)
+
+        // Invalida la ISR de Next.js para que el HTML se regenere con los nuevos meta
+        const reval = await revalidateSeries({ slug })
+        if (!reval.ok && !reval.skipped) {
+          console.warn(`    -> Aviso: revalidate falló (${reval.error}). El frontend usará cache hasta el próximo rebuild.`)
+        }
+      } else if (dbResult.skipped) {
+        // Edición humana, validación fallida, o noop — no es un error
+        results.skipped++
+        logAction('quickWins_skipped', {
+          url, query, score,
+          reason: dbResult.reason,
+          validation: dbResult.validation || null,
+        })
+        console.log(`    -> Skip (${dbResult.reason})`)
       } else {
         results.failed++
         console.error(`    -> Error DB: ${dbResult.error}`)

@@ -31,10 +31,15 @@ export async function generateMetadata({ params }) {
 
   const title = series.title || slug.replace(/-/g, ' ')
   const coverUrl = series.coverUrl || series.cover || null
-  
+
+  // SEO-agent: priorizar meta_title/meta_description escritos por IMPERIAL-AGENT en BD.
+  // Fallback a plantilla auto-generada si la BD no tiene valor.
+  const dbMetaTitle = series.metaTitle || series.meta_title || null
+  const dbMetaDescription = series.metaDescription || series.meta_description || null
+
   // English metadata
-  const description = series.descriptionEn ?? series.description ?? `Read ${title} manhwa online free in English. Updated daily with new chapters.`
-  const metaTitle = `${title} - Read Online | Manhwa Imperial`
+  const description = dbMetaDescription ?? series.descriptionEn ?? series.description ?? `Read ${title} manhwa online free in English. Updated daily with new chapters.`
+  const metaTitle = dbMetaTitle ?? `${title} - Read Online | Manhwa Imperial`
 
   return {
     title: { absolute: metaTitle },

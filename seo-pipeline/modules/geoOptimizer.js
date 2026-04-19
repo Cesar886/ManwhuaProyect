@@ -22,6 +22,7 @@ const axios = require('axios')
 const { AGENT } = require('../config/agentConfig')
 const { gptCall } = require('../core/gptClient')
 const { updateMeta } = require('../core/dbClient')
+const { revalidateSeries } = require('../core/revalidate')
 const { wasRecentlyOptimized, markOptimized, addDraft, getCostPercentage } = require('../core/agentMemory')
 const { logAction, readJsonSafe, writeJsonAtomic } = require('./autonomousExecutor')
 const geoPrompt = require('../prompts/geoOptimizer.prompt')
@@ -259,15 +260,23 @@ async function runGeoOptimizer(options = {}) {
       const schemaData = buildCombinedSchema(geoResult)
 
       let success = false
+      let skipReason = null
       if (slug) {
-        const dbResult = await updateMeta(slug, { schema_jsonld: schemaData })
+        const dbResult = await updateMeta(slug, { schema_jsonld: schemaData }, { module: 'geoOptimizer' })
         success = dbResult.success
+        skipReason = dbResult.skipped ? dbResult.reason : null
+        if (success) {
+          const reval = await revalidateSeries({ slug })
+          if (!reval.ok && !reval.skipped) {
+            console.warn(`    -> Aviso: revalidate falló (${reval.error})`)
+          }
+        }
       }
 
       markOptimized(page, 'geoOptimizer')
-      logAction('geo_publish', { url: page, query, score, success })
+      logAction('geo_publish', { url: page, query, score, success, skipReason })
       results.optimized++
-      console.log(`    -> GEO aplicado (score: ${score})`)
+      console.log(`    -> GEO aplicado (score: ${score})${skipReason ? ` [skip: ${skipReason}]` : ''}`)
     } else {
       // Draft
       addDraft({
