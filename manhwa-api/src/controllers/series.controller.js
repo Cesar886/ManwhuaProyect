@@ -1931,7 +1931,8 @@ function loadGeoipIfAvailable() {
 //      en background → percibido siempre instantáneo.
 const TOP10_CACHE_FRESH_MS = 10 * 60 * 1000;   // 10 min "fresco"
 const TOP10_CACHE_STALE_MS = 30 * 60 * 1000;   // 30 min adicionales "stale"
-const TOP10_MIN_VIEWS_FOR_COUNTRY = 50;        // umbral para usar country vs. global
+const TOP10_MIN_VIEWS_FOR_COUNTRY = Math.max(1, parseInt(process.env.TOP10_MIN_VIEWS_FOR_COUNTRY || '2', 10));
+const TOP10_MIN_SERIES_FOR_COUNTRY = Math.max(1, parseInt(process.env.TOP10_MIN_SERIES_FOR_COUNTRY || '1', 10));
 const TOP10_WINDOW_DAYS = 7;                   // ventana temporal de ranking
 const top10Cache = new Map();                  // key → { freshUntil, staleUntil, payload }
 const top10InFlight = new Map();               // key → Promise en curso
@@ -2036,15 +2037,15 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
 
     // Fallback a ranking global si:
     //   - La columna country_code no existe (imposible filtrar),
-    //   - El país pedido tiene muy pocas vistas en la ventana (< umbral),
-    //   - O no hay suficientes series (< 10, p. ej. lang=en recién lanzado sin vistas).
+    //   - No hay suficientes series para ese país (< TOP10_MIN_SERIES_FOR_COUNTRY),
+    //   - O el país pedido tiene muy pocas vistas en la ventana (< umbral).
     let usedFallback = false;
     const totalViews = result.rows.reduce(
         (acc, r) => acc + (parseInt(r.period_views, 10) || 0),
         0
     );
     const shouldFallback = !hasCountryCol
-        || result.rows.length < 10
+        || (effectiveCountry && result.rows.length < TOP10_MIN_SERIES_FOR_COUNTRY)
         || (effectiveCountry && totalViews < TOP10_MIN_VIEWS_FOR_COUNTRY);
 
     if (shouldFallback) {
@@ -2169,7 +2170,7 @@ const getTop10ByCountry = async (req, res, next) => {
         // Headers CDN comunes a fresh y stale.
         const sendCacheHeaders = () => res.set({
             'Cache-Control': 'public, s-maxage=300, max-age=60, stale-while-revalidate=600',
-            'Vary': 'Accept-Encoding, x-lang',
+            'Vary': 'Accept-Encoding, x-lang, cf-ipcountry, x-vercel-ip-country, x-country-code, x-appengine-country',
         });
 
         // ── 2. Cache hit fresco ─────────────────────────────────────────

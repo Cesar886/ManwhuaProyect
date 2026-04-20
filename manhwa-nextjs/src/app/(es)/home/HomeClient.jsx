@@ -759,8 +759,14 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
       return raw
     }
 
-    return lang === 'en' ? 'your country' : 'tu país'
+    return null
   })()
+
+  const top10Title = top10CountryLabel
+    ? (lang === 'en'
+      ? `Top 10 Manhwas in ${top10CountryLabel}`
+      : `Top 10 Manhwas en ${top10CountryLabel}`)
+    : (lang === 'en' ? 'Top 10 Global Manhwas' : 'Top 10 Manhwas Globales')
 
   useEffect(() => {
     if (!Array.isArray(personalizedRows) || personalizedRows.length === 0) return
@@ -1206,10 +1212,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           <section className={styles.top10Section} aria-label="Top 10 Manhwas">
             <div className={styles.top10Header}>
               <div className={styles.top10Titles}>
-                <h2 className={styles.top10Title}>
-                  {lang === 'en' ? 'Top 10 Manhwas in + ' : 'Top 10 Manhwas en + '}
-                  {top10CountryLabel}
-                </h2>
+                <h2 className={styles.top10Title}>{top10Title}</h2>
               </div>
             </div>
 
