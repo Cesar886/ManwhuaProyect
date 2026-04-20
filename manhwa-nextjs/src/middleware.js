@@ -95,7 +95,12 @@ export function middleware(request) {
 
   // 3. Cookie de preferencia: redirigir al idioma guardado si está en el otro
   const langCookie = request.cookies.get(LANG_COOKIE)?.value
-  if (langCookie === 'en' && !pathname.startsWith('/en')) {
+  const isRootEs = pathname === '/' || pathname === '/home'
+  const isRootEn = pathname === '/en' || pathname === '/en/home'
+
+  // Para evitar secuestro de navegación (ej. /biblioteca -> /en/library),
+  // solo aplicamos redirect por cookie en la ruta raíz.
+  if (langCookie === 'en' && !pathname.startsWith('/en') && isRootEs) {
     const target = getEnEquivalent(pathname)
     if (target) {
       const url = request.nextUrl.clone()
@@ -104,7 +109,7 @@ export function middleware(request) {
     }
     return forward()
   }
-  if (langCookie === 'es' && pathname.startsWith('/en')) {
+  if (langCookie === 'es' && pathname.startsWith('/en') && isRootEn) {
     const target = getEsEquivalent(pathname)
     if (target) {
       const url = request.nextUrl.clone()

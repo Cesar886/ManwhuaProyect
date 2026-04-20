@@ -1931,9 +1931,10 @@ function loadGeoipIfAvailable() {
 //      en background → percibido siempre instantáneo.
 const TOP10_CACHE_FRESH_MS = 10 * 60 * 1000;   // 10 min "fresco"
 const TOP10_CACHE_STALE_MS = 30 * 60 * 1000;   // 30 min adicionales "stale"
-const TOP10_MIN_VIEWS_FOR_COUNTRY = Math.max(1, parseInt(process.env.TOP10_MIN_VIEWS_FOR_COUNTRY || '2', 10));
+const TOP10_MIN_VIEWS_FOR_COUNTRY = Math.max(1, parseInt(process.env.TOP10_MIN_VIEWS_FOR_COUNTRY || '1', 10));
 const TOP10_MIN_SERIES_FOR_COUNTRY = Math.max(1, parseInt(process.env.TOP10_MIN_SERIES_FOR_COUNTRY || '1', 10));
 const TOP10_WINDOW_DAYS = 7;                   // ventana temporal de ranking
+const TOP10_EXTENDED_WINDOW_DAYS = Math.max(TOP10_WINDOW_DAYS, parseInt(process.env.TOP10_EXTENDED_WINDOW_DAYS || '90', 10));
 const top10Cache = new Map();                  // key → { freshUntil, staleUntil, payload }
 const top10InFlight = new Map();               // key → Promise en curso
 const _top10FallbackLog = { lastAt: 0 };       // rate-limit del log de fallback
@@ -2008,14 +2009,14 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
 
     // Ranking = visitantes únicos (DISTINCT por user/visitor/ip) en la ventana.
     // Evita que un mismo usuario infle el ranking con refreshes.
-    const sql = `
+    const buildCountrySql = (windowParam) => `
         WITH ranked AS (
             SELECT
                 sv.series_id,
                 COUNT(DISTINCT COALESCE(sv.user_id::text, sv.visitor_id, sv.ip_address::text)) AS period_views
             FROM series_views sv
             JOIN series s ON s.id = sv.series_id
-            WHERE sv.viewed_at > NOW() - ($${windowParamIdx}::int * INTERVAL '1 day')
+            WHERE sv.viewed_at > NOW() - ($${windowParam}::int * INTERVAL '1 day')
               AND s.deleted_at IS NULL
               ${countryFilter}
               ${langFilter}
@@ -2033,22 +2034,78 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
         ORDER BY r.period_views DESC, s.view_count DESC
         LIMIT 10`;
 
-    let result = await query(sql, params);
+    let result = await query(buildCountrySql(windowParamIdx), params);
+    let effectiveWindowDays = TOP10_WINDOW_DAYS;
 
     // Fallback a ranking global si:
     //   - La columna country_code no existe (imposible filtrar),
     //   - No hay suficientes series para ese país (< TOP10_MIN_SERIES_FOR_COUNTRY),
     //   - O el país pedido tiene muy pocas vistas en la ventana (< umbral).
     let usedFallback = false;
+    let fallbackReason = null;
     const totalViews = result.rows.reduce(
+        (acc, r) => acc + (parseInt(r.period_views, 10) || 0),
+        0
+    );
+
+    // Si hay país pero el corte de 7 días es muy pequeño, probar ventana extendida
+    // para evitar caer a global demasiado pronto durante el arranque del feature.
+    if (
+        effectiveCountry
+        && hasCountryCol
+        && (
+            result.rows.length < TOP10_MIN_SERIES_FOR_COUNTRY
+            || totalViews < TOP10_MIN_VIEWS_FOR_COUNTRY
+        )
+        && TOP10_EXTENDED_WINDOW_DAYS > TOP10_WINDOW_DAYS
+    ) {
+        const extendedParams = [...params];
+        extendedParams[windowParamIdx - 1] = TOP10_EXTENDED_WINDOW_DAYS;
+        const extendedResult = await query(buildCountrySql(windowParamIdx), extendedParams);
+        const extendedViews = extendedResult.rows.reduce(
+            (acc, r) => acc + (parseInt(r.period_views, 10) || 0),
+            0
+        );
+
+        if (
+            extendedResult.rows.length >= TOP10_MIN_SERIES_FOR_COUNTRY
+            && extendedViews >= TOP10_MIN_VIEWS_FOR_COUNTRY
+        ) {
+            result = extendedResult;
+            effectiveWindowDays = TOP10_EXTENDED_WINDOW_DAYS;
+        }
+    }
+
+    const effectiveViews = result.rows.reduce(
         (acc, r) => acc + (parseInt(r.period_views, 10) || 0),
         0
     );
     const shouldFallback = !hasCountryCol
         || (effectiveCountry && result.rows.length < TOP10_MIN_SERIES_FOR_COUNTRY)
-        || (effectiveCountry && totalViews < TOP10_MIN_VIEWS_FOR_COUNTRY);
+        || (effectiveCountry && effectiveViews < TOP10_MIN_VIEWS_FOR_COUNTRY);
 
     if (shouldFallback) {
+        if (!hasCountryCol) fallbackReason = 'schema';
+        else if (effectiveCountry && result.rows.length < TOP10_MIN_SERIES_FOR_COUNTRY) fallbackReason = 'country-no-series';
+        else if (effectiveCountry && effectiveViews < TOP10_MIN_VIEWS_FOR_COUNTRY) fallbackReason = 'country-low-traffic';
+        else fallbackReason = 'unknown';
+
+        // Si no hay datos para ese país, no mostrar ranking global.
+        // Devolvemos vacío para que el frontend oculte la sección.
+        if (fallbackReason === 'country-no-series') {
+            return {
+                success: true,
+                data: {
+                    country: effectiveCountry,
+                    resolvedFrom,
+                    window: `${effectiveWindowDays} days`,
+                    usedGlobalFallback: false,
+                    fallbackReason,
+                    series: [],
+                },
+            };
+        }
+
         const globalParams = [];
         let gp = 0;
         let globalLang = '';
@@ -2079,7 +2136,7 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
             _top10FallbackLog.lastAt = nowTs;
             logger.info(
                 `Top10 fallback: country=${effectiveCountry || 'null'} lang=${lang || 'any'} ` +
-                `views=${totalViews} rows=${result.rows.length} reason=${!hasCountryCol ? 'schema' : 'low-traffic'}`
+                `views=${effectiveViews} rows=${result.rows.length} reason=${fallbackReason || 'low-traffic'}`
             );
         }
     }
@@ -2090,8 +2147,9 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
             // Mantener el país detectado para UI aunque el ranking degrade a global.
             country: effectiveCountry,
             resolvedFrom,
-            window: `${TOP10_WINDOW_DAYS} days`,
+            window: `${effectiveWindowDays} days`,
             usedGlobalFallback: usedFallback,
+            fallbackReason,
             series: result.rows.map(mapTop10Row),
         },
     };

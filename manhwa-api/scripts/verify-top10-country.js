@@ -156,6 +156,7 @@ async function fetchTop10(country) {
     country: country || 'GLOBAL',
     ms,
     usedGlobalFallback: Boolean(body?.data?.usedGlobalFallback),
+    fallbackReason: body?.data?.fallbackReason ?? null,
     resolvedFrom: body?.data?.resolvedFrom ?? null,
     detectedCountry: body?.data?.country ?? null,
     window: body?.data?.window ?? null,
@@ -185,7 +186,7 @@ async function main() {
   }
 
   for (const r of results) {
-    console.log(`- ${r.country}: rows=${r.slugs.length} fallback=${r.usedGlobalFallback} x-cache=${r.xCache || 'n/a'} ms=${r.ms}`);
+    console.log(`- ${r.country}: rows=${r.slugs.length} fallback=${r.usedGlobalFallback} reason=${r.fallbackReason || 'n/a'} x-cache=${r.xCache || 'n/a'} ms=${r.ms}`);
     console.log(`  resolvedFrom=${r.resolvedFrom || 'n/a'} detectedCountry=${r.detectedCountry || 'n/a'} window=${r.window || 'n/a'}`);
     console.log(`  top=${r.slugs.slice(0, 10).join(', ') || '(vacio)'}`);
   }
