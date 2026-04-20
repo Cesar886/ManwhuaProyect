@@ -92,6 +92,24 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   // Obtener usuario autenticado (DEBE estar antes de usarlo en readers)
   const { user } = useAuth();
 
+  const isAdminUser = useMemo(() => {
+    if (!user || typeof user !== 'object') return false;
+
+    const role = String(user.role || '').toLowerCase();
+    if (role === 'admin' || role === 'superadmin' || role === 'super-admin' || role === 'super_admin') {
+      return true;
+    }
+
+    if (Array.isArray(user.roles)) {
+      return user.roles.some((r) => {
+        const normalized = String(r || '').toLowerCase();
+        return normalized === 'admin' || normalized === 'superadmin' || normalized === 'super-admin' || normalized === 'super_admin';
+      });
+    }
+
+    return false;
+  }, [user]);
+
   // Lectores en tiempo real del capítulo actual (excluye al usuario actual)
   const { readers: allReaders } = useChapterReaders(slug, chapterNum, { enabled: !!user?.id });
   
@@ -329,7 +347,13 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   }, [chapterRequest]);
 
   const [showChapterCommentsPanel, setShowChapterCommentsPanel] = useState(false);
-  const isInfiniteScrollMode = adminInfiniteScrollEnabled;
+  const isInfiniteScrollMode = isAdminUser && adminInfiniteScrollEnabled;
+
+  useEffect(() => {
+    if (!isAdminUser && adminInfiniteScrollEnabled) {
+      setAdminInfiniteScrollEnabled(false);
+    }
+  }, [isAdminUser, adminInfiniteScrollEnabled]);
 
   const activeAppendedChapterIndex = useMemo(() => {
     return appendedChapters.findIndex((chapterBlock) => String(chapterBlock.chapterNum) === String(activeVisibleChapterNum));
@@ -493,14 +517,15 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
         entries.forEach((entry) => {
           const chapterValue = entry.target?.dataset?.chapterNum;
           if (!chapterValue) return;
-          chapterIntersectionRatiosRef.current.set(chapterValue, entry.isIntersecting ? entry.intersectionRatio : 0);
+          const visibleHeight = entry.isIntersecting ? entry.intersectionRect.height : 0;
+          chapterIntersectionRatiosRef.current.set(chapterValue, visibleHeight);
         });
 
         let bestChapter = null;
-        let bestRatio = 0;
-        chapterIntersectionRatiosRef.current.forEach((ratio, chapterValue) => {
-          if (ratio > bestRatio) {
-            bestRatio = ratio;
+        let bestVisibleHeight = 0;
+        chapterIntersectionRatiosRef.current.forEach((visibleHeight, chapterValue) => {
+          if (visibleHeight > bestVisibleHeight) {
+            bestVisibleHeight = visibleHeight;
             bestChapter = chapterValue;
           }
         });
@@ -512,7 +537,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
       },
       {
         root: null,
-        threshold: [0.2, 0.4, 0.6, 0.8],
+        threshold: [0, 0.01, 0.05, 0.1],
       }
     );
 
@@ -758,9 +783,12 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           slug={slug}
           seriesBasePath={seriesBasePath}
           lang={lang}
-          showInfiniteToggle
+          showInfiniteToggle={isAdminUser}
           infiniteEnabled={adminInfiniteScrollEnabled}
-          onToggleInfinite={() => setAdminInfiniteScrollEnabled((prev) => !prev)}
+          onToggleInfinite={() => {
+            if (!isAdminUser) return;
+            setAdminInfiniteScrollEnabled((prev) => !prev);
+          }}
         />
       )}
 
