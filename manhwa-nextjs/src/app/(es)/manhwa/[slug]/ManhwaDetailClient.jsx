@@ -39,6 +39,8 @@ import SeriesRating from '@/components/SeriesRating';
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { getTranslations } from '@/i18n/translations';
 
+const ADMIN_CHAPTERS_BATCH_SIZE = 40;
+
 
 // Componente de Badge
 const Badge = ({ type, children, icon: Icon }) => {
@@ -369,6 +371,9 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
   const [chapterSort, setChapterSort] = useState('oldest'); // 'newest' | 'oldest'
   const [chapterSearch, setChapterSearch] = useState('');
   const [showChapterFilters, setShowChapterFilters] = useState(false);
+  const [visibleChaptersCount, setVisibleChaptersCount] = useState(ADMIN_CHAPTERS_BATCH_SIZE);
+  const infiniteScrollTriggerRef = React.useRef(null);
+  const isLoadingMoreChaptersRef = React.useRef(false);
 
   // Ref para la sección de pestañas
   const tabsRef = React.useRef(null);
@@ -723,6 +728,62 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
     return chapters;
   }, [series?.chapters, chapterFilter, chapterSort, chapterSearch]);
+
+  const shouldUseAdminInfiniteScroll = isAdmin && filteredChapters.length > ADMIN_CHAPTERS_BATCH_SIZE;
+
+  const displayedChapters = useMemo(() => {
+    if (!isAdmin) return filteredChapters;
+    return filteredChapters.slice(0, visibleChaptersCount);
+  }, [filteredChapters, isAdmin, visibleChaptersCount]);
+
+  const adminInfiniteScrollHint = useMemo(() => {
+    if (lang === 'en') {
+      return `Showing ${displayedChapters.length} of ${filteredChapters.length} chapters. Scroll to load more.`;
+    }
+    return `Mostrando ${displayedChapters.length} de ${filteredChapters.length} capítulos. Desliza para cargar más.`;
+  }, [displayedChapters.length, filteredChapters.length, lang]);
+
+  useEffect(() => {
+    setVisibleChaptersCount(ADMIN_CHAPTERS_BATCH_SIZE);
+  }, [series?.id, chapterFilter, chapterSort, chapterSearch]);
+
+  useEffect(() => {
+    if (!shouldUseAdminInfiniteScroll) return;
+
+    const triggerNode = infiniteScrollTriggerRef.current;
+    if (!triggerNode || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (!entry?.isIntersecting) return;
+        if (isLoadingMoreChaptersRef.current) return;
+        if (visibleChaptersCount >= filteredChapters.length) return;
+
+        isLoadingMoreChaptersRef.current = true;
+        setVisibleChaptersCount((prev) => Math.min(prev + ADMIN_CHAPTERS_BATCH_SIZE, filteredChapters.length));
+
+        if (typeof window !== 'undefined') {
+          window.requestAnimationFrame(() => {
+            isLoadingMoreChaptersRef.current = false;
+          });
+        } else {
+          isLoadingMoreChaptersRef.current = false;
+        }
+      },
+      {
+        root: null,
+        rootMargin: '320px 0px',
+        threshold: 0.01,
+      }
+    );
+
+    observer.observe(triggerNode);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [shouldUseAdminInfiniteScroll, visibleChaptersCount, filteredChapters.length]);
 
   // Determinar capítulo para continuar leyendo (primer capítulo por número)
   const continueReadingChapter = useMemo(() => {
@@ -1373,12 +1434,13 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                     </div>
                   )}
                 </div>
+
               </div>
             </div>
 
             {/* Lista de capítulos */}
             <div className={styles.chaptersList}>
-              {filteredChapters.map((chapter) => {
+              {displayedChapters.map((chapter) => {
                 const daysSincePublish = chapter.publishedAt
                   ? Math.floor((Date.now() - new Date(chapter.publishedAt)) / (1000 * 60 * 60 * 24))
                   : 999;
@@ -1398,6 +1460,13 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                   />
                 );
               })}
+
+              {shouldUseAdminInfiniteScroll && displayedChapters.length < filteredChapters.length && (
+                <>
+                  <div ref={infiniteScrollTriggerRef} className={styles.infiniteScrollTrigger} aria-hidden="true" />
+                  <p className={styles.infiniteScrollHint}>{adminInfiniteScrollHint}</p>
+                </>
+              )}
             </div>
 
             {/* Adsterra Native Banner */}

@@ -1562,6 +1562,7 @@
   .filterLabel {
     display: none;
   }
+
 }
 
 .filterSection h4 {
@@ -1631,6 +1632,18 @@
   flex-direction: column;
   gap: var(--spacing-sm);
   margin-bottom: 20%;
+}
+
+.infiniteScrollTrigger {
+  height: 1px;
+  width: 100%;
+}
+
+.infiniteScrollHint {
+  margin: var(--spacing-xs) 0 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .chapterCard {

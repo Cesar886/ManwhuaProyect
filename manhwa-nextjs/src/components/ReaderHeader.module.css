@@ -178,6 +178,77 @@
   transform: scale(0.95);
 }
 
+.infiniteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: var(--subtle-bg, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  color: var(--text-color, #ffffff);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.22));
+  transition: background-color 0.15s ease, transform 0.12s ease, border-color 0.15s ease, box-shadow 0.2s ease, color 0.15s ease;
+}
+
+.infiniteButton:hover {
+  background: var(--subtle-bg-hover, rgba(255, 255, 255, 0.12));
+  border-color: var(--border-medium, rgba(255, 255, 255, 0.2));
+  transform: scale(1.05);
+}
+
+.infiniteButton:active {
+  transform: scale(0.95);
+}
+
+.infiniteButtonActive {
+  border-color: rgba(var(--imperial-gold-rgb), 0.6);
+  background: linear-gradient(
+    180deg,
+    rgba(var(--imperial-gold-rgb), 0.3),
+    rgba(var(--imperial-gold-rgb), 0.18)
+  );
+  color: var(--imperial-gold-light, #fef3c7);
+  box-shadow:
+    0 4px 14px rgba(var(--imperial-gold-rgb), 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  animation: infiniteGoldPulse 2.1s ease-in-out infinite;
+}
+
+@keyframes infiniteGoldPulse {
+  0% {
+    box-shadow:
+      0 3px 10px rgba(var(--imperial-gold-rgb), 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    border-color: rgba(var(--imperial-gold-rgb), 0.48);
+  }
+
+  50% {
+    box-shadow:
+      0 5px 18px rgba(var(--imperial-gold-rgb), 0.5),
+      0 0 10px rgba(var(--imperial-gold-rgb), 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    border-color: rgba(var(--imperial-gold-rgb), 0.72);
+  }
+
+  100% {
+    box-shadow:
+      0 3px 10px rgba(var(--imperial-gold-rgb), 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    border-color: rgba(var(--imperial-gold-rgb), 0.48);
+  }
+}
+
+.infiniteSymbol {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
 /* ===============================================
    RESPONSIVE - Mobile (< 768px)
    - Header más compacto: padding 6px 12px
@@ -232,6 +303,15 @@
 
   .rightSection {
     gap: 8px;
+  }
+
+  .infiniteButton {
+    height: 30px;
+    width: 30px;
+  }
+
+  .infiniteSymbol {
+    font-size: 14px;
   }
 
   /* En tablet mantenemos el posicionamiento absoluto pero con menos espacio reservado */
@@ -342,6 +422,12 @@
   }
 
   .backButton {
+    transition: none;
+  }
+
+  .infiniteButton,
+  .infiniteButtonActive {
+    animation: none !important;
     transition: none;
   }
 }

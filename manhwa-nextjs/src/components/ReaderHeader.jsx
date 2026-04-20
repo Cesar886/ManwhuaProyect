@@ -61,7 +61,15 @@ const INACTIVITY_TIMEOUT = 3000;      // Auto-hide después de 3 segundos
 const INITIAL_HIDE_DELAY = 2000;      // Ocultar header inicial después de 2 segundos
 const MOBILE_BREAKPOINT = 768;        // Breakpoint mobile vs desktop
 
-export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manhwa', lang = 'es' }) {
+export default function ReaderHeader({
+  slug,
+  chapterNum,
+  seriesBasePath = '/manhwa',
+  lang = 'es',
+  showInfiniteToggle = false,
+  infiniteEnabled = false,
+  onToggleInfinite,
+}) {
   const router = useRouter();
   const { user } = useAuth();
   const t = getTranslations(lang).readerHeader;
@@ -327,6 +335,24 @@ export default function ReaderHeader({ slug, chapterNum, seriesBasePath = '/manh
           LADO DERECHO: Botón pantalla completa
           ========================================= */}
       <div className={styles.rightSection} ref={rightRef}>
+        {showInfiniteToggle && (
+          <button
+            className={`${styles.infiniteButton} ${infiniteEnabled ? styles.infiniteButtonActive : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleInfinite?.();
+            }}
+            aria-pressed={infiniteEnabled}
+            aria-label={lang === 'en'
+              ? (infiniteEnabled ? 'Infinite scroll enabled' : 'Infinite scroll disabled')
+              : (infiniteEnabled ? 'Scroll infinito activado' : 'Scroll infinito desactivado')}
+            title={lang === 'en'
+              ? (infiniteEnabled ? 'Infinite scroll enabled' : 'Infinite scroll disabled')
+              : (infiniteEnabled ? 'Scroll infinito activado' : 'Scroll infinito desactivado')}
+          >
+            <span className={styles.infiniteSymbol} aria-hidden="true">∞</span>
+          </button>
+        )}
         <button
           className={styles.fullscreenButton}
           onClick={toggleFullscreenLocal}
