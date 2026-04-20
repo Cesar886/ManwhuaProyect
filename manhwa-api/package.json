@@ -7,6 +7,7 @@
     "start": "NODE_OPTIONS=--openssl-legacy-provider node src/server.js",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider nodemon --ignore 'data/' src/server.js",
     "test": "jest",
+    "verify:top10-country": "node scripts/verify-top10-country.js",
     "migrate": "node src/database/migrate.js",
     "seed": "node src/database/seed.js"
   },
