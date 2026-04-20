@@ -1531,11 +1531,11 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                       </div>
                     )}
 
-                    <div className={styles.infoStatCard}>
+                    <div className={`${styles.infoStatCard} ${styles.ratingStatCard}`}>
                       <span className={styles.infoStatLabel}>{t.ratingLabel}</span>
                       <span className={styles.infoStatValue}>
                         <IconStar size={15} className={styles.starIcon} />
-                        {(parseFloat(series.rating || 0) / 2).toFixed(1)} / 5
+                        {(parseFloat(series.rating || 0) / 2).toFixed(1)}
                         <span className={styles.infoStatSub}>({series.ratingCount || 0} {series.ratingCount === 1 ? t.vote : t.votes})</span>
                       </span>
                     </div>

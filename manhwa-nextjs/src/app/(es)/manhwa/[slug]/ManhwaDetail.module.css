@@ -625,14 +625,16 @@
   gap: 0.22rem;
   font-size: 0.78rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
+  color: #FBBF24;
   white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 .starIcon {
   color: #fbbf24;
-  opacity: 0.9;
+  opacity: 1;
   flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.35));
 }
 
 .infoStatSub {
@@ -707,13 +709,15 @@
 
 [data-theme="light"] .infoStatValue,
 [data-mantine-color-scheme="light"] .infoStatValue {
-  color: rgba(26, 26, 40, 0.7);
+  color: #B45309;
+  text-shadow: none;
 }
 
 [data-theme="light"] .starIcon,
 [data-mantine-color-scheme="light"] .starIcon {
-  color: var(--imperial-primary);
-  opacity: 0.85;
+  color: #B45309;
+  opacity: 1;
+  filter: none;
 }
 
 [data-theme="light"] .infoStatSub,
@@ -2499,12 +2503,13 @@
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  border: none !important;
 }
 
 .updateStatusOngoing {
   background: rgba(52, 211, 153, 0.12);
   color: #34D399;
-  border: 1px solid rgba(52, 211, 153, 0.25);
+  border: none;
 }
 
 .updateStatusOngoing::before {
@@ -2519,13 +2524,40 @@
 .updateStatusPaused {
   background: rgba(251, 191, 36, 0.12);
   color: #FBBF24;
-  border: 1px solid rgba(251, 191, 36, 0.25);
+  border: none;
 }
 
 .updateStatusCompleted {
   background: rgba(96, 165, 250, 0.12);
   color: #60A5FA;
-  border: 1px solid rgba(96, 165, 250, 0.25);
+  border: none;
+}
+
+/* Rating del bloque de información: dorado forzado */
+.ratingStatCard .infoStatValue {
+  color: #FBBF24 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.ratingStatCard .starIcon {
+  color: #FBBF24 !important;
+  opacity: 1;
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.35));
+}
+
+.ratingStatCard .infoStatSub {
+  color: rgba(251, 191, 36, 0.86) !important;
+}
+
+[data-theme="light"] .ratingStatCard .infoStatValue,
+[data-mantine-color-scheme="light"] .ratingStatCard .infoStatValue,
+[data-theme="light"] .ratingStatCard .starIcon,
+[data-mantine-color-scheme="light"] .ratingStatCard .starIcon,
+[data-theme="light"] .ratingStatCard .infoStatSub,
+[data-mantine-color-scheme="light"] .ratingStatCard .infoStatSub {
+  color: #B45309 !important;
+  filter: none;
+  text-shadow: none;
 }
 
 .updateStatusNote {

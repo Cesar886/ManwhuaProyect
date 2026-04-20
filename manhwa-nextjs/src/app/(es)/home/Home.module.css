@@ -2662,7 +2662,7 @@
   top: 8px;
   z-index: 4;
   font-family: var(--font-heading);
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   font-weight: 900;
   line-height: 1;
   color: rgba(var(--imperial-gold-rgb), 1);
@@ -2768,7 +2768,7 @@
   .top10Rank {
     left: 9px;
     top: 9px;
-    font-size: 1.12rem;
+    font-size: 1.28rem;
   }
   .top10Rank[data-rank="10"] {
     letter-spacing: -0.01em;
@@ -2787,7 +2787,7 @@
   .top10Rank {
     left: 6px;
     top: 6px;
-    font-size: 0.92rem;
+    font-size: 1.04rem;
   }
   .top10Rank[data-rank="10"] {
     letter-spacing: -0.01em;
@@ -2880,24 +2880,35 @@
   gap: 3px;
   padding: 0.2rem 0.42rem;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.82);
+  background: linear-gradient(
+    145deg,
+    rgba(30, 22, 8, 0.94) 0%,
+    rgba(12, 9, 3, 0.94) 100%
+  );
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(var(--imperial-gold-rgb, 212, 175, 55), 0.5);
-  color: rgba(255, 223, 120, 1);
+  border: 1px solid rgba(255, 223, 120, 0.95);
+  color: rgba(255, 223, 120, 1) !important;
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  text-shadow:
+    0 0 6px rgba(255, 215, 120, 0.35),
+    0 1px 1px rgba(0, 0, 0, 0.65);
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.45),
+    0 0 10px rgba(255, 215, 120, 0.22);
   z-index: 7;
   pointer-events: none;
   white-space: nowrap;
 }
 
 .top10RatingBadge svg {
-  color: rgba(255, 223, 120, 1);
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  color: rgba(255, 223, 120, 1) !important;
+  filter:
+    drop-shadow(0 0 4px rgba(255, 215, 120, 0.35))
+    drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
   flex-shrink: 0;
 }
 

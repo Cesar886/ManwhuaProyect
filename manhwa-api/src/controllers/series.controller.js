@@ -2037,14 +2037,15 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
     // Fallback a ranking global si:
     //   - La columna country_code no existe (imposible filtrar),
     //   - El país pedido tiene muy pocas vistas en la ventana (< umbral),
-    //   - O no hay suficientes series (< 10).
+    //   - O no hay suficientes series (< 10, p. ej. lang=en recién lanzado sin vistas).
     let usedFallback = false;
     const totalViews = result.rows.reduce(
         (acc, r) => acc + (parseInt(r.period_views, 10) || 0),
         0
     );
     const shouldFallback = !hasCountryCol
-        || (effectiveCountry && (totalViews < TOP10_MIN_VIEWS_FOR_COUNTRY || result.rows.length < 10));
+        || result.rows.length < 10
+        || (effectiveCountry && totalViews < TOP10_MIN_VIEWS_FOR_COUNTRY);
 
     if (shouldFallback) {
         const globalParams = [];
@@ -2256,17 +2257,21 @@ function extractCountryCode(req) {
 
     try {
         const ip = extractIp(req);
-        if (!ip) return null;
-        // Descartar IPs locales/privadas sin intentar geoip.
-        if (/^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1|fe80:)/.test(ip)) {
-            return null;
+        if (ip && !/^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1|fe80:)/.test(ip)) {
+            const lookup = geoip.lookup(ip);
+            const cc = lookup?.country ? String(lookup.country).trim().toUpperCase() : '';
+            if (/^[A-Z]{2}$/.test(cc)) return cc;
         }
-        const lookup = geoip.lookup(ip);
-        const cc = lookup?.country ? String(lookup.country).trim().toUpperCase() : '';
-        return /^[A-Z]{2}$/.test(cc) ? cc : null;
-    } catch {
-        return null;
+    } catch { /* noop */ }
+
+    // Dev-only: cuando no hay edge CDN (localhost), permitir simular país con
+    // DEV_DEFAULT_COUNTRY=MX para probar la UI de Top 10 por país localmente.
+    if (process.env.NODE_ENV !== 'production') {
+        const dev = String(process.env.DEV_DEFAULT_COUNTRY || '').trim().toUpperCase();
+        if (/^[A-Z]{2}$/.test(dev) && dev !== 'XX' && dev !== 'T1') return dev;
     }
+
+    return null;
 }
 
 /**

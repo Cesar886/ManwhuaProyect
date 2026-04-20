@@ -270,7 +270,7 @@ function RatingBadge({ value, className }) {
       >
         <path d="M12 2l2.9 6.9L22 10l-5.5 4.8L18.2 22 12 18.3 5.8 22l1.7-7.2L2 10l7.1-1.1L12 2z" />
       </svg>
-      {value}/5
+      {value}
     </span>
   )
 }
@@ -1207,7 +1207,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
             <div className={styles.top10Header}>
               <div className={styles.top10Titles}>
                 <h2 className={styles.top10Title}>
-                  {lang === 'en' ? 'Top 10 Manhwas in ' : 'Top 10 Manhwas en '}
+                  {lang === 'en' ? 'Top 10 Manhwas in + ' : 'Top 10 Manhwas en + '}
                   {top10CountryLabel}
                 </h2>
               </div>
