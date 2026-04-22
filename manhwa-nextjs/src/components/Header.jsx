@@ -48,18 +48,18 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   const headerRef = useRef(null);
   const router = useRouter();
   const { lang: detectedLang, t } = useLang();
-  
+
   // Usar lang del prop o detectado
   const lang = propLang || detectedLang;
-  
+
   // Tabs de navegación (dinámicas según idioma)
   const NAVIGATION_TABS = useMemo(() => [
     { label: t.common.home, icon: IconHome, value: 'home', path: getLocalizedPath('/home', lang) },
     { label: t.common.library, icon: IconBooks, value: 'library', path: getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang) },
     { label: 'Manga', icon: IconBook, value: 'manga', path: getLocalizedPath(lang === 'en' ? '/manga' : '/mangas', lang) },
-    { label: t.common.popular, icon: IconTrendingUp, value: 'popular', path: getLocalizedPath('/populares', lang) },
+    // { label: t.common.profile, icon: IconUser, value: 'profile', path: getLocalizedPath('/perfil', lang) },
   ], [lang, t]);
-  
+
   // Items del menú del usuario (dinámicos según idioma)
   const USER_MENU_ITEMS = useMemo(() => [
     { icon: IconUser, label: t.common.profile, color: 'blue', action: 'perfil' },
@@ -120,8 +120,8 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   const auth = useAuth() || {};
   const {
     user: authUser = null,
-    openLogin = () => {},
-    doLogout = async () => {},
+    openLogin = () => { },
+    doLogout = async () => { },
   } = auth;
   const user = authUser || null;
 

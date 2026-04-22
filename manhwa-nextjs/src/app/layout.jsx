@@ -37,7 +37,23 @@ const playfair = Playfair_Display({
  * description, openGraph, twitter y alternates con la versión en inglés.
  * Sólo lo común (authors, metadataBase, robots, verification, etc.) vive aquí.
  */
+export const viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FDFCF9' },
+    { media: '(prefers-color-scheme: dark)', color: '#0F0F14' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+}
+
 export const metadata = {
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Manhwa Imperial',
+  },
   title: {
     default: 'Leer Manhwa Online Gratis en Español - Manhwa Imperial',
     template: '%s | Manhwa Imperial',
@@ -225,7 +241,7 @@ export const metadata = {
     type: 'website',
     locale: 'es_ES',
     url: '/',
-    siteName: 'Manhwa Imperial',
+    siteName: 'Manhwa Imperial · By AI Imperial',
     title: 'Manhwa Imperial - Lee Manhwas y Webtoons en Español | Legal y Gratuito',
     description: 'La plataforma líder para leer manhwas en español, potenciada por inteligencia artificial. Buscador con IA, legal, gratuita, segura y con actualizaciones diarias.',
     images: [
@@ -261,12 +277,12 @@ export const metadata = {
   // Configurar NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION en el entorno de prod.
   ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
     ? {
-        verification: {
-          google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
-          ...(process.env.NEXT_PUBLIC_YANDEX_SITE_VERIFICATION && { yandex: process.env.NEXT_PUBLIC_YANDEX_SITE_VERIFICATION }),
-          ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION && { other: { 'msvalidate.01': process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } }),
-        },
-      }
+      verification: {
+        google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+        ...(process.env.NEXT_PUBLIC_YANDEX_SITE_VERIFICATION && { yandex: process.env.NEXT_PUBLIC_YANDEX_SITE_VERIFICATION }),
+        ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION && { other: { 'msvalidate.01': process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } }),
+      },
+    }
     : {}),
 }
 
@@ -292,10 +308,42 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
-        <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#FDFCF9" media="(prefers-color-scheme: light)" />
+        {/* Mantine y cambios manuales: Actualizar dinámicamente el theme-color al cambiar de tema para la barra del navegador (PWA) */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+              function updateThemeColor() {
+                var isDark = document.documentElement.getAttribute('data-mantine-color-scheme') === 'dark';
+                if (!isDark && !document.documentElement.hasAttribute('data-mantine-color-scheme')) {
+                  isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                }
+                var color = isDark ? '#0F0F14' : '#FDFCF9';
+                var metaList = document.querySelectorAll('meta[name="theme-color"]');
+                if (metaList.length === 0) {
+                  var meta = document.createElement('meta');
+                  meta.name = 'theme-color';
+                  meta.content = color;
+                  document.head.appendChild(meta);
+                } else {
+                  metaList.forEach(function(m) { 
+                    // Limpiamos la query media del viewport y seteamos el nuevo color fijo
+                    m.removeAttribute('media');
+                    m.content = color; 
+                  });
+                }
+              }
+              var observer = new MutationObserver(function() { updateThemeColor(); });
+              if(document.documentElement) {
+                observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mantine-color-scheme', 'class'] });
+              }
+              window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateThemeColor);
+            })();`
+          }}
+        />
         <meta name="impact-site-verification" content="a62d51e4-8267-4442-bba4-45de72b6c992" />
         <meta name="referrer" content="no-referrer-when-downgrade" />
+        <meta name="monetag" content="aeb3c7a279c166b40155002f33c825e8"></meta>
         {/* hreflang: se inyecta automáticamente vía metadata.alternates.languages */}
         {/* Preconnect + DNS prefetch for image CDN (chapter reader) */}
         <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
@@ -333,6 +381,23 @@ export default function RootLayout({ children }) {
           suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(generateDefinedTermSetJsonLd()) }}
+        />
+        {/* Breadcrumb raíz: Google muestra este name en vez de la URL */}
+        <script
+          suppressHydrationWarning
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              "itemListElement": [{
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Manhwa, Manga & Webtoons",
+                "item": "https://manhwaimperial.site"
+              }]
+            })
+          }}
         />
       </head>
       <body className={outfit.className} suppressHydrationWarning>

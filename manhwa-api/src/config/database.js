@@ -18,11 +18,11 @@ const poolConfig = {
     // Pool optimizado para mejor rendimiento
     max: parseInt(process.env.DB_POOL_MAX) || 25,              // Más conexiones para manejar picos
     min: parseInt(process.env.DB_POOL_MIN) || 5,               // Mantener conexiones mínimas calientes
-    idleTimeoutMillis: 60000,                                  // 60s antes de cerrar conexión idle
-    connectionTimeoutMillis: 5000,                             // 5s timeout para obtener conexión
+    idleTimeoutMillis: 10000,                                  // Bajar a 10s para evitar ETIMEDOUT por firewall
+    connectionTimeoutMillis: 10000,                            // 10s timeout para obtener conexión
     // Mantener conexiones vivas
     keepAlive: true,
-    keepAliveInitialDelayMillis: 10000,
+    keepAliveInitialDelayMillis: 5000,
 };
 
 // Timeout de statements (se configurará por sesión)

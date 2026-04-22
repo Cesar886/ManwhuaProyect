@@ -8,6 +8,68 @@ const usernameValidator = require('../utils/usernameValidator');
 const { getLevelInfo, getXpConfig, LEVEL_CONFIG } = require('../utils/xpSystem');
 
 /**
+ * Obtener top usuarios por racha
+ * GET /api/users/top-streak
+ */
+const getTopUsersByStreak = async (req, res, next) => {
+    try {
+        // Sin límite estricto — devolvemos TODOS los usuarios con rachas activas
+        const result = await query(
+            `WITH reading_days AS (
+                SELECT DISTINCT user_id, (COALESCE(first_read_at, read_at) AT TIME ZONE 'UTC')::date AS day
+                FROM reading_history
+            ),
+            numbered AS (
+                SELECT user_id, day,
+                day + ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY day DESC) * INTERVAL '1 day' AS grp
+                FROM reading_days
+            ),
+            streaks AS (
+                SELECT user_id, grp, COUNT(*) AS streak_len, MAX(day) as last_read
+                FROM numbered
+                GROUP BY user_id, grp
+            ),
+            active_streaks AS (
+                SELECT DISTINCT ON (user_id) user_id, streak_len, last_read
+                FROM streaks
+                WHERE last_read >= (NOW() AT TIME ZONE 'UTC')::date - INTERVAL '1 day'
+                ORDER BY user_id, last_read DESC
+            )
+            SELECT u.id, u.username, u.display_name, u.avatar_url,
+                   u.experience, u.level,
+                   COALESCE(ast.streak_len, 0) as current_streak
+            FROM users u
+            JOIN active_streaks ast ON u.id = ast.user_id AND ast.streak_len > 0
+            WHERE u.deleted_at IS NULL AND u.status = 'active'
+            ORDER BY current_streak DESC, u.experience DESC`
+        );
+
+        res.json({
+            success: true,
+            data: {
+                users: result.rows.map(u => {
+                    const xp = parseInt(u.experience) || 0;
+                    const levelInfo = getLevelInfo(xp);
+                    return {
+                        id: u.id,
+                        username: u.username,
+                        displayName: u.display_name,
+                        avatarUrl: u.avatar_url,
+                        experience: xp,
+                        level: levelInfo.level,
+                        levelName: levelInfo.name,
+                        levelColor: levelInfo.color,
+                        streak: parseInt(u.current_streak) || 0
+                    };
+                })
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * Obtener perfil de usuario
  * GET /api/users/:username
  */
@@ -1341,6 +1403,7 @@ const getUserXp = async (req, res, next) => {
 
 module.exports = {
     getProfile,
+    getTopUsersByStreak,
     checkUsername,
     validateUsername,
     updateProfile,

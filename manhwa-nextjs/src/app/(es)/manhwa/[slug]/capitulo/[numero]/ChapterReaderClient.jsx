@@ -285,7 +285,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   const [showHeader] = useState(true);
   const [readerCompact, setReaderCompact] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [adminInfiniteScrollEnabled, setAdminInfiniteScrollEnabled] = useState(false);
+  const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(true);
 
   // OFF = lectura normal (scroll). ON = auto-avance al siguiente capítulo al llegar abajo.
   const readingMode = 'scroll';
@@ -347,13 +347,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   }, [chapterRequest]);
 
   const [showChapterCommentsPanel, setShowChapterCommentsPanel] = useState(false);
-  const isInfiniteScrollMode = isAdminUser && adminInfiniteScrollEnabled;
-
-  useEffect(() => {
-    if (!isAdminUser && adminInfiniteScrollEnabled) {
-      setAdminInfiniteScrollEnabled(false);
-    }
-  }, [isAdminUser, adminInfiniteScrollEnabled]);
+  const isInfiniteScrollMode = isInfiniteScrollEnabled;
 
   const activeAppendedChapterIndex = useMemo(() => {
     return appendedChapters.findIndex((chapterBlock) => String(chapterBlock.chapterNum) === String(activeVisibleChapterNum));
@@ -373,6 +367,13 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
       return acc;
     }, 0);
   }, [appendedChapters, sortedChapters, activeVisibleChapterIndex]);
+
+  const isBaseChapterVisible = useMemo(() => {
+    if (!isInfiniteScrollEnabled) return true;
+    if (appendedChapters.length === 0) return true;
+    if (activeAppendedChapterIndex >= 1) return false;
+    return true;
+  }, [isInfiniteScrollEnabled, appendedChapters.length, activeAppendedChapterIndex]);
 
   const virtualizedRange = useMemo(() => {
     const total = appendedChapters.length;
@@ -501,7 +502,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   }, [slug, chapterNum]);
 
   useEffect(() => {
-    if (!adminInfiniteScrollEnabled) return;
+    if (!isInfiniteScrollEnabled) return;
     if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return;
 
     const nodes = [];
@@ -519,6 +520,11 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           if (!chapterValue) return;
           const visibleHeight = entry.isIntersecting ? entry.intersectionRect.height : 0;
           chapterIntersectionRatiosRef.current.set(chapterValue, visibleHeight);
+          
+          if (entry.isIntersecting) {
+            const rectHeight = entry.boundingClientRect.height;
+            if (rectHeight > 0) chapterHeightsRef.current.set(chapterValue, rectHeight);
+          }
         });
 
         let bestChapter = null;
@@ -546,10 +552,10 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
     return () => {
       observer.disconnect();
     };
-  }, [adminInfiniteScrollEnabled, appendedChapters, syncUrlToVisibleChapter, activeVisibleChapterNum]);
+  }, [isInfiniteScrollEnabled, appendedChapters, syncUrlToVisibleChapter, activeVisibleChapterNum]);
 
   useEffect(() => {
-    if (!adminInfiniteScrollEnabled || !hasReachedAbsoluteLastChapter || !showFinalChapterPanel) {
+    if (!isInfiniteScrollEnabled || !hasReachedAbsoluteLastChapter || !showFinalChapterPanel) {
       return;
     }
     if (!slug || !lastDisplayedChapterNum) return;
@@ -584,7 +590,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
       mounted = false;
     };
   }, [
-    adminInfiniteScrollEnabled,
+    isInfiniteScrollEnabled,
     hasReachedAbsoluteLastChapter,
     showFinalChapterPanel,
     slug,
@@ -644,13 +650,13 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
 
   // Carga secuencial controlada: mantener solo 2 capítulos por delante (no más).
   useEffect(() => {
-    if (!adminInfiniteScrollEnabled) return;
+    if (!isInfiniteScrollEnabled) return;
     if (!nextChapterToAppend?.number) return;
     if (isAppendingChapter || infiniteLoaderLockRef.current) return;
     if (appendedAheadCount >= MAX_CHAPTERS_AHEAD) return;
 
     appendNextChapter();
-  }, [adminInfiniteScrollEnabled, nextChapterToAppend, isAppendingChapter, appendedAheadCount, appendNextChapter]);
+  }, [isInfiniteScrollEnabled, nextChapterToAppend, isAppendingChapter, appendedAheadCount, appendNextChapter]);
 
   // Función para limpiar estado de fullscreen problemático
   const cleanupFullscreenState = useCallback(() => {
@@ -783,11 +789,10 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           slug={slug}
           seriesBasePath={seriesBasePath}
           lang={lang}
-          showInfiniteToggle={isAdminUser}
-          infiniteEnabled={adminInfiniteScrollEnabled}
+          showInfiniteToggle={true}
+          infiniteEnabled={isInfiniteScrollEnabled}
           onToggleInfinite={() => {
-            if (!isAdminUser) return;
-            setAdminInfiniteScrollEnabled((prev) => !prev);
+            setIsInfiniteScrollEnabled((prev) => !prev);
           }}
         />
       )}
@@ -947,10 +952,11 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
               maxWidth: isDesktop ? (readerCompact ? '560px' : '800px') : '100%',
               transition: 'max-width 0.3s ease',
               cursor: isDesktop ? 'pointer' : undefined,
+              ...( !isBaseChapterVisible ? { height: `${chapterHeightsRef.current.get(String(chapterNum)) || pages.length * CHAPTER_ESTIMATED_PAGE_HEIGHT}px` } : {} )
             }}
             title={isDesktop ? (readerCompact ? 'Doble clic para ampliar' : 'Doble clic para compactar') : undefined}
           >
-            {pages.map((page, index) => (
+            {isBaseChapterVisible && pages.map((page, index) => (
               <ChapterImage
                 key={page.number || index}
                 page={page}
@@ -1226,7 +1232,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
       )}
 
       {/* Capítulos anexados: aparecen debajo de comentarios cuando el scroll infinito está ON */}
-      {adminInfiniteScrollEnabled && (
+      {isInfiniteScrollEnabled && (
         <div style={{
           width: '100%',
           maxWidth: isDesktop ? (readerCompact ? '560px' : '800px') : '100%',

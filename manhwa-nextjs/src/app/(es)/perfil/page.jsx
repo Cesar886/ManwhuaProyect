@@ -288,7 +288,8 @@ const PremiumAvatar = ({ src, size, initials, name, streak, isDark, isOnline }) 
 
 // Loading Skeleton Premium
 const ProfileSkeleton = ({ isDark, isMobile }) => (
-  <Box className={`${styles.skeletonContainer} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ minHeight: '100vh', padding: isMobile ? '1rem' : '2rem' }}>
+  <Box className={`${styles.skeletonContainer} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ minHeight: '100vh', padding: isMobile ? '1rem' : '2rem', paddingTop: isMobile ? 90 : 110 }}>
+    <Header />
     <Container size="lg">
       <Paper p={isMobile ? 'md' : 'xl'} radius="xl" className={styles.skeletonCard}>
         <Stack align="center" gap="lg">
@@ -312,7 +313,7 @@ const ProfileSkeleton = ({ isDark, isMobile }) => (
 export default function UserProfile() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
-  const { updateProfile } = useAuth();
+  const { updateProfile, openLogin, user: authUser } = useAuth();
 
   const isMobile = useMediaQuery('(max-width: 48em)');
 
@@ -534,16 +535,23 @@ export default function UserProfile() {
   if (!user) {
     return (
       <Box className={`${styles.pageContainer} ${isDark ? styles.darkMode : styles.lightMode}`}>
-        <Container size="sm" pt="xl">
-          <Paper p="xl" radius="xl" ta="center" className={styles.errorCard}>
-            <ThemeIcon size={80} radius="xl" variant="light" color="cyan" mb="lg" style={{ margin: '0 auto' }}>
+        <Header />
+        <Container size="sm" pt={120}>
+          <Paper p="xl" radius="xl" ta="center" className={styles.errorCard} style={{ background: isDark ? 'rgba(30, 41, 59, 0.7)' : 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', border: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.05)' }}>
+            <ThemeIcon size={80} radius="xl" variant="gradient" gradient={{ from: 'cyan', to: 'blue', deg: 135 }} mb="lg" style={{ margin: '0 auto', boxShadow: '0 8px 32px rgba(6, 182, 212, 0.3)' }}>
               <IconUsers size={40} stroke={1.5} />
             </ThemeIcon>
-            <Text size="lg" fw={600} mb="xs">No se pudo cargar el perfil</Text>
-            <Text c="dimmed" mb="xl" size="sm">Hubo un problema al obtener tus datos</Text>
-            <PremiumButton onClick={() => window.location.reload()} isDark={isDark}>
-              Reintentar
-            </PremiumButton>
+            <Text size="xl" fw={800} mb="xs" className={styles.gradientText}>Regístrate en Manhwa Imperial</Text>
+            <Text c="dimmed" mb="xl" size="md" maw={400} mx="auto" lh={1.6}>
+              Crea una cuenta gratuita para llevar un registro de tus lecturas, guardar tus manhwas favoritos, subir de nivel y participar con la comunidad.
+            </Text>
+            <Group justify="center">
+              <Link href="/register" style={{ textDecoration: 'none', display: 'block' }}>
+                <PremiumButton isDark={isDark} size="md">
+                  Ir a Registrarse
+                </PremiumButton>
+              </Link>
+            </Group>
           </Paper>
         </Container>
       </Box>

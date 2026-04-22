@@ -1,0 +1,22 @@
+{
+  "name": "Manhwa Imperial",
+  "short_name": "Manwha Imperial",
+  "description": "Plataforma líder para leer manhwas y webtoons en español, legal y gratuita.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F0F14",
+  "theme_color": "#0F0F14",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

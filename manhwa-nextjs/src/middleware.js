@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const PROTECTED_ROUTES = ['/perfil', '/pedidos']
+const PROTECTED_ROUTES = ['/pedidos']
 const BOT_PATTERNS = /googlebot|bingbot|yandex|duckduckbot|slurp|baiduspider/i
 
 // Rutas "canónicas" por idioma — se usan para sugerir el banner de cambio de idioma
