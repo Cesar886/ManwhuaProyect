@@ -343,8 +343,7 @@ export default function RootLayout({ children }) {
         />
         <meta name="impact-site-verification" content="a62d51e4-8267-4442-bba4-45de72b6c992" />
         <meta name="referrer" content="no-referrer-when-downgrade" />
-        <meta name="monetag" content="aeb3c7a279c166b40155002f33c825e8"></meta>
-        {/* hreflang: se inyecta automáticamente vía metadata.alternates.languages */}
+{/* hreflang: se inyecta automáticamente vía metadata.alternates.languages */}
         {/* Preconnect + DNS prefetch for image CDN (chapter reader) */}
         <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />

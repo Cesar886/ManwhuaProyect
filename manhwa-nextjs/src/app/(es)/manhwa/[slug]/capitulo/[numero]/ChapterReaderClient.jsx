@@ -16,7 +16,6 @@ import ReaderHeader from '@/components/ReaderHeader';
 import { useReadingProgress } from '@/hooks/useReadingProgress';
 import ReadingProgressBar from '@/components/ReadingProgressBar';
 import ChapterRating from '@/components/ChapterRating';
-import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
 import { Avatar, Group, Text, Tooltip } from '@mantine/core';
 import { useChapterReaders } from '@/hooks/useChapterReaders';
 
@@ -285,7 +284,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   const [showHeader] = useState(true);
   const [readerCompact, setReaderCompact] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(true);
+  const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(false);
 
   // OFF = lectura normal (scroll). ON = auto-avance al siguiente capítulo al llegar abajo.
   const readingMode = 'scroll';
@@ -1133,11 +1132,6 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
         </>
       )}
 
-      {/* Banner 1: justo debajo del navegador de capítulos */}
-      <AdsterraBannerDisplay
-        key={`chapter-top-${slug}-${chapterNum}`}
-        instanceId={`chapter-top-${slug}-${chapterNum}`}
-      />
       {/* Comentarios */}
       {!isInfiniteScrollMode ? (
         <div style={{
@@ -1395,15 +1389,6 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
         </div>
       )}
 
-      {/* Banner 2: al final, debajo de comentarios */}
-      <div style={{ maxWidth: '900px', margin: '0 auto 2rem', padding: '0 1rem' }}>
-        <AdsterraBannerDisplay
-          key={`chapter-bottom-${slug}-${chapterNum}`}
-          instanceId={`chapter-bottom-${slug}-${chapterNum}`}
-          loadDelayMs={1200}
-          deferUntilVisible
-        />
-      </div>
 
       {/* Login Modal */}
       <LoginModal

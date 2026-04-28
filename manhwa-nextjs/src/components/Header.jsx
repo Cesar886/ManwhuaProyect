@@ -57,6 +57,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
     { label: t.common.home, icon: IconHome, value: 'home', path: getLocalizedPath('/home', lang) },
     { label: t.common.library, icon: IconBooks, value: 'library', path: getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang) },
     { label: 'Manga', icon: IconBook, value: 'manga', path: getLocalizedPath(lang === 'en' ? '/manga' : '/mangas', lang) },
+    // { label: 'Ranking', icon: IconBook, value: 'ranking', path: getLocalizedPath(lang === 'en' ? '/ranking' : '/ranking', lang) },
     // { label: t.common.profile, icon: IconUser, value: 'profile', path: getLocalizedPath('/perfil', lang) },
   ], [lang, t]);
 

@@ -183,7 +183,7 @@ const seriesToArray = async (seriesMap) => {
             // 2. Usar subconsulta lateral para géneros - evita GROUP BY costoso
             // 3. Un solo parámetro array en lugar de N parámetros
             const dbResult = await query(
-                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.title, s.original_title, s.status, s.content_type, s.is_adult, s.language,
+                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.title, s.original_title, s.status, s.content_type, s.is_adult, s.language, s.chapter_count,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
                         COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
@@ -212,8 +212,9 @@ const seriesToArray = async (seriesMap) => {
         const chapters = Array.from(series.chapters.values())
             .sort((a, b) => b.number - a.number); // Más reciente primero
 
-        // Obtener metadata de BD si existe
         const dbData = dbSeriesMap.get(series.slug);
+        const dbChapterCount = parseInt(dbData?.chapter_count || 0, 10);
+        if (chapters.length === 0 && dbChapterCount === 0) continue;
 
         seriesArray.push({
             slug: series.slug,
@@ -233,7 +234,7 @@ const seriesToArray = async (seriesMap) => {
             rating: parseFloat(dbData?.rating_average || 0),
             createdAt: dbData?.created_at,
             updatedAt: dbData?.updated_at,
-            chapterCount: chapters.length,
+            chapterCount: Math.max(chapters.length, dbChapterCount),
             chapters: chapters.slice(0, 5).map(ch => ({
                 number: ch.number,
                 slug: ch.slug,
@@ -261,6 +262,8 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
             .sort((a, b) => b.number - a.number);
 
         const dbData = dbSeriesMap.get(series.slug);
+        const dbChapterCount = parseInt(dbData?.chapter_count || 0, 10);
+        if (chapters.length === 0 && dbChapterCount === 0) continue;
 
         seriesArray.push({
             slug: series.slug,
@@ -280,7 +283,7 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
             rating: parseFloat(dbData?.rating_average || 0),
             createdAt: dbData?.created_at,
             updatedAt: dbData?.updated_at,
-            chapterCount: chapters.length,
+            chapterCount: Math.max(chapters.length, dbChapterCount),
             chapters: chapters.slice(0, 5).map(ch => ({
                 number: ch.number,
                 slug: ch.slug,
@@ -583,7 +586,7 @@ const listManhwasFromDatabase = async (req, res, next) => {
         const result = await query(`
             SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.status, s.content_type, s.is_adult, s.language, s.updated_at
             FROM series s
-            WHERE s.deleted_at IS NULL
+            WHERE s.deleted_at IS NULL AND s.chapter_count > 0
             ORDER BY s.updated_at DESC
         `);
 
@@ -1430,7 +1433,7 @@ const preloadCache = async () => {
             // La BD no depende de Spaces, así ahorramos tiempo
             const dbQueryPromise = query(
                 `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.title, s.original_title, s.status,
-                        s.content_type, s.is_adult, s.language,
+                        s.content_type, s.is_adult, s.language, s.chapter_count,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
                         COALESCE(
@@ -1442,7 +1445,7 @@ const preloadCache = async () => {
                         ) as genres
                  FROM series s
                  LEFT JOIN authors a ON s.author_id = a.id
-                 WHERE s.deleted_at IS NULL`
+                 WHERE s.deleted_at IS NULL AND s.chapter_count > 0`
 
             ).catch(err => {
                 logger.warn('⚠️ Error pre-consultando BD:', err.message);

@@ -32,7 +32,7 @@ const listSeries = async (req, res, next) => {
             adult = 'false'
         } = req.query;
 
-        let whereClause = 'WHERE s.deleted_at IS NULL';
+        let whereClause = 'WHERE s.deleted_at IS NULL AND s.chapter_count > 0';
         const params = [];
         let paramCount = 0;
 
@@ -436,7 +436,7 @@ const getFeaturedSeries = async (req, res, next) => {
                         '[]'
                     ) as genres
              FROM series s
-             WHERE s.is_featured = true AND s.deleted_at IS NULL
+             WHERE s.is_featured = true AND s.deleted_at IS NULL AND s.chapter_count > 0
              ORDER BY s.view_count DESC
              LIMIT $1`,
             [limit]
@@ -515,7 +515,7 @@ const getPopularSeries = async (req, res, next) => {
                         '[]'
                     ) as genres
              FROM series s
-             WHERE s.deleted_at IS NULL AND s.is_adult = false
+             WHERE s.deleted_at IS NULL AND s.is_adult = false AND s.chapter_count > 0
              ORDER BY s.${viewColumn} DESC
              LIMIT $1`,
             [limit]
@@ -667,7 +667,7 @@ const getTrendingSeries = async (req, res, next) => {
                         '[]'
                     ) as genres
              FROM series s
-             WHERE s.deleted_at IS NULL AND s.is_adult = false
+             WHERE s.deleted_at IS NULL AND s.is_adult = false AND s.chapter_count > 0
              ORDER BY (s.daily_views * 3 + s.weekly_views) DESC
              LIMIT $1`,
             [limit]
@@ -739,7 +739,7 @@ const getNewReleases = async (req, res, next) => {
                         '[]'
                     ) as genres
              FROM series s
-             WHERE s.deleted_at IS NULL AND s.is_adult = false
+             WHERE s.deleted_at IS NULL AND s.is_adult = false AND s.chapter_count > 0
              ORDER BY s.created_at DESC
              LIMIT $1`,
             [limit]
@@ -930,10 +930,11 @@ const getRelatedSeries = async (req, res, next) => {
                     COUNT(sg.genre_id) as matching_genres
              FROM series s
              JOIN series_genres sg ON s.id = sg.series_id
-             WHERE sg.genre_id = ANY($1) 
-                   AND s.id != $2 
+             WHERE sg.genre_id = ANY($1)
+                   AND s.id != $2
                    AND s.deleted_at IS NULL
                    AND s.is_adult = false
+                   AND s.chapter_count > 0
              GROUP BY s.id
              ORDER BY matching_genres DESC, s.view_count DESC
              LIMIT $3`,
@@ -1873,13 +1874,18 @@ const BOT_UA_PATTERN = /bot|crawler|spider|scraper|curl|wget|python-requests|go-
 // ============================================
 // SCHEMA PROBE — country_code opcional
 // ============================================
-// Detecta una sola vez por proceso si series_views.country_code existe.
-// Permite que la app siga funcionando aunque la migración 007 aún no se
-// haya aplicado (deploy staggered, rollback, bootstraps en cold DB, etc.).
-let _countryColumnProbe = null; // null = no chequeado, true/false = resultado.
+// Detecta si series_views.country_code existe. Reintenta cada 5 min en caso
+// de error transitorio de DB (evita falso negativo permanente por blip de red).
+let _countryColumnProbe = null;   // null=sin chequear, true/false=resultado
+let _countryColumnProbeAt = 0;    // timestamp del último intento fallido
+const _PROBE_RETRY_MS = 5 * 60 * 1000;
 
 async function seriesViewsHasCountryColumn() {
     if (_countryColumnProbe !== null) return _countryColumnProbe;
+    // Si el probe anterior falló con error, reintentamos solo pasados 5 min
+    if (_countryColumnProbeAt > 0 && Date.now() - _countryColumnProbeAt < _PROBE_RETRY_MS) {
+        return false;
+    }
     try {
         const r = await query(
             `SELECT EXISTS (
@@ -1889,9 +1895,11 @@ async function seriesViewsHasCountryColumn() {
              ) AS has_col`
         );
         _countryColumnProbe = r.rows[0]?.has_col === true;
+        _countryColumnProbeAt = 0;
     } catch (err) {
-        logger.warn('No se pudo verificar schema de series_views:', err?.message);
-        _countryColumnProbe = false;
+        logger.warn('No se pudo verificar schema de series_views (reintento en 5 min):', err?.message);
+        _countryColumnProbeAt = Date.now();
+        return false;
     }
     return _countryColumnProbe;
 }
@@ -1932,7 +1940,7 @@ function loadGeoipIfAvailable() {
 const TOP10_CACHE_FRESH_MS = 10 * 60 * 1000;   // 10 min "fresco"
 const TOP10_CACHE_STALE_MS = 30 * 60 * 1000;   // 30 min adicionales "stale"
 const TOP10_MIN_VIEWS_FOR_COUNTRY = Math.max(1, parseInt(process.env.TOP10_MIN_VIEWS_FOR_COUNTRY || '1', 10));
-const TOP10_MIN_SERIES_FOR_COUNTRY = Math.max(1, parseInt(process.env.TOP10_MIN_SERIES_FOR_COUNTRY || '1', 10));
+const TOP10_MIN_SERIES_FOR_COUNTRY = Math.max(1, parseInt(process.env.TOP10_MIN_SERIES_FOR_COUNTRY || '5', 10));
 const TOP10_WINDOW_DAYS = 7;                   // ventana temporal de ranking
 const TOP10_EXTENDED_WINDOW_DAYS = Math.max(TOP10_WINDOW_DAYS, parseInt(process.env.TOP10_EXTENDED_WINDOW_DAYS || '90', 10));
 const top10Cache = new Map();                  // key → { freshUntil, staleUntil, payload }
@@ -1949,9 +1957,26 @@ function purgeExpiredTop10Cache(now = Date.now()) {
     }
 }
 
-function mapTop10Row(row, index) {
+function mapTop10Row(row, index, prevRanks = null) {
+    const currentRank = index + 1;
+    let movement = 'stable';
+    let movementDelta = 0;
+    if (prevRanks) {
+        const prev = prevRanks.get(row.id);
+        if (prev === undefined) {
+            movement = 'new';
+        } else if (currentRank < prev) {
+            movement = 'up';
+            movementDelta = prev - currentRank;
+        } else if (currentRank > prev) {
+            movement = 'down';
+            movementDelta = currentRank - prev;
+        }
+    }
     return {
-        rank: index + 1,
+        rank: currentRank,
+        movement,          // 'new' | 'up' | 'down' | 'stable'
+        movementDelta,     // posiciones subidas/bajadas (0 si estable o nuevo)
         id: row.id,
         title: row.title,
         slug: row.slug,
@@ -1968,6 +1993,7 @@ function mapTop10Row(row, index) {
         ratingCount: row.rating_count,
         views: row.view_count,
         periodViews: parseInt(row.period_views, 10) || 0,
+        genres: Array.isArray(row.genres) ? row.genres : [],
         isAdult: row.is_adult,
     };
 }
@@ -2007,17 +2033,33 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
 
     const adultFilter = includeAdult ? '' : 'AND s.is_adult = false';
 
-    // Ranking = visitantes únicos (DISTINCT por user/visitor/ip) en la ventana.
-    // Evita que un mismo usuario infle el ranking con refreshes.
+    // Scoring con decay temporal: vistas recientes valen más que antiguas.
+    // Bucket 0-24h → peso 3 | 24-72h → peso 2 | >72h → peso 1.
+    // Se deduplica dentro de cada bucket para no inflar con refreshes.
     const buildCountrySql = (windowParam) => `
         WITH ranked AS (
             SELECT
                 sv.series_id,
-                COUNT(DISTINCT COALESCE(sv.user_id::text, sv.visitor_id, sv.ip_address::text)) AS period_views
+                -- Visitantes únicos últimas 24h × 3
+                COUNT(DISTINCT CASE
+                    WHEN sv.viewed_at > NOW() - INTERVAL '1 day'
+                    THEN COALESCE(sv.user_id::text, sv.visitor_id, sv.ip_address::text)
+                END) * 3
+                -- Visitantes únicos 24-72h × 2
+                + COUNT(DISTINCT CASE
+                    WHEN sv.viewed_at BETWEEN NOW() - INTERVAL '3 days' AND NOW() - INTERVAL '1 day'
+                    THEN COALESCE(sv.user_id::text, sv.visitor_id, sv.ip_address::text)
+                END) * 2
+                -- Visitantes únicos >72h × 1
+                + COUNT(DISTINCT CASE
+                    WHEN sv.viewed_at < NOW() - INTERVAL '3 days'
+                    THEN COALESCE(sv.user_id::text, sv.visitor_id, sv.ip_address::text)
+                END) AS period_views
             FROM series_views sv
             JOIN series s ON s.id = sv.series_id
             WHERE sv.viewed_at > NOW() - ($${windowParam}::int * INTERVAL '1 day')
               AND s.deleted_at IS NULL
+              AND s.chapter_count > 0
               ${countryFilter}
               ${langFilter}
               ${adultFilter}
@@ -2028,7 +2070,13 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
                s.content_type, s.status, s.country, s.original_language,
                s.chapter_count, s.rating_average, s.rating_count,
                s.view_count, s.is_adult,
-               r.period_views
+               r.period_views,
+               COALESCE(
+                   (SELECT array_agg(g.name ORDER BY g.name)
+                    FROM series_genres sg JOIN genres g ON sg.genre_id = g.id
+                    WHERE sg.series_id = s.id),
+                   '{}'::text[]
+               ) AS genres
         FROM ranked r
         JOIN series s ON s.id = r.series_id
         ORDER BY r.period_views DESC, s.view_count DESC
@@ -2090,22 +2138,6 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
         else if (effectiveCountry && effectiveViews < TOP10_MIN_VIEWS_FOR_COUNTRY) fallbackReason = 'country-low-traffic';
         else fallbackReason = 'unknown';
 
-        // Si no hay datos para ese país, no mostrar ranking global.
-        // Devolvemos vacío para que el frontend oculte la sección.
-        if (fallbackReason === 'country-no-series') {
-            return {
-                success: true,
-                data: {
-                    country: effectiveCountry,
-                    resolvedFrom,
-                    window: `${effectiveWindowDays} days`,
-                    usedGlobalFallback: false,
-                    fallbackReason,
-                    series: [],
-                },
-            };
-        }
-
         const globalParams = [];
         let gp = 0;
         let globalLang = '';
@@ -2114,20 +2146,38 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
             globalLang = `AND COALESCE(s.language, s.original_language) = $${gp}`;
             globalParams.push(lang);
         }
-        const globalSql = `
+        const buildGlobalSql = (extraWhere) => `
             SELECT s.id, s.title, s.slug, s.synopsis,
                    s.cover_url, s.cover_url_web, s.banner_url,
                    s.content_type, s.status, s.country, s.original_language,
                    s.chapter_count, s.rating_average, s.rating_count,
                    s.view_count, s.is_adult,
-                   s.weekly_views AS period_views
+                   COALESCE(s.weekly_views, 0) AS period_views,
+                   COALESCE(
+                       (SELECT array_agg(g.name ORDER BY g.name)
+                        FROM series_genres sg JOIN genres g ON sg.genre_id = g.id
+                        WHERE sg.series_id = s.id),
+                       '{}'::text[]
+                   ) AS genres
             FROM series s
             WHERE s.deleted_at IS NULL
-              ${globalLang}
+              AND s.chapter_count > 0
+              ${extraWhere}
               ${adultFilter}
-            ORDER BY s.weekly_views DESC NULLS LAST, s.view_count DESC
+            ORDER BY COALESCE(s.weekly_views, 0) DESC, s.view_count DESC
             LIMIT 10`;
-        result = await query(globalSql, globalParams);
+
+        result = await query(buildGlobalSql(globalLang), globalParams);
+
+        // Si el filtro de idioma dejó muy pocos resultados, reintentar sin él.
+        if (result.rows.length < 5 && lang) {
+            const noLangResult = await query(buildGlobalSql(''), []);
+            if (noLangResult.rows.length > result.rows.length) {
+                result = noLangResult;
+                fallbackReason += '+no-lang';
+            }
+        }
+
         usedFallback = true;
 
         // Log throttled — no saturar logs cuando no hay data en un país.
@@ -2141,16 +2191,58 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
         }
     }
 
+    // Relleno: si después de todos los intentos hay menos de 10,
+    // completar con series más populares por weekly_views → view_count.
+    if (result.rows.length < 10) {
+        const existingIds = result.rows.map(r => r.id);
+        const needed = 10 - result.rows.length;
+        const fillSql = `
+            SELECT s.id, s.title, s.slug, s.synopsis,
+                   s.cover_url, s.cover_url_web, s.banner_url,
+                   s.content_type, s.status, s.country, s.original_language,
+                   s.chapter_count, s.rating_average, s.rating_count,
+                   s.view_count, s.is_adult,
+                   COALESCE(s.weekly_views, s.view_count, 0) AS period_views,
+                   COALESCE(
+                       (SELECT array_agg(g.name ORDER BY g.name)
+                        FROM series_genres sg JOIN genres g ON sg.genre_id = g.id
+                        WHERE sg.series_id = s.id),
+                       '{}'::text[]
+                   ) AS genres
+            FROM series s
+            WHERE s.deleted_at IS NULL
+              AND s.chapter_count > 0
+              AND NOT (s.id = ANY($1::uuid[]))
+              ${includeAdult ? '' : 'AND s.is_adult = false'}
+            ORDER BY COALESCE(s.weekly_views, 0) DESC, s.view_count DESC
+            LIMIT ${needed}`;
+        const fillResult = await query(fillSql, [existingIds]);
+        if (fillResult.rows.length > 0) {
+            result = { rows: [...result.rows, ...fillResult.rows] };
+            if (!usedFallback) {
+                usedFallback = true;
+                fallbackReason = 'fill-popularity';
+            }
+        }
+    }
+
+    // Construir mapa de ranks anteriores para calcular movimiento
+    const prevPayload = top10Cache.get(top10CacheKey(country, lang, includeAdult))?.payload;
+    const prevRanks = new Map();
+    if (Array.isArray(prevPayload?.data?.series)) {
+        prevPayload.data.series.forEach(s => prevRanks.set(s.id, s.rank));
+    }
+    const hasPrevData = prevRanks.size > 0;
+
     return {
         success: true,
         data: {
-            // Mantener el país detectado para UI aunque el ranking degrade a global.
             country: effectiveCountry,
             resolvedFrom,
             window: `${effectiveWindowDays} days`,
             usedGlobalFallback: usedFallback,
             fallbackReason,
-            series: result.rows.map(mapTop10Row),
+            series: result.rows.map((row, i) => mapTop10Row(row, i, hasPrevData ? prevRanks : null)),
         },
     };
 }
@@ -2236,14 +2328,20 @@ const getTop10ByCountry = async (req, res, next) => {
         if (cached && cached.freshUntil > now) {
             sendCacheHeaders();
             res.set('X-Cache', 'HIT');
-            return res.json(cached.payload);
+            // Re-adjuntar resolvedFrom del request actual (el cacheado puede ser de otro cliente)
+            const hit = cached.payload;
+            return res.json({
+                ...hit,
+                data: { ...hit.data, resolvedFrom },
+            });
         }
 
         // ── 3. Cache stale → servir ya, revalidar en background ─────────
         if (cached && cached.staleUntil > now) {
             sendCacheHeaders();
             res.set('X-Cache', 'STALE');
-            res.json(cached.payload);
+            const stale = cached.payload;
+            res.json({ ...stale, data: { ...stale.data, resolvedFrom } });
             // Revalidación asíncrona sin bloquear al cliente.
             computeTop10WithDedup(cacheKey, {
                 country, lang, includeAdult, resolvedFrom,

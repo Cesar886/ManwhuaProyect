@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { getPostBySlug, getAllSlugs, getRecentPosts, CATEGORY_LABELS } from '@/lib/blog/posts'
 import { SITE_URL, SITE_NAME } from '@/config'
 import Header from '@/components/Header'
-import AdsterraNativeBanner from '@/components/AdsterraNativeBanner'
 import styles from './BlogPost.module.css'
 
 export async function generateStaticParams() {
@@ -217,7 +216,6 @@ export default async function BlogPostPage({ params }) {
               <Link href="/blog">← Volver al Blog</Link>
             </div>
 
-            <AdsterraNativeBanner instanceId={`blog-post-${post.slug}`} />
           </article>
 
           {/* ── Sidebar ─────────────────────────────────────────────────────── */}

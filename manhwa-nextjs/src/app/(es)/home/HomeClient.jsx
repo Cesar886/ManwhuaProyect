@@ -17,11 +17,10 @@ import { endpoint } from '@/config';
 import Header from '@/components/Header';
 import { getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { slugifyQuery, getSearchHistory } from '@/hooks/useIA';
-import { filterAvailableSeries, filterAvailableSeriesForLang, filterByLanguage } from '@/utils/adultContent';
+import { filterAvailableSeries, filterAvailableSeriesForLang, filterByLanguage, hasAvailableChapters } from '@/utils/adultContent';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecentProgress } from '@/api/progress';
 import { getLastViewedSeries } from '@/utils/lastViewed';
-import AdsterraBannerDisplay from '@/components/AdsterraBannerDisplay';
 import { useLang } from '@/hooks/useLang';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
 
@@ -32,6 +31,13 @@ const PERSONALIZED_ALGO_NAME = 'home_personalized_carousel_v2'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const isUuid = (value) => UUID_RE.test(String(value || '').trim())
+
+// Module-level cache to avoid hitting the AI endpoint on every mount/re-render.
+// Keyed by sourceSlug, stores { items, sourceTitle, aiQuery, sourceMode, expiresAt }.
+const SMART_RECO_CACHE = new Map()
+const SMART_RECO_TTL_MS = 30 * 60 * 1000 // 30 min
+// Tracks in-flight slugs so concurrent invocations (React StrictMode) don't double-fetch
+const SMART_RECO_INFLIGHT = new Set()
 
 const TRACK_RECO_IMPRESSION_URL = endpoint('track', 'recommendation-impression')
 const TRACK_RECO_CLICK_URL = endpoint('track', 'recommendation-click')
@@ -480,8 +486,6 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
         return
       }
 
-      setSmartRecommendation(prev => ({ ...prev, loading: true }))
-
       const sourceTitle = String(sourceSeries.title || '').trim()
       const sourceSlug = String(sourceSeries.slug || '').trim()
       const sourceMode = historySourceSeries
@@ -491,6 +495,28 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
       const availableFallback = filterAvailableSeries(series)
         .filter((item) => item?.slug && item.slug !== sourceSlug)
         .slice(0, 8)
+
+      // Serve from module-level cache to avoid rate-limiting the AI endpoint
+      const cached = SMART_RECO_CACHE.get(sourceSlug)
+      if (cached && cached.expiresAt > Date.now()) {
+        if (!cancelled) {
+          setSmartRecommendation({
+            loading: false,
+            sourceTitle: cached.sourceTitle,
+            sourceSlug,
+            aiQuery: cached.aiQuery,
+            sourceMode: cached.sourceMode,
+            items: cached.items,
+          })
+        }
+        return
+      }
+
+      // Prevent duplicate concurrent fetches (React StrictMode double-invokes effects)
+      if (SMART_RECO_INFLIGHT.has(sourceSlug)) return
+      SMART_RECO_INFLIGHT.add(sourceSlug)
+
+      setSmartRecommendation(prev => ({ ...prev, loading: true }))
 
       try {
         const aiRes = await fetch(endpoint('search', 'ai/read'), {
@@ -556,6 +582,9 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
         const items = cleaned.length > 0 ? cleaned : availableFallback
 
+        SMART_RECO_CACHE.set(sourceSlug, { sourceTitle, aiQuery, sourceMode, items, expiresAt: Date.now() + SMART_RECO_TTL_MS })
+        SMART_RECO_INFLIGHT.delete(sourceSlug)
+
         if (!cancelled) {
           setSmartRecommendation({
             loading: false,
@@ -567,6 +596,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           })
         }
       } catch {
+        SMART_RECO_INFLIGHT.delete(sourceSlug)
         if (!cancelled) {
           setSmartRecommendation({
             loading: false,
@@ -589,52 +619,71 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     let cancelled = false
 
     const loadPersonalizedRows = async () => {
-      try {
-        setPersonalizedLoading(true)
+      const recentHistory = getSearchHistory(8, { lang })
+      const historyQueries = Array.isArray(recentHistory)
+        ? recentHistory
+          .map((entry) => ({
+            query: String(entry?.query || '').trim(),
+            ts: Number(entry?.ts) || Date.now(),
+          }))
+          .filter((entry) => entry.query)
+        : []
 
-        const recentHistory = getSearchHistory(8, { lang })
-        const historyQueries = Array.isArray(recentHistory)
-          ? recentHistory
-            .map((entry) => ({
-              query: String(entry?.query || '').trim(),
-              ts: Number(entry?.ts) || Date.now(),
-            }))
-            .filter((entry) => entry.query)
-          : []
-
-        if (historyQueries.length === 0) {
-          if (!cancelled) setPersonalizedRows([])
-          return
-        }
-
-        const res = await fetch(`/api/personalized-home?lang=${lang}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-Lang': lang,
-          },
-          body: JSON.stringify({ history: historyQueries, lang }),
-        })
-
-        if (!res.ok || cancelled) return
-
-        const json = await res.json().catch(() => ({}))
-        const rows = Array.isArray(json?.data) ? json.data : []
-
-        const queryList = rows.map((row) => String(row?.query || '').trim().toLowerCase()).filter(Boolean)
-        const persistentFeedback = await fetchPersistentFeedbackByQuery(queryList)
-        const rankedRows = rankRowsWithFeedback(rows, persistentFeedback)
-
+      if (historyQueries.length === 0) {
         if (!cancelled) {
-          setPersistentFeedbackByQuery(persistentFeedback)
-          setPersonalizedRows(rankedRows)
+          setPersonalizedRows([])
+          setPersonalizedLoading(false)
         }
-      } catch {
-        if (!cancelled) setPersonalizedRows([])
-      } finally {
-        if (!cancelled) setPersonalizedLoading(false)
+        return
       }
+
+      // Track seen query keys to deduplicate across individual fetches
+      const seenQueryKeys = new Set()
+
+      // One request per history query — rows appear as each resolves
+      const fetchOne = async (entry) => {
+        try {
+          const res = await fetch(`/api/personalized-home?lang=${lang}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              'X-Lang': lang,
+            },
+            body: JSON.stringify({ history: [entry], lang }),
+          })
+
+          if (!res.ok || cancelled) return
+
+          const json = await res.json().catch(() => ({}))
+          const rows = Array.isArray(json?.data) ? json.data : []
+
+          const newRows = rows.filter((r) => {
+            const key = String(r?.query || '').toLowerCase().trim()
+            if (!key || seenQueryKeys.has(key)) return false
+            seenQueryKeys.add(key)
+            return true
+          })
+
+          if (newRows.length === 0 || cancelled) return
+
+          const queryList = newRows.map((r) => String(r?.query || '').trim().toLowerCase()).filter(Boolean)
+          const feedback = await fetchPersistentFeedbackByQuery(queryList)
+          const ranked = rankRowsWithFeedback(newRows, feedback)
+
+          if (!cancelled) {
+            setPersistentFeedbackByQuery((prev) => ({ ...prev, ...feedback }))
+            setPersonalizedRows((prev) => [...prev, ...ranked])
+            setPersonalizedLoading(false)
+          }
+        } catch {
+          // individual failure doesn't block other rows
+        }
+      }
+
+      // Fire all concurrently; state updates arrive as each request resolves
+      await Promise.allSettled(historyQueries.map(fetchOne))
+      if (!cancelled) setPersonalizedLoading(false)
     }
 
     loadPersonalizedRows()
@@ -1202,9 +1251,6 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           </div>
         )}
 
-        {/* Adsterra Banner Display 468x60 */}
-        <AdsterraBannerDisplay />
-
         {/* ================================================================== */}
         {/* TOP 10 — Estilo Netflix (hoy, por país del visitante)            */}
         {/* ================================================================== */}
@@ -1230,6 +1276,15 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                 const cover = normalizeImageUrl(
                   item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web
                 ) || ''
+                const mv = item.movement // 'new' | 'up' | 'down' | 'stable' | undefined
+                const delta = item.movementDelta || 0
+                const mvBadge = mv === 'new'
+                  ? <span className={styles.top10MovNew}>NEW</span>
+                  : mv === 'up'
+                    ? <span className={styles.top10MovUp}>▲{delta > 1 ? delta : ''}</span>
+                    : mv === 'down'
+                      ? <span className={styles.top10MovDown}>▼{delta > 1 ? delta : ''}</span>
+                      : null
                 return (
                   <Link
                     href={getLocalizedPath(`/manhwa/${item.slug}`, lang)}
@@ -1247,6 +1302,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         priority={i < 3}
                         sizes="(max-width: 480px) 105px, (max-width: 768px) 120px, 140px"
                       />
+                      {mvBadge && <div className={styles.top10MovBadge}>{mvBadge}</div>}
                       <RatingBadge value={getSeriesRating(item)} className={styles.top10RatingBadge} />
                       <div className={styles.top10CardOverlay}>
                         <h3 className={styles.top10CardTitle}>{item.title}</h3>
@@ -1364,7 +1420,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           </section>
         )}
 
-        {!personalizedLoading && personalizedRows.length > 0 && (
+        {personalizedRows.length > 0 && (
           <section className={styles.querySection}>
             {personalizedRows.map((row, rowIdx) => {
               const rowQuery = String(row?.query || '').trim()
@@ -1553,7 +1609,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
             {popularCategories.map((cat, catIdx) => {
               const slug = slugifyQuery(cat.query);
-              const catSeries = (cat.series || []).filter(s => !isAdultSeries(s));
+              const catSeries = (cat.series || []).filter(s => !isAdultSeries(s) && hasAvailableChapters(s));
               const catCardCover = pickAiCardCover(
                 catSeries,
                 `${aiDailySeed}-${slug || cat.query || String(catIdx)}`

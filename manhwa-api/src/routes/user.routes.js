@@ -61,6 +61,8 @@ router.get('/check-username', requireApiKeyOrAuth, validate([
 ]), userController.checkUsername);
 // Endpoint para top usuarios por racha
 router.get('/top-streak', userController.getTopUsersByStreak);
+// Endpoint para top usuarios por experiencia (XP)
+router.get('/top-xp', userController.getTopUsersByXP);
 // Endpoint para validar username (sin consultar DB) usando usernameValidator
 router.get('/validate-username', requireApiKeyOrAuth, validate([
     queryValidator('username').trim().notEmpty().withMessage('Username requerido').isLength({ max: 50 }),

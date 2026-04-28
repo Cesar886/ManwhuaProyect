@@ -20,6 +20,7 @@ import {
   trackShare, getSeriesMerch, recordSeriesView
 } from '@/api/requests';
 import { useSeriesProgress } from '@/hooks/useSeriesProgress';
+import { useReadChapters } from '@/hooks/useReadChapters';
 import styles from './ManhwaDetail.module.css';
 import SeriesEditModalV2 from '@/components/SeriesEditModalV2';
 import Comentarios from '@/components/Comentarios';
@@ -28,7 +29,6 @@ import { setLastViewedSeries } from '@/utils/lastViewed';
 import { Pill, Container, Skeleton, Group, Stack, Box, Avatar, Badge as MantineBadge } from '@mantine/core';
 import ManhwaCover from '@/components/ManhwaCover';
 import Header from '@/components/Header';
-import AdsterraNativeBanner from '@/components/AdsterraNativeBanner';
 import SimilarManhwas from '@/components/SimilarManhwas';
 import { slugifyQuery } from '@/hooks/useIA';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
@@ -375,6 +375,9 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
   const infiniteScrollTriggerRef = React.useRef(null);
   const isLoadingMoreChaptersRef = React.useRef(false);
 
+  // Hook para capítulos leídos (localStorage)
+  const { isChapterRead } = useReadChapters(slug, series?.chapters);
+
   // Ref para la sección de pestañas
   const tabsRef = React.useRef(null);
 
@@ -705,9 +708,9 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
     // Filtrar por estado
     if (chapterFilter === 'read') {
-      chapters = chapters.filter(c => c.isRead);
+      chapters = chapters.filter(c => c.isRead || isChapterRead(c.number));
     } else if (chapterFilter === 'unread') {
-      chapters = chapters.filter(c => !c.isRead);
+      chapters = chapters.filter(c => !c.isRead && !isChapterRead(c.number));
     }
 
     // Filtrar por búsqueda
@@ -727,7 +730,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
     }
 
     return chapters;
-  }, [series?.chapters, chapterFilter, chapterSort, chapterSearch]);
+  }, [series?.chapters, chapterFilter, chapterSort, chapterSearch, isChapterRead]);
 
   const shouldUseAdminInfiniteScroll = isAdmin && filteredChapters.length > ADMIN_CHAPTERS_BATCH_SIZE;
 
@@ -1452,7 +1455,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                     key={chapter.number}
                     chapter={chapter}
                     slug={slug}
-                    isRead={chapter.isRead}
+                    isRead={chapter.isRead || isChapterRead(chapter.number)}
                     isNew={daysSincePublish <= 3}
                     isResumePoint={isResumePoint}
                     basePath={basePath}
@@ -1468,9 +1471,6 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                 </>
               )}
             </div>
-
-            {/* Adsterra Native Banner */}
-            <AdsterraNativeBanner />
 
             {filteredChapters.length === 0 && (
               <div className={styles.emptyState}>

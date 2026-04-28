@@ -70,6 +70,54 @@ const getTopUsersByStreak = async (req, res, next) => {
 };
 
 /**
+ * Obtener top usuarios por experiencia (XP)
+ * GET /api/users/top-xp
+ */
+const getTopUsersByXP = async (req, res, next) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+        const result = await query(
+            `SELECT u.id, u.username, u.display_name, u.avatar_url,
+                    u.experience, u.level,
+                    (
+                        SELECT COUNT(DISTINCT (COALESCE(rh.first_read_at, rh.read_at) AT TIME ZONE 'UTC')::date)
+                        FROM reading_history rh
+                        WHERE rh.user_id = u.id
+                    ) AS total_reading_days
+             FROM users u
+             WHERE u.deleted_at IS NULL AND u.status = 'active' AND u.experience > 0
+             ORDER BY u.experience DESC, u.created_at ASC
+             LIMIT $1`,
+            [limit]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                users: result.rows.map(u => {
+                    const xp = parseInt(u.experience) || 0;
+                    const levelInfo = getLevelInfo(xp);
+                    return {
+                        id: u.id,
+                        username: u.username,
+                        displayName: u.display_name,
+                        avatarUrl: u.avatar_url,
+                        experience: xp,
+                        level: levelInfo.level,
+                        levelName: levelInfo.name,
+                        levelColor: levelInfo.color,
+                        totalReadingDays: parseInt(u.total_reading_days) || 0,
+                        streak: 0
+                    };
+                })
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * Obtener perfil de usuario
  * GET /api/users/:username
  */
@@ -1404,6 +1452,7 @@ const getUserXp = async (req, res, next) => {
 module.exports = {
     getProfile,
     getTopUsersByStreak,
+    getTopUsersByXP,
     checkUsername,
     validateUsername,
     updateProfile,

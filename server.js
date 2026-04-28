@@ -1814,34 +1814,44 @@ app.get('/api/search-suggestions', (req, res) => {
             lastSeen: q.lastSeen || null
         }));
 
-    // --- Tendencias (hot score): algoritmo de ventana deslizante con gravedad ---
-    // hotScore combina:
-    //   1) Frecuencia total (count) como señal de popularidad base
-    //   2) Recencia (cuántas horas desde lastSeen) como señal de "caliente ahora"
-    //   3) Velocidad: si firstSeen es reciente Y tiene muchos hits = viral
-    // Fórmula: hotScore = (count^0.8 * velocityBoost) / (hoursSinceLast + 2)^gravity
+    // --- Tendencias: frecuencia real de clics en ventana deslizante ---
+    // Signal primaria: recentHits (clics en las últimas 24h)
+    // Signal secundaria: velocidad (hits/hora desde firstSeen)
+    // Fórmula: hotScore = (hits24h^1.2 * velocityBoost) / (hoursSinceLast + 1)^GRAVITY
+    // Esto asegura que queries históricamente populares no dominen si no tienen
+    // actividad reciente — solo lo que se busca HOY aparece en tendencias.
     const now = Date.now();
     const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-    const GRAVITY = 1.5;
+    const GRAVITY = 1.8;
+    const cutoff24h = new Date(now - ONE_DAY_MS).toISOString();
     const seenTrending = new Set();
     let trending = [...queryHistory]
         .filter(q => {
             if (!q.lastSeen || similarRegex.test(q.query)) return false;
             if (!q.key || seenTrending.has(q.key)) return false;
-            const age = now - new Date(q.lastSeen).getTime();
-            if (age > ONE_DAY_MS) return false;
+            // Solo queries vistas en las últimas 24h
+            if (q.lastSeen < cutoff24h) return false;
             seenTrending.add(q.key);
-            return q.count >= 2;
+            // Requiere al menos 2 hits recientes para evitar ruido
+            const hits24h = Array.isArray(q.recentHits)
+                ? q.recentHits.filter(t => t >= cutoff24h).length
+                : (q.lastSeen >= cutoff24h ? 1 : 0);
+            return hits24h >= 1;
         })
         .map(q => {
+            const hits24h = Array.isArray(q.recentHits)
+                ? q.recentHits.filter(t => t >= cutoff24h).length
+                : 1;
             const hoursSinceLast = Math.max(0, (now - new Date(q.lastSeen).getTime()) / 3600000);
             const hoursSinceFirst = q.firstSeen
                 ? Math.max(1, (now - new Date(q.firstSeen).getTime()) / 3600000)
                 : 24;
-            // Boost de velocidad: si acumuló muchos hits en poco tiempo
-            const velocityBoost = Math.min(3, q.count / hoursSinceFirst + 1);
-            const hotScore = (Math.pow(q.count, 0.8) * velocityBoost) / Math.pow(hoursSinceLast + 2, GRAVITY);
-            return { ...q, hotScore };
+            // Velocidad = hits recientes por hora desde que empezó a buscarse
+            const velocity = hits24h / Math.min(hoursSinceFirst, 24);
+            // Boost extra si la query es nueva (< 6h) con actividad
+            const freshBoost = hoursSinceFirst < 6 ? 1.5 : 1;
+            const hotScore = (Math.pow(hits24h, 1.2) * (velocity + 1) * freshBoost) / Math.pow(hoursSinceLast + 1, GRAVITY);
+            return { ...q, hotScore, hits24h };
         })
         .sort((a, b) => b.hotScore - a.hotScore)
         .slice(0, 15)
@@ -1849,6 +1859,7 @@ app.get('/api/search-suggestions', (req, res) => {
             rank: i + 1,
             query: q.query,
             count: q.count,
+            hits24h: q.hits24h,
             hotScore: Math.round(q.hotScore * 100) / 100,
             lastSeen: q.lastSeen
         }));
@@ -3754,6 +3765,11 @@ function recordQuery(rawQuery, key, payload, req, options = {}) {
             existing.lastResultCount = resultCount;
             existing.lastSource = source;
             existing.resultTitles = resultTitles;
+            // Tracking de hits recientes (ventana 48h) para trending real
+            if (!Array.isArray(existing.recentHits)) existing.recentHits = [];
+            existing.recentHits.push(ts);
+            const cutoff48h = new Date(now - 48 * 3600000).toISOString();
+            existing.recentHits = existing.recentHits.filter(t => t >= cutoff48h);
             existing.explanation = (payload && payload.explanation) || existing.explanation;
             // Una vez sospechosa, siempre sospechosa: si cualquier hit fue
             // marcado bot/gibberish, el grupo entero queda fuera de popular.
@@ -3798,6 +3814,7 @@ function recordQuery(rawQuery, key, payload, req, options = {}) {
                 resultTitles,
                 firstSeen: ts,
                 lastSeen: ts,
+                recentHits: [ts],
                 ...(suspicious ? { suspicious: true } : {})
             };
 

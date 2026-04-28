@@ -111,7 +111,7 @@ function pickFallbackPhrases(lang) {
 
 function pickFallbackSuggestions(lang) {
     const source = pickFallbackPhrases(lang);
-    return source.slice(0, 5).map((q, i) => ({ query: q, count: null, rank: i + 1 }));
+    return source.slice(0, 10).map((q, i) => ({ query: q, count: null, rank: i + 1 }));
 }
 
 const TYPING_SPEED = 55;   // ms por carácter escribiendo
@@ -627,13 +627,13 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
 
     // Rotar las sugerencias "Similares a..." cada vez que se enfoca el input
     const rotateSimilar = useCallback(() => {
-        if (allSimilarQueries.length <= 5) {
+        if (allSimilarQueries.length <= 10) {
             setVisibleSimilar(allSimilarQueries);
             return;
         }
-        // Mostrar 5 aleatorias cada vez
+        // Mostrar 12 aleatorias cada vez
         const shuffled = [...allSimilarQueries].sort(() => Math.random() - 0.5);
-        setVisibleSimilar(shuffled.slice(0, 5));
+        setVisibleSimilar(shuffled.slice(0, 10));
     }, [allSimilarQueries]);
 
     // Fetch único de sugerencias: carga inicial + polling cada 5s con contadores frescos
@@ -707,7 +707,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
 
                     if (Array.isArray(data.popular) && data.popular.length > 0) {
                         setPopularSuggestions(data.popular);
-                        setSuggestions(data.popular.slice(0, 5));
+                        setSuggestions(data.popular.slice(0, 10));
                     }
 
                     // --- Placeholder dinámico: 20 queries aleatorias de los usuarios ---
@@ -743,7 +743,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                     if (Array.isArray(data.similar) && data.similar.length > 0) {
                         setSimilarSuggestions(data.similar);
                         setAllSimilarQueries(data.similar);
-                        setVisibleSimilar(data.similar.slice(0, 5));
+                        setVisibleSimilar(data.similar.slice(0, 10));
                     }
                     // --- Nuevos: usar data.newest del server, sino fallback inteligente ---
                     if (Array.isArray(data.newest) && data.newest.length > 0) {
@@ -763,7 +763,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                         });
                         const byLowestCount = [...clean].sort((a, b) => (a.count || 0) - (b.count || 0));
                         setNewestSuggestions(
-                            byLowestCount.slice(0, 15).map((q, i) => ({ ...q, rank: i + 1 }))
+                            byLowestCount.slice(0, 10).map((q, i) => ({ ...q, rank: i + 1 }))
                         );
                     }
 
@@ -1378,7 +1378,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                 {/* Nuevos — consultas más nuevas del servidor con timestamp relativo */}
                                 {activeTab === 'newest' && (
                                     newestSuggestions.length > 0
-                                        ? newestSuggestions.slice(0, 15).map((s, i) => {
+                                        ? newestSuggestions.slice(0, 10).map((s, i) => {
                                             const isBumped = countBumped[s.query];
                                             const showNewBadge = i < 3 && (s.count == null || s.count <= 1);
                                             return (
@@ -1442,33 +1442,41 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                         : <p className="ia-tab-empty">{lang === 'en' ? 'No similar suggestions yet' : 'Sin sugerencias similares aún'}</p>
                                 )}
 
-                                {/* Tendencias — queries "hot" del día */}
+                                {/* Tendencias — queries con más clics recientes (24h) */}
                                 {activeTab === 'trending' && (
                                     trendingSuggestions.length > 0
-                                        ? trendingSuggestions.slice(0, 10).map((s, i) => (
-                                            <button
-                                                key={`trend-${s.query}-${i}`}
-                                                type="button"
-                                                className={`ia-suggestion-item ia-trending-item${countBumped[s.query] ? ' ia-count-bumped' : ''}`}
-                                                onClick={() => handleSuggestionClick(s.query)}
-                                                role="option"
-                                            >
-                                                <span className={`ia-trending-badge ${i < 3 ? 'ia-trending-hot' : ''}`}>
-                                                    {i < 3 ? '🔥' : `#${i + 1}`}
-                                                </span>
-                                                <span className="ia-suggestion-text-wrap">
-                                                    <span className="ia-suggestion-text">{s.query}</span>
-                                                    {s.lastSeen && (
-                                                        <span className="ia-trending-time">{timeAgo(s.lastSeen, lang)}</span>
-                                                    )}
-                                                </span>
-                                                {s.count != null && (
-                                                    <span className={`ia-suggestion-count${countBumped[s.query] ? ' ia-count-flash' : ''}`}>
-                                                        {fmtCount(s.count)}
+                                        ? trendingSuggestions.slice(0, 10).map((s, i) => {
+                                            // hits24h = clics reales en las últimas 24h (nuevo campo)
+                                            // si el servidor aún no lo envía, mostrar count como fallback
+                                            const recentHits = s.hits24h ?? null;
+                                            const isBumped = countBumped[s.query];
+                                            return (
+                                                <button
+                                                    key={`trend-${s.query}-${i}`}
+                                                    type="button"
+                                                    className={`ia-suggestion-item ia-trending-item${isBumped ? ' ia-count-bumped' : ''}`}
+                                                    onClick={() => handleSuggestionClick(s.query)}
+                                                    role="option"
+                                                >
+                                                    <span className={`ia-trending-badge ${i < 3 ? 'ia-trending-hot' : ''}`}>
+                                                        {i < 3 ? '🔥' : `#${i + 1}`}
                                                     </span>
-                                                )}
-                                            </button>
-                                        ))
+                                                    <span className="ia-suggestion-text-wrap">
+                                                        <span className="ia-suggestion-text">{s.query}</span>
+                                                        {s.lastSeen && (
+                                                            <span className="ia-trending-time">{timeAgo(s.lastSeen, lang)}</span>
+                                                        )}
+                                                    </span>
+                                                    {/* Mostrar hits recientes si están disponibles, si no el count total */}
+                                                    <span className={`ia-suggestion-count${isBumped ? ' ia-count-flash' : ''}`} title={recentHits != null ? (lang === 'en' ? `${recentHits} searches in the last 24h` : `${recentHits} búsquedas en las últimas 24h`) : ''}>
+                                                        {recentHits != null
+                                                            ? `${fmtCount(recentHits)}${lang === 'en' ? '/24h' : '/24h'}`
+                                                            : (s.count != null ? fmtCount(s.count) : null)
+                                                        }
+                                                    </span>
+                                                </button>
+                                            );
+                                        })
                                         : <p className="ia-tab-empty">{lang === 'en' ? 'No trends today — popular queries will appear here' : 'Sin tendencias hoy — las consultas populares aparecerán aquí'}</p>
                                 )}
 
