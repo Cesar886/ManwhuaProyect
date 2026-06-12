@@ -2421,6 +2421,159 @@
 }
 
 /* ============================================================================
+   WHATSAPP BANNER - Anuncio canal personal
+   ============================================================================ */
+
+.whatsappBanner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.4rem;
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  border: 1px solid rgba(37, 211, 102, 0.2);
+  background: linear-gradient(
+    110deg,
+    rgba(37, 211, 102, 0.06) 0%,
+    rgba(18, 140, 126, 0.04) 50%,
+    rgba(37, 211, 102, 0.06) 100%
+  );
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+  isolation: isolate;
+}
+
+.whatsappBanner:hover {
+  border-color: rgba(37, 211, 102, 0.4);
+  box-shadow: 0 4px 24px rgba(37, 211, 102, 0.12);
+  transform: translateY(-1px);
+}
+
+.whatsappBannerGlow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(37, 211, 102, 0.04) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: whatsappShimmer 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes whatsappShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.whatsappBannerLeft {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.whatsappIconWrap {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(37, 211, 102, 0.12);
+  border: 1px solid rgba(37, 211, 102, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #25D366;
+}
+
+.whatsappBannerText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.whatsappBannerTitle {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.whatsappBannerSub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.whatsappBannerCta {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(37, 211, 102, 0.15);
+  color: #25D366;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 211, 102, 0.3);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.whatsappBanner:hover .whatsappBannerCta {
+  background: rgba(37, 211, 102, 0.22);
+  border-color: rgba(37, 211, 102, 0.5);
+  box-shadow: 0 0 16px rgba(37, 211, 102, 0.2);
+}
+
+@media (max-width: 600px) {
+  .whatsappBannerSub {
+    display: none;
+  }
+
+  .whatsappBannerTitle {
+    font-size: 0.88rem;
+  }
+
+  .whatsappIconWrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .whatsappBannerCta {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .whatsappBannerLeft {
+    gap: 0.65rem;
+  }
+
+  .whatsappBannerCta {
+    padding: 0.45rem 0.75rem;
+  }
+}
+
+/* ============================================================================
    IA TIP BANNER - Banner informativo del buscador IA
    ============================================================================ */
 
