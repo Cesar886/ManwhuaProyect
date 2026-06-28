@@ -2,8 +2,7 @@ import { SITE_URL, CHAPTERS_PER_SITEMAP } from '@/config'
 import { fetchAllChaptersFromSpaces } from '@/lib/seo/fetchChaptersFromSpaces'
 import { buildSitemapIndex, xmlResponse } from '@/lib/seo/xml'
 
-// force-dynamic: el sitemap index siempre se genera en runtime con datos frescos
-export const dynamic = 'force-dynamic'
+export const revalidate = 1800 // 30 minutos — permite ISR y fetch-level revalidation
 
 export async function GET() {
   const { totalChapters } = await fetchAllChaptersFromSpaces()

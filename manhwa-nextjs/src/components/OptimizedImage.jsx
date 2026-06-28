@@ -73,24 +73,21 @@ export default function OptimizedImage({
     const hasParams = src.includes('?');
     const separator = hasParams ? '&' : '?';
     
-    // Agregar timestamp para evitar caché
-    const timestamp = Date.now();
-
     // Generar srcset para diferentes tamaños
     const sizes = [400, 800, 1200, 1600];
     const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
 
     // URL de baja calidad para progressive loading
-    const lowQuality = `${src}${separator}w=600&q=30&f=${config.format}&t=${timestamp}`;
+    const lowQuality = `${src}${separator}w=600&q=30&f=${config.format}`;
 
     // URL de alta calidad basada en configuración de red
-    const highQuality = `${src}${separator}w=${config.maxWidth}&q=${config.quality}&f=${config.format}&t=${timestamp}`;
+    const highQuality = `${src}${separator}w=${config.maxWidth}&q=${config.quality}&f=${config.format}`;
 
     // Srcset para responsive images
     const srcset = sizes
       .filter(size => size <= config.maxWidth)
       .map(size => {
-        const url = `${src}${separator}w=${size}&q=${config.quality}&f=${config.format}&t=${timestamp}`;
+        const url = `${src}${separator}w=${size}&q=${config.quality}&f=${config.format}`;
         return `${url} ${size}w`;
       })
       .join(', ');
@@ -103,7 +100,7 @@ export default function OptimizedImage({
       highQuality,
       srcset,
       sizes: sizesAttr,
-      fallbackJpg: `${src}${separator}w=${config.maxWidth}&q=${config.quality}&f=jpg`
+      fallbackJpg: `${src}${separator}w=${config.maxWidth}&q=${config.quality}&f=jpg`,
     };
   }, [src, config]);
 

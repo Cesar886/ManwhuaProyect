@@ -1,9 +1,57 @@
 import { GENRE_SEO, META_TEMPLATES, SEO_CONTENT, getAnchorText } from '@/lib/seo/constants'
 import { generateCollectionPageJsonLd, generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
+import { filterAvailableSeriesForLang } from '@/utils/adultContent'
+import { SERVER_API_BASE, SITE_URL } from '@/config'
 import Link from 'next/link'
 import styles from './GenrePage.module.css'
 
 const SITE_NAME = 'Manhwa Imperial'
+const API_KEY = process.env.INTERNAL_API_KEY || ''
+
+export const revalidate = 3600
+
+function normText(str) {
+  return String(str || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/-/g, ' ').trim()
+}
+
+function getCover(s) {
+  return s?.cover || s?.coverUrl || s?.cover_url || s?.coverUrlWeb || s?.cover_url_web || ''
+}
+
+function getChapters(s) {
+  return s?.chapterCount ?? s?.chaptersCount ?? s?.chapters_count ?? s?.totalChapters ?? 0
+}
+
+async function getSeriesByGenre(genreSlug) {
+  try {
+    const res = await fetch(`${SERVER_API_BASE}/spaces/manhwas`, {
+      headers: {
+        'Accept': 'application/json',
+        'Origin': SITE_URL,
+        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+      },
+      next: { revalidate: 3600 },
+    })
+    if (!res.ok) return []
+    const result = await res.json()
+    const all = result.data?.series || result.series || []
+    const safe = filterAvailableSeriesForLang(all, 'es')
+    const target = normText(genreSlug)
+    return safe
+      .filter(s => {
+        const genres = Array.isArray(s.genres) ? s.genres : []
+        return genres.some(g => {
+          const name = normText(typeof g === 'string' ? g : g?.name)
+          return name === target || name.includes(target)
+        })
+      })
+      .slice(0, 20)
+  } catch {
+    return []
+  }
+}
 
 // Lista de géneros válidos para generar estáticamente
 const VALID_GENRES = [
@@ -81,17 +129,15 @@ export async function generateMetadata({ params }) {
  */
 export default async function GenrePage({ params }) {
   const { genre } = await params
-  
-  // Convertir slug a nombre legible
+
   const genreName = genre
     .replace(/-/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase())
-  
-  // Obtener datos SEO del género
+
   const genreData = GENRE_SEO[genre.replace(/-/g, ' ').toLowerCase()] || {}
-  
-  // Generar JSON-LD
-  const collectionJsonLd = generateCollectionPageJsonLd(genreName, [], 0)
+  const series = await getSeriesByGenre(genre)
+
+  const collectionJsonLd = generateCollectionPageJsonLd(genreName, series, series.length)
   const breadcrumbJsonLd = generateBreadcrumbJsonLd([
     { name: 'Inicio', url: '/home' },
     { name: 'Biblioteca de Manhwas', url: '/biblioteca' },
@@ -139,17 +185,41 @@ export default async function GenrePage({ params }) {
               {SEO_CONTENT.genre.getAllGenre(genreName)}
             </h2>
             
-            {/* Placeholder para la lista de manhwas */}
             <div className={styles.manhwaGrid}>
-              <div className={styles.emptyState}>
-                <p>
-                  Para ver los manhwas de {genreName}, visita nuestra{' '}
-                  <Link href={`/biblioteca?genero=${genre}`} className={styles.link}>
-                    biblioteca de manhwas
-                  </Link>{' '}
-                  y filtra por género.
-                </p>
-              </div>
+              {series.length > 0 ? series.map(s => (
+                <Link
+                  key={s.slug}
+                  href={`/manhwa/${s.slug}`}
+                  className={styles.seriesCard}
+                  title={s.title}
+                >
+                  <div className={styles.coverWrapper}>
+                    {getCover(s) ? (
+                      <img
+                        src={getCover(s)}
+                        alt={s.title}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div className={styles.coverPlaceholder} />
+                    )}
+                  </div>
+                  <span className={styles.seriesTitle}>{s.title}</span>
+                  {getChapters(s) > 0 && (
+                    <span className={styles.chapterCount}>{getChapters(s)} caps</span>
+                  )}
+                </Link>
+              )) : (
+                <div className={styles.emptyState}>
+                  <p>
+                    Próximamente manhwas de {genreName}.{' '}
+                    <Link href="/biblioteca" className={styles.link}>
+                      Ver biblioteca completa
+                    </Link>
+                  </p>
+                </div>
+              )}
             </div>
           </section>
           

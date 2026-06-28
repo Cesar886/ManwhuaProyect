@@ -4,7 +4,7 @@ import { generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
 
 export const revalidate = 600
 
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || ''
 
 const defaultHeaders = {
     'Accept': 'application/json',

@@ -1305,6 +1305,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
                     display: 'block',
                     width: '100%',
                     height: 'auto',
+                    aspectRatio: '2/3',
                     marginBottom: '0.25rem',
                   }}
                 />

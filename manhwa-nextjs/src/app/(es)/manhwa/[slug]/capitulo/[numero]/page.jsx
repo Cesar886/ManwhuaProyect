@@ -142,7 +142,7 @@ export default async function ChapterReaderPage({ params }) {
   const breadcrumbJsonLd = generateBreadcrumbJsonLd([
     { name: 'Inicio', url: '/home' },
     { name: `${title} Manhwa`, url: `/manhwa/${slug}` },
-    { name: `Capítulo ${numero}` },
+    { name: `Capítulo ${numero}`, url: `/manhwa/${slug}/capitulo/${numero}` },
   ])
 
   return (

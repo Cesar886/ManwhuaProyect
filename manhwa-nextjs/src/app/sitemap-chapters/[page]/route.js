@@ -2,8 +2,7 @@ import { SITE_URL, CHAPTERS_PER_SITEMAP } from '@/config'
 import { fetchAllChaptersFromSpaces } from '@/lib/seo/fetchChaptersFromSpaces'
 import { buildUrlset, urlEntryWithAlternates, xmlResponse } from '@/lib/seo/xml'
 
-// force-dynamic: los chapter sitemaps siempre se generan en runtime con datos frescos
-export const dynamic = 'force-dynamic'
+export const revalidate = 1800 // 30 minutos — permite ISR y fetch-level revalidation
 
 // Construye el bloque de alternates hreflang para un capítulo.
 // Solo incluye idiomas en los que la serie realmente está disponible.

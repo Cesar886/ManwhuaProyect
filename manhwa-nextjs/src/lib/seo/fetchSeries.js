@@ -1,6 +1,6 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
 
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || ''
 
 /** Headers comunes para todos los fetches SSR internos */
 const sseHeaders = () => ({

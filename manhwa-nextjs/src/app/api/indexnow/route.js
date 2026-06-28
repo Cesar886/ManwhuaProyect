@@ -3,7 +3,7 @@ import { endpoint, SITE_URL } from '@/config'
 const INDEXNOW_KEY = 'f2cdd862b4624457846d2d3e59f308a8'
 const INDEXNOW_API = 'https://api.indexnow.org/IndexNow'
 const BATCH_SIZE = 10000
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || ''
 
 const STATIC_PAGES = [
   '/',

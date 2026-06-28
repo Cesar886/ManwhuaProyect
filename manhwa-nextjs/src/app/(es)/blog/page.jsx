@@ -2,6 +2,40 @@ import Link from 'next/link'
 import { getAllPosts, CATEGORY_LABELS } from '@/lib/blog/posts'
 import Header from '@/components/Header'
 import styles from './Blog.module.css'
+import { SITE_URL, SITE_NAME } from '@/config'
+
+export const metadata = {
+  title: `Blog de Manhwa en Español — Guías y Recomendaciones | ${SITE_NAME}`,
+  description:
+    'Guías, comparativas y recomendaciones para leer manhwa en español. Descubre los mejores sitios, géneros y títulos del cómic coreano digital.',
+  keywords: [
+    'blog manhwa',
+    'guías manhwa español',
+    'recomendaciones manhwa',
+    'comparativa plataformas manhwa',
+    'cómic coreano español',
+  ],
+  alternates: {
+    canonical: `${SITE_URL}/blog`,
+    languages: { es: `${SITE_URL}/blog`, 'x-default': `${SITE_URL}/blog` },
+  },
+  openGraph: {
+    title: `Blog de Manhwa en Español — Guías y Recomendaciones | ${SITE_NAME}`,
+    description:
+      'Guías, comparativas y recomendaciones para leer manhwa en español. Géneros, títulos y plataformas explicados.',
+    type: 'website',
+    url: `${SITE_URL}/blog`,
+    siteName: SITE_NAME,
+    locale: 'es_ES',
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: `Blog de Manhwa Imperial` }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `Blog de Manhwa en Español | ${SITE_NAME}`,
+    description: 'Guías, comparativas y recomendaciones sobre manhwa y webtoon coreano.',
+    images: [`${SITE_URL}/og-image.png`],
+  },
+}
 
 export default function BlogPage() {
   const posts = getAllPosts()

@@ -86,6 +86,7 @@ export default function ManhwaCover({ src, alt, className, fallbackSrc, slug, pr
             alt={seoAlt}
             className={className}
             loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : 'auto'}
             decoding="async"
             style={{
                 objectFit: 'cover',

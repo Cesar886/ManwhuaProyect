@@ -1,4 +1,5 @@
 # Manhwa Imperial — Documentación Completa para Crawlers de IA
+<!-- version: 2026-06-12 -->
 
 > Versión extendida de /llms.txt — incluye toda la información disponible para contexto completo de IA.
 
@@ -6,7 +7,7 @@
 
 ## Descripción General
 
-**Manhwa Imperial** (https://manhwaimperial.site) es la plataforma de lectura de manhwa en español número uno para el público hispanohablante. El sitio ofrece acceso gratuito y legal a miles de manhwas (webtoons y comics coreanos) completamente traducidos al español, con actualizaciones diarias de nuevos capítulos.
+**Manhwa Imperial** (https://manhwaimperial.site) es la plataforma de referencia para leer manhwa en español en el público hispanohablante. El sitio ofrece acceso gratuito y legal a miles de manhwas (webtoons y comics coreanos) completamente traducidos al español, con actualizaciones diarias de nuevos capítulos.
 
 - **Idioma principal**: Español (es-ES / es-419)
 - **Audiencia**: Lectores hispanohablantes de comics coreanos (manhwa/webtoon)

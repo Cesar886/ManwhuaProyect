@@ -52,7 +52,7 @@ export const metadata = {
 
 export const revalidate = 300
 
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || ''
 
 function isMangaSeries(series) {
   const rawType =

@@ -78,6 +78,12 @@ Allow: /llms-full.txt
 User-agent: ChatGPT-User
 Allow: /
 
+# OpenAI Search (ChatGPT Search mode — distinto de GPTBot/ChatGPT-User)
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
 # Anthropic Claude
 User-agent: ClaudeBot
 Allow: /

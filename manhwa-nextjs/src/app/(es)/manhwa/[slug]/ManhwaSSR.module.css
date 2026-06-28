@@ -1,0 +1,115 @@
+.ssrSection {
+  max-width: var(--content-max-width, 1200px);
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-md);
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* -------- Por qué leer -------- */
+.whyList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+}
+
+.whyItem {
+  display: flex;
+  gap: var(--spacing-sm, 8px);
+  align-items: flex-start;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.whyItem::before {
+  content: '✓';
+  color: var(--imperial-gold);
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.genreTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs, 4px);
+  margin-top: var(--spacing-md);
+}
+
+.genreTag {
+  padding: 3px 10px;
+  background: var(--subtle-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.genreTag:hover {
+  border-color: var(--imperial-gold);
+  color: var(--imperial-gold);
+}
+
+/* -------- Chapters preview -------- */
+.chapterList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--spacing-xs, 4px);
+}
+
+.chapterLink {
+  display: block;
+  padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+  background: var(--subtle-bg);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--transition-fast, 0.15s), background var(--transition-fast, 0.15s);
+}
+
+.chapterLink:hover {
+  color: var(--text-primary);
+  background: var(--subtle-bg-hover, var(--subtle-bg));
+}
+
+.viewAllLink {
+  display: inline-block;
+  margin-top: var(--spacing-md);
+  color: var(--imperial-gold);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.viewAllLink:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .ssrSection {
+    padding: var(--spacing-md);
+  }
+
+  .chapterList {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}

@@ -32,8 +32,8 @@ export function generateOrganizationJsonLd() {
       caption: SITE_NAME,
     },
     description: 'Plataforma de lectura de manhwa en español potenciada por inteligencia artificial. Ofrece un buscador con IA que entiende lenguaje natural, corrige errores y encuentra manhwas por descripción de trama. Opera con cumplimiento DMCA activo, políticas legales transparentes y compromiso con la seguridad del usuario.',
-    foundingDate: '2024',
-    slogan: 'Tu biblioteca de manhwas #1 en español',
+    foundingDate: '2024-01-01',
+    slogan: 'La biblioteca de manhwas más completa en español',
     // GEO: señalar explícitamente a qué audiencia sirve la plataforma
     areaServed: [
       { '@type': 'Country', name: 'México' },
@@ -103,7 +103,9 @@ export function generateOrganizationJsonLd() {
     sameAs: [
       'https://x.com/manhwaimperial',
       'https://instagram.com/manhwaimperial',
-      'https://www.facebook.com/share/1DeCq4G8B4/',
+      'https://www.facebook.com/manhwaimperial',
+      // Añadir canal de YouTube: establecer NEXT_PUBLIC_YOUTUBE_URL en .env
+      ...(process.env.NEXT_PUBLIC_YOUTUBE_URL ? [process.env.NEXT_PUBLIC_YOUTUBE_URL] : []),
     ],
   }
 }
@@ -123,7 +125,6 @@ export function generateWebSiteJsonLd() {
     description: 'Plataforma líder para leer manhwas y webtoons en español, potenciada por inteligencia artificial. Buscador con IA, lectura gratuita, legal y segura con actualizaciones diarias.',
     inLanguage: 'es',
     isAccessibleForFree: true,
-    isFamilyFriendly: false,
     publisher: {
       '@id': `${SITE_URL}/#organization`,
     },
@@ -162,6 +163,21 @@ export function generateHomePageJsonLd() {
   }
 }
 
+function buildSeriesFallbackDesc(title, genres, chapterCount, status) {
+  const genreStr = genres.length > 0
+    ? `de ${genres.slice(0, 3).join(', ')}`
+    : 'de acción y aventura'
+  const chapterStr = chapterCount > 0
+    ? `Cuenta con ${chapterCount} capítulo${chapterCount !== 1 ? 's' : ''} disponibles para leer.`
+    : ''
+  const statusStr = status === 'completed'
+    ? 'La serie está completada.'
+    : status === 'paused'
+      ? 'La serie está pausada temporalmente.'
+      : 'La serie sigue en emisión con actualizaciones regulares.'
+  return `Lee ${title} manhwa completo en español gratis en ${SITE_NAME}. Es un manhwa ${genreStr} que puedes disfrutar sin registro ni suscripción. ${chapterStr} ${statusStr} Disfruta de la mejor calidad de imagen y traducciones actualizadas diariamente.`.trim()
+}
+
 export function generateComicSeriesJsonLd(series) {
   if (!series) return null
 
@@ -179,7 +195,7 @@ export function generateComicSeriesJsonLd(series) {
     alternateName: series.alternativeTitles || [],
     headline: `Leer ${title} Manhwa en Español`,
     url: seriesUrl,
-    description: series.synopsis || series.description || `Lee ${title} manhwa completo en español gratis. Disfruta de este manhwa en ${SITE_NAME}.`,
+    description: series.synopsis || series.description || buildSeriesFallbackDesc(title, genres, chapterCount, series.status),
     inLanguage: 'es',
     genre: genres,
     isAccessibleForFree: true,
@@ -337,6 +353,7 @@ export function generateFAQJsonLd(series) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
+    '@id': `${SITE_URL}/manhwa/${series.slug}#faq`,
     mainEntity: faqs.map(faq => ({
       '@type': 'Question',
       name: faq.question,
@@ -421,11 +438,12 @@ export function generateChapterJsonLd(series, chapterNum, pageCount = null, chap
     const ratingCount = parseInt(chapterRating.ratingCount) || 0
     const rawRating = parseFloat(chapterRating.rating) || 0
     if (rawRating > 0 && ratingCount >= 3) {
+      const ratingValue = Math.min(5, Math.max(0, rawRating / 2))
       jsonLd.aggregateRating = {
         '@type': 'AggregateRating',
-        ratingValue: rawRating.toFixed(1),
+        ratingValue: ratingValue.toFixed(1),
         bestRating: '5',
-        worstRating: '1',
+        worstRating: '0',
         ratingCount: String(ratingCount),
         reviewCount: String(ratingCount),
       }
@@ -468,10 +486,11 @@ export function generateCollectionPageJsonLd(genre, manhwas = [], totalCount = 0
 
   // Lista de items si hay manhwas
   if (manhwas.length > 0) {
+    const listed = manhwas.slice(0, 10)
     jsonLd.mainEntity = {
       '@type': 'ItemList',
-      numberOfItems: manhwas.length,
-      itemListElement: manhwas.slice(0, 10).map((manhwa, index) => ({
+      numberOfItems: listed.length,
+      itemListElement: listed.map((manhwa, index) => ({
         '@type': 'ListItem',
         position: index + 1,
         item: {
@@ -539,6 +558,9 @@ export function generateSpeakableArticleJsonLd(series) {
       ? 'pausada'
       : 'en emisión activa'
 
+  const updatedAt = series.updatedAt || series.lastUpdated || series.updated_at
+  const createdAt = series.createdAt || series.created_at
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -546,17 +568,23 @@ export function generateSpeakableArticleJsonLd(series) {
     headline: `Sinopsis y estado actual de ${title}`,
     description: `Resumen de la trama y detalles del último capítulo publicado de ${title}.`,
     inLanguage: 'es',
-    isPartOf: {
-      '@id': `${SITE_URL}/#website`,
+    author: {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      url: SITE_URL,
     },
     publisher: {
       '@id': `${SITE_URL}/#organization`,
     },
+    ...(createdAt ? { datePublished: new Date(createdAt).toISOString() } : {}),
+    ...(updatedAt ? { dateModified: new Date(updatedAt).toISOString() } : {}),
+    isPartOf: {
+      '@id': `${SITE_URL}/#website`,
+    },
     speakable: {
       '@type': 'SpeakableSpecification',
-      // Estos IDs coinciden exactamente con los elementos HTML de la página de detalle.
-      // El texto dentro de ellos está redactado para sonar natural en voz alta.
-      cssSelector: ['#sinopsis-manhwa', '#estado-publicacion'],
+      cssSelector: ['h1', '#sinopsis-manhwa', '#estado-publicacion', '#por-que-leer'],
     },
   }
 }
@@ -622,7 +650,7 @@ export function generateDefinedTermSetJsonLd() {
     '@id': `${SITE_URL}/#termset`,
     name: 'Glosario de Manhwa y Webtoon — Manhwa Imperial',
     inLanguage: 'es',
-    url: `${SITE_URL}/acerca-de`,
+    url: `${SITE_URL}/biblioteca`,
     publisher: { '@id': `${SITE_URL}/#organization` },
     hasDefinedTerm: [
       {
@@ -695,14 +723,14 @@ export function generateFAQJsonLdForHome() {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    '@id': `${SITE_URL}/home#faq`,
+    '@id': `${SITE_URL}/#faq`,
     mainEntity: [
       {
         '@type': 'Question',
         name: '¿Qué es Manhwa Imperial?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: `Manhwa Imperial (manhwaimperial.site) es la plataforma número uno en español para leer manhwas y webtoons coreanos gratis. Ofrece acceso gratuito a miles de títulos con actualizaciones diarias, sistema de biblioteca personal, historial de lectura y cumplimiento DMCA activo. No requiere registro ni suscripción para leer.`,
+          text: `Manhwa Imperial (manhwaimperial.site) es una plataforma de lectura de manhwas y webtoons coreanos en español, de acceso completamente gratuito. Ofrece miles de títulos con actualizaciones diarias, sistema de biblioteca personal, historial de lectura y cumplimiento DMCA activo. No requiere registro ni suscripción para leer.`,
         },
       },
       {

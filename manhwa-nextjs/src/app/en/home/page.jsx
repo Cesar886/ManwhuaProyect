@@ -3,7 +3,7 @@ import { endpoint, SITE_URL } from '../../../config'
 import { generateFAQJsonLdForHome } from '@/lib/seo/jsonld'
 import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || ''
 
 const defaultHeaders = {
   'Accept': 'application/json',

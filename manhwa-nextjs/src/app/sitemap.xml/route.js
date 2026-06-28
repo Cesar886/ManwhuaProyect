@@ -1,5 +1,6 @@
 import { SITE_URL } from '@/config'
 import { fetchAllSeriesForSitemap } from '@/lib/seo/fetchSeries'
+import { getAllPosts } from '@/lib/blog/posts'
 import { buildUrlset, urlEntry, urlEntryWithAlternates, xmlResponse } from '@/lib/seo/xml'
 import {
   filterAvailableSeries,
@@ -7,8 +8,7 @@ import {
   DEFAULT_LANG,
 } from '@/utils/adultContent'
 
-// force-dynamic: el sitemap siempre se genera en runtime con datos frescos
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600 // 1 hora — la lista de series cambia poco frecuentemente
 
 // ──────────────────────────────────────────────────────────────────
 // Páginas estáticas públicas con equivalente en ambos idiomas
@@ -20,19 +20,21 @@ const BILINGUAL_STATIC_PAGES = [
   { es: '/biblioteca',   en: '/en/library',    priority: '0.8', freq: 'daily'   },
   { es: '/mangas',       en: '/en/manga',      priority: '0.8', freq: 'daily'   },
   { es: '/busqueda-ia',  en: '/en/search-ai',  priority: '0.7', freq: 'weekly'  },
-  // Legales (existen en ambos idiomas)
-  { es: '/acerca-de',               en: '/en/about',            priority: '0.4', freq: 'monthly' },
-  { es: '/dmca',                    en: '/en/dmca',             priority: '0.3', freq: 'yearly'  },
-  { es: '/terminos-de-servicio',    en: '/en/terms-of-service', priority: '0.3', freq: 'yearly'  },
-  { es: '/politica-de-privacidad',  en: '/en/privacy-policy',   priority: '0.3', freq: 'yearly'  },
-  { es: '/aviso-legal',             en: '/en/legal-notice',     priority: '0.3', freq: 'yearly'  },
+  // Legales: lastmod fijo — no cambian con frecuencia
+  { es: '/acerca-de',               en: '/en/about',            priority: '0.4', freq: 'monthly', lastmod: '2025-01-01' },
+  { es: '/dmca',                    en: '/en/dmca',             priority: '0.3', freq: 'yearly',  lastmod: '2025-01-01' },
+  { es: '/terminos-de-servicio',    en: '/en/terms-of-service', priority: '0.3', freq: 'yearly',  lastmod: '2025-01-01' },
+  { es: '/politica-de-privacidad',  en: '/en/privacy-policy',   priority: '0.3', freq: 'yearly',  lastmod: '2025-01-01' },
+  { es: '/aviso-legal',             en: '/en/legal-notice',     priority: '0.3', freq: 'yearly',  lastmod: '2025-01-01' },
 ]
 
 // Páginas solo en ES (sin equivalente EN en el repo actual)
 const ES_ONLY_PAGES = [
-  { path: '/colecciones', priority: '0.7', freq: 'weekly' },
-  { path: '/buscar',      priority: '0.5', freq: 'weekly' },
-  { path: '/blog',        priority: '0.5', freq: 'weekly' },
+  { path: '/colecciones',         priority: '0.7', freq: 'weekly' },
+  { path: '/ranking/series',      priority: '0.8', freq: 'daily'  },
+  { path: '/buscar',              priority: '0.5', freq: 'weekly' },
+  { path: '/blog',                priority: '0.6', freq: 'weekly' },
+  { path: '/blog/autor/redaccion', priority: '0.4', freq: 'monthly', lastmod: '2026-06-12' },
 ]
 
 // Géneros con página dedicada (src/app/(es)/genero/[genre]/page.jsx)
@@ -72,14 +74,15 @@ export async function GET() {
 
   // 1) Páginas bilingües (con hreflang)
   for (const p of BILINGUAL_STATIC_PAGES) {
+    const lm = p.lastmod || now
     const alt = bilingualAlternates(p.es, p.en)
-    urls.push(urlEntryWithAlternates(`${SITE_URL}${p.es}`, now, p.freq, p.priority, alt))
-    urls.push(urlEntryWithAlternates(`${SITE_URL}${p.en}`, now, p.freq, p.priority, alt))
+    urls.push(urlEntryWithAlternates(`${SITE_URL}${p.es}`, lm, p.freq, p.priority, alt))
+    urls.push(urlEntryWithAlternates(`${SITE_URL}${p.en}`, lm, p.freq, p.priority, alt))
   }
 
   // 2) Páginas solo ES
   for (const p of ES_ONLY_PAGES) {
-    urls.push(urlEntry(`${SITE_URL}${p.path}`, now, p.freq, p.priority))
+    urls.push(urlEntry(`${SITE_URL}${p.path}`, p.lastmod || now, p.freq, p.priority))
   }
 
   // 3) Páginas de género (solo existen en ES actualmente)
@@ -87,7 +90,13 @@ export async function GET() {
     urls.push(urlEntry(`${SITE_URL}/genero/${slug}`, now, 'weekly', '0.6'))
   }
 
-  // 4) Series — una entrada por idioma, con alternates que apuntan entre sí
+  // 4) Posts del blog
+  for (const post of getAllPosts()) {
+    const lastmod = post.updatedAt || post.publishedAt
+    urls.push(urlEntry(`${SITE_URL}/blog/${post.slug}`, lastmod, 'monthly', '0.6'))
+  }
+
+  // 5) Series — una entrada por idioma, con alternates que apuntan entre sí
   for (const s of allSeries) {
     if (!s?.slug) continue
     const lastmod = new Date(

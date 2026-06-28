@@ -18,7 +18,7 @@ const SPACES_URL = (() => {
   return `${base}${hasApi ? '' : '/api'}/spaces/manhwas`;
 })();
 
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || '';
+const API_KEY = process.env.INTERNAL_API_KEY || '';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutos
 const MAX_EACH = 5;              // 5 populares + 5 similares = 10 total
 const READ_TIMEOUT_MS = 5000;    // máx por llamada individual a /api/read
@@ -115,7 +115,9 @@ export async function GET(request) {
 
   // Devolver caché si está fresco (del idioma correcto)
   if (bucket.data && Date.now() - bucket.time < CACHE_TTL) {
-    return NextResponse.json({ data: bucket.data, fromCache: true, lang });
+    return NextResponse.json({ data: bucket.data, fromCache: true, lang }, {
+      headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600' },
+    });
   }
 
   if (inFlightRefreshByLang[lang]) {
@@ -132,10 +134,11 @@ export async function GET(request) {
       headers: { 'Accept': 'application/json', 'X-Lang': lang },
       next: { revalidate: 0 },
     });
-    if (!sugRes.ok) return NextResponse.json({ data: [], lang });
+    const cacheHeaders = { headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600' } };
+    if (!sugRes.ok) return NextResponse.json({ data: [], lang }, cacheHeaders);
 
     const sugData = await sugRes.json();
-    if (!sugData.success) return NextResponse.json({ data: [], lang });
+    if (!sugData.success) return NextResponse.json({ data: [], lang }, cacheHeaders);
 
     const popularQueries = (sugData.popular || [])
       .filter((q) => q.query && q.query.trim().length > 3)
@@ -153,7 +156,7 @@ export async function GET(request) {
       if (i < similarQueries.length) interleaved.push({ ...similarQueries[i], type: 'similar' });
     }
 
-    if (interleaved.length === 0) return NextResponse.json({ data: [], lang });
+    if (interleaved.length === 0) return NextResponse.json({ data: [], lang }, cacheHeaders);
 
     // 2. Llamar a /api/read en paralelo con timeout por llamada
     const callRead = async (q) => {
@@ -218,9 +221,9 @@ export async function GET(request) {
       bucket.time = Date.now();
     }
 
-    return NextResponse.json({ data: accumulated, fromCache: false, lang });
+    return NextResponse.json({ data: accumulated, fromCache: false, lang }, cacheHeaders);
   })()
-    .catch(() => NextResponse.json({ data: [], lang }))
+    .catch(() => NextResponse.json({ data: [], lang }, { headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600' } }))
     .finally(() => {
       inFlightRefreshByLang[lang] = null;
     });

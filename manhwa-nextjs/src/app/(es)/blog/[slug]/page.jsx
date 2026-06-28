@@ -9,6 +9,40 @@ export async function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }))
 }
 
+export async function generateMetadata({ params }) {
+  const { slug } = await params
+  const post = getPostBySlug(slug)
+  if (!post) return {}
+
+  return {
+    title: `${post.title} | ${SITE_NAME}`,
+    description: post.meta_description,
+    keywords: [post.target_keyword, ...post.secondary_keywords, ...post.tags],
+    alternates: {
+      canonical: `${SITE_URL}/blog/${post.slug}`,
+      languages: { es: `${SITE_URL}/blog/${post.slug}`, 'x-default': `${SITE_URL}/blog/${post.slug}` },
+    },
+    openGraph: {
+      type: 'article',
+      url: `${SITE_URL}/blog/${post.slug}`,
+      title: post.title,
+      description: post.meta_description,
+      siteName: SITE_NAME,
+      locale: 'es_ES',
+      publishedTime: post.publishedAt,
+      modifiedTime: post.updatedAt || post.publishedAt,
+      authors: [`${SITE_URL}/blog/autor/redaccion`],
+      images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: post.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.meta_description,
+      images: [`${SITE_URL}/og-image.png`],
+    },
+  }
+}
+
 export default async function BlogPostPage({ params }) {
   const { slug } = await params
   const post = getPostBySlug(slug)
@@ -16,6 +50,13 @@ export default async function BlogPostPage({ params }) {
 
   const related = getRecentPosts(4).filter((p) => p.slug !== post.slug).slice(0, 3)
   const category = CATEGORY_LABELS[post.category] || { label: post.category, color: '#6B7280' }
+
+  // Identidad editorial consistente — usada en schema y en la UI
+  const AUTHOR = {
+    name: 'Redacción Manhwa Imperial',
+    url: `${SITE_URL}/blog/autor/redaccion`,
+    description: 'Equipo editorial especializado en manhwa y webtoon coreano.',
+  }
 
   // JSON-LD schemas
   // ── BlogPosting (más específico que Article — preferido por Google y crawlers de IA)
@@ -31,14 +72,13 @@ export default async function BlogPostPage({ params }) {
     inLanguage: 'es-ES',
     wordCount: post.word_count,
     timeRequired: `PT${post.reading_time_minutes}M`,
-    // articleSection: categoría del post para clasificación semántica
     articleSection: post.category,
-    // author y publisher enlazados al grafo global
+    // Person author — señal E-E-A-T para Google y crawlers de IA
     author: {
-      '@type': 'Organization',
-      '@id': `${SITE_URL}/#organization`,
-      name: SITE_NAME,
-      url: SITE_URL,
+      '@type': 'Person',
+      name: AUTHOR.name,
+      url: AUTHOR.url,
+      worksFor: { '@id': `${SITE_URL}/#organization` },
     },
     publisher: {
       '@type': 'Organization',
@@ -165,6 +205,13 @@ export default async function BlogPostPage({ params }) {
               <h1 className={styles.articleTitle}>{post.title}</h1>
 
               <div className={styles.articleMeta}>
+                <span>
+                  Por{' '}
+                  <Link href={AUTHOR.url} className={styles.authorLink} rel="author">
+                    {AUTHOR.name}
+                  </Link>
+                </span>
+                <span>·</span>
                 <time dateTime={post.publishedAt}>
                   {new Date(post.publishedAt).toLocaleDateString('es-ES', {
                     year: 'numeric',

@@ -1,0 +1,202 @@
+.page {
+  min-height: 100vh;
+  background: var(--page-bg);
+  padding-top: calc(var(--header-height, 80px) + var(--spacing-xl));
+}
+
+.content {
+  max-width: var(--content-max-width, 1200px);
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.intro {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-width: 900px;
+}
+
+.empty {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* Numbered list */
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+}
+
+/* Rank badge */
+.rank {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-muted, var(--text-secondary));
+  min-width: 2.2rem;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankTop {
+  color: var(--imperial-gold);
+  font-size: 1.25rem;
+}
+
+/* Card link */
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
+  padding: var(--spacing-sm, 8px);
+  border-radius: var(--radius-md, 6px);
+  transition: background var(--transition-fast, 0.15s);
+}
+
+.card:hover {
+  background: var(--subtle-bg);
+}
+
+/* Cover */
+.cover {
+  width: 52px;
+  flex-shrink: 0;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+  background: var(--subtle-bg);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.coverFallback {
+  width: 100%;
+  height: 100%;
+  background: var(--subtle-bg);
+}
+
+/* Info block */
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.seriesTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm, 8px);
+}
+
+.score {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--imperial-gold);
+}
+
+.chapters {
+  font-size: 0.78rem;
+  color: var(--text-muted, var(--text-secondary));
+}
+
+.status {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: var(--radius-full, 999px);
+}
+
+.completed {
+  background: color-mix(in srgb, var(--imperial-gold) 15%, transparent);
+  color: var(--imperial-gold);
+}
+
+.ongoing {
+  background: color-mix(in srgb, #4ade80 12%, transparent);
+  color: #4ade80;
+}
+
+.footnote {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.link {
+  color: var(--imperial-gold);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: var(--spacing-md);
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .rank {
+    min-width: 1.8rem;
+    font-size: 0.95rem;
+  }
+
+  .rankTop {
+    font-size: 1.1rem;
+  }
+
+  .cover {
+    width: 44px;
+  }
+
+  .seriesTitle {
+    font-size: 0.875rem;
+  }
+}

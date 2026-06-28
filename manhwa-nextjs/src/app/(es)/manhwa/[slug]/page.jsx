@@ -5,10 +5,45 @@ import { META_TEMPLATES, getImageAlt } from '@/lib/seo/constants'
 import ManhwaDetail from './ManhwaDetailClient'
 import { notFound } from 'next/navigation'
 import { isAdultSeries, matchesLanguage } from '@/utils/adultContent'
+import Link from 'next/link'
+import ssrStyles from './ManhwaSSR.module.css'
 
-// ISR: reconstruye la página cada hora para que Google pueda indexarla
-// Sin esto, Next.js devuelve cache-control: private, no-cache, no-store
 export const revalidate = 3600
+
+function getGenreNames(series) {
+  const genres = Array.isArray(series?.genres) ? series.genres : []
+  return genres.map(g => (typeof g === 'string' ? g : g?.name || '')).filter(Boolean).slice(0, 5)
+}
+
+function getChaptersPreview(series) {
+  const chapters = Array.isArray(series?.chapters) ? series.chapters : []
+  return chapters.slice().sort((a, b) => Number(a.number) - Number(b.number)).slice(0, 10)
+}
+
+function getStatusLabel(status) {
+  if (status === 'completed' || status === 'finalizado') return 'finalizado'
+  if (status === 'ongoing' || status === 'en curso') return 'en emisión activa'
+  return 'disponible en la plataforma'
+}
+
+function buildWhyReasons(series) {
+  const genres = getGenreNames(series)
+  const chapterCount = series?.chapterCount ?? series?.chaptersCount ?? 0
+  const status = getStatusLabel(series?.status)
+  const reasons = []
+
+  if (genres.length > 0) {
+    reasons.push(`Género${genres.length > 1 ? 's' : ''}: ${genres.join(', ')} — ideal si disfrutas este tipo de historias.`)
+  }
+  if (chapterCount >= 50) {
+    reasons.push(`Más de ${chapterCount} capítulos disponibles — horas de contenido para leer sin parar.`)
+  } else if (chapterCount > 0) {
+    reasons.push(`${chapterCount} capítulo${chapterCount !== 1 ? 's' : ''} disponible${chapterCount !== 1 ? 's' : ''} para leer ahora mismo.`)
+  }
+  reasons.push(`Historia ${status} y traducida al español.`)
+  reasons.push('Lectura gratuita sin registro — solo abre el capítulo y empieza.')
+  return reasons
+}
 
 const SITE_NAME = 'Manhwa Imperial'
 
@@ -152,6 +187,58 @@ export default async function ManhwaDetailPage({ params }) {
         />
       )}
       <ManhwaDetail initialSeries={series} />
+
+      {/* ──────────────────────────────────────────────────────────────── */}
+      {/* SSR editorial sections — visible to AI crawlers & text parsers  */}
+      {/* Positioned after the interactive client component               */}
+      {/* ──────────────────────────────────────────────────────────────── */}
+
+      {/* Por qué leer este manhwa */}
+      <section className={ssrStyles.ssrSection} id="por-que-leer" aria-label={`Por qué leer ${series?.title}`}>
+        <h2 className={ssrStyles.sectionTitle}>¿Por qué leer {series?.title}?</h2>
+        <ul className={ssrStyles.whyList}>
+          {buildWhyReasons(series).map((reason, i) => (
+            <li key={i} className={ssrStyles.whyItem}>{reason}</li>
+          ))}
+        </ul>
+        {getGenreNames(series).length > 0 && (
+          <nav className={ssrStyles.genreTags} aria-label="Géneros">
+            {getGenreNames(series).map(g => (
+              <Link
+                key={g}
+                href={`/genero/${g.toLowerCase().replace(/\s+/g, '-')}`}
+                className={ssrStyles.genreTag}
+              >
+                {g}
+              </Link>
+            ))}
+          </nav>
+        )}
+      </section>
+
+      {/* Primeros capítulos — ayuda a los crawlers a descubrir URLs de capítulos */}
+      {getChaptersPreview(series).length > 0 && (
+        <section className={ssrStyles.ssrSection} aria-label="Capítulos disponibles">
+          <h2 className={ssrStyles.sectionTitle}>Primeros capítulos de {series?.title}</h2>
+          <ol className={ssrStyles.chapterList}>
+            {getChaptersPreview(series).map(ch => (
+              <li key={ch.number}>
+                <Link
+                  href={`/manhwa/${slug}/capitulo/${ch.number}`}
+                  className={ssrStyles.chapterLink}
+                >
+                  {ch.title ? `Cap. ${ch.number}: ${ch.title}` : `Capítulo ${ch.number}`}
+                </Link>
+              </li>
+            ))}
+          </ol>
+          {(series?.chapterCount ?? 0) > 10 && (
+            <Link href={`/manhwa/${slug}`} className={ssrStyles.viewAllLink}>
+              Ver todos los capítulos →
+            </Link>
+          )}
+        </section>
+      )}
     </>
   )
 }

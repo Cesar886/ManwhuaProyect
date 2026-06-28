@@ -1,7 +1,7 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
 import { isAdultSeries, getSeriesLanguages, DEFAULT_LANG } from '@/utils/adultContent'
 
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || ''
 
 // Series actualizadas en los últimos 14 días se consideran "recientes"
 const RECENT_DAYS = 14

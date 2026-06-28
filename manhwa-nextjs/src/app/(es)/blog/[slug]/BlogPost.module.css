@@ -92,6 +92,16 @@
   flex-wrap: wrap;
 }
 
+.authorLink {
+  color: var(--imperial-gold);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.authorLink:hover {
+  text-decoration: underline;
+}
+
 .articleExcerpt {
   font-size: 1.05rem;
   color: var(--text-secondary);

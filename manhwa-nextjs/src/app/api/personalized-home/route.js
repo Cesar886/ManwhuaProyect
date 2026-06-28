@@ -14,7 +14,7 @@ const SPACES_URL = (() => {
   return `${base}${hasApi ? '' : '/api'}/spaces/manhwas`;
 })();
 
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || '';
+const API_KEY = process.env.INTERNAL_API_KEY || '';
 const QUERY_TTL = 3 * 60 * 1000;
 const MAX_HISTORY = 20;
 const SUPPORTED_LANGS = ['es', 'en'];

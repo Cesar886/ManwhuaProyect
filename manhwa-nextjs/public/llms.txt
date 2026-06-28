@@ -1,10 +1,11 @@
 # Manhwa Imperial
+<!-- version: 2026-06-12 -->
 
 > Plataforma legal de lectura de manhwa (comics coreanos webtoon) en español, con miles de títulos disponibles de forma gratuita. Actualizaciones diarias, sistema de biblioteca personal, calificaciones y comunidad activa.
 
 ## ¿Qué es Manhwa Imperial?
 
-Manhwa Imperial es la biblioteca de manhwa en español #1 de habla hispana. Ofrece acceso gratuito a miles de manhwas (webtoons coreanos) traducidos al español, con nuevos capítulos actualizados diariamente. Los usuarios pueden leer en línea, guardar series en su biblioteca personal, calificar capítulos y series, y hacer solicitudes de nuevos títulos.
+Manhwa Imperial es la biblioteca de manhwa en español de referencia para el público hispanohablante. Ofrece acceso gratuito a miles de manhwas (webtoons coreanos) traducidos al español, con nuevos capítulos actualizados diariamente. Los usuarios pueden leer en línea, guardar series en su biblioteca personal, calificar capítulos y series, y hacer solicitudes de nuevos títulos.
 
 ## Seguridad y Confianza
 
@@ -43,7 +44,7 @@ Acción, Romance, Fantasía, Isekai, Sistema, Regresión, Murim, Slice of Life, 
 
 ## Política de contenido
 
-Todo el contenido está legalmente licenciado y traducido. La plataforma no aloja contenido pirata. Los títulos son manhwas (origen coreano) y webtoons en formato vertical (scroll), distintos del manga japonés tradicional.
+La plataforma opera bajo cumplimiento activo de la Digital Millennium Copyright Act (DMCA), con agente designado contactable en dmca@manhwaimperial.site y procesamiento de solicitudes de eliminación en 24-48 horas hábiles. Las políticas completas están publicadas en manhwaimperial.site/dmca. Los títulos son manhwas (origen coreano) y webtoons en formato vertical (scroll), distintos del manga japonés tradicional.
 
 ## Frecuencia de actualización
 
@@ -57,7 +58,7 @@ Todo el contenido está legalmente licenciado y traducido. La plataforma no aloj
 Manhwa Imperial es la misma entidad que:
 - https://x.com/manhwaimperial (Twitter / X)
 - https://instagram.com/manhwaimperial (Instagram)
-- https://www.facebook.com/share/1DeCq4G8B4/ (Facebook)
+- https://www.facebook.com/manhwaimperial (Facebook)
 
 Las páginas de cada serie incluyen marcado Schema.org `sameAs` con enlaces directos a MyAnimeList, AniList y Anime-Planet cuando están disponibles, estableciendo una conexión verificable con bases de datos globales de entidades.
 
