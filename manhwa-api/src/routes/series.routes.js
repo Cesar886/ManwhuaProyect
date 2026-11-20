@@ -31,7 +31,7 @@ const createSeriesValidation = [
         .isIn(['manhwa', 'manga', 'manhua', 'webtoon']),
     body('status')
         .optional()
-        .isIn(['ongoing', 'completed', 'hiatus', 'dropped', 'upcoming']),
+        .isIn(['ongoing', 'completed', 'hiatus', 'dropped', 'cancelled', 'upcoming']),
     body('genres')
         .optional()
         .isArray()
@@ -58,7 +58,18 @@ const createSeriesValidation = [
     body('language')
         .optional()
         .isIn(['es', 'en'])
-        .withMessage('Idioma debe ser es o en')
+        .withMessage('Idioma debe ser es o en'),
+    body('inSpaces')
+        .optional()
+        .isBoolean(),
+    body('chapterCount')
+        .optional()
+        .isInt({ min: 0 }),
+    body('origins')
+        .optional()
+        .isArray()
+        .custom((origins) => origins.every(origin => typeof origin === 'string' && origin.trim().length > 0))
+        .withMessage('Orígenes debe ser un array de strings no vacíos')
 ];
 
 const updateSeriesValidation = [
@@ -72,7 +83,7 @@ const updateSeriesValidation = [
         .isLength({ max: 5000 }),
     body('status')
         .optional()
-        .isIn(['ongoing', 'completed', 'hiatus', 'dropped', 'upcoming']),
+        .isIn(['ongoing', 'completed', 'hiatus', 'dropped', 'cancelled', 'upcoming']),
     body('genres')
         .optional()
         .isArray(),
@@ -95,7 +106,18 @@ const updateSeriesValidation = [
     body('language')
         .optional()
         .isIn(['es', 'en'])
-        .withMessage('Idioma debe ser es o en')
+        .withMessage('Idioma debe ser es o en'),
+    body('inSpaces')
+        .optional()
+        .isBoolean(),
+    body('chapterCount')
+        .optional()
+        .isInt({ min: 0 }),
+    body('origins')
+        .optional()
+        .isArray()
+        .custom((origins) => origins.every(origin => typeof origin === 'string'))
+        .withMessage('Orígenes debe ser un array de strings')
 ];
 
 const slugParam = [

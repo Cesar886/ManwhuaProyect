@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import useImageQueue from '@/hooks/useImageQueue';
 import { useNetworkQuality, getQueueConfig } from '@/hooks/useNetworkQuality';
 import useNextChapterPrefetch from '@/hooks/useNextChapterPrefetch';
@@ -18,6 +18,7 @@ import ReadingProgressBar from '@/components/ReadingProgressBar';
 import ChapterRating from '@/components/ChapterRating';
 import { Avatar, Group, Text, Tooltip } from '@mantine/core';
 import { useChapterReaders } from '@/hooks/useChapterReaders';
+import readerStyles from './ChapterReader.module.css';
 
 // Carga dinámica para evitar que el CSS de Mantine sea preloaded innecesariamente
 const Comentarios = dynamic(() => import('@/components/Comentarios'), { ssr: false });
@@ -27,6 +28,57 @@ const LoginModal = dynamic(() => import('@/components/LoginModal'), { ssr: false
 const APPENDED_VIRTUAL_WINDOW = 3;
 const CHAPTER_ESTIMATED_PAGE_HEIGHT = 1100;
 const MAX_CHAPTERS_AHEAD = 2;
+
+function ChapterSelector({ chapters, chapterNum, lang, onSelect }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+  const activeOptionRef = useRef(null);
+  const availableChapters = chapters.length ? chapters : [{ number: chapterNum }];
+  const chapterLabel = lang === 'en' ? 'Chapter' : 'Capítulo';
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.requestAnimationFrame(() => activeOptionRef.current?.scrollIntoView({ block: 'center' }));
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const selectChapter = (number) => {
+    setIsOpen(false);
+    if (String(number) !== String(chapterNum)) onSelect(number);
+  };
+
+  return (
+    <div className={readerStyles.chapterSelector} ref={containerRef}>
+      <button type="button" className={readerStyles.chapterSelectorButton} aria-haspopup="listbox" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
+        <span>{chapterLabel} {chapterNum}</span>
+        <span className={readerStyles.chapterSelectorChevron + ' ' + (isOpen ? readerStyles.chapterSelectorChevronOpen : '')} aria-hidden="true">⌄</span>
+      </button>
+      {isOpen && (
+        <div className={readerStyles.chapterSelectorMenu} role="listbox" aria-label={lang === 'en' ? 'Available chapters' : 'Capítulos disponibles'}>
+          {availableChapters.map((chapter) => {
+            const isActive = String(chapter.number) === String(chapterNum);
+            return (
+              <button type="button" role="option" aria-selected={isActive} ref={isActive ? activeOptionRef : null} key={String(chapter.number)} className={readerStyles.chapterSelectorOption + ' ' + (isActive ? readerStyles.chapterSelectorOptionActive : '')} onClick={() => selectChapter(chapter.number)}>
+                {chapterLabel} {chapter.number}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Wrapper para estabilizar el objeto detailRequest y evitar re-renders infinitos
 function ComentariosWrapper({ chapterRequest, slug, chapterNum, openLogin, user, lang = 'es' }) {
@@ -63,6 +115,7 @@ function ComentariosWrapper({ chapterRequest, slug, chapterNum, openLogin, user,
 export default function ChapterReader({ initialPages = [], initialSeries = null, seriesBasePath = '/manhwa', lang = 'es' }) {
   const chapterSegment = lang === 'en' ? 'chapter' : 'capitulo';
   const params = useParams();
+  const router = useRouter();
   const slug = params?.slug;
   const paramChapterNum = params?.numero;
 
@@ -158,10 +211,10 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   // Navegación instantánea: solo cambia estado + URL, sin Next.js routing
   const navigateToChapter = useCallback((targetChapter) => {
     const newUrl = `${seriesBasePath}/${slug}/${chapterSegment}/${targetChapter}`;
-    window.history.pushState(null, '', newUrl);
+    router.push(newUrl, { scroll: false });
     setChapterNum(String(targetChapter));
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [slug, seriesBasePath, chapterSegment]);
+  }, [slug, seriesBasePath, chapterSegment, router]);
 
   // Usar initialPages como estado inicial → disponible en el primer render (SSR)
   const { pages: hookPages, loading: chapterPagesLoading } = useChapterPages(slug, chapterNum);
@@ -788,7 +841,8 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
           slug={slug}
           seriesBasePath={seriesBasePath}
           lang={lang}
-          showInfiniteToggle={true}
+          // Oculto temporalmente; la funcionalidad permanece disponible.
+          showInfiniteToggle={false}
           infiniteEnabled={isInfiniteScrollEnabled}
           onToggleInfinite={() => {
             setIsInfiniteScrollEnabled((prev) => !prev);
@@ -873,20 +927,8 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
                 <div style={{ width: '28px' }} />
               )}
 
-              {/* Texto "Capítulo N" */}
-              <div style={{
-                fontSize: '14px',
-                fontWeight: '700',
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                opacity: 0.95,
-              }}>
-                {lang === 'en' ? 'Chapter' : 'Capítulo'} {chapterNum}
-              </div>
+              {/* Selector de capítulos con lista desplazable en móvil y escritorio */}
+              <ChapterSelector chapters={sortedChapters} chapterNum={chapterNum} lang={lang} onSelect={navigateToChapter} />
 
               {/* Botón Capítulo Siguiente */}
               {hasNext ? (

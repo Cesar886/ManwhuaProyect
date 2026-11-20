@@ -1,6 +1,6 @@
 import { SITE_URL, CHAPTERS_PER_SITEMAP } from '@/config'
 import { fetchAllChaptersFromSpaces } from '@/lib/seo/fetchChaptersFromSpaces'
-import { buildUrlset, urlEntryWithAlternates, xmlResponse } from '@/lib/seo/xml'
+import { buildUrlset, urlEntryWithAlternates, xmlResponse, xmlServiceUnavailable } from '@/lib/seo/xml'
 
 export const revalidate = 1800 // 30 minutos — permite ISR y fetch-level revalidation
 
@@ -35,7 +35,8 @@ function buildChapterAlternates(seriesSlug, chapterNumber, languages = []) {
 export async function GET(request, { params }) {
   const { page } = await params
   const pageNum = parseInt(page, 10) || 1
-  const { allChapters } = await fetchAllChaptersFromSpaces()
+  const { available, allChapters } = await fetchAllChaptersFromSpaces()
+  if (!available) return xmlServiceUnavailable('Chapter sitemap data temporarily unavailable')
 
   const start = (pageNum - 1) * CHAPTERS_PER_SITEMAP
   const pageChapters = allChapters.slice(start, start + CHAPTERS_PER_SITEMAP)

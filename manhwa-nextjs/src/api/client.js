@@ -5,7 +5,9 @@ const handleResponse = async (res) => {
   const contentType = res.headers.get('content-type') || ''
   const data = contentType.includes('application/json') && text ? JSON.parse(text) : text
   if (!res.ok) {
-    const message = (data && data.message) || res.statusText || String(data)
+    const message = (data && typeof data === 'object' && data.message)
+      || (typeof data === 'string' && !contentType.includes('text/html') && data.trim())
+      || `Servicio no disponible (HTTP ${res.status})`
     const err = new Error(message)
     err.status = res.status
     err.body = data

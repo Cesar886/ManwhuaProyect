@@ -263,15 +263,37 @@ const getSeriesDetail = async (req, res, next) => {
         // NOTA: Las vistas se registran vía POST /:slug/view desde el cliente.
         // No incrementamos aquí para evitar contar hits de SSR, bots y crawlers.
 
-        // Obtener últimos capítulos
+        // Obtener capítulos publicados. Si la importación solo conserva
+        // chapter_count, reconstruir la lista porque las páginas viven en Spaces.
         const chaptersResult = await query(
             `SELECT id, number, title, slug, published_at, view_count, is_premium
              FROM chapters
              WHERE series_id = $1 AND is_published = true
-             ORDER BY number DESC
-             LIMIT 5`,
+             ORDER BY number DESC`,
             [series.id]
         );
+
+        const storedChapters = chaptersResult.rows.map(c => ({
+            id: c.id,
+            number: parseFloat(c.number),
+            title: c.title,
+            slug: c.slug,
+            publishedAt: c.published_at,
+            views: c.view_count,
+            isPremium: c.is_premium
+        }));
+        const chapterCount = Number(series.chapter_count) || 0;
+        const chapters = storedChapters.length > 0
+            ? storedChapters
+            : Array.from({ length: chapterCount }, (_, itemIndex) => ({
+                id: null,
+                number: chapterCount - itemIndex,
+                title: null,
+                slug: 'capitulo-' + (chapterCount - itemIndex),
+                publishedAt: null,
+                views: 0,
+                isPremium: false
+            }));
 
         res.json({
             success: true,
@@ -331,17 +353,13 @@ const getSeriesDetail = async (req, res, next) => {
                     source: series.source,
                     demography: series.demography,
                     language: series.language,
+                    inSpaces: series.in_spaces,
+                    origins: series.origins,
                     lastChapterAt: series.last_chapter_at,
                     createdAt: series.created_at,
-                    latestChapters: chaptersResult.rows.map(c => ({
-                        id: c.id,
-                        number: parseFloat(c.number),
-                        title: c.title,
-                        slug: c.slug,
-                        publishedAt: c.published_at,
-                        views: c.view_count,
-                        isPremium: c.is_premium
-                    }))
+                    chapterCount,
+                    chapters,
+                    latestChapters: chapters.slice(0, 5)
                 }
             }
         });
@@ -1518,6 +1536,8 @@ const updateSeries = async (req, res, next) => {
             'cultural_notes', 'educational_value',
             // Nuevos campos
             'source', 'demography', 'cover_url_tmo', 'cover_url_oni', 'language',
+            // Estado de importación enviado por los scrapers
+            'in_spaces', 'chapter_count', 'origins',
         ];
 
         const updateFields = [];
@@ -1636,7 +1656,10 @@ const updateSeries = async (req, res, next) => {
                 demography: updatedSeries.demography,
                 isAdult: updatedSeries.is_adult,
                 isHot: updatedSeries.is_hot,
-                isFeatured: updatedSeries.is_featured
+                isFeatured: updatedSeries.is_featured,
+                inSpaces: updatedSeries.in_spaces,
+                chapterCount: updatedSeries.chapter_count,
+                origins: updatedSeries.origins
             }
         });
 

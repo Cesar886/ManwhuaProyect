@@ -70,26 +70,6 @@
   margin-bottom: 32px;
 }
 
-.avatarWrapper {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-}
-
-.avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: var(--gradient-imperial);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2rem;
-  font-weight: 700;
-  color: #fff;
-  box-shadow: var(--shadow-imperial);
-}
-
 .title {
   font-family: var(--font-heading, 'Playfair Display', Georgia, serif);
   font-size: 1.75rem;
@@ -295,12 +275,6 @@
   }
 
   .title {
-    font-size: 1.5rem;
-  }
-
-  .avatar {
-    width: 64px;
-    height: 64px;
     font-size: 1.5rem;
   }
 

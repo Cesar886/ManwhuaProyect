@@ -1,9 +1,8 @@
-import { Outfit, Playfair_Display } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 import '@mantine/core/styles.layer.css'
 import '@mantine/notifications/styles.layer.css'
-import { MantineProvider } from '@mantine/core'
+import { ColorSchemeScript, MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { imperialTheme } from '@/styles/imperial-theme.js'
 import { Providers } from './providers'
@@ -11,23 +10,6 @@ import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateWebApplicati
 import NavigationProgress from '@/components/NavigationProgress'
 import MainLayout from '@/components/MainLayout'
 import HtmlLangSync from '@/components/HtmlLangSync'
-
-const outfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-outfit',
-  display: 'swap',
-  preload: true,
-  fallback: ['system-ui', 'Arial'],
-})
-
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-playfair',
-  display: 'swap',
-  weight: ['400', '600', '700'],
-  preload: true,
-  fallback: ['Georgia', 'serif'],
-})
 
 /**
  * SEO Metadata Global
@@ -151,11 +133,13 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="es"
-      className={`${outfit.variable} ${playfair.variable}`}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
       <head suppressHydrationWarning>
+        {/* Aplicar el tema antes del primer render para evitar el destello oscuro.
+            Si no existe una preferencia guardada, el sitio inicia en modo claro. */}
+        <ColorSchemeScript defaultColorScheme="light" />
         {/* Sincronizar <html lang> de forma síncrona antes de cualquier render.
             Evita el flash de idioma incorrecto en páginas /en/* y el CLS
             que ocurriría si solo usáramos HtmlLangSync (asíncrono).
@@ -206,8 +190,8 @@ export default function RootLayout({ children }) {
         <meta name="referrer" content="no-referrer-when-downgrade" />
 {/* hreflang: se inyecta automáticamente vía metadata.alternates.languages */}
         {/* Preconnect + DNS prefetch for image CDN (chapter reader) */}
-        <link rel="preconnect" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://manwhaimperialstorage.sfo3.digitaloceanspaces.com" />
+        <link rel="preconnect" href="https://manwhaimperial.sfo3.digitaloceanspaces.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://manwhaimperial.sfo3.digitaloceanspaces.com" />
         {/* DNS prefetch para analytics (GTM carga afterInteractive, no es crítico) */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         {/* mylead-verification ya se inyecta vía metadata.other */}
@@ -255,7 +239,7 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className={outfit.className} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         {/* Google Tag Manager (noscript) */}
         <noscript dangerouslySetInnerHTML={{ __html: '<iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M3DPPM9K" height="0" width="0" style="display:none;visibility:hidden"></iframe>' }} />
         {/* Google Tag Manager - lazyOnload: carga en idle tras el evento load, sin competir con nada */}

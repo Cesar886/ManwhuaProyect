@@ -37,17 +37,17 @@
     "google-auth-library": "^10.5.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "node-cron": "^4.2.1",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.2.1",
     "pg": "^8.11.3",
-    "sharp": "^0.33.5",
-    "zod": "^3.25.76",
+    "sharp": "^0.35.5",
     "slugify": "^1.6.6",
-    "uuid": "^9.0.1",
-    "xss-clean": "^0.1.4"
+    "xss-clean": "^0.1.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "jest": "^30.5.2",
     "nodemon": "^3.0.2"
   },
   "engines": {

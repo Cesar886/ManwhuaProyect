@@ -1,6 +1,6 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
 
-const API_KEY = process.env.INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
 /** Headers comunes para todos los fetches SSR internos */
 const sseHeaders = () => ({
@@ -10,45 +10,43 @@ const sseHeaders = () => ({
 })
 
 export async function fetchSeriesForSEO(slug) {
-  // 1. Intentar con el endpoint de Spaces (tiene datos optimizados para SEO)
-  try {
-    const url = `${SERVER_API_BASE}/spaces/manhwas/${slug}`
+  const fetchJson = async (url) => {
     const res = await fetch(url, {
       next: { revalidate: 300 },
       headers: sseHeaders(),
     })
-
-    if (res.ok) {
-      const result = await res.json()
-      const series = result.data || result || null
-      if (series) {
-        // Normalizar flags al nivel superior (igual que en fallback)
-        if (series.flags && typeof series.flags === 'object') {
-          for (const [key, value] of Object.entries(series.flags)) {
-            if (series[key] === undefined) {
-              series[key] = value
-            }
-          }
-        }
-        return series
-      }
-    }
-  } catch {
-    // Continuar al fallback
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error('Series API responded ' + res.status)
+    return res.json()
   }
 
-  // 2. Fallback: endpoint regular de series (funciona para todas las series)
   try {
-    const url = `${SERVER_API_BASE}/series/${slug}`
-    const res = await fetch(url, {
-      next: { revalidate: 300 },
-      headers: sseHeaders(),
-    })
+    // PostgreSQL conserva la metadata editorial, pero Spaces es la única fuente
+    // de verdad para disponibilidad y cantidad de capítulos.
+    const [databaseResult, spacesResult] = await Promise.all([
+      fetchJson(`${SERVER_API_BASE}/series/${slug}`),
+      fetchJson(`${SERVER_API_BASE}/spaces/manhwas/${slug}`),
+    ])
 
-    if (!res.ok) return null
-    const result = await res.json()
-    const series = result.data?.series || result.data || result || null
-    if (!series) return null
+    const databaseSeries = databaseResult?.data?.series || databaseResult?.data || databaseResult || null
+    const spacesSeries = spacesResult?.data || spacesResult || null
+    if (!databaseSeries && !spacesSeries) return null
+
+    const chapters = Array.isArray(spacesSeries?.chapters)
+      ? spacesSeries.chapters.filter(chapter => Number(chapter?.pageCount) > 0)
+      : []
+
+    const series = {
+      ...(databaseSeries || {}),
+      ...(spacesSeries || {}),
+      chapters,
+      chapterCount: chapters.length,
+      latestChapters: chapters.slice(0, 5),
+    }
+
+    if (series.stats && typeof series.stats === 'object') {
+      series.stats = { ...series.stats, chapterCount: chapters.length }
+    }
 
     // Normalizar flags al nivel superior para compatibilidad
     if (series.flags && typeof series.flags === 'object') {
@@ -60,8 +58,9 @@ export async function fetchSeriesForSEO(slug) {
     }
 
     return series
-  } catch {
-    return null
+  } catch (error) {
+    const cause = error?.message || 'Unknown upstream error'
+    throw new Error('Unable to fetch series "' + slug + '": ' + cause)
   }
 }
 
@@ -100,8 +99,7 @@ export async function fetchAllSeriesForSitemap() {
     })
 
     if (!res.ok) {
-      console.error('[SITEMAP] Error obteniendo series:', res.status)
-      return []
+      throw new Error(`API responded ${res.status}`)
     }
 
     const result = await res.json()
@@ -109,6 +107,6 @@ export async function fetchAllSeriesForSitemap() {
     return Array.isArray(series) ? series.filter(s => s.slug) : []
   } catch (error) {
     console.error('[SITEMAP] Error en fetchAllSeriesForSitemap:', error.message)
-    return []
+    throw error
   }
 }

@@ -97,7 +97,7 @@
 - **Frontend**: Next.js 14+ (React), App Router
 - **Estilos**: Mantine UI + CSS personalizado
 - **Fuentes**: Outfit, Playfair Display (Google Fonts)
-- **CDN de imágenes**: DigitalOcean Spaces (manwhaimperialstorage.sfo3.digitaloceanspaces.com)
+- **CDN de imágenes**: DigitalOcean Spaces (manwhaimperial.sfo3.digitaloceanspaces.com)
 - **Base de datos**: PostgreSQL
 - **Hosting**: Servidor dedicado con HTTPS
 - **Renderizado**: ISR (Incremental Static Regeneration) — revalidación cada 5 minutos

@@ -1057,7 +1057,6 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
               initialRating={series?.userInteraction?.userRating || 0}
               averageRating={parseFloat(series?.rating || series?.stats?.rating || 0)}
               totalRatings={parseInt(series?.ratingCount || series?.stats?.ratingCount || 0, 10)}
-              onRate={() => refetch?.()}
               compact
             />
 
@@ -1334,13 +1333,19 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
             )}
           </button>
           <button
+            className={`${styles.tab} ${activeTab === 'comments' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('comments')}
+          >
+            <IconMessageCircle size={18} /> {t.comments}
+            {series.commentCount > 0 && (
+              <span className={styles.tabBadge}>{series.commentCount}</span>
+            )}
+          </button>
+          <button
             className={`${styles.tab} ${activeTab === 'informacion' ? styles.tabActive : ''}`}
             onClick={() => setActiveTab('informacion')}
           >
             <IconInfoCircle size={18} /> {t.information}
-            {series.commentCount > 0 && (
-              <span className={styles.tabBadge}>{series.commentCount}</span>
-            )}
           </button>
         </div>
       </div>
@@ -1767,7 +1772,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
         {activeTab === 'comments' && (
           <div className={styles.commentsTab}>
             <Comentarios
-              detailRequest={series}
+              detailRequest={{ ...series, targetType: 'series', targetId: series.id }}
               openLogin={openLogin}
               user={user}
               lang={lang}

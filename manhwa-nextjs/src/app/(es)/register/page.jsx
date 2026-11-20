@@ -56,9 +56,16 @@ const inputStyles = {
     borderRadius: '10px',
     height: '46px',
     fontSize: '0.95rem',
+    // Mantine necesita espacio explícito para las secciones cuando se personaliza el input.
+    paddingInlineStart: '44px',
+    paddingInlineEnd: '44px',
     '&::placeholder': {
       color: 'var(--text-muted)',
     },
+  },
+  innerInput: {
+    paddingInlineStart: '44px',
+    paddingInlineEnd: '44px',
   },
   label: {
     color: 'var(--text-secondary)',
@@ -68,6 +75,7 @@ const inputStyles = {
   },
   section: {
     color: 'var(--text-muted)',
+    width: '42px',
   },
 };
 
@@ -236,9 +244,6 @@ export default function Register() {
         <div className={styles.card}>
           {/* Header */}
           <div className={styles.header}>
-            <div className={styles.avatarWrapper}>
-              <div className={styles.avatar}>M</div>
-            </div>
             <h1 className={styles.title}>Crear cuenta</h1>
             <p className={styles.subtitle}>Únete a la comunidad de Manhwa Imperial</p>
           </div>

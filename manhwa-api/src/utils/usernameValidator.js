@@ -30,14 +30,14 @@ const normalizeUsername = (username) => {
 };
 
 /**
- * Verificar si contiene palabras prohibidas
+ * Verificar si coincide con un nombre reservado
  */
 const containsForbiddenWord = (username) => {
     const normalized = normalizeUsername(username);
     
     for (const word of ALL_RESERVED) {
-        // Verificar si contiene la palabra
-        if (normalized.includes(normalizeUsername(word))) {
+        // Comparar el nombre normalizado completo para evitar falsos positivos
+        if (normalized === normalizeUsername(word)) {
             return { forbidden: true, word, reason: 'reserved' };
         }
     }

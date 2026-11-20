@@ -10,7 +10,7 @@ import {
   Center,
   Text,
 } from '@mantine/core';
-import { IconX, IconBrandGoogle, IconBrandDiscord, IconAlertCircle } from '@tabler/icons-react';
+import { IconX, IconBrandGoogle, IconBrandDiscord, IconAlertCircle, IconAt, IconLock } from '@tabler/icons-react';
 import { useAuth } from '../contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import styles from './LoginModal.module.css'
@@ -28,6 +28,8 @@ const INPUT_STYLES = {
     borderRadius: '10px',
     height: '44px',
     fontSize: '0.95rem',
+    paddingInlineStart: '44px',
+    paddingInlineEnd: '44px',
     transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
     '&:focus': {
       borderColor: 'var(--imperial-gold)',
@@ -36,6 +38,14 @@ const INPUT_STYLES = {
     '&::placeholder': {
       color: 'var(--text-muted)',
     },
+  },
+  innerInput: {
+    paddingInlineStart: '44px',
+    paddingInlineEnd: '44px',
+  },
+  section: {
+    color: 'var(--text-muted)',
+    width: '42px',
   },
   label: {
     color: 'var(--text-secondary)',
@@ -77,7 +87,7 @@ function LoginModalInner({ opened, onClose }) {
     setError(null)
     setLoading(true)
     try {
-      await doLogin({ login: email, password, remember })
+      await doLogin({ login: email.trim(), password, remember })
     } catch (err) {
       const msg = err?.body?.message || err?.message || 'Error de autenticación'
       setError(msg)
@@ -172,8 +182,9 @@ function LoginModalInner({ opened, onClose }) {
           <div className={styles.inputsWrapper}>
             <TextInput
               data-autofocus
-              label="Correo electrónico"
-              placeholder="tu@email.com"
+              label="Nombre de usuario o correo electrónico"
+              placeholder="usuario o tu@email.com"
+              leftSection={<IconAt size={18} />}
               value={email}
               onChange={(e) => setEmail(e.currentTarget.value)}
               required
@@ -182,6 +193,7 @@ function LoginModalInner({ opened, onClose }) {
 
             <PasswordInput
               label="Contraseña"
+              leftSection={<IconLock size={18} />}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.currentTarget.value)}

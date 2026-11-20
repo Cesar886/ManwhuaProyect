@@ -1,0 +1,37 @@
+.chapterSelector { position: relative; z-index: 30; }
+.chapterSelectorButton {
+  min-width: 148px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center;
+  gap: 9px; padding: 8px 12px; border: 1px solid rgba(102, 126, 234, .28); border-radius: 10px;
+  background: var(--card-bg, rgba(255, 255, 255, .96)); color: #667eea;
+  box-shadow: 0 4px 14px rgba(44, 52, 90, .08); font: inherit; font-size: 13px; font-weight: 800;
+  letter-spacing: 1.2px; line-height: 1; text-transform: uppercase; cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.chapterSelectorButton:hover, .chapterSelectorButton:focus-visible {
+  border-color: #667eea; box-shadow: 0 5px 18px rgba(102, 126, 234, .18); outline: none;
+}
+.chapterSelectorButton:active { transform: translateY(1px); }
+.chapterSelectorChevron { display: inline-block; font-size: 18px; line-height: .7; transform: translateY(-2px); transition: transform 160ms ease; }
+.chapterSelectorChevronOpen { transform: translateY(2px) rotate(180deg); }
+.chapterSelectorMenu {
+  position: absolute; top: calc(100% + 8px); left: 50%; width: min(240px, calc(100vw - 32px));
+  max-height: min(360px, 55vh); overflow-y: auto; overscroll-behavior: contain; transform: translateX(-50%);
+  padding: 7px; border: 1px solid rgba(102, 126, 234, .22); border-radius: 12px;
+  background: var(--card-bg, #fff); box-shadow: 0 14px 38px rgba(20, 24, 45, .22);
+  scrollbar-width: thin; scrollbar-color: rgba(102, 126, 234, .65) transparent;
+}
+.chapterSelectorMenu::-webkit-scrollbar { width: 7px; }
+.chapterSelectorMenu::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(102, 126, 234, .65); }
+.chapterSelectorOption {
+  width: 100%; min-height: 42px; display: flex; align-items: center; padding: 10px 13px; border: 0;
+  border-radius: 8px; background: transparent; color: var(--text-color, #171923); font: inherit;
+  font-size: 14px; font-weight: 650; text-align: left; cursor: pointer;
+}
+.chapterSelectorOption:hover, .chapterSelectorOption:focus-visible { background: rgba(102, 126, 234, .1); color: #5267d8; outline: none; }
+.chapterSelectorOptionActive { background: #667eea; color: #fff; }
+.chapterSelectorOptionActive:hover, .chapterSelectorOptionActive:focus-visible { background: #5a70df; color: #fff; }
+@media (max-width: 480px) {
+  .chapterSelectorButton { min-width: 142px; min-height: 40px; padding-inline: 10px; font-size: 12px; letter-spacing: 1px; }
+  .chapterSelectorMenu { max-height: min(320px, 52vh); }
+}
+@media (prefers-reduced-motion: reduce) { .chapterSelectorButton, .chapterSelectorChevron { transition: none; } }

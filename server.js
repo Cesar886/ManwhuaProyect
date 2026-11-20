@@ -280,7 +280,7 @@ function cacheKey(lang, key) {
     return `${normalizeLang(lang)}:${key}`;
 }
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 app.set('trust proxy', 1);
 // Añadir compresión para ahorrar ancho de banda

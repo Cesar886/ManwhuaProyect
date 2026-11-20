@@ -148,6 +148,14 @@ const register = async (req, res, next) => {
 const login = async (req, res, next) => {
     try {
         const { login, password } = req.body;
+        const normalizedLogin = String(login || '').trim().toLowerCase();
+
+        if (!normalizedLogin || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Nombre de usuario o correo y contraseña son requeridos'
+            });
+        }
 
         // Buscar usuario por username o email
         const result = await query(
@@ -155,7 +163,7 @@ const login = async (req, res, next) => {
                     role, status, is_premium, email_verified_at
              FROM users 
              WHERE (username = $1 OR email = $1) AND deleted_at IS NULL`,
-            [login.toLowerCase()]
+            [normalizedLogin]
         );
 
         if (result.rows.length === 0) {
@@ -324,6 +332,13 @@ const logout = async (req, res, next) => {
  */
 const getCurrentUser = async (req, res, next) => {
     try {
+        if (!req.user) {
+            return res.json({
+                success: true,
+                authenticated: false,
+                data: { user: null }
+            });
+        }
         const result = await query(
             `SELECT u.id, u.username, u.email, u.display_name, u.avatar_url, u.banner_url,
                     u.bio, u.location, u.website, u.role, u.status, u.is_premium,

@@ -6,7 +6,7 @@
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
-        "test": "node --test tests/",
+        "test": "node --test tests/*.test.js",
         "test:i18n": "node --test tests/i18n.test.js",
         "test:rewriter": "node --test tests/query-rewriter.test.js"
     },
@@ -14,6 +14,18 @@
         "node": ">=18"
     },
     "dependencies": {
-        "react-virtuoso": "^4.18.5"
+        "compression": "^1.8.2",
+        "cors": "^2.8.6",
+        "dotenv": "^16.6.1",
+        "express": "^4.22.3",
+        "express-rate-limit": "^7.5.1",
+        "fuse.js": "^7.5.0",
+        "helmet": "^7.2.0",
+        "lru-cache": "^10.4.3",
+        "pg": "^8.23.1",
+        "pgvector": "^0.2.1",
+        "pino": "^9.14.0",
+        "react-virtuoso": "^4.18.5",
+        "socket.io": "^4.8.4"
     }
 }

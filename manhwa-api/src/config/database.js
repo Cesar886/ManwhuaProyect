@@ -44,12 +44,16 @@ let queryMetrics = {
 };
 
 // Reiniciar métricas cada hora
-setInterval(() => {
+const metricsInterval = setInterval(() => {
     if (process.env.NODE_ENV === 'development') {
         logger.info('📊 Métricas de queries (última hora):', queryMetrics);
     }
     queryMetrics = { total: 0, slow: 0, verySlow: 0, errors: 0 };
 }, 3600000);
+
+// Este temporizador de observabilidad no debe impedir que scripts de migración
+// y tareas de una sola ejecución terminen después de cerrar el pool.
+metricsInterval.unref();
 
 // Eventos del pool con más información
 pool.on('connect', (client) => {

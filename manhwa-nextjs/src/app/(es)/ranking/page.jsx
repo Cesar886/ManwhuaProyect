@@ -3,8 +3,9 @@ import { SERVER_API_BASE, SITE_URL } from '@/config'
 import { generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
 
 export const revalidate = 600
+export const dynamic = 'force-dynamic'
 
-const API_KEY = process.env.INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
 const defaultHeaders = {
     'Accept': 'application/json',

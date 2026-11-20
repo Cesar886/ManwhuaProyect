@@ -1,0 +1,20 @@
+[Unit]
+Description=Manhwa Imperial API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/manhwa-api
+Environment=NODE_ENV=production
+Environment=PORT=3000
+EnvironmentFile=-/var/www/manhwa-api/.env
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

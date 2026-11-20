@@ -1,7 +1,7 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
 import { isAdultSeries, getSeriesLanguages, DEFAULT_LANG } from '@/utils/adultContent'
 
-const API_KEY = process.env.INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
 // Series actualizadas en los últimos 14 días se consideran "recientes"
 const RECENT_DAYS = 14
@@ -20,14 +20,14 @@ export async function fetchAllChaptersFromSpaces() {
 
     if (!res.ok) {
       console.error('[SITEMAP] Error obteniendo series desde Spaces:', res.status)
-      return { totalChapters: 0, allChapters: [] }
+      return { available: false, totalChapters: 0, allChapters: [] }
     }
 
     const result = await res.json()
     const series = result.data?.series || result.series || []
 
     if (!Array.isArray(series) || series.length === 0) {
-      return { totalChapters: 0, allChapters: [] }
+      return { available: true, totalChapters: 0, allChapters: [] }
     }
 
     const recentCutoff = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000
@@ -70,9 +70,9 @@ export async function fetchAllChaptersFromSpaces() {
     }
 
     console.log(`[SITEMAP] ${sorted.length} series → ${allChapters.length} capítulos`)
-    return { totalChapters: allChapters.length, allChapters }
+    return { available: true, totalChapters: allChapters.length, allChapters }
   } catch (error) {
     console.error('[SITEMAP] Error en fetchAllChaptersFromSpaces:', error.message)
-    return { totalChapters: 0, allChapters: [] }
+    return { available: false, totalChapters: 0, allChapters: [] }
   }
 }

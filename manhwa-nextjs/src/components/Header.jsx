@@ -81,8 +81,19 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
     };
 
     updateHeaderHeight();
+
+    const headerElement = headerRef.current;
+    const resizeObserver = typeof ResizeObserver !== 'undefined' && headerElement
+      ? new ResizeObserver(updateHeaderHeight)
+      : null;
+
+    resizeObserver?.observe(headerElement);
     window.addEventListener('resize', updateHeaderHeight);
-    return () => window.removeEventListener('resize', updateHeaderHeight);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
   }, []);
 
   const pathname = usePathname();

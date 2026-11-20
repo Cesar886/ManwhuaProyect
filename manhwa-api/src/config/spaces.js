@@ -1,6 +1,6 @@
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const logger = require('../utils/logger');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('node:crypto');
 const path = require('path');
 
 // Configuración del cliente de Digital Ocean Spaces (compatible con S3)
@@ -21,7 +21,7 @@ const s3Client = new S3Client({
  */
 const generateFileName = (folder, originalName) => {
     const ext = path.extname(originalName);
-    const fileName = `${uuidv4()}${ext}`;
+    const fileName = `${randomUUID()}${ext}`;
     // Limpiar slashes extra y asegurar formato carpeta/archivo
     const cleanFolder = folder.replace(/^\/+|\/+$/g, '');
     return `${cleanFolder}/${fileName}`;

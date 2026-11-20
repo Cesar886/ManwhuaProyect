@@ -116,6 +116,7 @@
     "chapterHistoryDesc": "List of chapters available on Manhwa Imperial. Latest chapter: {latest}. Status: {status}. Update frequency: {freq}.",
     "chaptersTab": "Chapters",
     "information": "Information",
+    "comments": "Comments",
     "searchChapter": "Search chapter...",
     "filterChapters": "Filter chapters",
     "filters": "Filters",

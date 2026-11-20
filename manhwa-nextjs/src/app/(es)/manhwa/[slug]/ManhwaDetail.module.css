@@ -1251,7 +1251,8 @@
 .tabsContainer {
   position: sticky;
   top: var(--header-height, 100px);
-  z-index: 50;
+  /* Debe permanecer debajo del header fijo incluso mientras cambia su altura. */
+  z-index: 40;
   background: rgba(var(--page-bg-rgb), 0.9);
   backdrop-filter: blur(24px) saturate(1.2);
   -webkit-backdrop-filter: blur(24px) saturate(1.2);

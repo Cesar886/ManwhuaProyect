@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'manwhaimperialstorage.sfo3.digitaloceanspaces.com',
+        hostname: 'manwhaimperial.sfo3.digitaloceanspaces.com',
       },
       {
         protocol: 'https',
@@ -77,12 +77,13 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://www.googletagmanager.com https://static.cloudflareinsights.com",
+              "script-src-elem 'self' 'unsafe-inline' https://accounts.google.com https://www.googletagmanager.com https://static.cloudflareinsights.com",
               "style-src 'self' 'unsafe-inline' https:",
               "img-src * data: blob:",
               "font-src 'self' data: https:",
-              "connect-src *",
-              "frame-src *",
+              "connect-src 'self' https: wss:",
+              "frame-src 'self' https://accounts.google.com https://*.google.com https://www.paypal.com https://*.paypal.com",
               "frame-ancestors 'none'",
               "object-src 'none'",
               "base-uri 'self'",
@@ -127,6 +128,12 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      { source: '/populares', destination: '/biblioteca', permanent: true },
+      { source: '/en/popular', destination: '/en/library', permanent: true },
+    ]
+  },
   async rewrites() {
     return [
       {
@@ -157,7 +164,6 @@ const nextConfig: NextConfig = {
       'recharts',
       'dayjs',
     ],
-    webpackBuildWorker: true,
   },
 }
 

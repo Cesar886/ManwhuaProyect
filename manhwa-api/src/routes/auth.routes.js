@@ -7,7 +7,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const authController = require('../controllers/auth.controller');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuth } = require('../middleware/auth');
 
 // Validaciones
 const registerValidation = [
@@ -92,11 +92,13 @@ router.post('/forgot-password', validate(forgotPasswordValidation), authControll
 router.post('/reset-password', validate(resetPasswordValidation), authController.resetPassword);
 router.get('/verify-email/:token', authController.verifyEmail);
 
+// Estado de sesión: un visitante anónimo es un estado válido, no un error HTTP.
+router.get('/me', optionalAuth, authController.getCurrentUser);
+
 // Rutas protegidas
 router.use(authenticate);
 router.post('/logout', authController.logout);
 router.post('/change-password', validate(changePasswordValidation), authController.changePassword);
-router.get('/me', authController.getCurrentUser);
 router.post('/resend-verification', authController.resendVerification);
 
 module.exports = router;

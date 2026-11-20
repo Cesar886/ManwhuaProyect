@@ -1,0 +1,21 @@
+[Unit]
+Description=Manhwa Imperial Next.js frontend
+After=network.target manhwa-api.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/manhwa-nextjs
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=HOSTNAME=127.0.0.1
+EnvironmentFile=-/var/www/manhwa-nextjs/.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

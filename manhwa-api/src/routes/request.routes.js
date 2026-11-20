@@ -53,10 +53,10 @@ const updateStatusValidation = [
 // Rutas públicas (protegidas con API key)
 router.get('/', requireApiKeyOrAuth, optionalAuth, validate(paginationValidation), requestController.listRequests);
 router.get('/:id', requireApiKeyOrAuth, optionalAuth, validate(uuidParam()), requestController.getRequest);
-router.get('/:id/comments', requireApiKeyOrAuth, optionalAuth, validate([...uuidParam(), ...paginationValidation]), requestController.getRequestComments);
+router.get('/:id/comments', optionalAuth, validate([...uuidParam(), ...paginationValidation]), requestController.getRequestComments);
 
 // Obtener o crear request para capítulo (público, pero recomendado con auth para mejor seguimiento)
-router.post('/chapter', requireApiKeyOrAuth, optionalAuth, requestController.getOrCreateChapterRequest);
+router.post('/chapter', optionalAuth, requestController.getOrCreateChapterRequest);
 
 // Rutas protegidas
 router.use(authenticate);

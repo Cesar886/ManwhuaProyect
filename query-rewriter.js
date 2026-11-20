@@ -20,8 +20,8 @@ const REWRITE_STOP_WORDS = new Set([
     'manhwa', 'manhwas', 'manga', 'mangas', 'manhua', 'manhuas', 'webtoon', 'webtoons',
     'parecido', 'parecidos', 'parecida', 'parecidas', 'como', 'similares',
     'recomienda', 'recomiendame', 'recomendacion', 'recomendaciones',
-    'algo', 'algun', 'alguna', 'sobre', 'que', 'para', 'con', 'los', 'las',
-    'una', 'uno', 'del', 'este', 'esta', 'estos', 'estas', 'donde', 'puedo', 'leer'
+    'algo', 'algun', 'alguna', 'sobre', 'que', 'para', 'con', 'a', 'de', 'en', 'por', 'los', 'las',
+    'un', 'una', 'uno', 'del', 'este', 'esta', 'estos', 'estas', 'donde', 'puedo', 'leer'
 ]);
 
 function normalize(text) {
@@ -149,6 +149,8 @@ function fixTitleTypos(queryText, normTokens, seriesCache) {
 
             // N-gramas que son puro relleno no deben disparar correcciones.
             if (slice.every(tok => REWRITE_STOP_WORDS.has(tok))) continue;
+            // No absorber preposiciones o relleno adyacente al titulo.
+            if (REWRITE_STOP_WORDS.has(slice[0]) || REWRITE_STOP_WORDS.has(slice[slice.length - 1])) continue;
 
             const ngram = slice.join(' ');
             if (ngram.length < 4) continue;

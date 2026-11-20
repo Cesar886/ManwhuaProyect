@@ -9,8 +9,9 @@ import {
 import styles from './RankingSeries.module.css'
 
 export const revalidate = 3600
+export const dynamic = 'force-dynamic'
 
-const API_KEY = process.env.INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
 export const metadata = {
   title: 'Los Mejores Manhwas en Español 2025 | Manhwa Imperial',

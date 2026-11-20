@@ -247,7 +247,11 @@ export function useSeriesDetail(slug, initialData = null) {
         ? `${endpoint('spaces', `manhwas/${slug}`)}?t=${Date.now()}`
         : endpoint('spaces', `manhwas/${slug}`)
 
-      let response = await fetch(url, {
+      const primaryUrl = forceRefresh
+        ? `${endpoint('series', slug)}?t=${Date.now()}`
+        : endpoint('series', slug)
+
+      let response = await fetch(primaryUrl, {
         signal: controller.signal,
         credentials: 'include',
         headers: {
@@ -258,9 +262,9 @@ export function useSeriesDetail(slug, initialData = null) {
 
       clearTimeout(timeoutId)
 
-      // Fallback: si Spaces devuelve 404, intentar con el endpoint regular de series
+      // Compatibilidad para series aun no sincronizadas a PostgreSQL
       if (response.status === 404) {
-        const fallbackUrl = endpoint('series', slug)
+        const fallbackUrl = url
         const fallbackController = new AbortController()
         const fallbackTimeout = setTimeout(() => fallbackController.abort(), CONFIG.timeout)
         response = await fetch(fallbackUrl, {
@@ -347,37 +351,16 @@ export function useChapterPages(seriesSlug, chapterNum) {
         const spacesUrl = process.env.NEXT_PUBLIC_DO_SPACES_URL
         const baseUrl = `${spacesUrl}/${seriesSlug}/cap-${paddedChapter}`
 
-        // Fetch en paralelo: images.json (siempre existe) + images-meta.json (opcional, tiene blurhash)
-        const [imagesResult, metaResult] = await Promise.allSettled([
-          fetch(`${baseUrl}/images.json`).then(r => r.ok ? r.json() : Promise.reject()),
-          fetch(`${baseUrl}/images-meta.json`).then(r => r.ok ? r.json() : Promise.reject()),
-        ])
-
-        let pagesData = null
-
-        // Preferir images-meta.json si tiene datos (blurhash + dimensiones)
-        if (
-          metaResult.status === 'fulfilled' &&
-          Array.isArray(metaResult.value) &&
-          metaResult.value.length > 0
-        ) {
-          pagesData = metaResult.value.map((item, idx) => ({
-            url: item.url,
-            blurhash: item.blurhash || null,
-            w: item.w || null,
-            h: item.h || null,
-            number: idx + 1,
-          }))
-        } else if (
-          imagesResult.status === 'fulfilled' &&
-          Array.isArray(imagesResult.value) &&
-          imagesResult.value.length > 0
-        ) {
-          pagesData = imagesResult.value.map((url, idx) => ({
-            url,
-            number: idx + 1,
-          }))
+        // images.json es el manifiesto publico y canonico. images-meta.json es
+        // opcional y puede ser privado; pedirlo siempre generaba 403/CORS.
+        const imagesResponse = await fetch(`${baseUrl}/images.json`)
+        if (!imagesResponse.ok) {
+          throw new Error(`No se pudo cargar el capitulo (HTTP ${imagesResponse.status})`)
         }
+        const images = await imagesResponse.json()
+        const pagesData = Array.isArray(images) && images.length > 0
+          ? images.map((url, idx) => ({ url, number: idx + 1 }))
+          : null
 
         if (pagesData) {
           if (!cancelled) {

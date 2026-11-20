@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            manhwa-api/package-lock.json
+            manhwa-nextjs/package-lock.json
+      - name: Install search service
+        run: npm ci
+      - name: Test search service
+        run: npm test
+      - name: Install API
+        working-directory: manhwa-api
+        run: npm ci
+      - name: Test API
+        working-directory: manhwa-api
+        run: npm test -- --runInBand
+      - name: Install frontend
+        working-directory: manhwa-nextjs
+        run: npm ci
+      - name: Build frontend
+        working-directory: manhwa-nextjs
+        env:
+          NEXT_PUBLIC_SITE_URL: https://manhwaimperial.site
+          NEXT_PUBLIC_API_URL_PROD: https://manhwaimperial.site/api
+        run: npm run build

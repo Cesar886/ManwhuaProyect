@@ -3,8 +3,19 @@ const XML_HEADERS = {
   'Cache-Control': 'public, max-age=1800, s-maxage=1800, stale-while-revalidate=21600',
 }
 
-export function xmlResponse(xml) {
-  return new Response(xml, { headers: XML_HEADERS })
+export function xmlResponse(xml, init = {}) {
+  return new Response(xml, {
+    ...init,
+    headers: { ...XML_HEADERS, ...(init.headers || {}) },
+  })
+}
+
+export function xmlServiceUnavailable(message = 'Sitemap data temporarily unavailable') {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<error>${escapeXml(message)}</error>`
+  return xmlResponse(xml, {
+    status: 503,
+    headers: { 'Cache-Control': 'no-store', 'Retry-After': '300' },
+  })
 }
 
 // Escapa caracteres especiales para XML. Las URLs con &, <, >, ", ' romperían

@@ -1,7 +1,7 @@
 import { SITE_URL } from '@/config'
 import { fetchAllSeriesForSitemap } from '@/lib/seo/fetchSeries'
 import { getAllPosts } from '@/lib/blog/posts'
-import { buildUrlset, urlEntry, urlEntryWithAlternates, xmlResponse } from '@/lib/seo/xml'
+import { buildUrlset, urlEntry, urlEntryWithAlternates, xmlResponse, xmlServiceUnavailable } from '@/lib/seo/xml'
 import {
   filterAvailableSeries,
   getSeriesLanguages,
@@ -68,7 +68,12 @@ function seriesAlternates(slug, languages) {
 }
 
 export async function GET() {
-  const allSeries = filterAvailableSeries(await fetchAllSeriesForSitemap())
+  let allSeries
+  try {
+    allSeries = filterAvailableSeries(await fetchAllSeriesForSitemap())
+  } catch {
+    return xmlServiceUnavailable('Series sitemap data temporarily unavailable')
+  }
   const now = new Date().toISOString()
   const urls = []
 

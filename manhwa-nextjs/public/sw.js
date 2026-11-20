@@ -9,7 +9,7 @@ const SELF_ORIGIN = self.location.origin;
 // Imágenes externas (imageshack, etc.) se dejan pasar sin interceptar
 // porque esos hosts no permiten CORS desde un Service Worker
 const OWN_IMAGE_ORIGINS = [
-  'manwhaimperialstorage.sfo3.digitaloceanspaces.com',
+  'manwhaimperial.sfo3.digitaloceanspaces.com',
   'manhwaimperialstorage.sfo3.digitaloceanspaces.com',
   'nyc3.digitaloceanspaces.com',
 ];

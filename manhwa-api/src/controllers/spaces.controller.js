@@ -144,6 +144,13 @@ const parseSpacesStructure = (objects) => {
         for (const chapter of series.chapters.values()) {
             chapter.pages.sort((a, b) => a.number - b.number);
             chapter.pageCount = chapter.pages.length;
+
+            // Un archivo auxiliar (por ejemplo images.json) no convierte una
+            // carpeta en un capítulo legible. Solo publicar capítulos que
+            // tengan al menos una imagen real en Spaces.
+            if (chapter.pageCount === 0) {
+                series.chapters.delete(chapter.number);
+            }
         }
     }
 
@@ -213,8 +220,7 @@ const seriesToArray = async (seriesMap) => {
             .sort((a, b) => b.number - a.number); // Más reciente primero
 
         const dbData = dbSeriesMap.get(series.slug);
-        const dbChapterCount = parseInt(dbData?.chapter_count || 0, 10);
-        if (chapters.length === 0 && dbChapterCount === 0) continue;
+        if (chapters.length === 0) continue;
 
         seriesArray.push({
             slug: series.slug,
@@ -234,7 +240,7 @@ const seriesToArray = async (seriesMap) => {
             rating: parseFloat(dbData?.rating_average || 0),
             createdAt: dbData?.created_at,
             updatedAt: dbData?.updated_at,
-            chapterCount: Math.max(chapters.length, dbChapterCount),
+            chapterCount: chapters.length,
             chapters: chapters.slice(0, 5).map(ch => ({
                 number: ch.number,
                 slug: ch.slug,
@@ -262,8 +268,7 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
             .sort((a, b) => b.number - a.number);
 
         const dbData = dbSeriesMap.get(series.slug);
-        const dbChapterCount = parseInt(dbData?.chapter_count || 0, 10);
-        if (chapters.length === 0 && dbChapterCount === 0) continue;
+        if (chapters.length === 0) continue;
 
         seriesArray.push({
             slug: series.slug,
@@ -283,7 +288,7 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
             rating: parseFloat(dbData?.rating_average || 0),
             createdAt: dbData?.created_at,
             updatedAt: dbData?.updated_at,
-            chapterCount: Math.max(chapters.length, dbChapterCount),
+            chapterCount: chapters.length,
             chapters: chapters.slice(0, 5).map(ch => ({
                 number: ch.number,
                 slug: ch.slug,
@@ -487,12 +492,14 @@ const getCacheNonBlocking = (allowStale = true) => {
 
 /**
  * Helper: Obtiene series desde la BD (para fallback cuando Spaces cache no está listo)
- * chapterCount SIEMPRE viene del cache de conteos de Spaces (nunca de la BD)
+ * chapterCount siempre viene del cache de conteos de Spaces, nunca de la BD.
+ * Si el cache aún no está listo se devuelve 0 en vez de publicar capítulos
+ * que podrían no tener imágenes.
  */
 const getSeriesFromDatabase = async () => {
     try {
         const result = await query(`
-            SELECT s.id, s.slug, s.title, s.cover_url, s.status, s.updated_at
+            SELECT s.id, s.slug, s.title, s.cover_url, s.status, s.chapter_count, s.updated_at
             FROM series s
             WHERE s.deleted_at IS NULL
             ORDER BY s.updated_at DESC
@@ -582,9 +589,9 @@ const listManhwasFromDatabase = async (req, res, next) => {
             }
         }
 
-        // PASO 4: Fallback a BD (metadata) + chapterCounts de Spaces cache o BD
+        // PASO 4: Fallback a BD para metadata; el conteo sigue viniendo de Spaces.
         const result = await query(`
-            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.status, s.content_type, s.is_adult, s.language, s.updated_at
+            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.status, s.content_type, s.is_adult, s.language, s.chapter_count, s.updated_at
             FROM series s
             WHERE s.deleted_at IS NULL AND s.chapter_count > 0
             ORDER BY s.updated_at DESC
@@ -943,6 +950,14 @@ const getManhwaFromSpaces = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error obteniendo manhwa desde Spaces:', error);
+        // El bucket permite leer images.json, pero puede denegar ListObjects.
+        // Un 404 activa el fallback a PostgreSQL en el cliente.
+        if (error?.Code === 'AccessDenied' || error?.name === 'AccessDenied') {
+            return res.status(404).json({
+                success: false,
+                message: 'Listado de Spaces no disponible; usar catálogo'
+            });
+        }
         next(error);
     }
 };

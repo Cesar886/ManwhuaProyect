@@ -6,7 +6,6 @@ import { Group, Text, Avatar, Button, Menu, ActionIcon, Modal, Checkbox, Textare
 import { IconMessage, IconSend, IconCheck, IconAlertCircle, IconThumbUp, IconThumbDown, IconEye, IconEyeOff, IconDotsVertical, IconChartBar, IconPlus, IconX, IconSparkles, IconTrendingUp, IconHistory, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight, IconBook, IconSword, IconShield, IconCrown } from '@tabler/icons-react'
 import api from '../api/client'
 import { endpoint } from '../config'
-import { getRequestComments as apiGetRequestComments } from '../api/requests'
 import UserBadges from './UserBadges'
 import { getLevelInfo, LEVEL_CONFIG } from '../utils/xpSystem'
 
@@ -252,6 +251,28 @@ const normalizeApiComment = (c) => {
     author
   }
 }
+
+const COMMENT_TARGET_TYPES = new Set(['series', 'chapter', 'collection', 'request'])
+
+// series.type describe el formato de la obra (manhwa, manga, etc.), no el
+// tipo de destino aceptado por /api/comments.
+const resolveCommentTarget = (detailRequest) => {
+  if (!detailRequest || typeof detailRequest !== 'object') return null
+  const explicitType = String(detailRequest.targetType || '').toLowerCase()
+  const legacyType = String(detailRequest.type || '').toLowerCase()
+  const targetType = COMMENT_TARGET_TYPES.has(explicitType)
+    ? explicitType
+    : (COMMENT_TARGET_TYPES.has(legacyType) ? legacyType : (detailRequest.slug ? 'series' : 'request'))
+
+  return {
+    targetType,
+    targetId: detailRequest.targetId || detailRequest.id || null,
+    slug: detailRequest.slug || null,
+    seriesSlug: detailRequest.seriesSlug || detailRequest.slug || null,
+    chapterSlug: detailRequest.chapterSlug || detailRequest.chapter?.slug || null,
+  }
+}
+
 // Ordenamiento con "Boost Temporal":
 // - Comentarios con edad < BOOST_MINUTES permanecen arriba (ordenados por fecha)
 // - Después de la ventana, orden por score (likes - dislikes), luego likes, luego fecha
@@ -316,6 +337,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
   const [commentText, setCommentText] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentSuccess, setCommentSuccess] = useState(false)
+  const [commentError, setCommentError] = useState('')
   const commentInputRef = useRef(null)
   const commentsContainerRef = useRef(null)
   const processedCommentIdsRef = useRef(new Set())
@@ -1060,10 +1082,27 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
   // 2) La encuesta está completa (con o sin texto)
   const canSubmit = isTextValid || isPollComplete
 
-  const fetchRequestComments = async (id, page = 1, limit = 50) => {
+  const fetchTargetComments = async (page = 1, limit = 50) => {
     setDetailCommentsLoading(true)
+    setCommentError('')
     try {
-      const res = await apiGetRequestComments(id, { page, limit })
+      const target = resolveCommentTarget(detailRequest)
+      if (!target?.targetId) throw new Error('No se pudo identificar el destino de los comentarios')
+
+      const query = new URLSearchParams({ page: String(page), limit: String(limit) }).toString()
+      let res
+      if (target.targetType === 'series') {
+        if (!target.slug) throw new Error('No se pudo identificar la serie')
+        res = await api.get('series', target.slug + '/comments?' + query)
+      } else if (target.targetType === 'chapter') {
+        if (!target.seriesSlug || !target.chapterSlug) throw new Error('No se pudo identificar el capítulo')
+        res = await api.get('chapters', target.seriesSlug + '/' + target.chapterSlug + '/comments?' + query)
+      } else if (target.targetType === 'collection') {
+        if (!target.slug) throw new Error('No se pudo identificar la colección')
+        res = await api.get('collections', target.slug + '/comments?' + query)
+      } else {
+        res = await api.get('requests', target.targetId + '/comments?' + query)
+      }
       if (res && res.data) {
         const comments = res.data.comments || []
         const deduped = dedupeComments(comments)
@@ -1072,7 +1111,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         // cargar respuestas si existen
         setTimeout(() => { loadRepliesForComments(normalized) }, 60)
         // Si el usuario está logueado, intentar obtener sus reacciones para esta request
-        try { if (user) fetchMyReactions(id).catch(() => { }) } catch { /* noop */ }
+        try { if (user) fetchMyReactions(target).catch(() => { }) } catch { /* noop */ }
         // Cargar votos de encuestas
         try { loadPollVotes(normalized) } catch { /* noop */ }
         setDetailCommentsPagination(res.data.pagination || null)
@@ -1120,18 +1159,20 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           return next
         })
       }
-    } catch {
-      console.warn('Error cargando comentarios')
+    } catch (err) {
+      console.warn('Error cargando comentarios', err)
+      setCommentError(err?.message || 'No se pudieron cargar los comentarios')
     } finally {
       setDetailCommentsLoading(false)
     }
   }
 
   // Obtener las reacciones del usuario logueado para los comentarios de esta request
-  const fetchMyReactions = async (requestId) => {
+  const fetchMyReactions = async (target = resolveCommentTarget(detailRequest)) => {
     try {
-      if (!user || !requestId) return
-      const res = await api.get('comments', `my-reactions?targetType=request&targetId=${requestId}`)
+      if (!user || !target?.targetId) return
+      const qs = new URLSearchParams({ targetType: target.targetType, targetId: target.targetId }).toString()
+      const res = await api.get('comments', 'my-reactions?' + qs)
       const data = (res && res.data) || res || null
       if (!data) return
       const mapping = {}
@@ -1275,7 +1316,9 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     setReplyBoxes(prev => ({ ...(prev || {}), [parentId]: { ...(prev[parentId] || {}), submitting: true } }))
     pendingPostsRef.current.add(postKey)
     try {
-      const payload = { targetType: 'request', targetId: detailRequest.id, content: text, isSpoiler: !!box.isSpoiler }
+      const target = resolveCommentTarget(detailRequest)
+      if (!target?.targetId) return
+      const payload = { targetType: target.targetType, targetId: target.targetId, content: text, isSpoiler: !!box.isSpoiler }
       // If a specific reply target is set (replying to a reply), use that id as parentId
       if (box.replyTargetId) payload.parentId = box.replyTargetId
       else if (parentId) payload.parentId = parentId
@@ -1381,7 +1424,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 }
               } catch { /* noop */ }
               // si no pudimos resolver, recargar lista completa como último recurso
-              fetchRequestComments(detailRequest.id, 1, detailCommentsPagination?.limit || 50).catch(() => { })
+              fetchTargetComments(1, detailCommentsPagination?.limit || 50).catch(() => { })
             }
           } catch { /* noop */ }
         }, 300)
@@ -1768,7 +1811,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       setDetailComments([])
       setDetailCommentsPage(1)
       // ordenar según configuración (Boost Temporal) en la carga inicial
-      fetchRequestComments(detailRequest.id, 1, 50)
+      fetchTargetComments(1, 50)
       // Removed autofocus to prevent mobile keyboard from popping up
       // setTimeout(() => {
       //   try { if (commentInputRef.current && typeof commentInputRef.current.focus === 'function') commentInputRef.current.focus() } catch { void 0 }
@@ -1820,7 +1863,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
             if (evtId && processedCommentIdsRef.current && processedCommentIdsRef.current.has(evtId)) return
           } catch { /* noop */ }
           // Solo procesar si el evento corresponde a este request
-          if (data && data.targetType === 'request' && String(data.targetId) === String(detailRequest.id)) {
+          const target = resolveCommentTarget(detailRequest)
+          if (data && target && data.targetType === target.targetType && String(data.targetId) === String(target.targetId)) {
             const sseAuthorFallback = user || (data.userId ? { id: data.userId } : null)
             const newC = {
               id: data.id,
@@ -2036,7 +2080,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
             else next[cidStr] = prevReaction
             return next
           })
-          if (detailRequest && detailRequest.id) fetchRequestComments(detailRequest.id, detailCommentsPage, detailCommentsPagination?.limit || 50)
+          if (detailRequest && detailRequest.id) fetchTargetComments(detailCommentsPage, detailCommentsPagination?.limit || 50)
         } catch { /* noop */ }
         console.warn('Error encolando reacción', e)
       }
@@ -2054,7 +2098,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           return next
         })
         // Re-fetch comment list to reconcile counts (simple fallback)
-        if (detailRequest && detailRequest.id) fetchRequestComments(detailRequest.id, detailCommentsPage, detailCommentsPagination?.limit || 50)
+        if (detailRequest && detailRequest.id) fetchTargetComments(detailCommentsPage, detailCommentsPagination?.limit || 50)
       } catch { /* noop */ }
       if (err && err.status === 401) { openLogin(); return }
       console.warn('Error enviando reacción', err)
@@ -2167,8 +2211,9 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
 
   const handleSubmitComment = async () => {
     // Validar detailRequest
-    const targetId = detailRequest?.id || detailRequest?.targetId;
-    const targetType = detailRequest?.type || detailRequest?.targetType || 'request';
+    const target = resolveCommentTarget(detailRequest)
+    const targetId = target?.targetId
+    const targetType = target?.targetType
 
     if (!targetId) {
       console.error('No se puede enviar comentario: falta targetId');
@@ -2203,6 +2248,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     }
 
     setCommentSubmitting(true)
+    setCommentError('')
     try {
       // Si hay encuesta, el contenido debe ser solo el texto adicional (si lo hay)
       // La pregunta de la encuesta NO debe duplicarse en el contenido
@@ -2277,6 +2323,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     } catch (err) {
       if (err && err.status === 401) { openLogin(); return }
       console.warn('Error enviando comentario', err)
+      setCommentError(err?.message || 'No se pudo publicar el comentario')
     } finally {
       setCommentSubmitting(false)
     }
@@ -2329,6 +2376,12 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           </Badge>
         )}
       </Group>
+
+      {commentError && (
+        <Text c="red" size="sm" mb="md" role="alert">
+          {commentError}
+        </Text>
+      )}
 
       {/* Input de Comentario Premium */}
       <div style={{
@@ -3420,7 +3473,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 value={detailCommentsPage}
                 onChange={(p) => {
                   setDetailCommentsPage(p);
-                  fetchRequestComments(detailRequest.id, p, detailCommentsPagination.limit || 20)
+                  fetchTargetComments(p, detailCommentsPagination.limit || 20)
                 }}
                 total={detailCommentsPagination.pages}
                 size="sm"

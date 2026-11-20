@@ -1,11 +1,12 @@
 import { SITE_URL, CHAPTERS_PER_SITEMAP } from '@/config'
 import { fetchAllChaptersFromSpaces } from '@/lib/seo/fetchChaptersFromSpaces'
-import { buildSitemapIndex, xmlResponse } from '@/lib/seo/xml'
+import { buildSitemapIndex, xmlResponse, xmlServiceUnavailable } from '@/lib/seo/xml'
 
 export const revalidate = 1800 // 30 minutos — permite ISR y fetch-level revalidation
 
 export async function GET() {
-  const { totalChapters } = await fetchAllChaptersFromSpaces()
+  const { available, totalChapters } = await fetchAllChaptersFromSpaces()
+  if (!available) return xmlServiceUnavailable('Sitemap index data temporarily unavailable')
   const totalPages = Math.ceil(totalChapters / CHAPTERS_PER_SITEMAP) || 1
   const now = new Date().toISOString()
 
