@@ -13,6 +13,7 @@ import { useLang } from '../hooks/useLang';
 import { getLocalizedPath } from '../utils/i18nRoutes';
 import { getTranslations } from '../i18n/translations';
 import classes from './Footer.module.css';
+import InstallPrompt from './InstallPrompt';
 
 const socialLinks = [
   { icon: IconBrandTwitter, label: 'Twitter', href: 'https://x.com/manhwaimperial' },
@@ -109,6 +110,7 @@ function Footer({ lang: propLang }) {
 
   return (
     <footer className={classes.footer}>
+      <InstallPrompt />
       {/* Línea decorativa superior */}
       <div className={classes.topLine} aria-hidden="true" />
 

@@ -1,0 +1,134 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(212, 165, 40, 0.25);
+  background: linear-gradient(110deg, rgba(212, 165, 40, 0.1), rgba(139, 92, 200, 0.08));
+  color: #f5f3fa;
+}
+
+.banner > div {
+  flex: 1;
+}
+
+.banner strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.banner p {
+  margin: 0.15rem 0 0;
+  color: #b6b3c2;
+  font-size: 0.82rem;
+}
+
+.banner button,
+.installAction {
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.65rem 0.9rem;
+  background: #d4a528;
+  color: #0f0f14;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.banner .dismiss {
+  padding: 0.35rem 0.55rem;
+  background: transparent;
+  color: #d1cfda;
+  font-size: 1.3rem;
+}
+
+.overlay {
+  position: fixed;
+  z-index: 12000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.modal {
+  position: relative;
+  width: min(100%, 28rem);
+  padding: 1.5rem;
+  border: 1px solid rgba(212, 165, 40, 0.35);
+  border-radius: 1rem;
+  background: #17171e;
+  color: #f5f3fa;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.45);
+}
+
+.modal h2 {
+  margin: 0 2rem 1rem 0;
+  font-size: 1.2rem;
+}
+
+.modal p,
+.modal li {
+  color: #d1cfda;
+  line-height: 1.65;
+}
+
+.modal ol {
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.3rem;
+}
+
+.modal li svg {
+  display: inline-block;
+  vertical-align: middle;
+  color: #d4a528;
+}
+
+.close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  border: 0;
+  background: transparent;
+  color: #d1cfda;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.installAction {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.later {
+  width: 100%;
+  margin-top: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid #44434d;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: #eee;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 540px) {
+  .banner {
+    align-items: flex-start;
+    padding: 0.9rem 1rem;
+  }
+
+  .banner > div {
+    min-width: 0;
+  }
+
+  .banner button:not(.dismiss) {
+    flex: 0 0 auto;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.8rem;
+  }
+}

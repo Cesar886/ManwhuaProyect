@@ -146,6 +146,7 @@
   border-bottom: 1px solid var(--border-subtle);
   position: fixed;
   top: 0;
+  padding-top: env(safe-area-inset-top, 0px);
   left: 0;
   right: 0;
   z-index: 50;

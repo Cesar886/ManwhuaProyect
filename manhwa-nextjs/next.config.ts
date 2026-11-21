@@ -3,6 +3,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: __dirname,
+  serverExternalPackages: ['web-push'],
   // Reducir logs innecesarios
   logging: {
     fetches: {
@@ -105,6 +106,7 @@ const nextConfig: NextConfig = {
         source: '/sw.js',
         headers: [
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Content-Type', value: 'application/javascript' },
           { key: 'Pragma', value: 'no-cache' },
           { key: 'Expires', value: '0' },
         ],

@@ -11,9 +11,12 @@ export async function registerServiceWorker() {
     return null;
   }
 
+  if (process.env.NODE_ENV !== 'production') return null;
+
   try {
-    const registration = await navigator.serviceWorker.register('/ssw.js', {
-      scope: '/'
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
     });
 
     console.log('Service Worker registrado:', registration);
@@ -101,23 +104,6 @@ export async function getCacheSize() {
 }
 
 /**
- * Precachear capítulo (todas sus imágenes)
- */
-export async function precacheChapter(imageUrls) {
-  if (!navigator.serviceWorker.controller) {
-    console.warn('Service Worker no activo');
-    return;
-  }
-
-  navigator.serviceWorker.controller.postMessage({
-    type: 'PRECACHE_CHAPTER',
-    urls: imageUrls
-  });
-
-  console.log(`Precacheando ${imageUrls.length} imágenes del capítulo`);
-}
-
-/**
  * Hook para usar Service Worker en React
  */
 import { useState, useEffect } from 'react';
@@ -156,7 +142,6 @@ export function useServiceWorker() {
     isUpdateAvailable,
     cacheSize,
     cacheSizeMB: (cacheSize / 1024 / 1024).toFixed(2),
-    clearCache: clearAllCaches,
-    precacheChapter
+    clearCache: clearAllCaches
   };
 }

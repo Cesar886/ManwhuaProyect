@@ -10,6 +10,7 @@ import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateWebApplicati
 import NavigationProgress from '@/components/NavigationProgress'
 import MainLayout from '@/components/MainLayout'
 import HtmlLangSync from '@/components/HtmlLangSync'
+import PwaRuntime from '@/components/PwaRuntime'
 
 /**
  * SEO Metadata Global
@@ -23,10 +24,11 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: 'cover',
 }
 
 export const metadata = {
-  manifest: '/manifest.json',
+  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -134,6 +136,7 @@ export default function RootLayout({ children }) {
     >
       <head suppressHydrationWarning>
         <meta id="meta-theme-color" name="theme-color" content="#0F0F14" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         {/* Aplicar el tema antes del primer render para evitar destellos. */}
         <ColorSchemeScript defaultColorScheme="auto" />
         {/* Sincronizar <html lang> de forma síncrona antes de cualquier render.
@@ -147,7 +150,7 @@ export default function RootLayout({ children }) {
           }}
         />
         <link rel="icon" href="/logo.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
         <script
           suppressHydrationWarning
@@ -255,19 +258,12 @@ export default function RootLayout({ children }) {
               })(window,document,'script','dataLayer','GTM-M3DPPM9K');`
           }}
         />
-        {/* Service Worker para caché de imágenes del CDN */}
-        <Script
-          id="sw-register"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}`
-          }}
-        />
         <HtmlLangSync />
         <NavigationProgress />
         <MantineProvider theme={imperialTheme} defaultColorScheme="auto">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>
+            <PwaRuntime />
             <MainLayout>
               {children}
             </MainLayout>

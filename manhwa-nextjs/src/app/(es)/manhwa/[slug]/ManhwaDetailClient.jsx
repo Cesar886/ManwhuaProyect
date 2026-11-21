@@ -39,6 +39,7 @@ import AnonymousAvatar from '@/components/AnonymousAvatar';
 // SEO: Constantes para contenido optimizado
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { getTranslations } from '@/i18n/translations';
+import PushNotificationButton from '@/components/PushNotificationButton';
 
 const ADMIN_CHAPTERS_BATCH_SIZE = 40;
 
@@ -1131,6 +1132,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
               <IconSparkles size={14} />
               {t.findSimilarAi}
             </Link>
+            <PushNotificationButton slug={slug} lang={lang} />
 
             {manhwaReadersCount > 0 && (
               <div style={{ marginTop: '0.75rem' }}>
