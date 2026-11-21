@@ -10,17 +10,22 @@ REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="${ROOT_DIR}/manhwa-nextjs"
 BACKEND_DIR="${ROOT_DIR}/manhwa-api"
+PRESENCE_DIR="${ROOT_DIR}/presence-server"
 
 FRONTEND_REMOTE_DIR="${FRONTEND_REMOTE_DIR:-/var/www/manhwa-nextjs}"
 BACKEND_REMOTE_DIR="${BACKEND_REMOTE_DIR:-/var/www/manhwa-api}"
 FRONTEND_SERVICE="${FRONTEND_SERVICE:-manhwa-nextjs}"
 BACKEND_SERVICE="${BACKEND_SERVICE:-manhwa-api}"
+PRESENCE_REMOTE_DIR="${PRESENCE_REMOTE_DIR:-/var/www/manhwa-presence}"
+PRESENCE_SERVICE="${PRESENCE_SERVICE:-manhwa-presence}"
+export NEXT_PUBLIC_PRESENCE_URL="${NEXT_PUBLIC_PRESENCE_URL:-wss://manhwaimperial.site/presence}"
 
 FRONTEND_ARCHIVE="$(mktemp /tmp/manhwa-nextjs-deploy.XXXXXX.tar.gz)"
 BACKEND_ARCHIVE="$(mktemp /tmp/manhwa-api-deploy.XXXXXX.tar.gz)"
+PRESENCE_ARCHIVE="$(mktemp /tmp/manhwa-presence-deploy.XXXXXX.tar.gz)"
 
 cleanup() {
-  rm -f -- "${FRONTEND_ARCHIVE}" "${BACKEND_ARCHIVE}"
+  rm -f -- "${FRONTEND_ARCHIVE}" "${BACKEND_ARCHIVE}" "${PRESENCE_ARCHIVE}"
 }
 trap cleanup EXIT
 
@@ -35,7 +40,7 @@ require_command() {
   fi
 }
 
-for command_name in npm tar ssh scp; do
+for command_name in npm tar ssh rsync; do
   require_command "${command_name}"
 done
 
@@ -46,6 +51,11 @@ fi
 
 if [[ ! -f "${BACKEND_DIR}/package.json" ]]; then
   printf 'Error: no se encontro %s/package.json\n' "${BACKEND_DIR}" >&2
+  exit 1
+fi
+
+if [[ ! -f "${PRESENCE_DIR}/package.json" ]]; then
+  printf 'Error: no se encontro %s/package.json\n' "${PRESENCE_DIR}" >&2
   exit 1
 fi
 
@@ -97,9 +107,19 @@ if tar -tzf "${BACKEND_ARCHIVE}" | grep -Eq '^manhwa-api/(\.env($|\.)|uploads/|d
   exit 1
 fi
 
+log "Empaquetando servicio de presencia"
+tar \
+  -C "${ROOT_DIR}" \
+  --exclude='presence-server/node_modules' \
+  --exclude='presence-server/.env' \
+  --exclude='presence-server/.env.*' \
+  -czf "${PRESENCE_ARCHIVE}" \
+  presence-server
+
 log "Subiendo artefactos"
-scp "${FRONTEND_ARCHIVE}" "${REMOTE}:/root/manhwa-nextjs-deploy.tar.gz"
-scp "${BACKEND_ARCHIVE}" "${REMOTE}:/root/manhwa-api.tar.gz"
+rsync --archive --partial --info=progress2 "${FRONTEND_ARCHIVE}" "${REMOTE}:/root/manhwa-nextjs-deploy.tar.gz"
+rsync --archive --partial --info=progress2 "${BACKEND_ARCHIVE}" "${REMOTE}:/root/manhwa-api.tar.gz"
+rsync --archive --partial --info=progress2 "${PRESENCE_ARCHIVE}" "${REMOTE}:/root/manhwa-presence.tar.gz"
 
 log "Desplegando backend"
 ssh "${REMOTE}" bash -s -- \
@@ -136,6 +156,7 @@ cd "${deploy_dir}"
 npm install --omit=dev
 chown -R www-data:www-data "${deploy_dir}"
 runuser -u www-data -- node scripts/migrate-and-verify-007-009.js
+runuser -u www-data -- node scripts/run_migration_013.js
 systemctl start "${service_name}"
 service_stopped=0
 systemctl --no-pager --full status "${service_name}"
@@ -167,5 +188,69 @@ chown -R www-data:www-data "${deploy_dir}"
 systemctl start "${service_name}"
 systemctl --no-pager --full status "${service_name}"
 REMOTE_FRONTEND
+
+log "Desplegando servicio de presencia"
+ssh "${REMOTE}" bash -s -- \
+  "${PRESENCE_REMOTE_DIR}" \
+  "${FRONTEND_REMOTE_DIR}" \
+  "${PRESENCE_SERVICE}" \
+  "${NEXT_PUBLIC_PRESENCE_URL}" \
+  "${FRONTEND_SERVICE}" <<'REMOTE_PRESENCE'
+set -Eeuo pipefail
+
+deploy_dir="$1"
+frontend_dir="$2"
+service_name="$3"
+public_url="$4"
+frontend_service="$5"
+
+mkdir -p "${deploy_dir}"
+tar -xzf /root/manhwa-presence.tar.gz -C "${deploy_dir}" --strip-components=1 \
+  --exclude='.env' --exclude='.env.*'
+cd "${deploy_dir}"
+npm install --omit=dev
+
+secret=''
+if [[ -f "${deploy_dir}/.env" ]]; then
+  secret="$(sed -n 's/^PRESENCE_SECRET=//p' "${deploy_dir}/.env" | tail -1)"
+fi
+if [[ -z "${secret}" && -f "${frontend_dir}/.env" ]]; then
+  secret="$(sed -n 's/^PRESENCE_SECRET=//p' "${frontend_dir}/.env" | tail -1)"
+fi
+if [[ -z "${secret}" ]]; then
+  secret="$(openssl rand -hex 32)"
+fi
+
+touch "${deploy_dir}/.env" "${frontend_dir}/.env"
+sed -i '/^PRESENCE_SECRET=/d; /^PORT=/d' "${deploy_dir}/.env"
+printf 'PRESENCE_SECRET=%s\nPORT=4001\n' "${secret}" >> "${deploy_dir}/.env"
+sed -i '/^PRESENCE_SECRET=/d; /^NEXT_PUBLIC_PRESENCE_URL=/d' "${frontend_dir}/.env"
+printf 'PRESENCE_SECRET=%s\nNEXT_PUBLIC_PRESENCE_URL=%s\n' "${secret}" "${public_url}" >> "${frontend_dir}/.env"
+chmod 600 "${deploy_dir}/.env" "${frontend_dir}/.env"
+chown www-data:www-data "${frontend_dir}/.env"
+systemctl restart "${frontend_service}"
+
+set -a
+# shellcheck disable=SC1091
+. "${deploy_dir}/.env"
+set +a
+if pm2 describe "${service_name}" >/dev/null 2>&1; then
+  pm2 restart "${service_name}" --update-env
+else
+  pm2 start index.js --name "${service_name}"
+fi
+pm2 save
+
+ssl_vhost='/etc/apache2/sites-available/manhwaimperial-le-ssl.conf'
+if [[ -f "${ssl_vhost}" ]] && ! grep -qE 'ProxyPass[[:space:]]+/presence' "${ssl_vhost}"; then
+  sed -i '/ProxyPass[[:space:]]\+\/socket\.io\//i\    ProxyPass        /presence ws://127.0.0.1:4001/ retry=0 timeout=120\n    ProxyPassReverse /presence ws://127.0.0.1:4001/' "${ssl_vhost}"
+fi
+if [[ -f "${ssl_vhost}" ]] && ! grep -qE 'ProxyPass[[:space:]]+/api/presence/token' "${ssl_vhost}"; then
+  sed -i '/ProxyPass[[:space:]]\+\/api\/popular-home/i\    ProxyPass        /api/presence/token http://127.0.0.1:3001/api/presence/token retry=0 timeout=30\n    ProxyPassReverse /api/presence/token http://127.0.0.1:3001/api/presence/token' "${ssl_vhost}"
+fi
+apache2ctl configtest
+systemctl reload apache2
+pm2 status "${service_name}"
+REMOTE_PRESENCE
 
 log "Deploy de produccion completado correctamente"

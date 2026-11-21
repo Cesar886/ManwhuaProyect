@@ -3,6 +3,7 @@ import { fetchAllChaptersFromSpaces } from '@/lib/seo/fetchChaptersFromSpaces'
 import { buildUrlset, urlEntryWithAlternates, xmlResponse, xmlServiceUnavailable } from '@/lib/seo/xml'
 
 export const revalidate = 1800 // 30 minutos — permite ISR y fetch-level revalidation
+export const dynamic = 'force-dynamic'
 
 // Construye el bloque de alternates hreflang para un capítulo.
 // Solo incluye idiomas en los que la serie realmente está disponible.
@@ -34,9 +35,18 @@ function buildChapterAlternates(seriesSlug, chapterNumber, languages = []) {
 
 export async function GET(request, { params }) {
   const { page } = await params
-  const pageNum = parseInt(page, 10) || 1
+  if (!/^\d+$/.test(page)) {
+    return new Response('Not found', { status: 404 })
+  }
+
+  const pageNum = Number(page)
   const { available, allChapters } = await fetchAllChaptersFromSpaces()
   if (!available) return xmlServiceUnavailable('Chapter sitemap data temporarily unavailable')
+
+  const totalPages = Math.ceil(allChapters.length / CHAPTERS_PER_SITEMAP) || 1
+  if (pageNum < 1 || pageNum > totalPages) {
+    return new Response('Not found', { status: 404 })
+  }
 
   const start = (pageNum - 1) * CHAPTERS_PER_SITEMAP
   const pageChapters = allChapters.slice(start, start + CHAPTERS_PER_SITEMAP)

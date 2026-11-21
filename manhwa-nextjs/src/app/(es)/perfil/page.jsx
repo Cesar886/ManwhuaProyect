@@ -27,6 +27,7 @@ import {
   TextInput,
   Textarea,
   Indicator,
+  Switch,
 } from '@mantine/core';
 import { useMediaQuery, useHover } from '@mantine/hooks';
 import { useAuth } from '@/contexts/AuthContext';
@@ -331,7 +332,7 @@ export default function UserProfile() {
 
   // Edit profile modal state
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ display_name: '', bio: '', location: '' });
+  const [editForm, setEditForm] = useState({ display_name: '', bio: '', location: '', show_active_reader: true });
   const [editSaving, setEditSaving] = useState(false);
 
   // Community interactions state
@@ -376,8 +377,7 @@ export default function UserProfile() {
 
     getUserAchievements()
       .then(data => setAchievementsData(data))
-      .catch(() => setAchievementsData(null))
-      .finally(() => setAchievementsLoading(false));
+      .catch(() => setAchievementsData(null));
   }, []);
 
   // SSE — presencia en tiempo real (marca al usuario como online mientras la conexión vive)
@@ -486,6 +486,7 @@ export default function UserProfile() {
       display_name: user.display_name || user.name || user.username || '',
       bio: user.bio || '',
       location: user.location || '',
+      show_active_reader: user.showActiveReader ?? user.show_active_reader ?? true,
     });
     setEditOpen(true);
   }, [user]);
@@ -499,12 +500,14 @@ export default function UserProfile() {
         display_name: editForm.display_name.trim(),
         bio: editForm.bio.trim(),
         location: editForm.location.trim(),
+        show_active_reader: editForm.show_active_reader,
       });
       setUser(prev => ({
         ...prev,
         display_name: editForm.display_name.trim(),
         bio: editForm.bio.trim(),
         location: editForm.location.trim(),
+        showActiveReader: editForm.show_active_reader,
       }));
       setEditOpen(false);
       notifications.show({ title: 'Perfil actualizado', message: 'Tus cambios se guardaron correctamente', color: 'cyan', icon: <IconCheck size={16} /> });
@@ -1194,6 +1197,14 @@ export default function UserProfile() {
 
           {/* Campos del formulario */}
           <Stack gap="md">
+            <Switch
+              label="Mostrarme como lector activo"
+              description="Permite que otros usuarios vean tu avatar mientras estás en el detalle de un manhwa o leyendo un capítulo."
+              checked={editForm.show_active_reader}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, show_active_reader: event.currentTarget.checked }))}
+              color="yellow"
+              size="md"
+            />
             <TextInput
               label={<Text size="sm" fw={600} mb={4}>Nombre para mostrar</Text>}
               placeholder="¿Cómo te llamas?"

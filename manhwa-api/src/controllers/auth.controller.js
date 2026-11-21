@@ -345,7 +345,7 @@ const getCurrentUser = async (req, res, next) => {
                     u.premium_until, u.level, u.experience, u.email_verified_at,
                     u.followers_count, u.following_count, u.collections_count,
                     u.theme_primary_color, u.theme_accent_color, u.theme_mode,
-                    u.preferences, u.created_at,
+                    u.preferences, u.show_active_reader, u.created_at,
                     (SELECT COUNT(*) FROM bookmarks WHERE user_id = u.id) as bookmarks_count,
                     (SELECT COUNT(*) FROM reading_history WHERE user_id = u.id) as reading_count
              FROM users u
@@ -397,6 +397,7 @@ const getCurrentUser = async (req, res, next) => {
                         reading: parseInt(user.reading_count)
                     },
                     preferences: user.preferences,
+                    showActiveReader: user.show_active_reader,
                     permissions,
                     createdAt: user.created_at
                 }

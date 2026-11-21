@@ -123,9 +123,13 @@ const parseSpacesStructure = (objects) => {
                 const fileName = parts[parts.length - 1];
                 const pageMatch = fileName.match(/^(\d+)/);
 
-                if (pageMatch && fileName.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
+                // No todas las importaciones conservan un prefijo numérico:
+                // algunas páginas usan UUIDs. Dentro de una carpeta de capítulo,
+                // cualquier imagen es una página válida. Conservamos el número
+                // cuando existe y usamos el orden del listado como fallback.
+                if (fileName.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
                     chapter.pages.push({
-                        number: parseInt(pageMatch[1]),
+                        number: pageMatch ? parseInt(pageMatch[1], 10) : chapter.pages.length + 1,
                         url: buildPublicUrl(key),
                         key: key
                     });

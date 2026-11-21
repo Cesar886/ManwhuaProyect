@@ -3,6 +3,7 @@ import { fetchAllChaptersFromSpaces } from '@/lib/seo/fetchChaptersFromSpaces'
 import { buildSitemapIndex, xmlResponse, xmlServiceUnavailable } from '@/lib/seo/xml'
 
 export const revalidate = 1800 // 30 minutos — permite ISR y fetch-level revalidation
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const { available, totalChapters } = await fetchAllChaptersFromSpaces()

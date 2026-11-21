@@ -26,15 +26,16 @@ import SeriesEditModalV2 from '@/components/SeriesEditModalV2';
 import Comentarios from '@/components/Comentarios';
 import { normalizeImageUrl } from '@/utils/imageUtils';
 import { setLastViewedSeries } from '@/utils/lastViewed';
-import { Pill, Container, Skeleton, Group, Stack, Box, Avatar, Badge as MantineBadge } from '@mantine/core';
+import { Pill, Container, Skeleton, Group, Stack, Box, Avatar, Text, Badge as MantineBadge } from '@mantine/core';
 import ManhwaCover from '@/components/ManhwaCover';
 import Header from '@/components/Header';
 import SimilarManhwas from '@/components/SimilarManhwas';
 import { slugifyQuery } from '@/hooks/useIA';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
-import { useManhwaReaders } from '@/hooks/useManhwaReaders';
+import { usePresence } from '@/hooks/usePresence';
 import LinkedSynopsis from '@/components/LinkedSynopsis';
 import SeriesRating from '@/components/SeriesRating';
+import AnonymousAvatar from '@/components/AnonymousAvatar';
 // SEO: Constantes para contenido optimizado
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { getTranslations } from '@/i18n/translations';
@@ -171,7 +172,7 @@ const ChapterCard = ({ chapter, slug, isRead, isNew, isResumePoint = false, base
   const progressPercent = chapter.progress ? Math.round((chapter.progress.page / chapter.pageCount) * 100) : 0;
   const pathname = usePathname();
   const chapterSegment = lang === 'en' ? 'chapter' : 'capitulo';
-  const isActive = typeof window !== 'undefined' && pathname?.includes(`/${chapterSegment}/${chapter.number}`);
+  const isActive = pathname?.includes(`/${chapterSegment}/${chapter.number}`);
 
   return (
     <Link
@@ -239,25 +240,30 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
   const slug = params?.slug;
   const { user, openLogin } = useAuth();
   const { series: hookSeries, loading, error, refetch } = useSeriesDetail(slug, initialSeries);
-  const { readers: allManhwaReaders } = useManhwaReaders(slug, { enabled: !!user?.id });
+  const {
+    users: allManhwaReaders,
+    anonymous: allAnonymousReaders,
+    total: allManhwaReadersTotal,
+    isAnonymous: currentReaderIsAnonymous,
+  } = usePresence(slug, 'detail');
 
   const manhwaReaders = useMemo(() => {
     if (!Array.isArray(allManhwaReaders)) return [];
     if (!user) {
       return allManhwaReaders.filter((reader) => {
         if (!reader || typeof reader !== 'object') return false;
-        return Boolean(reader.userId || reader.username);
+        return Boolean(reader.id || reader.username);
       });
     }
 
     return allManhwaReaders.filter((reader) => {
       if (!reader || typeof reader !== 'object') return false;
-      if (!reader.userId && !reader.username) return false;
+      if (!reader.id && !reader.username) return false;
 
       if (
-        reader.userId &&
+        reader.id &&
         user?.id &&
-        String(reader.userId) === String(user.id)
+        String(reader.id) === String(user.id)
       ) {
         return false;
       }
@@ -270,7 +276,11 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
     });
   }, [allManhwaReaders, user]);
 
-  const manhwaReadersCount = manhwaReaders.length;
+  const anonymousReadersCount = Math.max(0, allAnonymousReaders - (currentReaderIsAnonymous ? 1 : 0));
+  const manhwaReadersCount = Math.max(0, allManhwaReadersTotal - 1);
+  const visibleManhwaReaders = manhwaReaders.slice(0, 8);
+  const visibleAnonymousReaders = Math.min(anonymousReadersCount, Math.max(0, 8 - visibleManhwaReaders.length));
+  const hiddenManhwaReaders = Math.max(0, manhwaReadersCount - visibleManhwaReaders.length - visibleAnonymousReaders);
   const [hasHydrated, setHasHydrated] = useState(false);
 
   const isSameChapter = (a, b) => {
@@ -1124,27 +1134,50 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
             {manhwaReadersCount > 0 && (
               <div style={{ marginTop: '0.75rem' }}>
-                <Group gap={8} justify="center">
+                <Group gap={8} justify="center" align="center">
                   <Avatar.Group spacing="sm">
-                    {manhwaReaders.slice(0, 5).map((r, i) => {
-                      const uniqueKey = r.userId || r.username || `reader-${i}`;
-                      const displayName = r.displayName || r.username || t.user;
+                    {visibleManhwaReaders.map((r, i) => {
+                      const uniqueKey = r.id || r.username || `reader-${i}`;
+                      const displayName = r.username || t.user;
 
                       return (
-                        <Avatar
-                          key={uniqueKey}
-                          src={r.avatarUrl}
-                          name={displayName}
-                          size={40}
-                          radius="xl"
-                          color="initials"
-                          allowedInitialsColors={['cyan', 'pink', 'violet', 'yellow', 'orange', 'teal']}
-                        />
+                        r.username ? (
+                          <Link
+                            key={uniqueKey}
+                            href={`/users/${encodeURIComponent(r.username)}`}
+                            aria-label={`Ver perfil de ${displayName}`}
+                            title={`Ver perfil de ${displayName}`}
+                            style={{ display: 'inline-flex', borderRadius: '999px' }}
+                          >
+                            <Avatar
+                              src={r.avatar}
+                              name={displayName}
+                              size={40}
+                              radius="xl"
+                              color="initials"
+                              allowedInitialsColors={['cyan', 'pink', 'violet', 'yellow', 'orange', 'teal']}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          </Link>
+                        ) : (
+                          <Avatar
+                            key={uniqueKey}
+                            src={r.avatar}
+                            name={displayName}
+                            size={40}
+                            radius="xl"
+                            color="initials"
+                            allowedInitialsColors={['cyan', 'pink', 'violet', 'yellow', 'orange', 'teal']}
+                          />
+                        )
                       );
                     })}
-                    {manhwaReadersCount > 5 && (
+                    {Array.from({ length: visibleAnonymousReaders }, (_, index) => (
+                      <AnonymousAvatar key={`anonymous-detail-${index}`} size={40} />
+                    ))}
+                    {hiddenManhwaReaders > 0 && (
                       <Avatar size={40} radius="xl" color="gray">
-                        +{manhwaReadersCount - 5}
+                        +{hiddenManhwaReaders}
                       </Avatar>
                     )}
                   </Avatar.Group>

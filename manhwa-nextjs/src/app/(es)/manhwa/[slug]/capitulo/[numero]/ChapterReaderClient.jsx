@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import useImageQueue from '@/hooks/useImageQueue';
 import { useNetworkQuality, getQueueConfig } from '@/hooks/useNetworkQuality';
 import useNextChapterPrefetch from '@/hooks/useNextChapterPrefetch';
@@ -17,8 +18,9 @@ import { useReadingProgress } from '@/hooks/useReadingProgress';
 import ReadingProgressBar from '@/components/ReadingProgressBar';
 import ChapterRating from '@/components/ChapterRating';
 import { Avatar, Group, Text, Tooltip } from '@mantine/core';
-import { useChapterReaders } from '@/hooks/useChapterReaders';
+import { usePresence } from '@/hooks/usePresence';
 import readerStyles from './ChapterReader.module.css';
+import AnonymousAvatar from '@/components/AnonymousAvatar';
 
 // Carga dinámica para evitar que el CSS de Mantine sea preloaded innecesariamente
 const Comentarios = dynamic(() => import('@/components/Comentarios'), { ssr: false });
@@ -163,17 +165,17 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
   }, [user]);
 
   // Lectores en tiempo real del capítulo actual (excluye al usuario actual)
-  const { readers: allReaders } = useChapterReaders(slug, chapterNum, { enabled: !!user?.id });
+  const {
+    users: allReaders,
+    anonymous: allAnonymousReaders,
+    total: allReadersTotal,
+    isAnonymous: currentReaderIsAnonymous,
+  } = usePresence(slug, chapterNum);
   
   // Filtrar: mostrar solo otros usuarios (no al usuario actual)
   // Solo usuarios autenticados pueden ver this feature
   const readers = React.useMemo(() => {
     if (!Array.isArray(allReaders)) return [];
-    
-    // Si no hay usuario autenticado, no mostrar nada
-    if (!user?.id) {
-      return [];
-    }
     
     // Filtrar lectores válidos - excluye al usuario actual
     const filtered = allReaders.filter(reader => {
@@ -183,13 +185,13 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
       }
       
       // Validar que tenga al menos ID o username
-      if (!reader.userId && !reader.username) {
+      if (!reader.id && !reader.username) {
         return false;
       }
       
       // Comparar por ID (más confiable)
-      if (reader.userId && user.id) {
-        const isSameUser = Number(reader.userId) === Number(user.id);
+      if (reader.id && user?.id) {
+        const isSameUser = String(reader.id) === String(user.id);
         if (isSameUser) {
           return false;
         }
@@ -206,7 +208,11 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
     return filtered;
   }, [allReaders, user]);
   
-  const readersCount = readers.length;
+  const anonymousReadersCount = Math.max(0, allAnonymousReaders - (currentReaderIsAnonymous ? 1 : 0));
+  const readersCount = Math.max(0, allReadersTotal - 1);
+  const visibleReaders = readers.slice(0, 8);
+  const visibleAnonymousReaders = Math.min(anonymousReadersCount, Math.max(0, 8 - visibleReaders.length));
+  const hiddenReaders = Math.max(0, readersCount - visibleReaders.length - visibleAnonymousReaders);
 
   // Navegación instantánea: solo cambia estado + URL, sin Next.js routing
   const navigateToChapter = useCallback((targetChapter) => {
@@ -1090,12 +1096,12 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
               chapterSegment={chapterSegment}
             />
             {readersCount > 0 && (
-              <Group justify="center" style={{ marginTop: '0.75rem' }}>
+              <Group justify="center" align="center" gap={8} style={{ marginTop: '0.75rem' }}>
                 <Avatar.Group spacing="sm">
-                  {readers.slice(0, 4).map((r, i) => {
+                  {visibleReaders.map((r, i) => {
                     // Generar un key único más robusto
-                    const uniqueKey = r.userId || r.username || `reader-${i}`;
-                    const displayName = r.displayName || r.username || (lang === 'en' ? 'User' : 'Usuario');
+                    const uniqueKey = r.id || r.username || `reader-${i}`;
+                    const displayName = r.username || (lang === 'en' ? 'User' : 'Usuario');
                     
                     return (
                       <Tooltip
@@ -1116,26 +1122,47 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
                           arrow: { background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.1)' },
                         }}
                       >
-                        <Avatar
-                          src={r.avatarUrl}
-                          name={displayName}
-                          size={48}
-                          radius="xl"
-                          color="initials"
-                          allowedInitialsColors={['cyan', 'pink', 'violet', 'yellow', 'orange', 'teal']}
-                          style={{ 
-                            cursor: 'default',
-                            border: '2px solid rgba(255,255,255,0.1)',
-                            transition: 'transform 0.2s ease',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                          }}
-                        />
+                        {r.username ? (
+                          <Link
+                            href={`/users/${encodeURIComponent(r.username)}`}
+                            aria-label={`${lang === 'en' ? 'View profile of' : 'Ver perfil de'} ${displayName}`}
+                            style={{ display: 'inline-flex', borderRadius: '999px' }}
+                          >
+                            <Avatar
+                              src={r.avatar}
+                              name={displayName}
+                              size={48}
+                              radius="xl"
+                              color="initials"
+                              allowedInitialsColors={['cyan', 'pink', 'violet', 'yellow', 'orange', 'teal']}
+                              style={{
+                                cursor: 'pointer',
+                                border: '2px solid rgba(255,255,255,0.1)',
+                                transition: 'transform 0.2s ease',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                              }}
+                            />
+                          </Link>
+                        ) : (
+                          <Avatar
+                            src={r.avatar}
+                            name={displayName}
+                            size={48}
+                            radius="xl"
+                            color="initials"
+                            allowedInitialsColors={['cyan', 'pink', 'violet', 'yellow', 'orange', 'teal']}
+                            style={{ border: '2px solid rgba(255,255,255,0.1)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+                          />
+                        )}
                       </Tooltip>
                     );
                   })}
-                  {readersCount > 4 && (
+                  {Array.from({ length: visibleAnonymousReaders }, (_, index) => (
+                    <AnonymousAvatar key={`anonymous-chapter-${index}`} size={48} />
+                  ))}
+                  {hiddenReaders > 0 && (
                     <Tooltip
-                      label={lang === 'en' ? `+${readersCount - 4} more reading` : `+${readersCount - 4} más leyendo`}
+                      label={lang === 'en' ? `+${hiddenReaders} more reading` : `+${hiddenReaders} más leyendo`}
                       withArrow
                       position="top"
                       styles={{
@@ -1162,7 +1189,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
                         }}
                       >
                         <Text size="sm" fw={700} style={{ color: '#a5b4fc' }}>
-                          +{readersCount - 4}
+                          +{hiddenReaders}
                         </Text>
                       </Avatar>
                     </Tooltip>

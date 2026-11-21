@@ -1104,7 +1104,7 @@ const updateUserStatus = async (req, res, next) => {
 const updatePartialUser = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { theme_mode } = req.body;
+        const { theme_mode, show_active_reader } = req.body;
 
         // Verificar autorización (mismo usuario o admin)
         if (req.user.id !== id && req.user.role !== 'admin') {
@@ -1125,12 +1125,18 @@ const updatePartialUser = async (req, res, next) => {
             values.push(theme_mode);
         }
 
+        if (typeof show_active_reader !== 'undefined') {
+            paramCount++;
+            updates.push(`show_active_reader = $${paramCount}`);
+            values.push(Boolean(show_active_reader));
+        }
+
         if (updates.length === 0) {
             return res.json({ success: true, message: 'Nada que actualizar' });
         }
 
         values.push(id);
-        const queryText = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount + 1} RETURNING theme_mode`;
+        const queryText = `UPDATE users SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount + 1} RETURNING theme_mode, show_active_reader`;
 
         const result = await query(queryText, values);
 
@@ -1145,7 +1151,8 @@ const updatePartialUser = async (req, res, next) => {
                 user: {
                     theme: {
                         colorScheme: result.rows[0].theme_mode
-                    }
+                    },
+                    showActiveReader: result.rows[0].show_active_reader
                 }
             }
         });

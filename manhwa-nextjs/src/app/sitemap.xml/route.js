@@ -9,6 +9,7 @@ import {
 } from '@/utils/adultContent'
 
 export const revalidate = 3600 // 1 hora — la lista de series cambia poco frecuentemente
+export const dynamic = 'force-dynamic'
 
 // ──────────────────────────────────────────────────────────────────
 // Páginas estáticas públicas con equivalente en ambos idiomas

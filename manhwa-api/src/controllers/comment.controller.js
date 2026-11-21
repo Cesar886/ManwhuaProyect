@@ -403,6 +403,11 @@ const createComment = async (req, res, next) => {
                 'UPDATE chapters SET comment_count = comment_count + 1 WHERE id = $1',
                 [targetId]
             );
+        } else if (targetType === 'request') {
+            await query(
+                'UPDATE requests SET comments_count = comments_count + 1 WHERE id = $1',
+                [targetId]
+            );
         }
         
         // Registrar actividad

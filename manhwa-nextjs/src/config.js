@@ -49,6 +49,7 @@ export const ENDPOINTS = {
   upload: apiUrl(`${apiPrefix}upload`),
   spaces: apiUrl(`${apiPrefix}spaces`),
   progress: apiUrl(`${apiPrefix}progress`),
+  achievements: apiUrl(`${apiPrefix}achievements`),
   donations: apiUrl(`${apiPrefix}donations`),
   presence: apiUrl(`${apiPrefix}presence`),
   track: apiUrl(`${apiPrefix}track`),
