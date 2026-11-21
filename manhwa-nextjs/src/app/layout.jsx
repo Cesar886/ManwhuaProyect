@@ -20,10 +20,6 @@ import HtmlLangSync from '@/components/HtmlLangSync'
  * Sólo lo común (authors, metadataBase, robots, verification, etc.) vive aquí.
  */
 export const viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FDFCF9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0F0F14' },
-  ],
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -137,9 +133,9 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
     >
       <head suppressHydrationWarning>
-        {/* Aplicar el tema antes del primer render para evitar el destello oscuro.
-            Si no existe una preferencia guardada, el sitio inicia en modo claro. */}
-        <ColorSchemeScript defaultColorScheme="light" />
+        <meta id="meta-theme-color" name="theme-color" content="#0F0F14" />
+        {/* Aplicar el tema antes del primer render para evitar destellos. */}
+        <ColorSchemeScript defaultColorScheme="auto" />
         {/* Sincronizar <html lang> de forma síncrona antes de cualquier render.
             Evita el flash de idioma incorrecto en páginas /en/* y el CLS
             que ocurriría si solo usáramos HtmlLangSync (asíncrono).
@@ -153,36 +149,41 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="search" type="application/opensearchdescription+xml" title="Manhwa Imperial" href="/opensearch.xml" />
-        {/* Mantine y cambios manuales: Actualizar dinámicamente el theme-color al cambiar de tema para la barra del navegador (PWA) */}
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `(function(){
+              var root = document.documentElement;
+              var meta = document.getElementById('meta-theme-color');
+              var systemScheme = window.matchMedia('(prefers-color-scheme: dark)');
+
               function updateThemeColor() {
-                var isDark = document.documentElement.getAttribute('data-mantine-color-scheme') === 'dark';
-                if (!isDark && !document.documentElement.hasAttribute('data-mantine-color-scheme')) {
-                  isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                }
-                var color = isDark ? '#0F0F14' : '#FDFCF9';
-                var metaList = document.querySelectorAll('meta[name="theme-color"]');
-                if (metaList.length === 0) {
-                  var meta = document.createElement('meta');
-                  meta.name = 'theme-color';
-                  meta.content = color;
-                  document.head.appendChild(meta);
-                } else {
-                  metaList.forEach(function(m) { 
-                    // Limpiamos la query media del viewport y seteamos el nuevo color fijo
-                    m.removeAttribute('media');
-                    m.content = color; 
-                  });
+                var color = window.getComputedStyle(root).getPropertyValue('--nav-bg').trim();
+                if (meta && color) meta.content = color;
+              }
+
+              function hasManualScheme() {
+                try {
+                  var savedScheme = window.localStorage.getItem('mantine-color-scheme-value');
+                  return savedScheme === 'dark' || savedScheme === 'light';
+                } catch (error) {
+                  return false;
                 }
               }
-              var observer = new MutationObserver(function() { updateThemeColor(); });
-              if(document.documentElement) {
-                observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mantine-color-scheme', 'class'] });
+
+              function handleSystemSchemeChange(event) {
+                if (hasManualScheme()) return;
+                root.setAttribute('data-mantine-color-scheme', event.matches ? 'dark' : 'light');
+                updateThemeColor();
               }
-              window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateThemeColor);
+
+              new MutationObserver(updateThemeColor).observe(root, {
+                attributes: true,
+                attributeFilter: ['data-mantine-color-scheme']
+              });
+              systemScheme.addEventListener('change', handleSystemSchemeChange);
+              document.addEventListener('DOMContentLoaded', updateThemeColor, { once: true });
+              updateThemeColor();
             })();`
           }}
         />
@@ -264,7 +265,7 @@ export default function RootLayout({ children }) {
         />
         <HtmlLangSync />
         <NavigationProgress />
-        <MantineProvider theme={imperialTheme} defaultColorScheme="light">
+        <MantineProvider theme={imperialTheme} defaultColorScheme="auto">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>
             <MainLayout>

@@ -2330,7 +2330,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
   }
 
   return (
-    <div style={{ marginTop: 24, position: 'relative' }}>
+    <div style={{ marginTop: 24, position: 'relative', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
 
       {/* Header con Contador Refinado */}
       <Group position="apart" mb="lg">

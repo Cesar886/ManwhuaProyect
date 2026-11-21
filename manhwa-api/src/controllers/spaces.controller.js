@@ -112,6 +112,7 @@ const parseSpacesStructure = (objects) => {
                     number: chapterNumber,
                     slug: `capitulo-${chapterNumber}`,
                     pages: [],
+                    hasImagesJson: false,
                     lastModified: obj.LastModified
                 });
             }
@@ -122,6 +123,10 @@ const parseSpacesStructure = (objects) => {
             if (parts.length >= 3) {
                 const fileName = parts[parts.length - 1];
                 const pageMatch = fileName.match(/^(\d+)/);
+
+                if (parts.length === 3 && fileName.toLowerCase() === 'images.json') {
+                    chapter.hasImagesJson = true;
+                }
 
                 // No todas las importaciones conservan un prefijo numérico:
                 // algunas páginas usan UUIDs. Dentro de una carpeta de capítulo,
@@ -149,10 +154,7 @@ const parseSpacesStructure = (objects) => {
             chapter.pages.sort((a, b) => a.number - b.number);
             chapter.pageCount = chapter.pages.length;
 
-            // Un archivo auxiliar (por ejemplo images.json) no convierte una
-            // carpeta en un capítulo legible. Solo publicar capítulos que
-            // tengan al menos una imagen real en Spaces.
-            if (chapter.pageCount === 0) {
+            if (chapter.pageCount === 0 && !chapter.hasImagesJson) {
                 series.chapters.delete(chapter.number);
             }
         }
@@ -2015,6 +2017,7 @@ const getUpdateClientsCount = () => updateClients.size;
 const getUpdateClientsMap = () => updateClients;
 
 module.exports = {
+    parseSpacesStructure,
     listManhwasFromDatabase,  // ✅ NUEVO: Lectura rápida desde BD
     listManhwasFromSpaces,    // LEGACY: Solo para sincronización
     getManhwaFromSpaces,

@@ -10,7 +10,7 @@ export async function fetchAllChaptersFromSpaces() {
   try {
     const url = `${SERVER_API_BASE}/spaces/manhwas`
     const res = await fetch(url, {
-      next: { revalidate: 1800 },
+      cache: 'no-store',
       headers: {
         'Accept': 'application/json',
         'Origin': SITE_URL,
@@ -27,7 +27,7 @@ export async function fetchAllChaptersFromSpaces() {
     const series = result.data?.series || result.series || []
 
     if (!Array.isArray(series) || series.length === 0) {
-      return { available: true, totalChapters: 0, allChapters: [] }
+      return { available: false, totalChapters: 0, allChapters: [] }
     }
 
     const recentCutoff = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000
@@ -70,6 +70,9 @@ export async function fetchAllChaptersFromSpaces() {
     }
 
     console.log(`[SITEMAP] ${sorted.length} series → ${allChapters.length} capítulos`)
+    if (allChapters.length === 0) {
+      return { available: false, totalChapters: 0, allChapters: [] }
+    }
     return { available: true, totalChapters: allChapters.length, allChapters }
   } catch (error) {
     console.error('[SITEMAP] Error en fetchAllChaptersFromSpaces:', error.message)

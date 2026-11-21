@@ -33,7 +33,7 @@ export async function fetchSeriesForSEO(slug) {
     if (!databaseSeries && !spacesSeries) return null
 
     const chapters = Array.isArray(spacesSeries?.chapters)
-      ? spacesSeries.chapters.filter(chapter => Number(chapter?.pageCount) > 0)
+      ? spacesSeries.chapters
       : []
 
     const series = {
@@ -94,7 +94,7 @@ export async function fetchAllSeriesForSitemap() {
   try {
     const url = `${SERVER_API_BASE}/spaces/manhwas`
     const res = await fetch(url, {
-      next: { revalidate: 3600 },
+      cache: 'no-store',
       headers: sseHeaders(),
     })
 
@@ -104,7 +104,11 @@ export async function fetchAllSeriesForSitemap() {
 
     const result = await res.json()
     const series = result.data?.series || result.series || result.data || []
-    return Array.isArray(series) ? series.filter(s => s.slug) : []
+    const sitemapSeries = Array.isArray(series) ? series.filter(s => s.slug) : []
+    if (sitemapSeries.length === 0) {
+      throw new Error('API returned no series for sitemap')
+    }
+    return sitemapSeries
   } catch (error) {
     console.error('[SITEMAP] Error en fetchAllSeriesForSitemap:', error.message)
     throw error

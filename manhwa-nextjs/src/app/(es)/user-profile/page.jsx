@@ -24,7 +24,7 @@ import {
   ThemeIcon,
   Tooltip,
   Center,
-  useMantineColorScheme,
+  useComputedColorScheme,
   Flex,
   rem,
   RingProgress,
@@ -165,9 +165,8 @@ export default function UserProfile() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const { colorScheme } = useMantineColorScheme();
+  const isDark = useComputedColorScheme() === 'dark';
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const isDark = colorScheme === 'dark';
 
   // Cargar datos del usuario
   useEffect(() => {

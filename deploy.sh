@@ -178,12 +178,14 @@ if [[ ! -f "${deploy_dir}/.env" ]]; then
   exit 1
 fi
 systemctl stop "${service_name}"
-# Conservar configuracion y cache generada entre despliegues.
+mkdir -p "${deploy_dir}/.next/cache"
+# Conservar solo la cache de compilacion, no artefactos de la version anterior.
+find "${deploy_dir}/.next" -mindepth 1 -maxdepth 1 \
+  ! -name 'cache' -exec rm -rf -- {} +
 find "${deploy_dir}" -mindepth 1 -maxdepth 1 \
   ! -name '.env' ! -name '.next' -exec rm -rf -- {} +
 tar -xzf /root/manhwa-nextjs-deploy.tar.gz -C "${deploy_dir}" \
   --exclude='./.env' --exclude='./.env.*' --exclude='.env' --exclude='.env.*'
-mkdir -p "${deploy_dir}/.next/cache"
 chown -R www-data:www-data "${deploy_dir}"
 systemctl start "${service_name}"
 systemctl --no-pager --full status "${service_name}"

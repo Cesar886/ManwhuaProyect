@@ -10,7 +10,7 @@ const commentController = require('../controllers/comment.controller');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/authorize');
 const { requireApiKeyOrAuth } = require('../middleware/apiKey');
-const { paginationValidation, idParam } = require('../middleware/validators');
+const { paginationValidation, uuidParam } = require('../middleware/validators');
 
 // Validaciones
 const createCommentValidation = [
@@ -61,34 +61,34 @@ router.post('/typing', requireApiKeyOrAuth, commentController.typingEvent);
 
 // Obtener las reacciones del usuario para los comentarios de un target
 router.get('/my-reactions', authenticate, commentController.getMyReactions);
-router.get('/:id', requireApiKeyOrAuth, optionalAuth, validate(idParam()), commentController.getComment);
-router.get('/:id/replies', requireApiKeyOrAuth, optionalAuth, validate([...idParam(), ...paginationValidation]), commentController.getCommentReplies);
+router.get('/:id', requireApiKeyOrAuth, optionalAuth, validate(uuidParam()), commentController.getComment);
+router.get('/:id/replies', requireApiKeyOrAuth, optionalAuth, validate([...uuidParam(), ...paginationValidation]), commentController.getCommentReplies);
 
 // Rutas protegidas
 router.use(authenticate);
 
 router.post('/', validate(createCommentValidation), commentController.createComment);
-router.put('/:id', validate(updateCommentValidation), commentController.updateComment);
-router.delete('/:id', validate(idParam()), commentController.deleteComment);
+router.put('/:id', validate([...uuidParam(), ...updateCommentValidation]), commentController.updateComment);
+router.delete('/:id', validate(uuidParam()), commentController.deleteComment);
 
 // Votos
-router.post('/:id/like', validate(idParam()), commentController.likeComment);
-router.post('/:id/dislike', validate(idParam()), commentController.dislikeComment);
-router.delete('/:id/vote', validate(idParam()), commentController.removeVote);
+router.post('/:id/like', validate(uuidParam()), commentController.likeComment);
+router.post('/:id/dislike', validate(uuidParam()), commentController.dislikeComment);
+router.delete('/:id/vote', validate(uuidParam()), commentController.removeVote);
 
 // Moderación
-router.post('/:id/pin', requirePermission('comments:pin'), validate(idParam()), commentController.pinComment);
-router.delete('/:id/pin', requirePermission('comments:pin'), validate(idParam()), commentController.unpinComment);
-router.post('/:id/hide', requirePermission('comments:hide'), validate(idParam()), commentController.hideComment);
+router.post('/:id/pin', requirePermission('comments:pin'), validate(uuidParam()), commentController.pinComment);
+router.delete('/:id/pin', requirePermission('comments:pin'), validate(uuidParam()), commentController.unpinComment);
+router.post('/:id/hide', requirePermission('comments:hide'), validate(uuidParam()), commentController.hideComment);
 
 // Reportar
 router.post('/:id/report', validate([
-    ...idParam(),
+    ...uuidParam(),
     body('reason').optional().trim().isLength({ max: 500 }).withMessage('Razón demasiado larga'),
 ]), commentController.reportComment);
 
 // Encuestas
-router.post('/:id/poll/vote', validate(idParam()), commentController.votePoll);
-router.get('/:id/poll/votes', optionalAuth, validate([...idParam(), ...paginationValidation]), commentController.getPollVotes);
+router.post('/:id/poll/vote', validate(uuidParam()), commentController.votePoll);
+router.get('/:id/poll/votes', optionalAuth, validate([...uuidParam(), ...paginationValidation]), commentController.getPollVotes);
 
 module.exports = router;

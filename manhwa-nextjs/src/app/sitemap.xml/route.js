@@ -72,6 +72,9 @@ export async function GET() {
   let allSeries
   try {
     allSeries = filterAvailableSeries(await fetchAllSeriesForSitemap())
+    if (allSeries.length === 0) {
+      return xmlServiceUnavailable('Series sitemap data temporarily unavailable')
+    }
   } catch {
     return xmlServiceUnavailable('Series sitemap data temporarily unavailable')
   }

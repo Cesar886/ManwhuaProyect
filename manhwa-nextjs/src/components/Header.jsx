@@ -30,6 +30,7 @@ import {
   Container,
   ThemeIcon,
   useMantineColorScheme,
+  useComputedColorScheme,
   Box,
 } from '@mantine/core';
 import { useRouter, usePathname } from 'next/navigation';
@@ -99,7 +100,8 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   const pathname = usePathname();
 
   const mantineColor = useMantineColorScheme();
-  const activeColorScheme = colorScheme ?? mantineColor.colorScheme;
+  const computedColorScheme = useComputedColorScheme();
+  const activeColorScheme = colorScheme ?? computedColorScheme;
   const activeToggle = toggleColorScheme ?? mantineColor.toggleColorScheme;
   const isDark = activeColorScheme === 'dark';
 

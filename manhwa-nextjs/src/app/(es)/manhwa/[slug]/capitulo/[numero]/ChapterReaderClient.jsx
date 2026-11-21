@@ -224,7 +224,7 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
 
   // Usar initialPages como estado inicial → disponible en el primer render (SSR)
   const { pages: hookPages, loading: chapterPagesLoading } = useChapterPages(slug, chapterNum);
-  const { series: hookSeries } = useSeriesDetail(slug);
+  const { series: hookSeries } = useSeriesDetail(slug, initialSeries);
 
   // Combinar datos SSR con datos del hook (hook puede actualizar tras hidratación)
   const pages = hookPages.length > 0 ? hookPages : initialPages;

@@ -22,7 +22,7 @@ import {
   ThemeIcon,
   Tooltip,
   Center,
-  useMantineColorScheme,
+  useComputedColorScheme,
   rem,
   TextInput,
   Textarea,
@@ -312,8 +312,7 @@ const ProfileSkeleton = ({ isDark, isMobile }) => (
 // COMPONENTE PRINCIPAL
 // ============================================
 export default function UserProfile() {
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = useComputedColorScheme() === 'dark';
   const { updateProfile, openLogin, user: authUser } = useAuth();
 
   const isMobile = useMediaQuery('(max-width: 48em)');
