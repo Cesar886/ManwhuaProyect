@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next'
 
+const isDevelopment = process.env.NODE_ENV !== 'production'
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: __dirname,
@@ -52,7 +54,9 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+          ...(!isDevelopment
+            ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }]
+            : []),
           // Bloquear acceso desde dominios externos a recursos (CORP)
           { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
           // Evitar ataques Spectre entre ventanas (COOP)
@@ -83,15 +87,15 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https:",
               "img-src * data: blob:",
               "font-src 'self' data: https:",
-              "connect-src 'self' https: wss:",
+              `connect-src 'self' https: wss:${isDevelopment ? ' http://localhost:3000 http://127.0.0.1:3000' : ''}`,
               "frame-src 'self' https://accounts.google.com https://*.google.com https://www.paypal.com https://*.paypal.com",
               "frame-ancestors 'none'",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self' https://www.paypal.com https://*.paypal.com",
               "worker-src 'self'",
-              // Bloquear mixed content (HTTP dentro de HTTPS)
-              'upgrade-insecure-requests',
+              // Bloquear mixed content (HTTP dentro de HTTPS) solo en producción.
+              ...(!isDevelopment ? ['upgrade-insecure-requests'] : []),
               // Reportar violaciones CSP (opcional: apunta a tu endpoint)
               // "report-uri /api/csp-report",
             ].join('; '),

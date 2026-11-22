@@ -26,6 +26,11 @@ export default function EnPrivacyPage() {
                 <li>Usage data (pages visited, reading preferences)</li>
                 <li>Device information (browser type, IP address)</li>
                 <li>Cookies for session management and preferences</li>
+                <li>
+                  If you enable push alerts, we store the subscription endpoint and technical keys,
+                  browser information, and registration date, associated with the series you follow
+                  on that device.
+                </li>
               </ul>
             </section>
 
@@ -42,6 +47,7 @@ export default function EnPrivacyPage() {
                 <li>Remember your reading preferences</li>
                 <li>Analyze usage patterns to enhance user experience</li>
                 <li>Communicate important updates about the service</li>
+                <li>Send new-chapter push alerts for series you choose to follow</li>
               </ul>
             </section>
 
@@ -56,6 +62,7 @@ export default function EnPrivacyPage() {
               <ul className={styles.sectionList}>
                 <li>Service providers who help operate our platform</li>
                 <li>Analytics services (Google Analytics) to understand usage</li>
+                <li>The browser push provider receives the endpoint to deliver alerts you requested</li>
                 <li>Legal authorities when required by law</li>
               </ul>
             </section>
@@ -83,6 +90,7 @@ export default function EnPrivacyPage() {
                 <li>Access your personal data</li>
                 <li>Request deletion of your account and data</li>
                 <li>Opt out of marketing communications</li>
+                <li>Stop following a series to remove its push alerts from that series page</li>
                 <li>Update your information</li>
               </ul>
             </section>

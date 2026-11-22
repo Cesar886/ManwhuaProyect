@@ -7,6 +7,7 @@ import { IconMessage, IconSend, IconCheck, IconAlertCircle, IconThumbUp, IconThu
 import api from '../api/client'
 import { endpoint } from '../config'
 import UserBadges from './UserBadges'
+import styles from './VipComment.module.css'
 import { getLevelInfo, LEVEL_CONFIG } from '../utils/xpSystem'
 
 const LEVEL_ICONS = { IconBook, IconSword, IconShield, IconCrown }
@@ -220,6 +221,7 @@ const buildOptimisticAuthor = (createdAuthor, fallbackUser) => {
     displayName: base.displayName ?? fallbackUser?.displayName ?? fallbackUser?.username ?? null,
     avatarUrl: base.avatarUrl ?? fallbackUser?.avatarUrl ?? null,
     role: base.role ?? fallbackUser?.role ?? null,
+    isPremium: base.isPremium ?? fallbackUser?.isPremium ?? false,
     experience: base.experience ?? fallbackUser?.experience ?? 0,
     streak: base.streak ?? 0,
     totalChapters: base.totalChapters ?? 0,
@@ -1666,10 +1668,17 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
               size="compact"
               showTooltip={true}
             />
-            <Card p={8} radius="md" style={{
-              background: 'rgba(0,0,0,0.02)',
-              border: '1px solid var(--border-color-subtle)',
-              borderLeft: `3px solid rgba(var(--accent-cyan), ${Math.max(0.2, 0.7 - depth * 0.12)})`,
+            <Card p={8} radius="md" className={r.author?.isPremium ? styles.vipCommentCard : undefined} style={{
+              background: r.author?.isPremium
+                ? 'linear-gradient(110deg, rgba(245, 158, 11, 0.025), rgba(245, 158, 11, 0.07), rgba(245, 158, 11, 0.025))'
+                : 'rgba(0,0,0,0.02)',
+              backgroundSize: r.author?.isPremium ? '220% 100%' : undefined,
+              border: r.author?.isPremium
+                ? '1px solid rgba(245, 158, 11, 0.25)'
+                : '1px solid var(--border-color-subtle)',
+              borderLeft: r.author?.isPremium
+                ? '1px solid rgba(245, 158, 11, 0.25)'
+                : `3px solid rgba(var(--accent-cyan), ${Math.max(0.2, 0.7 - depth * 0.12)})`,
               position: 'relative',
             }}>
               {/* Acción: menú pegado arriba a la derecha en replies */}
@@ -1709,10 +1718,32 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                     <Text
                       size="xs"
                       fw={600}
-                      style={{ color: 'var(--text-color)' }}
+                      className={r.author?.isPremium ? styles.vipUsername : undefined}
+                      style={r.author?.isPremium ? undefined : { color: 'var(--text-color)' }}
                     >
                       {r.author?.displayName || r.author?.username}
                     </Text>
+                    {r.author?.isPremium && (
+                      <Badge
+                        size="xs"
+                        variant="gradient"
+                        gradient={{ from: 'yellow', to: 'orange', deg: 90 }}
+                        leftSection={<IconCrown size={9} stroke={2.5} />}
+                        styles={{
+                          root: {
+                            height: 16,
+                            paddingInline: 5,
+                            fontSize: 8,
+                            fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            flexShrink: 0,
+                          },
+                          section: { marginRight: 2 },
+                        }}
+                      >
+                        VIP
+                      </Badge>
+                    )}
                     <Group spacing={6} style={{ alignItems: 'center', flexWrap: 'nowrap' }}>
                       <LevelBadge experience={r.author?.experience} />
                       <Text size="xs" style={{ color: 'var(--dimmed-text)' }}>{formatTimeAgo(r.createdAt)}</Text>
@@ -3023,15 +3054,23 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                     p={0}
                     radius="lg"
                     style={{
-                      background: 'linear-gradient(135deg, var(--subtle-bg) 0%, rgba(var(--accent-cyan), 0.01) 100%)',
-                      border: `1px solid var(--border-color-subtle)`,
+                      background: c.author?.isPremium
+                        ? 'linear-gradient(110deg, rgba(245, 158, 11, 0.025), rgba(245, 158, 11, 0.07), rgba(245, 158, 11, 0.025))'
+                        : 'linear-gradient(135deg, var(--subtle-bg) 0%, rgba(var(--accent-cyan), 0.01) 100%)',
+                      backgroundSize: c.author?.isPremium ? '220% 100%' : undefined,
+                      border: c.author?.isPremium
+                        ? '1px solid rgba(245, 158, 11, 0.25)'
+                        : '1px solid var(--border-color-subtle)',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      animation: `fadeInUp 0.4s ease ${index * 0.05}s both`,
+                      '--vip-entry-delay': c.author?.isPremium ? `${index * 0.05}s` : undefined,
+                      animation: c.author?.isPremium
+                        ? undefined
+                        : `fadeInUp 0.4s ease ${index * 0.05}s both`,
                     }}
-                    className="comment-card"
+                    className={`comment-card${c.author?.isPremium ? ` ${styles.vipCommentCard}` : ''}`}
                   >
                     
-                    <div style={{ padding: 10, position: 'relative' }}>
+                    <div style={{ padding: 10, position: 'relative', zIndex: c.author?.isPremium ? 1 : undefined }}>
                       {/* Acción: menú pegado arriba a la derecha */}
                       <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 6 }}>
                         <Menu withinPortal position="bottom-end" placement="end" withArrow>
@@ -3086,6 +3125,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                               </div>
 
                               <Text
+                                className={c.author?.isPremium ? styles.vipUsername : undefined}
                                 fw={600}
                                 size="sm"
                                 role="button"
@@ -3093,13 +3133,34 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                 onClick={() => handleReply(c.author, c.id ?? c._id)}
                                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleReply(c.author, c.id ?? c._id) } }}
                                 style={{
-                                  color: 'var(--text-color)',
+                                  color: c.author?.isPremium ? undefined : 'var(--text-color)',
                                   cursor: 'pointer',
                                   transition: 'color 0.15s ease'
                                 }}
                               >
                                 {c.author?.displayName || c.author?.username}
                               </Text>
+                              {c.author?.isPremium && (
+                                <Badge
+                                  size="xs"
+                                  variant="gradient"
+                                  gradient={{ from: 'yellow', to: 'orange', deg: 90 }}
+                                  leftSection={<IconCrown size={10} stroke={2.5} />}
+                                  styles={{
+                                    root: {
+                                      height: 18,
+                                      paddingInline: 6,
+                                      fontSize: 9,
+                                      fontWeight: 800,
+                                      letterSpacing: '0.04em',
+                                      flexShrink: 0,
+                                    },
+                                    // section: { marginRight: 3 },
+                                  }}
+                                >
+                                  VIP
+                                </Badge>
+                              )}
                             </Group>
 
                             <Group spacing={6} style={{ flexWrap: 'nowrap', alignItems: 'center' }}>

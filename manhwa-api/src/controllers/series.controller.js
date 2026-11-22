@@ -838,6 +838,7 @@ const getSeriesComments = async (req, res, next) => {
         // Obtener comentarios raíz
         const result = await query(
             `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+                    u.is_premium AS author_is_premium,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = -1) as user_disliked
              FROM comments c
@@ -867,6 +868,7 @@ const getSeriesComments = async (req, res, next) => {
                         displayName: c.display_name,
                         avatarUrl: c.avatar_url,
                         role: c.user_role,
+                        isPremium: c.author_is_premium,
                         experience: parseInt(c.experience) || 0,
                         // Estadísticas para badges
                         streak: badgeStats.streak,

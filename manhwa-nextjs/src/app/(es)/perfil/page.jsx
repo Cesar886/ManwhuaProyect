@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import {
   Container,
   Grid,
@@ -22,6 +23,7 @@ import {
   ThemeIcon,
   Tooltip,
   Center,
+  UnstyledButton,
   useComputedColorScheme,
   rem,
   TextInput,
@@ -31,6 +33,7 @@ import {
 } from '@mantine/core';
 import { useMediaQuery, useHover } from '@mantine/hooks';
 import { useAuth } from '@/contexts/AuthContext';
+import api, { followUser, unfollowUser, updateUserBanner } from '@/api/client';
 import {
   IconBook,
   IconUsers,
@@ -52,6 +55,9 @@ import {
   IconThumbUp,
   IconThumbDown,
   IconMessageCircle,
+  IconBrandX,
+  IconBrandInstagram,
+  IconBrandDiscord,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { getCurrentUser } from '@/api/client';
@@ -63,6 +69,9 @@ import styles from '@/app/(es)/user-profile/UserProfile.module.css';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { getLevelInfo, formatXp, getLevelGradient, LEVEL_CONFIG } from '@/utils/xpSystem';
+import { getSocialLinkErrors, getSocialLinkInput } from '@/utils/socialLinks';
+import SocialProfileLinks from '@/components/SocialProfileLinks';
+import UserFollowListModal from '@/components/UserFollowListModal';
 
 // ============================================
 // COMPONENTES AUXILIARES PREMIUM
@@ -313,15 +322,19 @@ const ProfileSkeleton = ({ isDark, isMobile }) => (
 // ============================================
 export default function UserProfile() {
   const isDark = useComputedColorScheme() === 'dark';
-  const { updateProfile, openLogin, user: authUser } = useAuth();
+  const { updateProfile, updateAvatar, openLogin, user: authUser } = useAuth();
+  const params = useParams();
+  const routeUsername = Array.isArray(params?.username) ? params.username[0] : params?.username;
 
   const isMobile = useMediaQuery('(max-width: 48em)');
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [avatars] = useState([]);
-  const [openAvatarPicker, setOpenAvatarPicker] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const bannerInputRef = useRef(null);
   const [copied, setCopied] = useState(false);
   const [recentReads, setRecentReads] = useState([]);
   const [recentLoading, setRecentLoading] = useState(true);
@@ -331,8 +344,16 @@ export default function UserProfile() {
 
   // Edit profile modal state
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ display_name: '', bio: '', location: '', show_active_reader: true });
+  const [editForm, setEditForm] = useState({
+    display_name: '',
+    bio: '',
+    location: '',
+    show_active_reader: true,
+    social_links: { x: '', instagram: '', discord: '' },
+  });
   const [editSaving, setEditSaving] = useState(false);
+  const [followListType, setFollowListType] = useState(null);
+  const [followBusy, setFollowBusy] = useState(false);
 
   // Community interactions state
   const [userRatings, setUserRatings] = useState([]);
@@ -345,20 +366,66 @@ export default function UserProfile() {
   const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
+    let active = true;
     setLoading(true);
-    getCurrentUser()
-      .then(res => {
-        const data = res?.data?.user || res?.user || res?.data || res;
-        if (data) {
-          setUser(data);
-          setAvatarSrc(data.avatar_url || data.avatar || null);
+    setUser(null);
+    const loadProfile = routeUsername
+      ? api.get('users', encodeURIComponent(routeUsername))
+      : getCurrentUser().then((response) => {
+        const currentUser = response?.data?.user || response?.user || response?.data || response;
+        if (!currentUser?.username) return null;
+        return api.get('users', encodeURIComponent(currentUser.username));
+      });
+
+    loadProfile
+      .then((res) => {
+        if (!res) {
+          if (active) setUser(null);
+          return;
+        }
+        const source = res?.data?.user || res?.user || res?.data || res;
+        if (!source || !active) return;
+        const data = routeUsername ? {
+          ...source,
+          display_name: source.displayName || source.display_name,
+          avatar_url: source.avatarUrl || source.avatar_url,
+          banner_url: source.bannerUrl || source.banner_url,
+          social_links: source.socialLinks || source.social_links,
+          followers_count: source.stats?.followers ?? source.followers_count,
+          following_count: source.stats?.following ?? source.following_count,
+          collections_count: source.stats?.collections ?? source.collections_count,
+          created_at: source.joinedAt || source.created_at,
+        } : source;
+        setUser(data);
+        setAvatarSrc(data.avatar_url || data.avatarUrl || data.avatar || null);
+      })
+      .catch((error) => {
+        if (active) {
+          console.error('Error loading profile:', error);
+          setUser(null);
         }
       })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [routeUsername]);
+
+  const currentUserId = authUser?.id || authUser?._id;
+  const profileUserId = user?.id || user?._id;
+  const isOwner = Boolean(currentUserId && profileUserId && String(currentUserId) === String(profileUserId));
 
   useEffect(() => {
+    if (!isOwner) {
+      setRecentReads([]);
+      setRecentLoading(false);
+      setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 });
+      setAchievementsData(null);
+      return;
+    }
+
+    setRecentLoading(true);
     getRecentProgress(6)
       .then(data => setRecentReads(Array.isArray(data) ? data : []))
       .catch(() => setRecentReads([]))
@@ -377,13 +444,18 @@ export default function UserProfile() {
     getUserAchievements()
       .then(data => setAchievementsData(data))
       .catch(() => setAchievementsData(null));
-  }, []);
+  }, [isOwner]);
 
   // SSE — presencia en tiempo real (marca al usuario como online mientras la conexión vive)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     // Stream que nos marca online en el servidor
+    if (!isOwner) {
+      setIsOnline(false);
+      return;
+    }
+
     const presenceStream = new EventSource(`${ENDPOINTS.presence}/stream`, { withCredentials: true });
     presenceStream.onopen = () => setIsOnline(true);
     presenceStream.onerror = () => { setIsOnline(false); presenceStream.close(); };
@@ -406,10 +478,11 @@ export default function UserProfile() {
       presenceStream.close();
       watchStream?.close();
     };
-  }, [user]);
+  }, [user, isOwner]);
 
   // SSE — actualizaciones de racha en tiempo real
   useEffect(() => {
+    if (!isOwner) return;
     if (typeof window === 'undefined') return;
 
     const url = getStreakStreamUrl();
@@ -431,7 +504,7 @@ export default function UserProfile() {
     es.onerror = () => { es.close(); };
 
     return () => { es.close(); };
-  }, []);
+  }, [isOwner]);
 
   // Fetch user ratings and comments when user is loaded
   useEffect(() => {
@@ -480,46 +553,119 @@ export default function UserProfile() {
   };
 
   const openEditModal = useCallback(() => {
-    if (!user) return;
+    if (!isOwner || !user) return;
     setEditForm({
       display_name: user.display_name || user.name || user.username || '',
       bio: user.bio || '',
       location: user.location || '',
       show_active_reader: user.showActiveReader ?? user.show_active_reader ?? true,
+      social_links: {
+        x: getSocialLinkInput('x', user.social_links?.x || user.socialLinks?.x),
+        instagram: getSocialLinkInput('instagram', user.social_links?.instagram || user.socialLinks?.instagram),
+        discord: getSocialLinkInput('discord', user.social_links?.discord || user.socialLinks?.discord),
+      },
     });
     setEditOpen(true);
-  }, [user]);
+  }, [user, isOwner]);
 
   const handleSaveProfile = async () => {
-    if (!user) return;
+    if (!isOwner || !user) return;
+    const socialErrors = getSocialLinkErrors(editForm.social_links);
+    if (Object.keys(socialErrors).length > 0) {
+      notifications.show({ title: 'Revisa tus redes sociales', message: Object.values(socialErrors)[0], color: 'red' });
+      return;
+    }
+
     setEditSaving(true);
     try {
       const userId = user.id || user._id;
-      await updateProfile(userId, {
+      const response = await updateProfile(userId, {
         display_name: editForm.display_name.trim(),
         bio: editForm.bio.trim(),
         location: editForm.location.trim(),
         show_active_reader: editForm.show_active_reader,
+        social_links: editForm.social_links,
       });
+      const savedSocialLinks = response?.data?.user?.socialLinks || editForm.social_links;
       setUser(prev => ({
         ...prev,
         display_name: editForm.display_name.trim(),
         bio: editForm.bio.trim(),
         location: editForm.location.trim(),
-        showActiveReader: editForm.show_active_reader,
+        show_active_reader: editForm.show_active_reader,
+        social_links: savedSocialLinks,
       }));
       setEditOpen(false);
       notifications.show({ title: 'Perfil actualizado', message: 'Tus cambios se guardaron correctamente', color: 'cyan', icon: <IconCheck size={16} /> });
-    } catch {
-      notifications.show({ title: 'Error', message: 'No se pudo actualizar tu perfil', color: 'red' });
+    } catch (error) {
+      notifications.show({ title: 'Error al guardar', message: error?.message || 'No se pudo actualizar tu perfil', color: 'red' });
     } finally {
       setEditSaving(false);
     }
   };
 
+  const handleAvatarSelection = async (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    event.currentTarget.value = '';
+
+    if (!file.type.startsWith('image/')) {
+      notifications.show({ title: 'Formato no válido', message: 'Selecciona un archivo de imagen.', color: 'red' });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      notifications.show({ title: 'Imagen demasiado grande', message: 'El tamaño máximo permitido es 10 MB.', color: 'red' });
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const uploadResponse = await api.upload('upload', 'avatar', formData);
+      const uploadedAvatarUrl = uploadResponse?.url || uploadResponse?.data?.url;
+      if (!uploadedAvatarUrl) throw new Error('El servidor no devolvió la dirección de la imagen.');
+
+      await updateAvatar(uploadedAvatarUrl);
+      setAvatarSrc(uploadedAvatarUrl);
+      setUser(prev => ({ ...prev, avatar_url: uploadedAvatarUrl }));
+      notifications.show({ title: 'Foto actualizada', message: 'Tu nueva foto de perfil ya está lista.', color: 'cyan', icon: <IconCheck size={16} /> });
+    } catch (error) {
+      notifications.show({ title: 'No se pudo actualizar la foto', message: error?.message || 'Inténtalo de nuevo.', color: 'red' });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleBannerSelection = async (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    event.currentTarget.value = '';
+    if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+      notifications.show({ title: 'Imagen no válida', message: 'Selecciona una imagen de hasta 10 MB.', color: 'red' });
+      return;
+    }
+
+    setBannerUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await api.upload('upload', 'image', formData);
+      const bannerUrl = response?.url || response?.data?.url;
+      if (!bannerUrl) throw new Error('El servidor no devolvió la dirección del banner.');
+      await updateUserBanner(bannerUrl);
+      setUser((current) => ({ ...current, banner_url: bannerUrl, bannerUrl }));
+      notifications.show({ title: 'Banner actualizado', message: 'Los visitantes ya pueden ver tu banner nuevo.', color: 'cyan' });
+    } catch (error) {
+      notifications.show({ title: 'No se pudo actualizar el banner', message: error?.message || 'Inténtalo de nuevo.', color: 'red' });
+    } finally {
+      setBannerUploading(false);
+    }
+  };
+
   const handleShare = async () => {
     const name = user?.display_name || user?.name || user?.username || 'Usuario';
-    const profileUrl = `${window.location.origin}/perfil`;
+    const profileUrl = `${window.location.origin}/users/${encodeURIComponent(user?.username || '')}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: `Perfil de ${name} - Manhwa Imperial`, url: profileUrl });
@@ -532,9 +678,56 @@ export default function UserProfile() {
     }
   };
 
+  const toggleFollow = async () => {
+    if (!authUser) {
+      openLogin();
+      return;
+    }
+    if (!user || isOwner || followBusy) return;
+
+    const wasFollowing = Boolean(user.isFollowing);
+    setFollowBusy(true);
+    setUser((current) => ({
+      ...current,
+      isFollowing: !wasFollowing,
+      followers_count: Math.max(0, Number(current.followers_count || 0) + (wasFollowing ? -1 : 1)),
+    }));
+
+    try {
+      const response = wasFollowing
+        ? await unfollowUser(user.username)
+        : await followUser(user.username);
+      if (typeof response?.data?.followersCount === 'number') {
+        setUser((current) => ({ ...current, followers_count: response.data.followersCount }));
+      }
+    } catch (error) {
+      setUser((current) => ({
+        ...current,
+        isFollowing: wasFollowing,
+        followers_count: Math.max(0, Number(current.followers_count || 0) + (wasFollowing ? 1 : -1)),
+      }));
+      notifications.show({ title: 'No se pudo actualizar el seguimiento', message: error?.message || 'Inténtalo de nuevo.', color: 'red' });
+    } finally {
+      setFollowBusy(false);
+    }
+  };
+
   if (loading) return <ProfileSkeleton isDark={isDark} isMobile={isMobile} />;
 
   if (!user) {
+    if (routeUsername) {
+      return (
+        <Box className={`${styles.pageContainer} ${isDark ? styles.darkMode : styles.lightMode}`}>
+          <Header />
+          <Container size="sm" pt={120}>
+            <Paper p="xl" radius="xl" ta="center" className={styles.errorCard}>
+              <Text size="xl" fw={800} className={styles.gradientText}>Perfil no disponible</Text>
+              <Text c="dimmed" mt="sm">Este usuario no existe o su perfil no está disponible.</Text>
+            </Paper>
+          </Container>
+        </Box>
+      );
+    }
     return (
       <Box className={`${styles.pageContainer} ${isDark ? styles.darkMode : styles.lightMode}`}>
         <Header />
@@ -568,8 +761,8 @@ export default function UserProfile() {
   const userRole = user.role || 'reader';
 
   const stats = {
-    followers: user.followers_count || user.stats?.followers || 0,
-    following: user.following_count || user.stats?.following || 0,
+    followers: user.followers_count ?? user.stats?.followers ?? 0,
+    following: user.following_count ?? user.stats?.following ?? 0,
     collections: user.collections_count || user.stats?.collections || 0,
     likes: user.likes_count || user.stats?.likes || 0,
     views: user.views_count || user.stats?.views || 0,
@@ -577,12 +770,26 @@ export default function UserProfile() {
     streak,
     bookmarks: user.bookmarks_count || user.stats?.bookmarks || 0,
   };
+  const socialLinks = user.social_links || user.socialLinks || {};
+  const hasSocialLinks = Boolean(socialLinks.x || socialLinks.instagram || socialLinks.discord);
 
   // Calcular información del nivel basado en experiencia
   const userExperience = user.experience || user.levelInfo?.currentXp || 0;
   const levelInfo = getLevelInfo(userExperience);
 
   const joinedDateLabel = new Date(userJoinDate).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+
+  const updateOwnFollowingCount = ({ isFollowing }) => {
+    if (!isOwner) return;
+    setUser(prev => {
+      const nextCount = Math.max(0, Number(prev.following_count ?? prev.stats?.following ?? 0) + (isFollowing ? 1 : -1));
+      return {
+        ...prev,
+        following_count: nextCount,
+        stats: { ...prev.stats, following: nextCount },
+      };
+    });
+  };
 
   const formatNum = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
 
@@ -610,8 +817,22 @@ export default function UserProfile() {
           radius={rem(24)}
           mb="xl"
           className={styles.headerCard}
-          style={{ position: 'relative', zIndex: 2 }}
+          style={{ position: 'relative', zIndex: 2, overflow: 'hidden' }}
         >
+          <Box
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: '0 0 auto',
+              height: 190,
+              backgroundImage: user.banner_url || user.bannerUrl
+                ? `linear-gradient(to bottom, rgba(15,23,42,0.12), rgba(15,23,42,0.82)), url("${user.banner_url || user.bannerUrl}")`
+                : 'linear-gradient(120deg, rgba(6,182,212,0.16), rgba(139,92,246,0.12))',
+              backgroundPosition: 'center',
+              backgroundSize: 'cover',
+              pointerEvents: 'none',
+            }}
+          />
           <Box className={styles.headerDecoration1} />
           <Box className={styles.headerDecoration2} />
 
@@ -634,12 +855,24 @@ export default function UserProfile() {
               {userBio !== 'Sin biografía' && (
                 <Text size="sm" c="dimmed" ta="center" maw={320} lh={1.6} style={{ opacity: 0.75 }}>{userBio}</Text>
               )}
+              <SocialProfileLinks links={socialLinks} />
+              {isOwner && !hasSocialLinks && <Button variant="subtle" size="xs" onClick={openEditModal}>Agregar redes sociales</Button>}
               <Group gap={rem(48)} justify="center" mt="md" className={styles.headerStatsGrid}>
-                <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" compact color="cyan" />
-                <ProfileMetric icon={IconFlame} value={streak} label="Racha" compact color="orange" />
+                <UnstyledButton onClick={() => setFollowListType('following')} aria-label={`Ver a quién sigue ${userName}`}>
+                  <ProfileMetric icon={IconUsers} value={formatNum(stats.following)} label="Siguiendo" compact />
+                </UnstyledButton>
+                <UnstyledButton onClick={() => setFollowListType('followers')} aria-label={`Ver seguidores de ${userName}`}>
+                  <ProfileMetric icon={IconUsers} value={formatNum(stats.followers)} label="Seguidores" compact />
+                </UnstyledButton>
+                {isOwner && <>
+                  <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" compact color="cyan" />
+                  <ProfileMetric icon={IconFlame} value={streak} label="Racha" compact color="orange" />
+                </>}
               </Group>
               <Group gap="xs" w="100%">
-                <PremiumButton leftSection={<IconPencil size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={openEditModal}>Editar</PremiumButton>
+                {isOwner
+                  ? <PremiumButton leftSection={<IconPencil size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={openEditModal}>Editar</PremiumButton>
+                  : authUser && <PremiumButton style={{ flex: 1 }} isDark={isDark} onClick={toggleFollow} loading={followBusy}>{user.isFollowing ? 'Siguiendo' : 'Seguir'}</PremiumButton>}
                 <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={15} /> : <IconShare size={15} />} style={{ flex: 1 }} isDark={isDark} onClick={handleShare}>
                   {copied ? 'Copiado' : 'Compartir'}
                 </PremiumButton>
@@ -670,13 +903,25 @@ export default function UserProfile() {
                 {userBio !== 'Sin biografía' && (
                   <Text size="sm" maw={540} lh={1.65} style={{ opacity: 0.75 }}>{userBio}</Text>
                 )}
+                <SocialProfileLinks links={socialLinks} />
+                {isOwner && !hasSocialLinks && <Button variant="subtle" size="xs" onClick={openEditModal} w="fit-content">Agregar redes sociales</Button>}
                 <Group gap={rem(56)} mt="lg" className={styles.headerStatsGrid}>
-                  <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" color="cyan" />
-                  <ProfileMetric icon={IconFlame} value={streak} label="Racha" color="orange" />
+                  <UnstyledButton onClick={() => setFollowListType('following')} aria-label={`Ver a quién sigue ${userName}`}>
+                    <ProfileMetric icon={IconUsers} value={formatNum(stats.following)} label="Siguiendo" />
+                  </UnstyledButton>
+                  <UnstyledButton onClick={() => setFollowListType('followers')} aria-label={`Ver seguidores de ${userName}`}>
+                    <ProfileMetric icon={IconUsers} value={formatNum(stats.followers)} label="Seguidores" />
+                  </UnstyledButton>
+                  {isOwner && <>
+                    <ProfileMetric icon={IconBook} value={formatNum(stats.chapters)} label="Caps. leídos" color="cyan" />
+                    <ProfileMetric icon={IconFlame} value={streak} label="Racha" color="orange" />
+                  </>}
                 </Group>
               </Stack>
               <Stack gap="sm" align="flex-end" style={{ flexShrink: 0 }}>
-                <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark} onClick={openEditModal}>Editar perfil</PremiumButton>
+                {isOwner
+                  ? <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark} onClick={openEditModal}>Editar perfil</PremiumButton>
+                  : authUser && <PremiumButton isDark={isDark} onClick={toggleFollow} loading={followBusy}>{user.isFollowing ? 'Siguiendo' : 'Seguir'}</PremiumButton>}
                 <PremiumButton variant="outline" leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} isDark={isDark} onClick={handleShare}>
                   {copied ? 'Copiado' : 'Compartir'}
                 </PremiumButton>
@@ -685,7 +930,7 @@ export default function UserProfile() {
           )}
         </Paper>
 
-
+        {isOwner && <>
         {/* CONTINUAR LEYENDO */}
         <Paper p={isMobile ? 'md' : 'xl'} radius="xl" mb="xl" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
           <Box style={{ position: 'absolute', top: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
@@ -844,6 +1089,7 @@ export default function UserProfile() {
             <VitrinaLogros stats={achievementsData?.stats || { streak }} isDark={isDark} isMobile={isMobile} />
           </Grid.Col>
         </Grid>
+        </>}
 
         {/* HISTORIAL DE INTERACCIONES (COMUNIDAD) */}
         <Paper p={isMobile ? 'md' : 'xl'} radius="xl" mb="xl" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
@@ -871,7 +1117,7 @@ export default function UserProfile() {
                 onClick={() => setCommunityTab('ratings')}
                 style={{ padding: '0.5rem 1.2rem' }}
               >
-                Mis Calificaciones ({userRatings.length})
+                Calificaciones ({userRatings.length})
               </Button>
               <Button
                 variant={communityTab === 'comments' ? 'filled' : 'subtle'}
@@ -882,7 +1128,7 @@ export default function UserProfile() {
                 onClick={() => setCommunityTab('comments')}
                 style={{ padding: '0.5rem 1.2rem' }}
               >
-                Mis Comentarios ({userComments.length})
+                Comentarios ({userComments.length})
               </Button>
             </Group>
 
@@ -1035,85 +1281,8 @@ export default function UserProfile() {
 
       </Container>
 
-      {/* MODAL AVATARES */}
-      <Modal
-        opened={openAvatarPicker}
-        onClose={() => setOpenAvatarPicker(false)}
-        title={
-          <Group gap="xs">
-            <ThemeIcon size="md" radius="xl" variant="gradient" gradient={{ from: 'cyan', to: 'teal' }}>
-              <IconCamera size={14} />
-            </ThemeIcon>
-            <Text fw={700}>Seleccionar avatar</Text>
-          </Group>
-        }
-        centered
-        radius="xl"
-        size={isMobile ? 'sm' : 'md'}
-        overlayProps={{ backgroundOpacity: 0.6, blur: 10 }}
-        classNames={{ content: `${styles.modalContent} ${isDark ? styles.darkMode : styles.lightMode}`, header: styles.modalHeader }}
-      >
-        <SimpleGrid cols={isMobile ? 3 : 4} spacing="sm">
-          {avatars.length === 0 ? (
-            <Text c="dimmed" ta="center" py="xl" style={{ gridColumn: '1 / -1' }}>
-              No hay avatares disponibles
-            </Text>
-          ) : avatars.map((a, i) => {
-            const AvatarCard = () => {
-              const { hovered, ref } = useHover();
-              const isSelected = avatarSrc === a;
-              return (
-                <Card
-                  ref={ref}
-                  key={i}
-                  p={6}
-                  radius="lg"
-                  className={styles.avatarPickerItem}
-                  style={{
-                    border: `2px solid ${isSelected ? 'var(--mantine-color-cyan-5)' : hovered ? 'var(--mantine-color-cyan-5)' : 'transparent'}`,
-                    transform: hovered ? 'scale(1.05)' : 'scale(1)',
-                    boxShadow: isSelected
-                      ? '0 4px 15px rgba(6, 182, 212, 0.4)'
-                      : hovered ? '0 8px 25px rgba(6, 182, 212, 0.3)' : 'none',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  }}
-                  onClick={async () => {
-                    try {
-                      const { default: api } = await import('@/api/client');
-                      await api.put('users', 'avatar', { avatarUrl: a });
-                      setAvatarSrc(a);
-                      setOpenAvatarPicker(false);
-                      setUser(prev => ({ ...prev, avatar_url: a }));
-                      notifications.show({ title: 'Avatar actualizado', message: 'Tu avatar se ha cambiado correctamente', color: 'cyan' });
-                    } catch (e) {
-                      console.error(e);
-                      notifications.show({ title: 'Error', message: 'No se pudo cambiar el avatar', color: 'red' });
-                    }
-                  }}
-                >
-                  <Avatar src={a} size="100%" radius="md" alt={`Avatar opción ${i + 1}`}>
-                    {getInitials()}
-                  </Avatar>
-                  {isSelected && (
-                    <ThemeIcon
-                      size={20}
-                      radius="xl"
-                      color="cyan"
-                      style={{ position: 'absolute', top: 4, right: 4 }}
-                    >
-                      <IconCheck size={12} />
-                    </ThemeIcon>
-                  )}
-                </Card>
-              );
-            };
-            return <AvatarCard key={i} />;
-          })}
-        </SimpleGrid>
-      </Modal>
-
       {/* MODAL EDITAR PERFIL */}
-      <Modal
+      {isOwner && <Modal
         opened={editOpen}
         onClose={() => setEditOpen(false)}
         title={
@@ -1136,16 +1305,31 @@ export default function UserProfile() {
           body: { padding: isMobile ? rem(16) : rem(24) },
         }}
       >
-        <Stack gap="xl">
+        <Stack gap="lg">
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarSelection}
+            hidden
+          />
+          <input
+            ref={bannerInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleBannerSelection}
+            hidden
+          />
           {/* Preview del avatar + nombre */}
           <Paper
-            p="lg"
-            radius="xl"
+            p={isMobile ? 'md' : 'lg'}
+            radius={rem(20)}
+            className={styles.profileEditorPreview}
             style={{
               background: isDark
-                ? 'linear-gradient(145deg, rgba(6,182,212,0.08) 0%, rgba(139,92,246,0.06) 100%)'
-                : 'linear-gradient(145deg, rgba(6,182,212,0.06) 0%, rgba(139,92,246,0.04) 100%)',
-              border: `1px solid ${isDark ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.2)'}`,
+                ? 'linear-gradient(135deg, rgba(6,182,212,0.13), rgba(139,92,246,0.12) 65%, rgba(15,23,42,0.2))'
+                : 'linear-gradient(135deg, rgba(6,182,212,0.1), rgba(139,92,246,0.08) 65%, rgba(255,255,255,0.8))',
+              border: `1px solid ${isDark ? 'rgba(148,163,184,0.2)' : 'rgba(6,182,212,0.18)'}`,
             }}
           >
             <Group gap="lg" align="center">
@@ -1165,7 +1349,7 @@ export default function UserProfile() {
                   {getInitials()}
                 </Avatar>
                 <Tooltip
-                  label={<Text size="sm" fw={600}>Cambiar avatar</Text>}
+                  label={<Text size="sm" fw={600}>{avatarUploading ? 'Subiendo foto...' : 'Cambiar foto de perfil'}</Text>}
                   withArrow
                   position="top"
                   styles={tooltipStyles(isDark)}
@@ -1178,7 +1362,9 @@ export default function UserProfile() {
                     pos="absolute"
                     bottom={-2}
                     right={-2}
-                    onClick={() => { setEditOpen(false); setTimeout(() => setOpenAvatarPicker(true), 200); }}
+                    loading={avatarUploading}
+                    disabled={avatarUploading}
+                    onClick={() => avatarInputRef.current?.click()}
                     style={{ border: `2px solid ${isDark ? '#1e293b' : '#fff'}`, zIndex: 2 }}
                   >
                     <IconCamera size={12} />
@@ -1190,25 +1376,30 @@ export default function UserProfile() {
                   {editForm.display_name || 'Tu nombre'}
                 </Text>
                 <Text size="sm" c="dimmed">@{userUsername}</Text>
+                <Text size="xs" c="dimmed">Tu perfil, a tu manera.</Text>
               </Stack>
             </Group>
           </Paper>
+          <Button
+            variant="light"
+            color="cyan"
+            leftSection={<IconCamera size={16} />}
+            loading={bannerUploading}
+            onClick={() => bannerInputRef.current?.click()}
+          >
+            Cambiar banner
+          </Button>
 
           {/* Campos del formulario */}
           <Stack gap="md">
-            <Switch
-              label="Mostrarme como lector activo"
-              description="Permite que otros usuarios vean tu avatar mientras estás en el detalle de un manhwa o leyendo un capítulo."
-              checked={editForm.show_active_reader}
-              onChange={(event) => setEditForm((prev) => ({ ...prev, show_active_reader: event.currentTarget.checked }))}
-              color="yellow"
-              size="md"
-            />
             <TextInput
               label={<Text size="sm" fw={600} mb={4}>Nombre para mostrar</Text>}
               placeholder="¿Cómo te llamas?"
               value={editForm.display_name}
-              onChange={(e) => setEditForm(prev => ({ ...prev, display_name: e.currentTarget.value }))}
+              onChange={(e) => {
+                const displayName = e.currentTarget.value;
+                setEditForm(prev => ({ ...prev, display_name: displayName }));
+              }}
               maxLength={50}
               radius="xl"
               size="md"
@@ -1229,7 +1420,10 @@ export default function UserProfile() {
                 label={<Text size="sm" fw={600} mb={4}>Biografía</Text>}
                 placeholder="Cuéntale al mundo sobre ti, tus manhwas favoritos..."
                 value={editForm.bio}
-                onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.currentTarget.value }))}
+                onChange={(e) => {
+                  const bio = e.currentTarget.value;
+                  setEditForm(prev => ({ ...prev, bio }));
+                }}
                 maxLength={200}
                 minRows={3}
                 maxRows={5}
@@ -1259,7 +1453,10 @@ export default function UserProfile() {
               label={<Text size="sm" fw={600} mb={4}>Ubicación</Text>}
               placeholder="Ciudad, País"
               value={editForm.location}
-              onChange={(e) => setEditForm(prev => ({ ...prev, location: e.currentTarget.value }))}
+              onChange={(e) => {
+                const location = e.currentTarget.value;
+                setEditForm(prev => ({ ...prev, location }));
+              }}
               maxLength={60}
               radius="xl"
               size="md"
@@ -1272,6 +1469,70 @@ export default function UserProfile() {
                 },
               }}
             />
+            <Stack gap="xs">
+              <Text fw={700} size="sm">Redes sociales</Text>
+              <TextInput
+                label="X"
+                placeholder="@usuario o https://x.com/usuario"
+                value={editForm.social_links.x}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, x: value } }));
+                }}
+                maxLength={256}
+                leftSection={<IconBrandX size={16} />}
+                error={getSocialLinkErrors(editForm.social_links).x}
+                radius="xl"
+              />
+              <TextInput
+                label="Instagram"
+                placeholder="@usuario o https://instagram.com/usuario"
+                value={editForm.social_links.instagram}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: value } }));
+                }}
+                maxLength={256}
+                leftSection={<IconBrandInstagram size={16} />}
+                error={getSocialLinkErrors(editForm.social_links).instagram}
+                radius="xl"
+              />
+              <TextInput
+                label="Discord"
+                placeholder="@usuario"
+                value={editForm.social_links.discord}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, discord: value } }));
+                }}
+                maxLength={33}
+                leftSection={<IconBrandDiscord size={16} />}
+                error={getSocialLinkErrors(editForm.social_links).discord}
+                radius="xl"
+              />
+              <Text size="xs" c="dimmed">Deja vacío cualquier campo para eliminar esa red social.</Text>
+            </Stack>
+            <Paper
+              p="md"
+              radius="lg"
+              className={styles.profileEditorPreference}
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.035)' : 'rgba(15,23,42,0.025)',
+                border: `1px solid ${isDark ? 'rgba(148,163,184,0.13)' : 'rgba(15,23,42,0.07)'}`,
+              }}
+            >
+              <Switch
+                label={<Text fw={600} size="sm">Mostrarme como lector activo</Text>}
+                description="Permite que otros usuarios vean tu avatar mientras lees."
+                checked={editForm.show_active_reader}
+                onChange={(event) => {
+                  const showActiveReader = event.currentTarget.checked;
+                  setEditForm((prev) => ({ ...prev, show_active_reader: showActiveReader }));
+                }}
+                color="yellow"
+                size="md"
+              />
+            </Paper>
           </Stack>
 
           {/* Botones de acción */}
@@ -1299,7 +1560,15 @@ export default function UserProfile() {
             </PremiumButton>
           </Group>
         </Stack>
-      </Modal>
+      </Modal>}
+
+      <UserFollowListModal
+        opened={Boolean(followListType)}
+        onClose={() => setFollowListType(null)}
+        username={userUsername}
+        type={followListType}
+        onFollowChange={updateOwnFollowingCount}
+      />
     </Box>
   );
 }

@@ -11,12 +11,15 @@ const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requirePermission, requireRole } = require('../middleware/authorize');
 const { requireApiKeyOrAuth } = require('../middleware/apiKey');
 const { paginationValidation } = require('../middleware/validators');
+const { normalizeSocialLinks } = require('../utils/socialLinks');
 
 // Validaciones
 const updateProfileValidation = [
     body('displayName')
         .optional()
         .trim()
+        .notEmpty()
+        .withMessage('El nombre no puede estar vacío')
         .isLength({ max: 100 })
         .withMessage('El nombre no puede exceder 100 caracteres'),
     body('bio')
@@ -28,11 +31,22 @@ const updateProfileValidation = [
         .optional()
         .trim()
         .isLength({ max: 100 }),
+    body('showActiveReader')
+        .optional()
+        .isBoolean()
+        .withMessage('La preferencia de lector activo debe ser booleana')
+        .toBoolean(),
     body('website')
         .optional()
         .trim()
         .isURL()
         .withMessage('URL inválida'),
+    body('socialLinks')
+        .optional({ nullable: true })
+        .custom(value => {
+            normalizeSocialLinks(value);
+            return true;
+        }),
     body('themePrimaryColor')
         .optional()
         .matches(/^#[0-9A-Fa-f]{6}$/)
@@ -76,8 +90,8 @@ router.get('/:username/collections', requireApiKeyOrAuth, validate([...usernameP
 router.get('/:username/activity', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserActivity);
 router.get('/:username/ratings', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserRatings);
 router.get('/:username/comments', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserComments);
-router.get('/:username/followers', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowers);
-router.get('/:username/following', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowing);
+router.get('/:username/followers', requireApiKeyOrAuth, optionalAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowers);
+router.get('/:username/following', requireApiKeyOrAuth, optionalAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowing);
 
 // Rutas protegidas
 router.use(authenticate);

@@ -5,6 +5,7 @@
 const { query, transaction } = require('../config/database');
 const { canModifyUser, getAssignableRoles } = require('../config/roles');
 const usernameValidator = require('../utils/usernameValidator');
+const { normalizeSocialLinks } = require('../utils/socialLinks');
 const { getLevelInfo, getXpConfig, LEVEL_CONFIG } = require('../utils/xpSystem');
 
 /**
@@ -127,7 +128,7 @@ const getProfile = async (req, res, next) => {
 
         const result = await query(
             `SELECT u.id, u.username, u.display_name, u.avatar_url, u.banner_url,
-                    u.bio, u.location, u.website, u.role, u.is_premium,
+                    u.bio, u.location, u.website, u.social_links, u.role, u.is_premium,
                     u.level, u.experience, u.followers_count, u.following_count,
                     u.collections_count, u.theme_primary_color, u.theme_accent_color,
                     u.created_at,
@@ -177,6 +178,7 @@ const getProfile = async (req, res, next) => {
                     bio: user.bio,
                     location: user.location,
                     website: user.website,
+                    socialLinks: user.social_links || {},
                     role: user.role,
                     isPremium: user.is_premium,
                     level: user.level,
@@ -257,7 +259,10 @@ const validateUsername = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
     try {
-        const { displayName, bio, location, website, themePrimaryColor, themeAccentColor, colorScheme } = req.body;
+        const { displayName, bio, location, website, socialLinks, themePrimaryColor, themeAccentColor, colorScheme, showActiveReader } = req.body;
+        const normalizedSocialLinks = typeof socialLinks === 'undefined'
+            ? null
+            : JSON.stringify(normalizeSocialLinks(socialLinks || {}));
 
         const result = await query(
             `UPDATE users 
@@ -268,11 +273,13 @@ const updateProfile = async (req, res, next) => {
                  theme_primary_color = COALESCE($5, theme_primary_color),
                  theme_accent_color = COALESCE($6, theme_accent_color),
                  theme_mode = COALESCE($7, theme_mode),
+                 show_active_reader = COALESCE($8, show_active_reader),
+                 social_links = COALESCE($9::jsonb, social_links),
                  updated_at = NOW()
-             WHERE id = $8
+             WHERE id = $10
              RETURNING id, username, display_name, bio, location, website,
-                       theme_primary_color, theme_accent_color, theme_mode`,
-            [displayName, bio, location, website, themePrimaryColor, themeAccentColor, colorScheme, req.user.id]
+                       theme_primary_color, theme_accent_color, theme_mode, show_active_reader, social_links`,
+            [displayName, bio, location, website, themePrimaryColor, themeAccentColor, colorScheme, showActiveReader, normalizedSocialLinks, req.user.id]
         );
 
         const user = result.rows[0];
@@ -282,7 +289,10 @@ const updateProfile = async (req, res, next) => {
             message: 'Perfil actualizado',
             data: {
                 user: {
+                    id: user.id,
+                    username: user.username,
                     displayName: user.display_name,
+                    display_name: user.display_name,
                     bio: user.bio,
                     location: user.location,
                     website: user.website,
@@ -290,7 +300,11 @@ const updateProfile = async (req, res, next) => {
                         primaryColor: user.theme_primary_color,
                         accentColor: user.theme_accent_color,
                         colorScheme: user.theme_mode
-                    }
+                    },
+                    showActiveReader: user.show_active_reader,
+                    show_active_reader: user.show_active_reader,
+                    socialLinks: user.social_links || {},
+                    social_links: user.social_links || {}
                 }
             }
         });
@@ -377,7 +391,7 @@ const followUser = async (req, res, next) => {
 
         // Obtener ID del usuario a seguir
         const userResult = await query(
-            'SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL',
+            "SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL AND status = 'active'",
             [username.toLowerCase()]
         );
 
@@ -390,42 +404,55 @@ const followUser = async (req, res, next) => {
 
         const targetUserId = userResult.rows[0].id;
 
-        if (targetUserId === req.user.id) {
+        if (String(targetUserId) === String(req.user.id)) {
             return res.status(400).json({
                 success: false,
                 message: 'No puedes seguirte a ti mismo'
             });
         }
 
-        // Crear follow
-        await query(
-            `INSERT INTO user_follows (follower_id, following_id)
-             VALUES ($1, $2)
-             ON CONFLICT DO NOTHING`,
-            [req.user.id, targetUserId]
-        );
+        const counts = await transaction(async (client) => {
+            const followResult = await client.query(
+                `INSERT INTO user_follows (follower_id, following_id)
+                 VALUES ($1, $2)
+                 ON CONFLICT DO NOTHING
+                 RETURNING follower_id`,
+                [req.user.id, targetUserId]
+            );
 
-        // Crear notificación
-        await query(
-            `INSERT INTO notifications (user_id, type, title, message, data)
-             VALUES ($1, 'new_follower', 'Nuevo seguidor', $2, $3)`,
-            [
-                targetUserId,
-                `${req.user.username} te ha seguido`,
-                JSON.stringify({ followerId: req.user.id, followerUsername: req.user.username })
-            ]
-        );
+            if (followResult.rowCount > 0) {
+                await client.query(
+                    `INSERT INTO notifications (user_id, type, title, message, data)
+                     VALUES ($1, 'new_follower', 'Nuevo seguidor', $2, $3)`,
+                    [
+                        targetUserId,
+                        `${req.user.username} te ha seguido`,
+                        JSON.stringify({ followerId: req.user.id, followerUsername: req.user.username })
+                    ]
+                );
 
-        // Registrar actividad
-        await query(
-            `INSERT INTO activities (user_id, action, target_type, target_id, metadata)
-             VALUES ($1, 'follow', 'user', $2, $3)`,
-            [req.user.id, targetUserId, JSON.stringify({ username })]
-        );
+                await client.query(
+                    `INSERT INTO activities (user_id, action, target_type, target_id, metadata)
+                     VALUES ($1, 'follow', 'user', $2, $3)`,
+                    [req.user.id, targetUserId, JSON.stringify({ username })]
+                );
+            }
+
+            const countResult = await client.query(
+                'SELECT followers_count, following_count FROM users WHERE id = $1',
+                [targetUserId]
+            );
+            return countResult.rows[0];
+        });
 
         res.json({
             success: true,
-            message: `Ahora sigues a ${username}`
+            message: `Ahora sigues a ${username}`,
+            data: {
+                isFollowing: true,
+                followersCount: counts.followers_count,
+                followingCount: counts.following_count
+            }
         });
     } catch (error) {
         next(error);
@@ -441,7 +468,7 @@ const unfollowUser = async (req, res, next) => {
         const { username } = req.params;
 
         const userResult = await query(
-            'SELECT id FROM users WHERE username = $1',
+            "SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL AND status = 'active'",
             [username.toLowerCase()]
         );
 
@@ -454,14 +481,26 @@ const unfollowUser = async (req, res, next) => {
 
         const targetUserId = userResult.rows[0].id;
 
-        await query(
-            'DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2',
-            [req.user.id, targetUserId]
-        );
+        const counts = await transaction(async (client) => {
+            await client.query(
+                'DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2',
+                [req.user.id, targetUserId]
+            );
+            const countResult = await client.query(
+                'SELECT followers_count, following_count FROM users WHERE id = $1',
+                [targetUserId]
+            );
+            return countResult.rows[0];
+        });
 
         res.json({
             success: true,
-            message: `Dejaste de seguir a ${username}`
+            message: `Dejaste de seguir a ${username}`,
+            data: {
+                isFollowing: false,
+                followersCount: counts.followers_count,
+                followingCount: counts.following_count
+            }
         });
     } catch (error) {
         next(error);
@@ -497,13 +536,15 @@ const getUserFollowers = async (req, res, next) => {
 
         // Obtener seguidores
         const result = await query(
-            `SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.is_premium
+            `SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.is_premium,
+                    EXISTS(SELECT 1 FROM user_follows mine
+                           WHERE mine.follower_id = $4 AND mine.following_id = u.id) AS is_following
              FROM user_follows uf
              JOIN users u ON uf.follower_id = u.id
              WHERE uf.following_id = $1 AND u.deleted_at IS NULL
              ORDER BY uf.created_at DESC
              LIMIT $2 OFFSET $3`,
-            [userId, limit, offset]
+            [userId, limit, offset, req.user?.id || null]
         );
 
         res.json({
@@ -515,7 +556,8 @@ const getUserFollowers = async (req, res, next) => {
                     displayName: u.display_name,
                     avatarUrl: u.avatar_url,
                     bio: u.bio,
-                    isPremium: u.is_premium
+                    isPremium: u.is_premium,
+                    isFollowing: u.is_following
                 })),
                 pagination: {
                     page,
@@ -557,13 +599,15 @@ const getUserFollowing = async (req, res, next) => {
         const total = userResult.rows[0].following_count;
 
         const result = await query(
-            `SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.is_premium
+            `SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.is_premium,
+                    EXISTS(SELECT 1 FROM user_follows mine
+                           WHERE mine.follower_id = $4 AND mine.following_id = u.id) AS is_following
              FROM user_follows uf
              JOIN users u ON uf.following_id = u.id
              WHERE uf.follower_id = $1 AND u.deleted_at IS NULL
              ORDER BY uf.created_at DESC
              LIMIT $2 OFFSET $3`,
-            [userId, limit, offset]
+            [userId, limit, offset, req.user?.id || null]
         );
 
         res.json({
@@ -575,7 +619,8 @@ const getUserFollowing = async (req, res, next) => {
                     displayName: u.display_name,
                     avatarUrl: u.avatar_url,
                     bio: u.bio,
-                    isPremium: u.is_premium
+                    isPremium: u.is_premium,
+                    isFollowing: u.is_following
                 })),
                 pagination: {
                     page,
@@ -1106,8 +1151,8 @@ const updatePartialUser = async (req, res, next) => {
         const { id } = req.params;
         const { theme_mode, show_active_reader } = req.body;
 
-        // Verificar autorización (mismo usuario o admin)
-        if (req.user.id !== id && req.user.role !== 'admin') {
+        // Profile updates are owner-only, including requests from administrators.
+        if (String(req.user.id) !== String(id)) {
             return res.status(403).json({
                 success: false,
                 message: 'No tienes permiso para modificar este usuario'
@@ -1173,7 +1218,7 @@ const getUserRatings = async (req, res, next) => {
         const offset = (page - 1) * limit;
 
         const userResult = await query(
-            'SELECT id, visitor_id FROM users WHERE username = $1 AND deleted_at IS NULL',
+            'SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL',
             [username.toLowerCase()]
         );
 
@@ -1185,7 +1230,6 @@ const getUserRatings = async (req, res, next) => {
         }
 
         const userId = userResult.rows[0].id;
-        const visitorId = userResult.rows[0].visitor_id;
 
         // 1. Obtener ratings de SERIES (tabla ratings)
         const seriesRatings = await query(
@@ -1199,20 +1243,17 @@ const getUserRatings = async (req, res, next) => {
             [userId]
         );
 
-        // 2. Obtener ratings de CAPÍTULOS (tabla chapter_votes) si tiene visitor_id
-        let chapterRatings = { rows: [] };
-        if (visitorId) {
-            chapterRatings = await query(
-                `SELECT cv.id, cv.rating * 2 as score, NULL as review, cv.created_at, cv.updated_at,
-                        s.id as series_id, s.title as series_title, cv.series_slug as series_slug,
-                        s.cover_url, 'chapter' as rating_type, cv.chapter_number
-                 FROM chapter_votes cv
-                 JOIN series s ON s.slug = cv.series_slug
-                 WHERE cv.visitor_id = $1
-                 ORDER BY cv.updated_at DESC`,
-                [visitorId]
-            );
-        }
+        // 2. Obtener ratings de capítulos asociados a la cuenta autenticada.
+        const chapterRatings = await query(
+            `SELECT cv.id, cv.rating * 2 as score, NULL as review, cv.created_at, cv.updated_at,
+                    s.id as series_id, s.title as series_title, cv.series_slug as series_slug,
+                    s.cover_url, 'chapter' as rating_type, cv.chapter_number
+             FROM chapter_votes cv
+             JOIN series s ON s.slug = cv.series_slug
+             WHERE cv.user_id = $1
+             ORDER BY cv.updated_at DESC`,
+            [userId]
+        );
 
         // Combinar y ordenar por fecha
         const allRatings = [...seriesRatings.rows, ...chapterRatings.rows]
@@ -1300,7 +1341,7 @@ const getUserComments = async (req, res, next) => {
                     ch.number as chapter_number
              FROM comments c
              LEFT JOIN series s ON c.target_type = 'series' AND c.target_id = s.id
-             LEFT JOIN chapters ch ON c.target_type = 'chapter' AND c.target_id = ch.id
+             LEFT JOIN chapters ch ON c.target_type = 'chapter' AND c.target_id::text = ch.id::text
              LEFT JOIN series s2 ON ch.series_id = s2.id
              WHERE c.user_id = $1 AND c.status = 'visible'
              ORDER BY c.created_at DESC

@@ -22,6 +22,16 @@ const { isAllowedSearchBot } = require('./security');
  * Si ninguno es válido, retorna 401.
  */
 const requireApiKeyOrAuth = (req, res, next) => {
+    // El catálogo de Spaces es de solo lectura y público; permitir cargarlo
+    // localmente incluso si el bundle del frontend conserva una API key vieja.
+    if (
+        process.env.NODE_ENV === 'development' &&
+        req.method === 'GET' &&
+        req.path.startsWith('/manhwas')
+    ) {
+        return next();
+    }
+
     // 1. Verificar API key
     const apiKey = req.headers['x-api-key'];
     if (apiKey && process.env.INTERNAL_API_KEY && apiKey === process.env.INTERNAL_API_KEY) {

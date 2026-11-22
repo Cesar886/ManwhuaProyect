@@ -24,6 +24,7 @@ const buildAuthorWithBadges = async (user, dbRow = null, timezone = null) => {
         displayName: user?.displayName ?? user?.display_name ?? dbRow?.display_name ?? null,
         avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? dbRow?.avatar_url ?? null,
         role: user?.role ?? dbRow?.user_role ?? null,
+        isPremium: user?.isPremium ?? dbRow?.author_is_premium ?? dbRow?.is_premium ?? false,
         experience: parseInt(user?.experience ?? dbRow?.experience ?? 0) || 0,
         streak: badgeStats.streak,
         totalChapters: badgeStats.totalChapters,
@@ -45,6 +46,7 @@ const getComment = async (req, res, next) => {
         // ✅ OPTIMIZADO: Una sola query con LEFT JOIN para encuestas y opciones
         const result = await query(
             `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+                    u.is_premium AS author_is_premium,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $2 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $2 AND comment_id = c.id AND vote_type = -1) as user_disliked,
                     -- Datos de encuesta (si existe)
@@ -175,6 +177,7 @@ const getCommentReplies = async (req, res, next) => {
         
         const result = await query(
             `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+                    u.is_premium AS author_is_premium,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = -1) as user_disliked
              FROM comments c

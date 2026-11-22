@@ -2,7 +2,9 @@ const LOCAL = process.env.NEXT_PUBLIC_API_URL_LOCAL
 const PROD = process.env.NEXT_PUBLIC_API_URL_PROD
 const MODE = process.env.NODE_ENV
 
-export const API_BASE = MODE === 'production' ? (PROD || LOCAL) : (LOCAL || PROD)
+export const API_BASE = MODE === 'production'
+  ? (PROD || LOCAL)
+  : (LOCAL || 'http://localhost:3000/api')
 
 export const apiUrl = (path = '') => {
   const base = (API_BASE || '').replace(/\/$/, '')

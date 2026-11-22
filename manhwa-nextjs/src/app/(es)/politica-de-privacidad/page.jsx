@@ -61,6 +61,11 @@ export default function PrivacidadPage() {
                                 <li>Tipo de navegador y dispositivo</li>
                                 <li>Páginas visitadas y tiempo de permanencia</li>
                                 <li>Cookies esenciales para el funcionamiento del sitio</li>
+                                <li>
+                                    Si activa avisos push, guardamos el endpoint y las claves técnicas de la
+                                    suscripción, el navegador y la fecha de registro, asociados a los manhwas
+                                    que elija seguir en ese dispositivo.
+                                </li>
                             </ul>
                         </section>
 
@@ -75,6 +80,7 @@ export default function PrivacidadPage() {
                                 <li>Personalizar la experiencia del usuario (historial, favoritos)</li>
                                 <li>Prevenir abuso y garantizar la seguridad de la plataforma</li>
                                 <li>Comunicaciones relacionadas con el servicio (si el usuario lo solicita)</li>
+                                <li>Enviar avisos push de nuevos capítulos de los manhwas que decida seguir</li>
                                 <li>Análisis agregados y anónimos para mejorar la plataforma</li>
                             </ul>
                         </section>
@@ -99,6 +105,10 @@ export default function PrivacidadPage() {
                                 <li>
                                     Con proveedores de servicios que nos asisten en la operación (hosting, analytics),
                                     bajo acuerdos de confidencialidad
+                                </li>
+                                <li>
+                                    El proveedor push del navegador recibe el endpoint para entregar los avisos
+                                    que el usuario haya solicitado
                                 </li>
                             </ul>
                         </section>
@@ -144,6 +154,7 @@ export default function PrivacidadPage() {
                                 <li>Solicitar la corrección de datos inexactos</li>
                                 <li>Solicitar la eliminación de su cuenta y datos asociados</li>
                                 <li>Oponerse al procesamiento de sus datos</li>
+                                <li>Dejar de seguir un manhwa para eliminar sus avisos push desde su página</li>
                             </ul>
                             <p className={styles.sectionText}>
                                 Para ejercer estos derechos, contacte a{' '}

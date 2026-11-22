@@ -220,7 +220,8 @@ const getChapterComments = async (req, res, next) => {
         const chapter = chapterResult.rows[0];
 
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience
+            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+                    u.is_premium AS author_is_premium
              FROM comments c
              JOIN users u ON c.user_id = u.id
              WHERE c.target_type = 'chapter' AND c.target_id = $1
@@ -247,6 +248,7 @@ const getChapterComments = async (req, res, next) => {
                         displayName: c.display_name,
                         avatarUrl: c.avatar_url,
                         role: c.user_role,
+                        isPremium: c.author_is_premium,
                         experience: parseInt(c.experience) || 0,
                         // Estadísticas para badges
                         streak: badgeStats.streak,
@@ -600,13 +602,16 @@ const rateChapter = async (req, res, next) => {
         const chapterNumParsed = parseFloat(chapterNum);
         const userId = req.user?.id || null;
 
-        // Upsert por visitante, compatible con el esquema desplegado de chapter_votes.
+        // Asociar el voto al usuario autenticado sin perder su atribución si luego vota como visitante.
         await query(
-            `INSERT INTO chapter_votes (series_slug, chapter_number, visitor_id, rating)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO chapter_votes (series_slug, chapter_number, visitor_id, rating, user_id)
+             VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT (series_slug, chapter_number, visitor_id)
-             DO UPDATE SET rating = EXCLUDED.rating, updated_at = NOW()`,
-            [seriesSlug, chapterNumParsed, visitorId, rating]
+             DO UPDATE SET
+                rating = EXCLUDED.rating,
+                user_id = COALESCE(EXCLUDED.user_id, chapter_votes.user_id),
+                updated_at = NOW()`,
+            [seriesSlug, chapterNumParsed, visitorId, rating, userId]
         );
 
         // Sistema de cuarentena: detectar picos de votos

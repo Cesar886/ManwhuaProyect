@@ -4,13 +4,26 @@
  */
 
 const { Pool } = require('pg');
+const { isIP } = require('net');
 const logger = require('../utils/logger');
 
 // ============================================
 // CONFIGURACIÓN OPTIMIZADA DEL POOL
 // ============================================
+const dbHost = process.env.DB_HOST || 'localhost';
+const normalizedDbHost = dbHost.toLowerCase();
+const isLoopbackDbHost = normalizedDbHost === 'localhost'
+    || normalizedDbHost === '::1'
+    || (isIP(dbHost) === 4 && dbHost.split('.')[0] === '127');
+
+if (process.env.NODE_ENV === 'development' && !isLoopbackDbHost) {
+    throw new Error(
+        'En desarrollo, DB_HOST debe apuntar a localhost o a una dirección loopback para evitar escribir en producción.'
+    );
+}
+
 const poolConfig = {
-    host: process.env.DB_HOST || 'localhost',
+    host: dbHost,
     port: parseInt(process.env.DB_PORT) || 5432,
     database: process.env.DB_NAME || 'manhwa_db',
     user: process.env.DB_USER || 'manhwa_app',

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-import { login as apiLogin, googleLogin as apiGoogleLogin, discordLogin as apiDiscordLogin, getCurrentUser as apiGetCurrentUser, logout as apiLogout } from '../api/client'
+import { login as apiLogin, googleLogin as apiGoogleLogin, discordLogin as apiDiscordLogin, getCurrentUser as apiGetCurrentUser, logout as apiLogout, updateUserProfile as apiUpdateUserProfile, updateUserAvatar as apiUpdateUserAvatar, invalidateUserCache } from '../api/client'
 
 const AuthContext = createContext(null)
 
@@ -105,29 +105,50 @@ export function AuthProvider({ children }) {
   }
 
   // Update user profile and local state immediately
-  const updateProfile = async (userId, data) => {
+  const updateProfile = async (targetUserId, data) => {
     try {
-      const { updateUser } = await import('../api/client');
-      const res = await updateUser(userId, data);
-
-      // Update local user state merging existing user with new data
-      // API usually returns the updated user, but we fallback to merging input data
-      let updatedUser = null;
-      if (res && res.data && res.data.user) updatedUser = res.data.user;
-      else if (res && res.user) updatedUser = res.user;
-      else if (res && res.data) updatedUser = res.data;
-
-      if (updatedUser) {
-        setUser(updatedUser);
-      } else {
-        // Optimistic update if API doesn't return the full object
-        setUser(prev => ({ ...prev, ...data }));
+      const currentUserId = user?.id || user?._id
+      if (!currentUserId || String(targetUserId) !== String(currentUserId)) {
+        const error = new Error('No tienes permiso para modificar este perfil')
+        error.status = 403
+        throw error
       }
+
+      const payload = {
+        ...(data.display_name !== undefined ? { displayName: data.display_name } : {}),
+        ...(data.bio !== undefined ? { bio: data.bio } : {}),
+        ...(data.location !== undefined ? { location: data.location } : {}),
+        ...(data.show_active_reader !== undefined ? { showActiveReader: data.show_active_reader } : {}),
+        ...(data.social_links !== undefined ? { socialLinks: data.social_links } : {}),
+      }
+      const res = await apiUpdateUserProfile(payload)
+      invalidateUserCache()
+      const updatedUser = res?.data?.user || res?.user || {}
+
+      setUser(prev => ({
+        ...prev,
+        ...data,
+        ...updatedUser,
+        display_name: updatedUser.displayName ?? data.display_name ?? prev?.display_name,
+        show_active_reader: updatedUser.showActiveReader ?? data.show_active_reader ?? prev?.show_active_reader,
+        social_links: updatedUser.socialLinks ?? data.social_links ?? prev?.social_links,
+      }))
 
       return res;
     } catch (e) {
       console.error('Error updating profile:', e);
       throw e;
+    }
+  }
+
+  const updateAvatar = async (avatarUrl) => {
+    try {
+      const res = await apiUpdateUserAvatar(avatarUrl)
+      setUser(prev => ({ ...prev, avatar_url: avatarUrl, avatarUrl }))
+      return res
+    } catch (e) {
+      console.error('Error updating profile avatar:', e)
+      throw e
     }
   }
 
@@ -153,6 +174,7 @@ export function AuthProvider({ children }) {
     doDiscordLogin,
     doLogout,
     updateProfile,
+    updateAvatar,
   }
 
   return (

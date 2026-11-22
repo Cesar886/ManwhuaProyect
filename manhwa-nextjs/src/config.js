@@ -2,7 +2,9 @@ const LOCAL = process.env.NEXT_PUBLIC_API_URL_LOCAL
 const PROD = process.env.NEXT_PUBLIC_API_URL_PROD
 const MODE = process.env.NODE_ENV
 
-export const API_BASE = MODE === 'production' ? (PROD || LOCAL) : (LOCAL || PROD)
+export const API_BASE = MODE === 'production'
+  ? (PROD || LOCAL)
+  : (LOCAL || 'http://localhost:3000/api')
 
 /**
  * URL interna para fetches SSR en el servidor.
@@ -12,7 +14,7 @@ export const API_BASE = MODE === 'production' ? (PROD || LOCAL) : (LOCAL || PROD
  * para que sea exclusiva del servidor y leída en runtime, sin necesidad de rebuild).
  */
 export const SERVER_API_BASE =
-  typeof window === 'undefined' && process.env.INTERNAL_API_URL
+  typeof window === 'undefined' && MODE === 'production' && process.env.INTERNAL_API_URL
     ? process.env.INTERNAL_API_URL.replace(/\/$/, '')
     : (API_BASE || '').replace(/\/$/, '')
 

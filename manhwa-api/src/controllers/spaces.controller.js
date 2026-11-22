@@ -163,6 +163,38 @@ const parseSpacesStructure = (objects) => {
     return seriesMap;
 };
 
+const syncSeriesToDevelopmentDatabase = async (seriesMap) => {
+    if (!isDev) return [];
+
+    const series = Array.from(seriesMap.values())
+        .filter(item => item.chapters.size > 0);
+
+    if (series.length === 0) return [];
+
+    const result = await query(
+        `INSERT INTO series (
+            title, slug, cover_url, status, content_type, chapter_count, in_spaces, language
+         )
+         SELECT title, slug, cover_url, 'ongoing', 'manhwa', chapter_count, true, 'es'
+         FROM unnest($1::text[], $2::text[], $3::text[], $4::integer[])
+              AS spaces_series(title, slug, cover_url, chapter_count)
+         ON CONFLICT (slug) DO UPDATE SET
+            chapter_count = EXCLUDED.chapter_count,
+            in_spaces = true,
+            cover_url = COALESCE(series.cover_url, EXCLUDED.cover_url),
+            updated_at = NOW()
+         RETURNING id, slug`,
+        [
+            series.map(item => item.title),
+            series.map(item => item.slug),
+            series.map(item => item.cover),
+            series.map(item => item.chapters.size)
+        ]
+    );
+
+    return result.rows;
+};
+
 /**
  * Convierte un slug a título legible
  */
@@ -330,6 +362,7 @@ const getRelativeTime = (date) => {
 // Resuelve race conditions y bloqueos
 // ============================================
 const isDev = process.env.NODE_ENV === 'development';
+const preloadSpacesInDevelopment = process.env.SPACES_PRELOAD_IN_DEVELOPMENT === 'true';
 
 const CACHE_CONFIG = {
     // TTL del cache: 5 minutos (tiempo de vida)
@@ -348,6 +381,8 @@ const CACHE_CONFIG = {
     heartbeatInterval: parseInt(process.env.SPACES_HEARTBEAT_MS) || 25000,
     // Timeout máximo para carga directa desde Spaces: 15s
     directLoadTimeout: parseInt(process.env.SPACES_DIRECT_LOAD_TIMEOUT_MS) || 15000,
+    // El catálogo completo puede tardar más de 15s en cargarse en desarrollo.
+    developmentPreloadWait: parseInt(process.env.SPACES_DEV_PRELOAD_WAIT_MS) || 45000,
 };
 
 // Estados del cache claramente definidos
@@ -570,10 +605,13 @@ const listManhwasFromDatabase = async (req, res, next) => {
             preloadCache().catch(err => logger.error('Error en preload background:', err));
         }
 
-        // PASO 3: Si hay precarga en progreso, esperar máximo apiPreloadWait (2s) antes de caer al fallback de BD.
+        // PASO 3: Esperar la precarga durante un tiempo limitado antes del fallback de BD.
         // La BD responde rápido y tiene todos los datos esenciales; Spaces enriquece en background.
         if (preloadState.inProgress && preloadState.promise) {
-            const timeout = new Promise(resolve => setTimeout(() => resolve(null), CACHE_CONFIG.apiPreloadWait));
+            const preloadWait = isDev && preloadSpacesInDevelopment
+                ? CACHE_CONFIG.developmentPreloadWait
+                : CACHE_CONFIG.apiPreloadWait;
+            const timeout = new Promise(resolve => setTimeout(() => resolve(null), preloadWait));
             const result = await Promise.race([preloadState.promise, timeout]);
 
             if (result && spacesCache.data?.series?.length > 0) {
@@ -867,6 +905,8 @@ const getManhwaFromSpaces = async (req, res, next) => {
                 message: 'Serie no encontrada'
             });
         }
+
+        await syncSeriesToDevelopmentDatabase(seriesMap);
 
         // 🔧 CORRECIÓN: Consultar BD para obtener cover_url, autor y géneros actualizados
         let coverUrl = series.cover;
@@ -1434,6 +1474,8 @@ const syncToDatabase = async (req, res, next) => {
  * OPTIMIZADO: Mejor manejo de estado, métricas, y prevención de duplicados
  */
 const preloadCache = async () => {
+    if (isDev && !preloadSpacesInDevelopment) return null;
+
     // Fast-path: si ya existe una promesa, retornarla (asignada de forma atómica)
     if (preloadState.promise) {
         const elapsed = preloadState.startTime ? Date.now() - preloadState.startTime : 0;
@@ -1488,6 +1530,9 @@ const preloadCache = async () => {
             const dbSeriesMap = new Map();
             for (const row of dbResult.rows) {
                 dbSeriesMap.set(row.slug, row);
+            }
+            if (isDev) {
+                await syncSeriesToDevelopmentDatabase(seriesMap);
             }
             logger.debug(`  📊 BD lista: ${dbResult.rows.length} series (${Date.now() - t1}ms espera)`);
 
@@ -2018,6 +2063,7 @@ const getUpdateClientsMap = () => updateClients;
 
 module.exports = {
     parseSpacesStructure,
+    syncSeriesToDevelopmentDatabase,
     listManhwasFromDatabase,  // ✅ NUEVO: Lectura rápida desde BD
     listManhwasFromSpaces,    // LEGACY: Solo para sincronización
     getManhwaFromSpaces,

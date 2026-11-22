@@ -478,12 +478,21 @@ const startServer = async () => {
             logger.info(`MANHWA API v1.0 - Servidor corriendo en http://localhost:${PORT} - Entorno: ${process.env.NODE_ENV || 'development'}`);
 
             const spacesController = require('./controllers/spaces.controller');
-            spacesController.preloadCache();
-            spacesController.startAutoPreload();
+            if (process.env.NODE_ENV === 'development') {
+                if (process.env.SPACES_PRELOAD_IN_DEVELOPMENT === 'true') {
+                    logger.info('Precarga del catálogo desde DigitalOcean Spaces activada para desarrollo');
+                    spacesController.preloadCache();
+                } else {
+                    logger.info('Integraciones externas desactivadas en desarrollo');
+                }
+            } else {
+                spacesController.preloadCache();
+                spacesController.startAutoPreload();
 
-            // Iniciar daemons de indexación
-            startIndexingDaemon();
-            startIndexNowDaemon();
+                // Iniciar daemons de indexación
+                startIndexingDaemon();
+                startIndexNowDaemon();
+            }
 
             // Limpieza de registros antiguos del límite de IA para invitados
             cleanupAiGuestUsage();

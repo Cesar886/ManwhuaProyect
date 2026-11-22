@@ -629,6 +629,7 @@ CREATE TABLE public.users (
     streak integer DEFAULT 0 NOT NULL,
     followers_count integer DEFAULT 0 NOT NULL,
     following_count integer DEFAULT 0 NOT NULL,
+    social_links jsonb DEFAULT '{}'::jsonb NOT NULL,
     collections_count integer DEFAULT 0 NOT NULL,
     theme_primary_color character varying(20),
     theme_accent_color character varying(20),
@@ -1199,4 +1200,3 @@ ALTER TABLE ONLY public.series_views
 --
 
 \unrestrict 1df3yJZW2H8ZW9yP5XbHZyAmdbAPSV8Fjs0jeaVZxk8v7nhSY5PJAMWPcw0uvBU
-

@@ -1,0 +1,30 @@
+.vipCommentCard {
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  box-shadow: none !important;
+  animation:
+    vipBackgroundShift 9s ease-in-out infinite alternate,
+    fadeInUp 0.4s ease var(--vip-entry-delay, 0s) both;
+}
+
+@keyframes vipBackgroundShift {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+.vipUsername {
+  background: linear-gradient(90deg, #d97706, #fbbf24);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vipCommentCard {
+    animation: fadeInUp 0.4s ease var(--vip-entry-delay, 0s) both;
+  }
+}

@@ -326,7 +326,8 @@ const getCollectionComments = async (req, res, next) => {
         const collectionId = collectionResult.rows[0].id;
         
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience
+            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+                    u.is_premium AS author_is_premium
              FROM comments c
              JOIN users u ON c.user_id = u.id
              WHERE c.target_type = 'collection' AND c.target_id = $1 
@@ -355,6 +356,7 @@ const getCollectionComments = async (req, res, next) => {
                         displayName: c.display_name,
                         avatarUrl: c.avatar_url,
                         role: c.user_role,
+                        isPremium: c.author_is_premium,
                         experience: parseInt(c.experience) || 0
                     },
                     likes: c.likes_count,

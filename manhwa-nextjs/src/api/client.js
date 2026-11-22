@@ -179,9 +179,21 @@ export const fetchSeries = (subpath = '') => api.get('series', subpath)
 
 // Intento de cerrar sesión en el backend. Usa "credentials: include" para cookies.
 export const logout = (subpath = 'logout') => api.post('auth', subpath)
+  .finally(() => invalidateUserCache())
 
 // Obtener el usuario autenticado (sesión). Por defecto llama a /api/auth/me
 export const getCurrentUser = (subpath = 'me') => api.get('auth', subpath, { cache: true, cacheTTL: CACHE_TTL_MS })
+
+// Invalida respuestas GET guardadas (especialmente /auth/me) despues de mutar el usuario.
+export const invalidateUserCache = () => {
+  const authMePrefix = `${endpoint('auth', 'me')}|`
+  for (const key of getCache.keys()) {
+    if (key.startsWith(authMePrefix)) getCache.delete(key)
+  }
+  for (const key of inFlightRequests.keys()) {
+    if (key.startsWith(authMePrefix)) inFlightRequests.delete(key)
+  }
+}
 
 // Iniciar sesión (POST /api/auth/login) — backend debe establecer cookie o devolver token
 export const login = (body, subpath = 'login') => api.post('auth', subpath, body)
@@ -203,5 +215,29 @@ export const discordLogin = (code) => api.post('auth', 'discord', { code })
 
 // Actualizar usuario (PATCH /api/users/:id)
 export const updateUser = (userId, body) => api.patch('users', userId, body)
+
+// Actualizar el perfil del usuario autenticado (PUT /api/users/profile)
+export const updateUserProfile = (body) => api.put('users', 'profile', body)
+  .then((result) => {
+    invalidateUserCache()
+    return result
+  })
+export const updateUserAvatar = (avatarUrl) => api.put('users', 'avatar', { avatarUrl })
+  .then((result) => {
+    invalidateUserCache()
+    return result
+  })
+export const updateUserBanner = (bannerUrl) => api.put('users', 'banner', { bannerUrl })
+  .then((result) => {
+    invalidateUserCache()
+    return result
+  })
+
+export const followUser = (username) => api.post('users', `${encodeURIComponent(username)}/follow`)
+export const unfollowUser = (username) => api.del('users', `${encodeURIComponent(username)}/follow`)
+export const getUserFollowers = (username, page = 1, limit = 20) =>
+  api.get('users', `${encodeURIComponent(username)}/followers?page=${page}&limit=${limit}`)
+export const getUserFollowing = (username, page = 1, limit = 20) =>
+  api.get('users', `${encodeURIComponent(username)}/following?page=${page}&limit=${limit}`)
 
 export default api
