@@ -227,7 +227,11 @@ export const updateUserAvatar = (avatarUrl) => api.put('users', 'avatar', { avat
     invalidateUserCache()
     return result
   })
-export const updateUserBanner = (bannerUrl) => api.put('users', 'banner', { bannerUrl })
+export const updateUserBanner = (bannerUrl, positionX, positionY) => api.put('users', 'banner', {
+  ...(bannerUrl !== undefined ? { bannerUrl } : {}),
+  ...(positionX !== undefined ? { positionX } : {}),
+  ...(positionY !== undefined ? { positionY } : {}),
+})
   .then((result) => {
     invalidateUserCache()
     return result

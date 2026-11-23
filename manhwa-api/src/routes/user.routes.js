@@ -98,7 +98,11 @@ router.use(authenticate);
 
 router.put('/profile', validate(updateProfileValidation), userController.updateProfile);
 router.put('/avatar', userController.updateAvatar);
-router.put('/banner', userController.updateBanner);
+router.put('/banner', validate([
+    body('bannerUrl').optional().isString().withMessage('URL del banner inválida'),
+    body('positionX').optional().isInt({ min: 0, max: 100 }).withMessage('La posición horizontal debe estar entre 0 y 100').toInt(),
+    body('positionY').optional().isInt({ min: 0, max: 100 }).withMessage('La posición vertical debe estar entre 0 y 100').toInt(),
+]), userController.updateBanner);
 router.put('/preferences', userController.updatePreferences);
 
 // Follows

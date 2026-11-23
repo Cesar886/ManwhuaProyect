@@ -610,6 +610,10 @@ CREATE TABLE public.users (
     display_name character varying(100),
     avatar_url text,
     banner_url text,
+    banner_position_x integer DEFAULT 50 NOT NULL
+        CONSTRAINT users_banner_position_x_range CHECK (banner_position_x BETWEEN 0 AND 100),
+    banner_position_y integer DEFAULT 50 NOT NULL
+        CONSTRAINT users_banner_position_y_range CHECK (banner_position_y BETWEEN 0 AND 100),
     bio text,
     location character varying(255),
     website text,

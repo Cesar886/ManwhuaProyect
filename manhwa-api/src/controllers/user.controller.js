@@ -128,6 +128,7 @@ const getProfile = async (req, res, next) => {
 
         const result = await query(
             `SELECT u.id, u.username, u.display_name, u.avatar_url, u.banner_url,
+                    u.banner_position_x, u.banner_position_y,
                     u.bio, u.location, u.website, u.social_links, u.role, u.is_premium,
                     u.level, u.experience, u.followers_count, u.following_count,
                     u.collections_count, u.theme_primary_color, u.theme_accent_color,
@@ -175,6 +176,8 @@ const getProfile = async (req, res, next) => {
                     displayName: user.display_name,
                     avatarUrl: user.avatar_url,
                     bannerUrl: user.banner_url,
+                    bannerPositionX: user.banner_position_x,
+                    bannerPositionY: user.banner_position_y,
                     bio: user.bio,
                     location: user.location,
                     website: user.website,
@@ -342,17 +345,27 @@ const updateAvatar = async (req, res, next) => {
  */
 const updateBanner = async (req, res, next) => {
     try {
-        const { bannerUrl } = req.body;
+        const { bannerUrl, positionX, positionY } = req.body;
 
-        await query(
-            'UPDATE users SET banner_url = $1, updated_at = NOW() WHERE id = $2',
-            [bannerUrl, req.user.id]
+        const result = await query(
+            `UPDATE users
+             SET banner_url = COALESCE($1, banner_url),
+                 banner_position_x = COALESCE($2, banner_position_x),
+                 banner_position_y = COALESCE($3, banner_position_y),
+                 updated_at = NOW()
+             WHERE id = $4
+             RETURNING banner_url, banner_position_x, banner_position_y`,
+            [bannerUrl ?? null, positionX ?? null, positionY ?? null, req.user.id]
         );
 
         res.json({
             success: true,
             message: 'Banner actualizado',
-            data: { bannerUrl }
+            data: {
+                bannerUrl: result.rows[0].banner_url,
+                bannerPositionX: result.rows[0].banner_position_x,
+                bannerPositionY: result.rows[0].banner_position_y
+            }
         });
     } catch (error) {
         next(error);

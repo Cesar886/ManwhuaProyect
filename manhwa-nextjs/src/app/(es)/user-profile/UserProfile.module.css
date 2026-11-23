@@ -3,6 +3,254 @@
 /* ============================================
    VARIABLES CSS PREMIUM
    ============================================ */
+.profileContainerShell {
+  width: 100%;
+  max-width: 900px;
+  margin-inline: auto;
+  overflow-x: hidden;
+}
+
+.legacyHeaderCard {
+  display: none !important;
+}
+
+.profileBanner {
+  width: 100%;
+  height: 200px;
+  border-radius: 20px 20px 0 0;
+  background-repeat: no-repeat;
+  background-size: cover;
+  position: relative;
+}
+
+.profileBanner::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 55%;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.78), transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.profileHeaderBody {
+  position: relative;
+  padding: 0 24px 24px;
+}
+
+.profileAvatarActions {
+  height: 76px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.profileAvatarWrap {
+  position: relative;
+  z-index: 3;
+  margin-top: -60px;
+}
+
+.profileActions {
+  align-self: flex-start;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
+.profileActionButton {
+  height: 36px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: transparent;
+  font-weight: 700;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.profileActionButton:hover {
+  background: rgba(6, 182, 212, 0.08);
+  border-color: rgba(6, 182, 212, 0.45);
+}
+
+.profileIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.profileNameRow {
+  max-width: 100%;
+}
+
+.profileUsername {
+  margin-top: -4px;
+}
+
+.profileBio {
+  max-width: 620px;
+  line-height: 1.55;
+}
+
+.profileMetaRow,
+.profileMetaRow svg {
+  color: var(--light-text-secondary);
+}
+
+.darkMode .profileMetaRow,
+.darkMode .profileMetaRow svg {
+  color: var(--dark-text-secondary);
+}
+
+.profileStatsRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.profileSocialEdit {
+  align-self: flex-start;
+}
+
+.profileTabs {
+  width: 100%;
+  height: 52px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  margin-bottom: 16px;
+  position: sticky;
+  top: 72px;
+  z-index: 20;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(14px);
+  border-radius: 20px 20px 0 0;
+}
+
+.darkMode .profileTabs {
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.profileTab {
+  min-width: 0;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  background: transparent;
+  color: var(--light-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.darkMode .profileTab {
+  color: var(--dark-text-secondary);
+}
+
+.profileTab:hover {
+  background: rgba(6, 182, 212, 0.06);
+  color: var(--cyan-primary);
+}
+
+.profileTabActive {
+  border-bottom-color: var(--cyan-primary);
+  color: inherit;
+  font-weight: 700;
+}
+
+.gamificationGrid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-inline: 0;
+}
+
+.gamificationGrid > * {
+  width: 100%;
+  max-width: 100%;
+  padding-inline: 0;
+  flex: none;
+}
+
+.readingGrid {
+  width: 100%;
+}
+
+.readingGrid > * {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .profileContainerShell {
+    max-width: 100%;
+  }
+
+  .profileBanner {
+    height: 120px;
+  }
+
+  .profileHeaderBody {
+    padding: 0 16px 16px;
+  }
+
+  .profileAvatarActions {
+    height: 58px;
+  }
+
+  .profileAvatarWrap {
+    margin-top: -44px;
+  }
+
+  .profileActions {
+    margin-top: 8px;
+  }
+
+  .profileActionButton {
+    height: 36px;
+    padding-inline: 10px;
+  }
+
+  .profileActionButton svg {
+    display: none;
+  }
+
+  .profileStatsRow {
+    gap: 10px 14px;
+  }
+
+  .profileTabs {
+    height: 48px;
+    top: 64px;
+  }
+
+  .profileTab {
+    font-size: 12px;
+  }
+
+  .gamificationGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .profileActions {
+    gap: 6px;
+  }
+
+  .profileActionButton {
+    font-size: 12px;
+  }
+
+  .profileTabs {
+    overflow-x: auto;
+  }
+}
+
 .profileContainer {
   --cyan-primary: rgb(6, 182, 212);
   --cyan-light: rgb(34, 211, 238);

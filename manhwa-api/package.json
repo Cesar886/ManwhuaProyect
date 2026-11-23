@@ -12,6 +12,7 @@
     "migrate:social-links": "node scripts/run_migration_018.js",
     "migrate:series-ratings": "node scripts/run_migration_016.js",
     "migrate:runtime-schema": "node scripts/run_migration_017.js",
+    "migrate:banner-position": "node scripts/run_migration_019.js",
     "verify:top10-country": "node scripts/verify-top10-country.js",
     "migrate": "node src/database/migrate.js",
     "seed": "node src/database/seed.js"

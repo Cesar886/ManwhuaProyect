@@ -29,6 +29,7 @@ import {
   TextInput,
   Textarea,
   Indicator,
+  Slider,
   Switch,
 } from '@mantine/core';
 import { useMediaQuery, useHover } from '@mantine/hooks';
@@ -361,6 +362,7 @@ export default function UserProfile() {
   const [userComments, setUserComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [communityTab, setCommunityTab] = useState('ratings'); // 'ratings' | 'comments'
+  const [profileTab, setProfileTab] = useState('continue');
 
   // Presencia en tiempo real
   const [isOnline, setIsOnline] = useState(false);
@@ -390,12 +392,18 @@ export default function UserProfile() {
           display_name: source.displayName || source.display_name,
           avatar_url: source.avatarUrl || source.avatar_url,
           banner_url: source.bannerUrl || source.banner_url,
+          banner_position_x: source.bannerPositionX ?? source.banner_position_x ?? 50,
+          banner_position_y: source.bannerPositionY ?? source.banner_position_y ?? 50,
           social_links: source.socialLinks || source.social_links,
           followers_count: source.stats?.followers ?? source.followers_count,
           following_count: source.stats?.following ?? source.following_count,
           collections_count: source.stats?.collections ?? source.collections_count,
           created_at: source.joinedAt || source.created_at,
-        } : source;
+        } : {
+          ...source,
+          banner_position_x: source.bannerPositionX ?? source.banner_position_x ?? 50,
+          banner_position_y: source.bannerPositionY ?? source.banner_position_y ?? 50,
+        };
         setUser(data);
         setAvatarSrc(data.avatar_url || data.avatarUrl || data.avatar || null);
       })
@@ -564,6 +572,8 @@ export default function UserProfile() {
         instagram: getSocialLinkInput('instagram', user.social_links?.instagram || user.socialLinks?.instagram),
         discord: getSocialLinkInput('discord', user.social_links?.discord || user.socialLinks?.discord),
       },
+      banner_position_x: Number(user.banner_position_x ?? user.bannerPositionX ?? 50),
+      banner_position_y: Number(user.banner_position_y ?? user.bannerPositionY ?? 50),
     });
     setEditOpen(true);
   }, [user, isOwner]);
@@ -638,9 +648,10 @@ export default function UserProfile() {
   };
 
   const handleBannerSelection = async (event) => {
-    const file = event.currentTarget.files?.[0];
+    const input = event.currentTarget;
+    const file = input?.files?.[0];
     if (!file) return;
-    event.currentTarget.value = '';
+    input.value = '';
     if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
       notifications.show({ title: 'Imagen no válida', message: 'Selecciona una imagen de hasta 10 MB.', color: 'red' });
       return;
@@ -653,11 +664,45 @@ export default function UserProfile() {
       const response = await api.upload('upload', 'image', formData);
       const bannerUrl = response?.url || response?.data?.url;
       if (!bannerUrl) throw new Error('El servidor no devolvió la dirección del banner.');
-      await updateUserBanner(bannerUrl);
-      setUser((current) => ({ ...current, banner_url: bannerUrl, bannerUrl }));
+      const positionX = Number(editForm.banner_position_x ?? user.banner_position_x ?? user.bannerPositionX ?? 50);
+      const positionY = Number(editForm.banner_position_y ?? user.banner_position_y ?? user.bannerPositionY ?? 50);
+      await updateUserBanner(bannerUrl, positionX, positionY);
+      setUser((current) => ({
+        ...current,
+        banner_url: bannerUrl,
+        bannerUrl,
+        banner_position_x: positionX,
+        banner_position_y: positionY,
+        bannerPositionX: positionX,
+        bannerPositionY: positionY,
+      }));
       notifications.show({ title: 'Banner actualizado', message: 'Los visitantes ya pueden ver tu banner nuevo.', color: 'cyan' });
     } catch (error) {
       notifications.show({ title: 'No se pudo actualizar el banner', message: error?.message || 'Inténtalo de nuevo.', color: 'red' });
+    } finally {
+      setBannerUploading(false);
+    }
+  };
+
+  const handleSaveBannerPosition = async () => {
+    if (!user || !(user.banner_url || user.bannerUrl)) return;
+
+    setBannerUploading(true);
+    try {
+      const bannerUrl = user.banner_url || user.bannerUrl;
+      const positionX = editForm.banner_position_x;
+      const positionY = editForm.banner_position_y;
+      await updateUserBanner(bannerUrl, positionX, positionY);
+      setUser((current) => ({
+        ...current,
+        banner_position_x: positionX,
+        banner_position_y: positionY,
+        bannerPositionX: positionX,
+        bannerPositionY: positionY,
+      }));
+      notifications.show({ title: 'Encuadre actualizado', message: 'La posición de tu banner se guardó correctamente.', color: 'cyan', icon: <IconCheck size={16} /> });
+    } catch (error) {
+      notifications.show({ title: 'No se pudo guardar el encuadre', message: error?.message || 'Inténtalo de nuevo.', color: 'red' });
     } finally {
       setBannerUploading(false);
     }
@@ -809,14 +854,14 @@ export default function UserProfile() {
   return (
     <Box className={`${styles.pageContainer} ${isDark ? styles.darkMode : styles.lightMode}`}>
       <Header />
-      <Container size="lg" px={isMobile ? 'sm' : 'md'} pt={isMobile ? 90 : 110}>
+      <Container size="lg" px={isMobile ? 0 : 'md'} pt={isMobile ? 72 : 96} className={styles.profileContainerShell}>
 
         {/* HEADER CARD */}
         <Paper
           p={isMobile ? 'md' : 'xl'}
           radius={rem(24)}
           mb="xl"
-          className={styles.headerCard}
+          className={`${styles.headerCard} ${styles.legacyHeaderCard}`}
           style={{ position: 'relative', zIndex: 2, overflow: 'hidden' }}
         >
           <Box
@@ -828,7 +873,7 @@ export default function UserProfile() {
               backgroundImage: user.banner_url || user.bannerUrl
                 ? `linear-gradient(to bottom, rgba(15,23,42,0.12), rgba(15,23,42,0.82)), url("${user.banner_url || user.bannerUrl}")`
                 : 'linear-gradient(120deg, rgba(6,182,212,0.16), rgba(139,92,246,0.12))',
-              backgroundPosition: 'center',
+              backgroundPosition: `${user.banner_position_x ?? user.bannerPositionX ?? 50}% ${user.banner_position_y ?? user.bannerPositionY ?? 50}%`,
               backgroundSize: 'cover',
               pointerEvents: 'none',
             }}
@@ -930,9 +975,102 @@ export default function UserProfile() {
           )}
         </Paper>
 
+        {/* CABECERA PREMIUM ESTILO PERFIL SOCIAL */}
+        <Paper p={0} radius={20} mb={16} className={styles.headerCard}>
+          <Box
+            aria-hidden="true"
+            className={styles.profileBanner}
+            style={{
+              backgroundImage: user.banner_url || user.bannerUrl
+                ? `linear-gradient(to bottom, rgba(15,23,42,0.05), rgba(15,23,42,0.78)), url("${user.banner_url || user.bannerUrl}")`
+                : 'linear-gradient(135deg, #22d3ee 0%, #0891b2 48%, #172554 100%)',
+              backgroundPosition: `${user.banner_position_x ?? user.bannerPositionX ?? 50}% ${user.banner_position_y ?? user.bannerPositionY ?? 50}%`,
+              backgroundSize: 'cover',
+            }}
+          />
+          <Box className={styles.profileHeaderBody}>
+            <Box className={styles.profileAvatarActions}>
+              <Box className={styles.profileAvatarWrap}>
+                <PremiumAvatar src={avatarSrc} size={isMobile ? 88 : 120} initials={getInitials()} name={userName} streak={streak} isDark={isDark} isOnline={isOnline} />
+              </Box>
+              <Group gap="xs" wrap="nowrap" className={styles.profileActions}>
+                {isOwner
+                  ? <Button variant="default" radius="xl" h={36} leftSection={<IconPencil size={16} />} onClick={openEditModal} className={styles.profileActionButton}>Editar perfil</Button>
+                  : authUser && <Button variant="default" radius="xl" h={36} onClick={toggleFollow} loading={followBusy} className={styles.profileActionButton}>{user.isFollowing ? 'Siguiendo' : 'Seguir'}</Button>}
+                <Button variant="default" radius="xl" h={36} leftSection={copied ? <IconCheck size={16} /> : <IconShare size={16} />} onClick={handleShare} className={styles.profileActionButton}>
+                  {copied ? 'Copiado' : 'Compartir'}
+                </Button>
+              </Group>
+            </Box>
+
+            <Box className={styles.profileIdentity}>
+              <Group gap={8} wrap="nowrap" align="center" className={styles.profileNameRow}>
+                <Text fw={700} size={isMobile ? 20 : 22} lh={1.15}>{userName}</Text>
+                <Badge variant="light" color={role.color} size="sm" radius="sm" leftSection={<RoleIcon size={10} />}>{role.label}</Badge>
+              </Group>
+              <Text size="sm" c="dimmed" className={styles.profileUsername}>@{userUsername}</Text>
+              {userBio !== 'Sin biografía' && (
+                <Text size="sm" lh={1.55} className={styles.profileBio}>{userBio}</Text>
+              )}
+              <Group gap={12} wrap="wrap" className={styles.profileMetaRow}>
+                <Group gap={6} wrap="nowrap">
+                  <IconCalendar size={15} stroke={1.7} />
+                  <Text size="sm" c="dimmed">Se unió en {joinedDateLabel}</Text>
+                </Group>
+                {userLocation && (
+                  <Group gap={6} wrap="nowrap">
+                    <IconMapPin size={15} stroke={1.7} />
+                    <Text size="sm" c="dimmed">{userLocation}</Text>
+                  </Group>
+                )}
+              </Group>
+              <Box className={styles.profileStatsRow}>
+                <UnstyledButton onClick={() => setFollowListType('following')} aria-label={`Ver a quién sigue ${userName}`}>
+                  <Text size="sm"><Text span fw={700}>{formatNum(stats.following)}</Text>{' '}<Text span c="dimmed">Siguiendo</Text></Text>
+                </UnstyledButton>
+                <UnstyledButton onClick={() => setFollowListType('followers')} aria-label={`Ver seguidores de ${userName}`}>
+                  <Text size="sm"><Text span fw={700}>{formatNum(stats.followers)}</Text>{' '}<Text span c="dimmed">Seguidores</Text></Text>
+                </UnstyledButton>
+                {isOwner && <>
+                  <Text size="sm"><Text span fw={700}>{formatNum(stats.chapters)}</Text>{' '}<Text span c="dimmed">Caps. leídos</Text></Text>
+                  <Text size="sm"><Text span fw={700}>{streak}</Text>{' '}<Text span c="dimmed">Racha</Text></Text>
+                </>}
+              </Box>
+              {hasSocialLinks && <SocialProfileLinks links={socialLinks} />}
+              {isOwner && !hasSocialLinks && (
+                <Button variant="subtle" size="xs" onClick={openEditModal} className={styles.profileSocialEdit}>Agregar redes sociales</Button>
+              )}
+            </Box>
+          </Box>
+        </Paper>
+
+        <Box className={styles.profileTabs} role="tablist" aria-label="Secciones del perfil">
+          {[
+            ['continue', 'Continuar leyendo'],
+            ['achievements', 'Logros'],
+            ['ratings', 'Calificaciones'],
+            ['comments', 'Comentarios'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={profileTab === key}
+              className={`${styles.profileTab} ${profileTab === key ? styles.profileTabActive : ''}`}
+              onClick={() => {
+                setProfileTab(key);
+                if (key === 'ratings') setCommunityTab('ratings');
+                if (key === 'comments') setCommunityTab('comments');
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </Box>
+
         {isOwner && <>
         {/* CONTINUAR LEYENDO */}
-        <Paper p={isMobile ? 'md' : 'xl'} radius="xl" mb="xl" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
+        <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'continue' ? 'block' : 'none' }}>
           <Box style={{ position: 'absolute', top: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
           <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
             <Group justify="space-between" align="center">
@@ -950,7 +1088,7 @@ export default function UserProfile() {
               </Link>
             </Group>
             {recentLoading ? (
-              <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'}>
+              <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'} className={styles.readingGrid}>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <Stack key={i} gap="xs">
                     <Skeleton height={isMobile ? 120 : 160} radius="lg" />
@@ -960,7 +1098,7 @@ export default function UserProfile() {
                 ))}
               </SimpleGrid>
             ) : recentReads.length > 0 ? (
-              <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'}>
+              <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'} className={styles.readingGrid}>
                 {recentReads.slice(0, 6).map((item, i) => {
                   const slug = item.series?.slug || item.slug || '';
                   const title = item.series?.title || item.title || slug;
@@ -1007,13 +1145,11 @@ export default function UserProfile() {
         </Paper>
 
         {/* GAMIFICACIÓN */}
-        <Grid gutter={isMobile ? 'md' : 'xl'} mb="xl" align="stretch">
+        <Grid gutter={16} mb={16} align="stretch" className={styles.gamificationGrid} style={{ display: profileTab === 'continue' || profileTab === 'achievements' ? 'grid' : 'none' }}>
 
           {/* NIVEL DE USUARIO */}
           <Grid.Col span={{ base: 12, md: 5 }}>
-            <Paper id="nivel-usuario" p={isMobile ? 'md' : 'xl'} radius="xl" h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
-              <Box style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(234,179,8,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
-              <Box style={{ position: 'absolute', bottom: -30, left: -30, width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+            <Paper id="nivel-usuario" p={isMobile ? 'md' : 'xl'} radius={20} h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
               <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
                 <Group justify="space-between" align="center" wrap="nowrap">
                   <Group gap="sm">
@@ -1092,9 +1228,7 @@ export default function UserProfile() {
         </>}
 
         {/* HISTORIAL DE INTERACCIONES (COMUNIDAD) */}
-        <Paper p={isMobile ? 'md' : 'xl'} radius="xl" mb="xl" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
-          <Box style={{ position: 'absolute', top: -50, right: -50, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
-          <Box style={{ position: 'absolute', bottom: -40, left: -40, width: 150, height: 150, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'ratings' || profileTab === 'comments' ? 'block' : 'none' }}>
           <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
             {/* Header con tabs */}
             <Group justify="space-between" align="center" wrap="nowrap">
@@ -1385,10 +1519,62 @@ export default function UserProfile() {
             color="cyan"
             leftSection={<IconCamera size={16} />}
             loading={bannerUploading}
+            disabled={bannerUploading}
             onClick={() => bannerInputRef.current?.click()}
           >
             Cambiar banner
           </Button>
+          {(user.banner_url || user.bannerUrl) && (
+            <Paper p="md" radius="lg" withBorder>
+              <Stack gap="md">
+                <Box
+                  role="img"
+                  aria-label="Vista previa del encuadre del banner"
+                  style={{
+                    height: 150,
+                    borderRadius: rem(12),
+                    backgroundImage: `linear-gradient(rgba(15,23,42,0.12), rgba(15,23,42,0.4)), url("${user.banner_url || user.bannerUrl}")`,
+                    backgroundPosition: `${editForm.banner_position_x}% ${editForm.banner_position_y}%`,
+                    backgroundSize: 'cover',
+                  }}
+                />
+                <Text size="sm" fw={600}>Ajustar encuadre del banner</Text>
+                <Box>
+                  <Text size="xs" c="dimmed" mb={6}>Horizontal</Text>
+                  <Slider
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={editForm.banner_position_x}
+                    onChange={(value) => setEditForm((prev) => ({ ...prev, banner_position_x: value }))}
+                    label={(value) => `${value}%`}
+                    aria-label="Posición horizontal del banner"
+                  />
+                </Box>
+                <Box>
+                  <Text size="xs" c="dimmed" mb={6}>Vertical</Text>
+                  <Slider
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={editForm.banner_position_y}
+                    onChange={(value) => setEditForm((prev) => ({ ...prev, banner_position_y: value }))}
+                    label={(value) => `${value}%`}
+                    aria-label="Posición vertical del banner"
+                  />
+                </Box>
+                <Button
+                  variant="light"
+                  color="cyan"
+                  loading={bannerUploading}
+                  disabled={bannerUploading}
+                  onClick={handleSaveBannerPosition}
+                >
+                  Guardar posición
+                </Button>
+              </Stack>
+            </Paper>
+          )}
 
           {/* Campos del formulario */}
           <Stack gap="md">

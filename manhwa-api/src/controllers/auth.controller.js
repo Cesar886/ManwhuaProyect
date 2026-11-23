@@ -341,6 +341,7 @@ const getCurrentUser = async (req, res, next) => {
         }
         const result = await query(
             `SELECT u.id, u.username, u.email, u.display_name, u.avatar_url, u.banner_url,
+                    u.banner_position_x, u.banner_position_y,
                     u.bio, u.location, u.website, u.role, u.status, u.is_premium,
                     u.premium_until, u.level, u.experience, u.email_verified_at,
                     u.followers_count, u.following_count, u.collections_count,
@@ -373,6 +374,8 @@ const getCurrentUser = async (req, res, next) => {
                     displayName: user.display_name,
                     avatarUrl: user.avatar_url,
                     bannerUrl: user.banner_url,
+                    bannerPositionX: user.banner_position_x,
+                    bannerPositionY: user.banner_position_y,
                     bio: user.bio,
                     location: user.location,
                     website: user.website,
