@@ -116,7 +116,7 @@
   width: 100%;
   height: 52px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
   margin-bottom: 16px;
   position: sticky;
@@ -196,6 +196,7 @@
 
   .profileHeaderBody {
     padding: 0;
+    padding: 1rem !important;
   }
 
   .profileAvatarActions {
@@ -247,7 +248,13 @@
   }
 
   .profileTabs {
-    overflow-x: auto;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow: hidden;
+  }
+
+  .profileTab {
+    padding-inline: 1px;
+    font-size: clamp(8px, 2.4vw, 10px);
   }
 }
 
@@ -1671,4 +1678,9 @@
     box-shadow: none;
     border: 1px solid #ccc;
   }
+}
+
+.streakChipIcon {
+  color: #f97316;
+  flex-shrink: 0;
 }

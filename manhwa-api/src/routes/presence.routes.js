@@ -5,6 +5,16 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { query } = require('../config/database');
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function isActiveReaderEnabled(userId) {
+    const result = await query(
+        'SELECT show_active_reader FROM users WHERE id = $1 AND deleted_at IS NULL',
+        [userId]
+    );
+    return result.rows.length > 0 && result.rows[0].show_active_reader !== false;
+}
 
 /** Notifica a todos los watchers de un userId su nuevo estado */
 function broadcastPresence(app, userId, isOnline) {
@@ -19,9 +29,23 @@ function broadcastPresence(app, userId, isOnline) {
  * GET /api/presence/stream
  * SSE autenticado — mantiene al usuario marcado como online mientras la conexión vive.
  */
-router.get('/stream', authenticate, (req, res) => {
+router.get('/stream', authenticate, async (req, res) => {
     const app = req.app;
     const userId = req.user.id;
+
+    try {
+        if (!(await isActiveReaderEnabled(userId))) {
+            const conns = app.locals.onlineUsers.get(userId);
+            if (conns?.size) {
+                conns.clear();
+                app.locals.onlineUsers.delete(userId);
+                broadcastPresence(app, userId, false);
+            }
+            return res.status(403).json({ success: false, message: 'Presencia desactivada' });
+        }
+    } catch (_) {
+        return res.status(500).json({ success: false, message: 'No se pudo verificar la presencia' });
+    }
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -57,11 +81,17 @@ router.get('/stream', authenticate, (req, res) => {
  * GET /api/presence/:userId
  * Devuelve el estado online actual de un usuario (REST).
  */
-router.get('/:userId', (req, res) => {
+router.get('/:userId', async (req, res) => {
     const app = req.app;
-    const userId = parseInt(req.params.userId, 10);
-    if (isNaN(userId)) return res.status(400).json({ success: false, message: 'userId inválido' });
-    const online = app.locals.onlineUsers.has(userId);
+    const userId = req.params.userId.toLowerCase();
+    if (!UUID_PATTERN.test(userId)) return res.status(400).json({ success: false, message: 'userId inválido' });
+    let enabled = false;
+    try {
+        enabled = await isActiveReaderEnabled(userId);
+    } catch (_) {
+        return res.status(500).json({ success: false, message: 'No se pudo verificar la presencia' });
+    }
+    const online = enabled && app.locals.onlineUsers.has(userId);
     res.json({ success: true, userId, online });
 });
 
@@ -70,17 +100,24 @@ router.get('/:userId', (req, res) => {
  * SSE — emite {userId, online} cada vez que el estado del usuario cambia.
  * Envía el estado actual inmediatamente al conectar.
  */
-router.get('/:userId/watch', (req, res) => {
+router.get('/:userId/watch', async (req, res) => {
     const app = req.app;
-    const userId = parseInt(req.params.userId, 10);
-    if (isNaN(userId)) return res.status(400).end();
+    const userId = req.params.userId.toLowerCase();
+    if (!UUID_PATTERN.test(userId)) return res.status(400).json({ success: false, message: 'userId inválido' });
+
+    let enabled = false;
+    try {
+        enabled = await isActiveReaderEnabled(userId);
+    } catch (_) {
+        return res.status(500).json({ success: false, message: 'No se pudo verificar la presencia' });
+    }
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
 
     // Estado actual inmediato
-    const isOnline = app.locals.onlineUsers.has(userId);
+    const isOnline = enabled && app.locals.onlineUsers.has(userId);
     res.write(`data: ${JSON.stringify({ userId, online: isOnline })}\n\n`);
 
     const watcher = { userId, res, connectedAt: Date.now() };

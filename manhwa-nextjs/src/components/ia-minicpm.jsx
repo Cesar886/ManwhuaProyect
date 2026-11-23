@@ -636,7 +636,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         setVisibleSimilar(shuffled.slice(0, 10));
     }, [allSimilarQueries]);
 
-    // Fetch único de sugerencias: carga inicial + polling cada 5s con contadores frescos
+    // Load public suggestions once initially and debounce updates while the user types.
     // Inicializar lastSearchedQuery con initialQuery si viene con búsqueda previa
     useEffect(() => {
         if (initialQuery && initialQuery.trim()) {
@@ -663,14 +663,19 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         if (incognitoMode) return;
 
         let cancelled = false;
+        const controller = new AbortController();
 
         const fetchCounters = async () => {
             try {
-                const qParam = lastSearchedQuery.current ? `&q=${encodeURIComponent(lastSearchedQuery.current)}` : '';
+                const searchQuery = query.trim() || lastSearchedQuery.current;
+                const qParam = searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : '';
                 const response = await fetch(
-                    `${AI_BASE_URL}/api/search-suggestions?lang=${lang}&_t=${Date.now()}${qParam}`,
-                    { cache: 'no-store' }
+                    `${AI_BASE_URL}/api/search-suggestions?lang=${lang}${qParam}`,
+                    { cache: 'no-store', signal: controller.signal }
                 );
+                if (!response.ok) {
+                    throw new Error(`Search suggestions returned ${response.status}`);
+                }
                 const data = await response.json();
                 if (cancelled) return;
                 if (data.success) {
@@ -820,19 +825,26 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                         }
                     }
                 }
-            } catch (_) { }
+            } catch (error) {
+                if (cancelled || error.name === 'AbortError') return;
+                console.warn('Search suggestions are unavailable; using local suggestions.', error);
+                const fallback = pickFallbackSuggestions(lang);
+                setPopularSuggestions(fallback);
+                setSuggestions(fallback);
+                setNewestSuggestions(fallback);
+                setTrendingSuggestions(fallback);
+                setPhrases(pickFallbackPhrases(lang));
+            }
         };
 
-        // Carga inicial inmediata
-        fetchCounters();
-        // Polling cada 5s
-        const interval = setInterval(fetchCounters, 5000);
+        const debounceTimer = setTimeout(fetchCounters, query.trim() ? 400 : 0);
 
         return () => {
             cancelled = true;
-            clearInterval(interval);
+            clearTimeout(debounceTimer);
+            controller.abort();
         };
-    }, [incognitoMode, lang]);
+    }, [incognitoMode, lang, query]);
 
     const localAutocompletePhrasePool = useMemo(() => {
         const merged = [...pickFallbackPhrases(lang), ...popularSuggestions.map(s => s.query), ...similarSuggestions.map(s => s.query)];
@@ -936,7 +948,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
         setPhrases(shuffleArray(pickFallbackPhrases(lang)));
     }, [incognitoMode, placeholderPhrases, lang]);
 
-    // (Polling de contadores unificado en el useEffect de arriba)
+    // (Actualización de sugerencias unificada en el useEffect de arriba)
 
     // --- Efecto máquina de escribir (placeholder) ---
     useEffect(() => {
@@ -1396,7 +1408,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                     <span className="ia-suggestion-text-wrap">
                                                         <span className="ia-suggestion-text">{s.query}</span>
                                                         {s.firstSeen && (
-                                                            <span className="ia-newest-time">{timeAgo(s.firstSeen, lang)}</span>
+                                                            <span className="ia-newest-time" suppressHydrationWarning>{timeAgo(s.firstSeen, lang)}</span>
                                                         )}
                                                     </span>
                                                     {s.count != null && s.count > 1 && (
@@ -1464,7 +1476,7 @@ const ChatIA = forwardRef(({ onSearch, loading, explanation, onClear, initialQue
                                                     <span className="ia-suggestion-text-wrap">
                                                         <span className="ia-suggestion-text">{s.query}</span>
                                                         {s.lastSeen && (
-                                                            <span className="ia-trending-time">{timeAgo(s.lastSeen, lang)}</span>
+                                                            <span className="ia-trending-time" suppressHydrationWarning>{timeAgo(s.lastSeen, lang)}</span>
                                                         )}
                                                     </span>
                                                     {/* Mostrar hits recientes si están disponibles, si no el count total */}

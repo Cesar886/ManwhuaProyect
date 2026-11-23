@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Container,
   Grid,
@@ -27,6 +27,7 @@ import {
   useComputedColorScheme,
   rem,
   TextInput,
+  Select,
   Textarea,
   Indicator,
   Slider,
@@ -62,7 +63,7 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { getCurrentUser } from '@/api/client';
-import { getRecentProgress, getStreak, getStreakStreamUrl } from '@/api/progress';
+import { getStreak, getStreakStreamUrl } from '@/api/progress';
 import { getUserAchievements } from '@/api/achievements';
 import { VitrinaLogros } from '@/components/achievements';
 import { ENDPOINTS } from '@/config';
@@ -73,6 +74,79 @@ import { getLevelInfo, formatXp, getLevelGradient, LEVEL_CONFIG } from '@/utils/
 import { getSocialLinkErrors, getSocialLinkInput } from '@/utils/socialLinks';
 import SocialProfileLinks from '@/components/SocialProfileLinks';
 import UserFollowListModal from '@/components/UserFollowListModal';
+
+const COUNTRY_CODES = `
+AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ
+BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ
+CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ
+DE DJ DK DM DO DZ
+EC EE EG EH ER ES ET
+FI FJ FK FM FO FR
+GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY
+HK HM HN HR HT HU
+ID IE IL IM IN IO IQ IR IS IT
+JE JM JO JP
+KE KG KH KI KM KN KP KR KW KY KZ
+LA LB LC LI LK LR LS LT LU LV LY
+MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ
+NA NC NE NF NG NI NL NO NP NR NU NZ
+OM
+PA PE PF PG PH PK PL PM PN PR PS PT PW PY
+QA
+RE RO RS RU RW
+SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ
+TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ
+UA UG UM US UY UZ
+VA VC VE VG VI VN VU
+WF WS
+YE YT
+ZA ZM ZW
+`.trim().split(/\s+/);
+
+const PRIORITY_COUNTRY_CODES = [
+  'MX', 'US', 'ES', 'AR', 'CO', 'CL', 'PE', 'VE', 'EC', 'GT', 'CU', 'BO', 'HN',
+  'SV', 'NI', 'CR', 'PA', 'DO', 'PR', 'BR', 'CA', 'GB', 'FR', 'DE', 'IT', 'JP',
+  'KR', 'CN', 'PT', 'AU',
+];
+
+const countryNames = new Intl.DisplayNames(['es'], { type: 'region' });
+const getCountryFlag = (code) => String.fromCodePoint(
+  ...code.toUpperCase().split('').map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65),
+);
+const countryNameByCode = new Map(
+  COUNTRY_CODES.map((code) => [code, countryNames.of(code) || code]),
+);
+const countryOrder = [
+  ...PRIORITY_COUNTRY_CODES,
+  ...COUNTRY_CODES
+    .filter((code) => !PRIORITY_COUNTRY_CODES.includes(code))
+    .sort((a, b) => countryNameByCode.get(a).localeCompare(countryNameByCode.get(b), 'es')),
+];
+const countryOptions = countryOrder.map((code) => ({
+  value: code,
+  label: `${getCountryFlag(code)} ${countryNameByCode.get(code)}`,
+}));
+const normalizeCountryName = (name) => String(name)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLocaleLowerCase('es');
+const getCountryCode = (location) => {
+  const value = String(location || '').trim();
+  if (countryNameByCode.has(value.toUpperCase())) return value.toUpperCase();
+  const countryName = value.split(',').pop();
+  return countryOptions.find(({ value: code }) => (
+    normalizeCountryName(countryName) === normalizeCountryName(countryNameByCode.get(code))
+  ))?.value || '';
+};
+const getCountry = (location) => {
+  const code = getCountryCode(location);
+  return code ? {
+    code,
+    flag: getCountryFlag(code),
+    name: countryNameByCode.get(code),
+  } : null;
+};
 
 // ============================================
 // COMPONENTES AUXILIARES PREMIUM
@@ -323,8 +397,9 @@ const ProfileSkeleton = ({ isDark, isMobile }) => (
 // ============================================
 export default function UserProfile() {
   const isDark = useComputedColorScheme() === 'dark';
-  const { updateProfile, updateAvatar, openLogin, user: authUser } = useAuth();
+  const { updateProfile, updateAvatar, updateFollowingCount, openLogin, user: authUser } = useAuth();
   const params = useParams();
+  const router = useRouter();
   const routeUsername = Array.isArray(params?.username) ? params.username[0] : params?.username;
 
   const isMobile = useMediaQuery('(max-width: 48em)');
@@ -361,6 +436,8 @@ export default function UserProfile() {
   const [ratingsLoading, setRatingsLoading] = useState(true);
   const [userComments, setUserComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
+  const [userBookmarks, setUserBookmarks] = useState([]);
+  const [bookmarksLoading, setBookmarksLoading] = useState(true);
   const [communityTab, setCommunityTab] = useState('ratings'); // 'ratings' | 'comments'
   const [profileTab, setProfileTab] = useState('continue');
 
@@ -394,6 +471,7 @@ export default function UserProfile() {
           banner_url: source.bannerUrl || source.banner_url,
           banner_position_x: source.bannerPositionX ?? source.banner_position_x ?? 50,
           banner_position_y: source.bannerPositionY ?? source.banner_position_y ?? 50,
+          show_active_reader: source.showActiveReader ?? source.show_active_reader,
           social_links: source.socialLinks || source.social_links,
           followers_count: source.stats?.followers ?? source.followers_count,
           following_count: source.stats?.following ?? source.following_count,
@@ -425,7 +503,7 @@ export default function UserProfile() {
   const isOwner = Boolean(currentUserId && profileUserId && String(currentUserId) === String(profileUserId));
 
   useEffect(() => {
-    if (!isOwner) {
+    if (!user?.username) {
       setRecentReads([]);
       setRecentLoading(false);
       setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 });
@@ -433,57 +511,126 @@ export default function UserProfile() {
       return;
     }
 
+    let active = true;
+    const username = encodeURIComponent(user.username);
     setRecentLoading(true);
-    getRecentProgress(6)
-      .then(data => setRecentReads(Array.isArray(data) ? data : []))
-      .catch(() => setRecentReads([]))
-      .finally(() => setRecentLoading(false));
+    setAchievementsData(null);
+    api.get('users', `${username}/progress?limit=6`)
+      .then(response => {
+        if (active) setRecentReads(response?.data?.recent || []);
+      })
+      .catch(error => {
+        console.error('Error fetching public reading progress:', error);
+        if (active) setRecentReads([]);
+      })
+      .finally(() => {
+        if (active) setRecentLoading(false);
+      });
 
-    getStreak()
-      .then(data => setStreakData({
-        streak: data?.streak || 0,
-        maxStreak: data?.maxStreak || 0,
-        readToday: data?.readToday || false,
-        chaptersRead: data?.chaptersRead || 0,
-        totalDaysRead: data?.totalDaysRead || 0,
-      }))
-      .catch(() => setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 }));
+    getUserAchievements(user.username)
+      .then(data => {
+        if (!active) return;
+        setAchievementsData(data);
+        if (!isOwner) {
+          setStreakData({
+            streak: data?.stats?.streak || 0,
+            maxStreak: 0,
+            readToday: false,
+            chaptersRead: data?.stats?.totalChapters || 0,
+            totalDaysRead: 0,
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching profile achievements:', error);
+        if (active) setAchievementsData(null);
+      });
 
-    getUserAchievements()
-      .then(data => setAchievementsData(data))
-      .catch(() => setAchievementsData(null));
-  }, [isOwner]);
+    if (isOwner) {
+      getStreak()
+        .then(data => {
+          if (active) {
+            setStreakData({
+              streak: data?.streak || 0,
+              maxStreak: data?.maxStreak || 0,
+              readToday: data?.readToday || false,
+              chaptersRead: data?.chaptersRead || 0,
+              totalDaysRead: data?.totalDaysRead || 0,
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching reading streak:', error);
+          if (active) setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 });
+        });
+    } else {
+      setStreakData({ streak: 0, maxStreak: 0, readToday: false, chaptersRead: 0, totalDaysRead: 0 });
+    }
+
+    return () => { active = false; };
+  }, [user?.username, isOwner]);
+
+  useEffect(() => {
+    if (!user?.username) {
+      setUserBookmarks([]);
+      setBookmarksLoading(false);
+      return;
+    }
+
+    let active = true;
+    setBookmarksLoading(true);
+    api.get('users', `${encodeURIComponent(user.username)}/bookmarks?page=1&limit=50`)
+      .then(response => {
+        if (active) setUserBookmarks(response?.data?.bookmarks || []);
+      })
+      .catch(error => {
+        console.error('Error fetching profile favorites:', error);
+        if (active) setUserBookmarks([]);
+      })
+      .finally(() => {
+        if (active) setBookmarksLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [user?.username]);
 
   // SSE — presencia en tiempo real (marca al usuario como online mientras la conexión vive)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
-    // Stream que nos marca online en el servidor
-    if (!isOwner) {
+    const userId = user?.id || user?._id;
+    if (!userId) {
       setIsOnline(false);
       return;
     }
 
-    const presenceStream = new EventSource(`${ENDPOINTS.presence}/stream`, { withCredentials: true });
-    presenceStream.onopen = () => setIsOnline(true);
-    presenceStream.onerror = () => { setIsOnline(false); presenceStream.close(); };
+    const showActiveReader = user.showActiveReader ?? user.show_active_reader;
+    if (showActiveReader === false) {
+      setIsOnline(false);
+      return;
+    }
 
-    // Watcher del propio usuario para recibir cambios en tiempo real
+    let presenceStream = null;
+    if (isOwner) {
+      presenceStream = new EventSource(`${ENDPOINTS.presence}/stream`, { withCredentials: true });
+      presenceStream.onerror = () => presenceStream?.close();
+    }
+
+    // Cualquier visitante puede observar el estado público del perfil.
     let watchStream = null;
-    const startWatch = (userId) => {
-      watchStream = new EventSource(`${ENDPOINTS.presence}/${userId}/watch`, { withCredentials: true });
-      watchStream.onmessage = (e) => {
-        try { setIsOnline(JSON.parse(e.data).online); } catch {}
-      };
-      watchStream.onerror = () => watchStream.close();
+    watchStream = new EventSource(`${ENDPOINTS.presence}/${userId}/watch`, { withCredentials: true });
+    watchStream.onmessage = (e) => {
+      try {
+        const presence = JSON.parse(e.data);
+        setIsOnline(Boolean(presence.online));
+      } catch {}
+    };
+    watchStream.onerror = () => {
+      setIsOnline(false);
+      watchStream.close();
     };
 
-    // Esperar a que user esté disponible
-    const userId = user?.id || user?._id;
-    if (userId) startWatch(userId);
-
     return () => {
-      presenceStream.close();
+      presenceStream?.close();
       watchStream?.close();
     };
   }, [user, isOwner]);
@@ -593,7 +740,7 @@ export default function UserProfile() {
     setEditForm({
       display_name: user.display_name || user.name || user.username || '',
       bio: user.bio || '',
-      location: user.location || '',
+      location: getCountryCode(user.location),
       show_active_reader: user.showActiveReader ?? user.show_active_reader ?? true,
       social_links: {
         x: getSocialLinkInput('x', user.social_links?.x || user.socialLinks?.x),
@@ -620,19 +767,26 @@ export default function UserProfile() {
       const response = await updateProfile(userId, {
         display_name: editForm.display_name.trim(),
         bio: editForm.bio.trim(),
-        location: editForm.location.trim(),
+        location: editForm.location || '',
         show_active_reader: editForm.show_active_reader,
         social_links: editForm.social_links,
       });
-      const savedSocialLinks = response?.data?.user?.socialLinks || editForm.social_links;
+      const savedUser = response?.data?.user || response?.user || {};
+      const savedUsername = savedUser.username || user.username;
+      const savedSocialLinks = savedUser.socialLinks || savedUser.social_links || editForm.social_links;
       setUser(prev => ({
         ...prev,
-        display_name: editForm.display_name.trim(),
-        bio: editForm.bio.trim(),
-        location: editForm.location.trim(),
-        show_active_reader: editForm.show_active_reader,
+        ...savedUser,
+        username: savedUsername,
+        display_name: savedUser.displayName ?? savedUser.display_name ?? editForm.display_name.trim(),
+        bio: savedUser.bio ?? editForm.bio.trim(),
+        location: savedUser.location ?? editForm.location,
+        show_active_reader: savedUser.showActiveReader ?? savedUser.show_active_reader ?? editForm.show_active_reader,
         social_links: savedSocialLinks,
       }));
+      if (routeUsername && savedUsername !== user.username) {
+        router.replace(`/users/${encodeURIComponent(savedUsername)}`, { scroll: false });
+      }
       setEditOpen(false);
       notifications.show({ title: 'Perfil actualizado', message: 'Tus cambios se guardaron correctamente', color: 'cyan', icon: <IconCheck size={16} /> });
     } catch (error) {
@@ -771,7 +925,15 @@ export default function UserProfile() {
         ? await unfollowUser(user.username)
         : await followUser(user.username);
       if (typeof response?.data?.followersCount === 'number') {
-        setUser((current) => ({ ...current, followers_count: response.data.followersCount }));
+        setUser((current) => ({
+          ...current,
+          isFollowing: response.data.isFollowing,
+          followers_count: response.data.followersCount,
+          following_count: response.data.followingCount ?? current.following_count,
+        }));
+      }
+      if (typeof response?.data?.viewerFollowingCount === 'number') {
+        updateFollowingCount(response.data.viewerFollowingCount);
       }
     } catch (error) {
       setUser((current) => ({
@@ -779,7 +941,14 @@ export default function UserProfile() {
         isFollowing: wasFollowing,
         followers_count: Math.max(0, Number(current.followers_count || 0) + (wasFollowing ? 1 : -1)),
       }));
-      notifications.show({ title: 'No se pudo actualizar el seguimiento', message: error?.message || 'Inténtalo de nuevo.', color: 'red' });
+      const message = error?.status === 401
+        ? 'Inicia sesión nuevamente para seguir a este usuario.'
+        : error?.status === 404
+          ? 'Este usuario ya no está disponible.'
+          : error?.message && error.message !== 'Error interno del servidor'
+            ? error.message
+            : 'No se pudo completar la acción. Verifica tu conexión e inténtalo de nuevo.';
+      notifications.show({ title: 'No se pudo actualizar el seguimiento', message, color: 'red' });
     } finally {
       setFollowBusy(false);
     }
@@ -830,7 +999,8 @@ export default function UserProfile() {
   const userUsername = user.username || 'usuario';
   const userBio = user.bio || 'Sin biografía';
   const userLocation = user.location || '';
-  const userJoinDate = user.created_at || user.createdAt || new Date().toISOString();
+  const userCountry = getCountry(userLocation);
+  const userJoinDate = user.created_at || user.createdAt;
   const userRole = user.role || 'reader';
 
   const stats = {
@@ -850,7 +1020,9 @@ export default function UserProfile() {
   const userExperience = user.experience || user.levelInfo?.currentXp || 0;
   const levelInfo = getLevelInfo(userExperience);
 
-  const joinedDateLabel = new Date(userJoinDate).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+  const joinedDateLabel = userJoinDate
+    ? new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(userJoinDate))
+    : '';
 
   const updateOwnFollowingCount = ({ isFollowing }) => {
     if (!isOwner) return;
@@ -967,8 +1139,15 @@ export default function UserProfile() {
                       Se unió en {joinedDateLabel}
                     </Badge>
                     {userLocation && (
-                      <Badge variant="light" color="gray" radius="xl" leftSection={<IconMapPin size={10} />} className={styles.profileMetaBadge}>
-                        {userLocation}
+                      <Badge
+                        variant="light"
+                        color="gray"
+                        radius="xl"
+                        leftSection={!userCountry && <IconMapPin size={10} />}
+                        aria-label={userCountry ? `País: ${userCountry.name}` : `Ubicación: ${userLocation}`}
+                        className={styles.profileMetaBadge}
+                      >
+                        {userCountry ? userCountry.flag : userLocation}
                       </Badge>
                     )}
                   </Group>
@@ -1047,8 +1226,10 @@ export default function UserProfile() {
                 </Group>
                 {userLocation && (
                   <Group gap={6} wrap="nowrap">
-                    <IconMapPin size={15} stroke={1.7} />
-                    <Text size="sm" c="dimmed">{userLocation}</Text>
+                    {userCountry
+                      ? <Text size="lg" lh={1} aria-label={`País: ${userCountry.name}`}>{userCountry.flag}</Text>
+                      : <IconMapPin size={15} stroke={1.7} />}
+                    {!userCountry && <Text size="sm" c="dimmed">{userLocation}</Text>}
                   </Group>
                 )}
               </Group>
@@ -1059,10 +1240,10 @@ export default function UserProfile() {
                 <UnstyledButton onClick={() => setFollowListType('followers')} aria-label={`Ver seguidores de ${userName}`}>
                   <Text size="sm"><Text span fw={700}>{formatNum(stats.followers)}</Text>{' '}<Text span c="dimmed">Seguidores</Text></Text>
                 </UnstyledButton>
-                {isOwner && <>
                   <Text size="sm"><Text span fw={700}>{formatNum(stats.chapters)}</Text>{' '}<Text span c="dimmed">Caps. leídos</Text></Text>
-                  <Text size="sm"><Text span fw={700}>{streak}</Text>{' '}<Text span c="dimmed">Racha</Text></Text>
-                </>}
+                  <Text size="sm"><Text span fw={700}>{streak}</Text></Text>
+                  <IconFlame size={13} stroke={2} className={styles.streakChipIcon} />
+
               </Box>
               {hasSocialLinks && <SocialProfileLinks links={socialLinks} />}
               {isOwner && !hasSocialLinks && (
@@ -1076,6 +1257,7 @@ export default function UserProfile() {
           {[
             ['continue', 'Continue Read'],
             ['achievements', 'Logros'],
+            ['favorites', 'Favoritos'],
             ['ratings', 'Calificaciones'],
             ['comments', 'Comentarios'],
           ].map(([key, label]) => (
@@ -1158,7 +1340,7 @@ export default function UserProfile() {
                   <ThemeIcon size={56} radius="xl" variant="light" color="cyan" style={{ opacity: 0.5 }}>
                     <IconBook size={28} stroke={1.5} />
                   </ThemeIcon>
-                  <Text size="sm" c="dimmed" ta="center">Empieza a leer y tu progreso aparecerá aquí</Text>
+                  <Text size="sm" c="dimmed" ta="center">No hay lecturas recientes para mostrar</Text>
                 </Stack>
               </Center>
             )}
@@ -1247,6 +1429,49 @@ export default function UserProfile() {
           </Grid.Col>
         </Grid>
 
+        <Paper
+          p={isMobile ? 'md' : 'xl'}
+          radius={20}
+          mb={16}
+          className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`}
+          style={{ display: profileTab === 'favorites' ? 'block' : 'none' }}
+        >
+          <Stack gap="lg">
+            <Group gap="sm">
+              <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'pink', to: 'violet', deg: 135 }}>
+                <IconBook size={18} />
+              </ThemeIcon>
+              <Text fw={700} size={isMobile ? 'md' : 'lg'}>Favoritos</Text>
+            </Group>
+            {bookmarksLoading ? (
+              <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="sm">
+                {[...Array(5)].map((_, index) => <Skeleton key={index} height={180} radius="lg" />)}
+              </SimpleGrid>
+            ) : userBookmarks.length ? (
+              <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="sm">
+                {userBookmarks.map((bookmark) => (
+                  <Link key={bookmark.id} href={`/manhwa/${bookmark.series.slug}`} style={{ textDecoration: 'none' }}>
+                    <Stack gap="xs">
+                      <Box style={{ position: 'relative', borderRadius: rem(12), overflow: 'hidden', aspectRatio: '2/3' }}>
+                        {bookmark.series.coverUrl ? (
+                          <Image src={bookmark.series.coverUrl} alt={bookmark.series.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <Center h="100%" bg={isDark ? 'dark.6' : 'gray.1'}><IconBook size={24} /></Center>
+                        )}
+                      </Box>
+                      <Text size="xs" fw={600} lineClamp={2}>{bookmark.series.title}</Text>
+                    </Stack>
+                  </Link>
+                ))}
+              </SimpleGrid>
+            ) : (
+              <Center py="xl">
+                <Text size="sm" c="dimmed">Este usuario aún no tiene favoritos públicos.</Text>
+              </Center>
+            )}
+          </Stack>
+        </Paper>
+
         {/* HISTORIAL DE INTERACCIONES (COMUNIDAD) */}
         <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'ratings' || profileTab === 'comments' ? 'block' : 'none' }}>
           <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
@@ -1275,7 +1500,7 @@ export default function UserProfile() {
                     <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                       <IconStarFilled size={24} style={{ opacity: 0.4 }} />
                     </ThemeIcon>
-                    <Text c="dimmed" size="sm">Aún no has calificado ninguna obra</Text>
+                    <Text c="dimmed" size="sm">No hay calificaciones para mostrar</Text>
                     <Button component={Link} href="/mangas" variant="light" color="violet" size="xs" radius="xl">
                       Explorar Manhwas
                     </Button>
@@ -1324,7 +1549,7 @@ export default function UserProfile() {
                             )}
                           </Stack>
                           <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                            {new Date(rating.createdAt).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
+                            {new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(rating.createdAt))}
                           </Text>
                         </Group>
                       </Paper>
@@ -1346,7 +1571,7 @@ export default function UserProfile() {
                     <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                       <IconMessage size={24} style={{ opacity: 0.4 }} />
                     </ThemeIcon>
-                    <Text c="dimmed" size="sm">Aún no has comentado en ninguna obra</Text>
+                    <Text c="dimmed" size="sm">No hay comentarios para mostrar</Text>
                     <Button component={Link} href="/mangas" variant="light" color="cyan" size="xs" radius="xl">
                       Explorar Manhwas
                     </Button>
@@ -1381,7 +1606,7 @@ export default function UserProfile() {
                               </Stack>
                             </Group>
                             <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                              {new Date(comment.createdAt).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
+                              {new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(comment.createdAt))}
                             </Text>
                           </Group>
                           <Text size="sm" lineClamp={2} style={{ opacity: 0.85 }}>
@@ -1614,7 +1839,17 @@ export default function UserProfile() {
               leftSection={<IconUsers size={16} style={{ opacity: 0.5 }} />}
               error={editForm.display_name.trim().length === 0 ? 'El nombre no puede estar vacío' : null}
               styles={{
+                section: {
+                  position: 'absolute',
+                  left: rem(12),
+                  top: 0,
+                  bottom: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                },
                 input: {
+                  paddingLeft: rem(44),
+                  paddingRight: rem(12),
                   background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
                   border: `1.5px solid ${isDark ? 'rgba(148,163,184,0.15)' : 'rgba(0,0,0,0.08)'}`,
                   transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
@@ -1640,6 +1875,8 @@ export default function UserProfile() {
                 size="md"
                 styles={{
                   input: {
+                    paddingLeft: rem(12),
+                    paddingRight: rem(12),
                     background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
                     border: `1.5px solid ${isDark ? 'rgba(148,163,184,0.15)' : 'rgba(0,0,0,0.08)'}`,
                     transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
@@ -1657,23 +1894,31 @@ export default function UserProfile() {
               </Group>
             </Box>
 
-            <TextInput
+            <Select
               label={<Text size="sm" fw={600} mb={4}>Ubicación</Text>}
-              placeholder="Ciudad, País"
+              placeholder="Selecciona tu país"
               value={editForm.location}
-              onChange={(e) => {
-                const location = e.currentTarget.value;
+              onChange={(location) => {
                 setEditForm(prev => ({ ...prev, location }));
               }}
-              maxLength={60}
+              data={countryOptions}
+              searchable
+              clearable
+              nothingFoundMessage="No se encontró el país"
               radius="xl"
               size="md"
               leftSection={<IconMapPin size={16} style={{ opacity: 0.5 }} />}
               styles={{
+                section: {
+                  color: 'var(--mantine-color-dimmed)',
+                },
                 input: {
+                  paddingLeft: rem(44),
+                  paddingRight: rem(12),
                   background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
                   border: `1.5px solid ${isDark ? 'rgba(148,163,184,0.15)' : 'rgba(0,0,0,0.08)'}`,
                   transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                  '&:focus': { borderColor: 'var(--mantine-color-cyan-5)' },
                 },
               }}
             />
@@ -1702,6 +1947,10 @@ export default function UserProfile() {
                   leftSection={<IconBrandX size={16} />}
                   error={getSocialLinkErrors(editForm.social_links).x}
                   radius="xl"
+                  styles={{
+                    section: { position: 'absolute', left: rem(12), top: 0, bottom: 0, display: 'flex', alignItems: 'center' },
+                    input: { paddingLeft: rem(44), paddingRight: rem(12) },
+                  }}
                 />
                 <TextInput
                   label="Instagram"
@@ -1715,6 +1964,10 @@ export default function UserProfile() {
                   leftSection={<IconBrandInstagram size={16} />}
                   error={getSocialLinkErrors(editForm.social_links).instagram}
                   radius="xl"
+                  styles={{
+                    section: { position: 'absolute', left: rem(12), top: 0, bottom: 0, display: 'flex', alignItems: 'center' },
+                    input: { paddingLeft: rem(44), paddingRight: rem(12) },
+                  }}
                 />
                 <TextInput
                   label="Discord"
@@ -1728,6 +1981,10 @@ export default function UserProfile() {
                   leftSection={<IconBrandDiscord size={16} />}
                   error={getSocialLinkErrors(editForm.social_links).discord}
                   radius="xl"
+                  styles={{
+                    section: { position: 'absolute', left: rem(12), top: 0, bottom: 0, display: 'flex', alignItems: 'center' },
+                    input: { paddingLeft: rem(44), paddingRight: rem(12) },
+                  }}
                 />
                 <Text size="xs" c="dimmed">Deja vacío cualquier campo para eliminar esa red social.</Text>
               </Stack>

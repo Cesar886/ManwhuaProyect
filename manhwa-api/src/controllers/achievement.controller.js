@@ -93,6 +93,26 @@ const getUserAchievements = async (req, res, next) => {
     }
 };
 
+const getPublicUserAchievements = async (req, res, next) => {
+    try {
+        const userResult = await query(
+            "SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL AND status = 'active'",
+            [req.params.username.toLowerCase()]
+        );
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        }
+
+        req.user = {
+            id: userResult.rows[0].id,
+            timezone: req.headers?.['x-timezone'] || null
+        };
+        return getUserAchievements(req, res, next);
+    } catch (error) {
+        next(error);
+    }
+};
+
 /**
  * Obtener configuración de todos los logros disponibles
  * GET /api/achievements/config
@@ -296,6 +316,7 @@ const getAchievementsLeaderboard = async (req, res, next) => {
 
 module.exports = {
     getUserAchievements,
+    getPublicUserAchievements,
     getAchievementsConfig,
     checkAndUpdateAchievements,
     updateMultipleAchievements,

@@ -301,8 +301,23 @@ app.use(helmet({
 }));
 // ===== CORRECCIÓN 1: Aplicar CORS =====
 // --- CORS (orígenes permitidos configurable) ---
+const configuredOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+const allowedOrigins = new Set([
+    'https://manhwaimperial.site',
+    'https://www.manhwaimperial.site',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    ...configuredOrigins
+]);
 const corsOptions = {
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+    origin(origin, callback) {
+        if (!origin || allowedOrigins.has('*') || allowedOrigins.has(origin)) return callback(null, true);
+        return callback(new Error('No permitido por CORS'));
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Skip-History', 'X-Search-Context', 'X-Device-Id', 'X-Lang', 'X-Language'],
     optionsSuccessStatus: 200
 };
@@ -4631,4 +4646,3 @@ app.post('/api/read', aiLimiter, async (req, res) => {
         safeJson(500, { success: false, error: 'Error interno del servidor' });
     }
 });
-

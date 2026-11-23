@@ -132,7 +132,7 @@ const getProfile = async (req, res, next) => {
                     u.bio, u.location, u.website, u.social_links, u.role, u.is_premium,
                     u.level, u.experience, u.followers_count, u.following_count,
                     u.collections_count, u.theme_primary_color, u.theme_accent_color,
-                    u.created_at,
+                    u.show_active_reader, u.created_at,
                     EXISTS(
                         SELECT 1 FROM user_follows 
                         WHERE follower_id = $2 AND following_id = u.id
@@ -196,6 +196,8 @@ const getProfile = async (req, res, next) => {
                         primaryColor: user.theme_primary_color,
                         accentColor: user.theme_accent_color
                     },
+                    showActiveReader: user.show_active_reader,
+                    show_active_reader: user.show_active_reader,
                     stats: {
                         followers: user.followers_count,
                         following: user.following_count,
@@ -452,8 +454,11 @@ const followUser = async (req, res, next) => {
             }
 
             const countResult = await client.query(
-                'SELECT followers_count, following_count FROM users WHERE id = $1',
-                [targetUserId]
+                `SELECT
+                    (SELECT followers_count FROM users WHERE id = $1) AS followers_count,
+                    (SELECT following_count FROM users WHERE id = $1) AS following_count,
+                    (SELECT following_count FROM users WHERE id = $2) AS viewer_following_count`,
+                [targetUserId, req.user.id]
             );
             return countResult.rows[0];
         });
@@ -464,7 +469,8 @@ const followUser = async (req, res, next) => {
             data: {
                 isFollowing: true,
                 followersCount: counts.followers_count,
-                followingCount: counts.following_count
+                followingCount: counts.following_count,
+                viewerFollowingCount: counts.viewer_following_count
             }
         });
     } catch (error) {
@@ -500,8 +506,11 @@ const unfollowUser = async (req, res, next) => {
                 [req.user.id, targetUserId]
             );
             const countResult = await client.query(
-                'SELECT followers_count, following_count FROM users WHERE id = $1',
-                [targetUserId]
+                `SELECT
+                    (SELECT followers_count FROM users WHERE id = $1) AS followers_count,
+                    (SELECT following_count FROM users WHERE id = $1) AS following_count,
+                    (SELECT following_count FROM users WHERE id = $2) AS viewer_following_count`,
+                [targetUserId, req.user.id]
             );
             return countResult.rows[0];
         });
@@ -512,7 +521,8 @@ const unfollowUser = async (req, res, next) => {
             data: {
                 isFollowing: false,
                 followersCount: counts.followers_count,
-                followingCount: counts.following_count
+                followingCount: counts.following_count,
+                viewerFollowingCount: counts.viewer_following_count
             }
         });
     } catch (error) {
@@ -717,6 +727,69 @@ const getUserCollections = async (req, res, next) => {
                     total,
                     pages: Math.ceil(total / limit)
                 }
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Obtener favoritos públicos de un usuario
+ * GET /api/users/:username/bookmarks
+ */
+const getUserBookmarks = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const offset = (page - 1) * limit;
+
+        const userResult = await query(
+            'SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL AND status = $2',
+            [username.toLowerCase(), 'active']
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        }
+
+        const userId = userResult.rows[0].id;
+        const result = await query(
+            `SELECT b.id AS bookmark_id, b.created_at,
+                    s.id AS series_id, s.title, s.slug, s.cover_url, s.status,
+                    s.chapter_count, s.rating_average, s.content_type
+             FROM bookmarks b
+             JOIN series s ON b.series_id = s.id
+             WHERE b.user_id = $1 AND s.deleted_at IS NULL
+             ORDER BY b.updated_at DESC
+             LIMIT $2 OFFSET $3`,
+            [userId, limit, offset]
+        );
+        const countResult = await query(
+            'SELECT COUNT(*) FROM bookmarks b JOIN series s ON b.series_id = s.id WHERE b.user_id = $1 AND s.deleted_at IS NULL',
+            [userId]
+        );
+        const total = parseInt(countResult.rows[0].count, 10);
+
+        res.json({
+            success: true,
+            data: {
+                bookmarks: result.rows.map((bookmark) => ({
+                    id: bookmark.bookmark_id,
+                    series: {
+                        id: bookmark.series_id,
+                        title: bookmark.title,
+                        slug: bookmark.slug,
+                        coverUrl: bookmark.cover_url,
+                        status: bookmark.status,
+                        chapterCount: bookmark.chapter_count,
+                        rating: Number(bookmark.rating_average) || 0,
+                        contentType: bookmark.content_type
+                    },
+                    addedAt: bookmark.created_at
+                })),
+                pagination: { page, limit, total, pages: Math.ceil(total / limit) }
             }
         });
     } catch (error) {
@@ -1256,7 +1329,7 @@ const getUserRatings = async (req, res, next) => {
             [userId]
         );
 
-        // 2. Obtener ratings de capítulos asociados a la cuenta autenticada.
+        // 2. Obtener ratings de capítulos asociados al perfil consultado.
         const chapterRatings = await query(
             `SELECT cv.id, cv.rating * 2 as score, NULL as review, cv.created_at, cv.updated_at,
                     s.id as series_id, s.title as series_title, cv.series_slug as series_slug,
@@ -1525,6 +1598,7 @@ module.exports = {
     getUserFollowers,
     getUserFollowing,
     getUserCollections,
+    getUserBookmarks,
     getUserActivity,
     getUserRatings,
     getUserComments,

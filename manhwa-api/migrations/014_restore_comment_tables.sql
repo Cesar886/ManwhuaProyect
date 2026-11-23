@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS public.comments (
 );
 
 ALTER TABLE public.comments ADD COLUMN IF NOT EXISTS edited_at timestamptz;
+ALTER TABLE public.comments
+    ADD COLUMN IF NOT EXISTS is_edited boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS public.comment_votes (
     id bigserial PRIMARY KEY,
@@ -92,4 +94,3 @@ CREATE INDEX IF NOT EXISTS idx_poll_options_poll
     ON public.poll_options (poll_id, option_order);
 CREATE INDEX IF NOT EXISTS idx_poll_votes_user
     ON public.poll_votes (user_id);
-

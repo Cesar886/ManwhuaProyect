@@ -9,9 +9,11 @@ import api from './client';
  * Obtener todos los logros del usuario autenticado
  * @returns {Promise<Object>} - Logros y estadísticas del usuario
  */
-export const getUserAchievements = async () => {
+export const getUserAchievements = async (username) => {
   try {
-    const response = await api.get('achievements');
+    const response = username
+      ? await api.get('users', `${encodeURIComponent(username)}/achievements`)
+      : await api.get('achievements');
     return response?.data || null;
   } catch (error) {
     console.error('Error fetching user achievements:', error);

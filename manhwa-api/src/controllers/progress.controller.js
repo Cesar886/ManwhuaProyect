@@ -309,18 +309,8 @@ const syncProgress = async (req, res, next) => {
     }
 };
 
-/**
- * Obtener últimos capítulos leídos (para "Continuar leyendo")
- * GET /api/progress/recent
- */
-const getRecentProgress = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        const limit = Math.min(parseInt(req.query.limit) || 10, 50);
-
-        // Subquery para obtener el capítulo más reciente de cada serie,
-        // luego ordenar por fecha y limitar
-        const result = await query(
+const getRecentProgressForUser = async (userId, limit) => {
+    const result = await query(
             `SELECT sub.* FROM (
                 SELECT DISTINCT ON (rh.series_id)
                     s.id as series_id, s.slug, s.title, s.cover_url,
@@ -338,27 +328,51 @@ const getRecentProgress = async (req, res, next) => {
             [userId, limit]
         );
 
-        res.json({
-            success: true,
-            data: {
-                recent: result.rows.map(r => ({
-                    series: {
-                        id: r.series_id,
-                        slug: r.slug,
-                        title: r.title,
-                        coverUrl: r.cover_url
-                    },
-                    chapter: {
-                        id: r.chapter_id,
-                        number: r.chapter_num,
-                        title: r.chapter_title
-                    },
-                    progress: parseFloat(r.progress_percentage),
-                    isCompleted: r.is_completed,
-                    readAt: r.read_at
-                }))
-            }
-        });
+    return result.rows.map(r => ({
+        series: {
+            id: r.series_id,
+            slug: r.slug,
+            title: r.title,
+            coverUrl: r.cover_url
+        },
+        chapter: {
+            id: r.chapter_id,
+            number: r.chapter_num,
+            title: r.chapter_title
+        },
+        progress: parseFloat(r.progress_percentage),
+        isCompleted: r.is_completed,
+        readAt: r.read_at
+    }));
+};
+
+/**
+ * Obtener últimos capítulos leídos (para "Continuar leyendo")
+ * GET /api/progress/recent
+ */
+const getRecentProgress = async (req, res, next) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+        const recent = await getRecentProgressForUser(req.user.id, limit);
+        res.json({ success: true, data: { recent } });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getPublicRecentProgress = async (req, res, next) => {
+    try {
+        const userResult = await query(
+            "SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL AND status = 'active'",
+            [req.params.username.toLowerCase()]
+        );
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        }
+
+        const limit = Math.min(parseInt(req.query.limit) || 6, 50);
+        const recent = await getRecentProgressForUser(userResult.rows[0].id, limit);
+        res.json({ success: true, data: { recent } });
     } catch (error) {
         next(error);
     }
@@ -552,17 +566,6 @@ const clearAllProgress = async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-};
-
-module.exports = {
-    saveProgress,
-    getProgress,
-    syncProgress,
-    getRecentProgress,
-    getStreak,
-    streamStreak,
-    deleteProgress,
-    clearAllProgress
 };
 
 /**
@@ -945,6 +948,7 @@ module.exports = {
     getProgress,
     syncProgress,
     getRecentProgress,
+    getPublicRecentProgress,
     getStreak,
     streamStreak,
     deleteProgress,

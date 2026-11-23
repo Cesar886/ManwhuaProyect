@@ -124,15 +124,19 @@ export function AuthProvider({ children }) {
       const res = await apiUpdateUserProfile(payload)
       invalidateUserCache()
       const updatedUser = res?.data?.user || res?.user || {}
-
-      setUser(prev => ({
-        ...prev,
+      const previousUser = userRef.current || user || {}
+      const nextUser = {
+        ...previousUser,
         ...data,
         ...updatedUser,
-        display_name: updatedUser.displayName ?? data.display_name ?? prev?.display_name,
-        show_active_reader: updatedUser.showActiveReader ?? data.show_active_reader ?? prev?.show_active_reader,
-        social_links: updatedUser.socialLinks ?? data.social_links ?? prev?.social_links,
-      }))
+        display_name: updatedUser.displayName ?? updatedUser.display_name ?? data.display_name ?? previousUser.display_name,
+        bio: updatedUser.bio ?? data.bio ?? previousUser.bio,
+        location: updatedUser.location ?? data.location ?? previousUser.location,
+        show_active_reader: updatedUser.showActiveReader ?? updatedUser.show_active_reader ?? data.show_active_reader ?? previousUser.show_active_reader,
+        social_links: updatedUser.socialLinks ?? updatedUser.social_links ?? data.social_links ?? previousUser.social_links,
+      }
+      userRef.current = nextUser
+      setUser(nextUser)
 
       return res;
     } catch (e) {
@@ -150,6 +154,18 @@ export function AuthProvider({ children }) {
       console.error('Error updating profile avatar:', e)
       throw e
     }
+  }
+
+  const updateFollowingCount = (followingCount) => {
+    const currentUser = userRef.current || user
+    if (!currentUser) return
+    const nextUser = {
+      ...currentUser,
+      following_count: followingCount,
+      followingCount,
+    }
+    userRef.current = nextUser
+    setUser(nextUser)
   }
 
   const doLogout = async () => {
@@ -175,6 +191,7 @@ export function AuthProvider({ children }) {
     doLogout,
     updateProfile,
     updateAvatar,
+    updateFollowingCount,
   }
 
   return (

@@ -7,6 +7,8 @@ const router = express.Router();
 const { body, param, query: queryValidator } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const userController = require('../controllers/user.controller');
+const progressController = require('../controllers/progress.controller');
+const achievementController = require('../controllers/achievement.controller');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requirePermission, requireRole } = require('../middleware/authorize');
 const { requireApiKeyOrAuth } = require('../middleware/apiKey');
@@ -68,7 +70,7 @@ const usernameParam = [
         .withMessage('Username requerido')
 ];
 
-// Rutas públicas (protegidas con API key)
+// Rutas públicas
 // Endpoint para chequear disponibilidad de username
 router.get('/check-username', requireApiKeyOrAuth, validate([
     queryValidator('username').trim().notEmpty().withMessage('Username requerido').isLength({ max: 50 }),
@@ -85,13 +87,16 @@ router.get('/validate-username', requireApiKeyOrAuth, validate([
 // PATCH /:id (Antes de /:username para evitar conflictos si id se parece, aunque UUID es distinto)
 router.patch('/:id', authenticate, userController.updatePartialUser);
 
-router.get('/:username', requireApiKeyOrAuth, optionalAuth, validate(usernameParam), userController.getProfile);
-router.get('/:username/collections', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserCollections);
-router.get('/:username/activity', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserActivity);
-router.get('/:username/ratings', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserRatings);
-router.get('/:username/comments', requireApiKeyOrAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserComments);
-router.get('/:username/followers', requireApiKeyOrAuth, optionalAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowers);
-router.get('/:username/following', requireApiKeyOrAuth, optionalAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowing);
+router.get('/:username', optionalAuth, validate(usernameParam), userController.getProfile);
+router.get('/:username/collections', validate([...usernameParam, ...paginationValidation]), userController.getUserCollections);
+router.get('/:username/activity', validate([...usernameParam, ...paginationValidation]), userController.getUserActivity);
+router.get('/:username/ratings', validate([...usernameParam, ...paginationValidation]), userController.getUserRatings);
+router.get('/:username/comments', validate([...usernameParam, ...paginationValidation]), userController.getUserComments);
+router.get('/:username/bookmarks', validate([...usernameParam, ...paginationValidation]), userController.getUserBookmarks);
+router.get('/:username/progress', validate(usernameParam), progressController.getPublicRecentProgress);
+router.get('/:username/achievements', validate(usernameParam), achievementController.getPublicUserAchievements);
+router.get('/:username/followers', optionalAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowers);
+router.get('/:username/following', optionalAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowing);
 
 // Rutas protegidas
 router.use(authenticate);
