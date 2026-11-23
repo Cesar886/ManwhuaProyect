@@ -26,34 +26,37 @@ const migrations = [
     '018_add_social_links_and_follow_counts.sql',
     '019_add_user_banner_position.sql',
     '../db/add_polls.sql',
-    '../../manhwa-nextjs/prisma/migrations/20261121000000_add_push_subscriptions/migration.sql',
+    '020_add_push_subscriptions.sql',
 ];
 
-async function resolveMigration(migration) {
-    let sqlPath;
-    if (migration.startsWith('../../')) {
-        sqlPath = path.resolve(
-            __dirname,
-            '../..',
-            migration.replace(/^(\.\.\/){2}/, ''),
-        );
-    } else if (migration.startsWith('../')) {
-        sqlPath = path.resolve(
-            __dirname,
-            '..',
-            migration.replace(/^\.\.\//, ''),
-        );
-    } else {
-        sqlPath = path.join(__dirname, '..', 'migrations', migration);
-    }
-    const sql = fs.readFileSync(sqlPath, 'utf8');
-    const name = migration.replaceAll('\\', '/');
-    return { name, sql };
+function loadMigrations() {
+    return migrations.map((migration) => {
+        let sqlPath;
+        if (migration.startsWith('../')) {
+            sqlPath = path.resolve(
+                __dirname,
+                '..',
+                migration.replace(/^\.\.\//, ''),
+            );
+        } else {
+            sqlPath = path.join(__dirname, '..', 'migrations', migration);
+        }
+
+        try {
+            const sql = fs.readFileSync(sqlPath, 'utf8');
+            const name = migration.replaceAll('\\', '/');
+            return { name, sql };
+        } catch (error) {
+            throw new Error(`Cannot load migration "${migration}" at "${sqlPath}": ${error.message}`);
+        }
+    });
 }
 
 async function runMigrations() {
-    const client = await pool.connect();
+    let client;
     try {
+        const loadedMigrations = loadMigrations();
+        client = await pool.connect();
         await client.query(`
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 name TEXT PRIMARY KEY,
@@ -61,8 +64,7 @@ async function runMigrations() {
             )
         `);
 
-        for (const migration of migrations) {
-            const { name, sql } = await resolveMigration(migration);
+        for (const { name, sql } of loadedMigrations) {
             const applied = await client.query(
                 'SELECT 1 FROM schema_migrations WHERE name = $1',
                 [name],
@@ -85,7 +87,7 @@ async function runMigrations() {
         console.error('Migration failed:', error.message);
         process.exitCode = 1;
     } finally {
-        client.release();
+        client?.release();
         await pool.end();
     }
 }
