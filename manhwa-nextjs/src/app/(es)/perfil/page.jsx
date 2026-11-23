@@ -518,37 +518,65 @@ export default function UserProfile() {
   useEffect(() => {
     if (!user?.username) return;
 
+    let active = true;
+
     const fetchCommunityData = async () => {
+      setRatingsLoading(true);
+      setCommentsLoading(true);
+
       try {
         const { default: api } = await import('@/api/client');
-        
-        // Fetch ratings
-        const ratingsRes = await api.get('users', `${user.username}/ratings?limit=10`);
-        const ratingsData = ratingsRes?.data?.ratings || ratingsRes?.ratings || [];
-        setUserRatings(Array.isArray(ratingsData) ? ratingsData : []);
+        const username = encodeURIComponent(user.username);
+        const ratings = [];
+        let ratingsPage = 1;
+        let ratingsTotalPages = 1;
+
+        do {
+          const ratingsRes = await api.get('users', `${username}/ratings?page=${ratingsPage}&limit=50`);
+          const pageData = ratingsRes?.data?.ratings || ratingsRes?.ratings || [];
+          if (Array.isArray(pageData)) ratings.push(...pageData);
+          ratingsTotalPages = ratingsRes?.data?.pagination?.totalPages
+            || ratingsRes?.pagination?.totalPages
+            || 1;
+          ratingsPage += 1;
+        } while (ratingsPage <= ratingsTotalPages);
+
+        if (active) setUserRatings(ratings);
       } catch (e) {
         console.error('Error fetching ratings:', e);
-        setUserRatings([]);
+        if (active) setUserRatings([]);
       } finally {
-        setRatingsLoading(false);
+        if (active) setRatingsLoading(false);
       }
 
       try {
         const { default: api } = await import('@/api/client');
-        
-        // Fetch comments
-        const commentsRes = await api.get('users', `${user.username}/comments?limit=10`);
-        const commentsData = commentsRes?.data?.comments || commentsRes?.comments || [];
-        setUserComments(Array.isArray(commentsData) ? commentsData : []);
+        const username = encodeURIComponent(user.username);
+        const comments = [];
+        let commentsPage = 1;
+        let commentsTotalPages = 1;
+
+        do {
+          const commentsRes = await api.get('users', `${username}/comments?page=${commentsPage}&limit=50`);
+          const pageData = commentsRes?.data?.comments || commentsRes?.comments || [];
+          if (Array.isArray(pageData)) comments.push(...pageData);
+          commentsTotalPages = commentsRes?.data?.pagination?.totalPages
+            || commentsRes?.pagination?.totalPages
+            || 1;
+          commentsPage += 1;
+        } while (commentsPage <= commentsTotalPages);
+
+        if (active) setUserComments(comments);
       } catch (e) {
         console.error('Error fetching comments:', e);
-        setUserComments([]);
+        if (active) setUserComments([]);
       } finally {
-        setCommentsLoading(false);
+        if (active) setCommentsLoading(false);
       }
     };
 
     fetchCommunityData();
+    return () => { active = false; };
   }, [user?.username]);
 
   const getInitials = () => {
@@ -1255,8 +1283,14 @@ export default function UserProfile() {
                 </Center>
               ) : (
                 <Stack gap="sm">
-                  {userRatings.slice(0, 5).map((rating) => (
-                    <Link key={rating.id} href={`/manhwa/${rating.series?.slug}`} style={{ textDecoration: 'none' }}>
+                  {userRatings.map((rating) => (
+                    <Link
+                      key={rating.id}
+                      href={rating.ratingType === 'chapter' && rating.chapterNumber
+                        ? `/manhwa/${rating.series?.slug}/capitulo/${rating.chapterNumber}`
+                        : `/manhwa/${rating.series?.slug}`}
+                      style={{ textDecoration: 'none' }}
+                    >
                       <Paper p="sm" radius="lg" withBorder style={{ border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, transition: 'all 0.2s', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }} className={styles.ratingCard}>
                         <Group gap="sm" wrap="nowrap">
                           <Box style={{ width: 50, height: 70, borderRadius: rem(8), overflow: 'hidden', flexShrink: 0 }}>
@@ -1296,9 +1330,6 @@ export default function UserProfile() {
                       </Paper>
                     </Link>
                   ))}
-                  {userRatings.length > 5 && (
-                    <Text size="xs" c="dimmed" ta="center">+ {userRatings.length - 5} calificaciones más</Text>
-                  )}
                 </Stack>
               )
             ) : (
@@ -1323,8 +1354,16 @@ export default function UserProfile() {
                 </Center>
               ) : (
                 <Stack gap="sm">
-                  {userComments.slice(0, 5).map((comment) => (
-                    <Link key={comment.id} href={comment.seriesSlug ? `/manhwa/${comment.seriesSlug}${comment.chapterNumber ? `/${comment.chapterNumber}` : ''}` : '#'} style={{ textDecoration: 'none' }}>
+                  {userComments.map((comment) => (
+                    <Link
+                      key={comment.id}
+                      href={comment.seriesSlug
+                        ? comment.targetType === 'chapter' && comment.chapterNumber
+                          ? `/manhwa/${comment.seriesSlug}/capitulo/${comment.chapterNumber}`
+                          : `/manhwa/${comment.seriesSlug}`
+                        : '#'}
+                      style={{ textDecoration: 'none' }}
+                    >
                       <Paper p="sm" radius="lg" withBorder style={{ border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, transition: 'all 0.2s', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }} className={styles.commentCard}>
                         <Stack gap="xs">
                           <Group justify="space-between" wrap="nowrap">
@@ -1370,9 +1409,6 @@ export default function UserProfile() {
                       </Paper>
                     </Link>
                   ))}
-                  {userComments.length > 5 && (
-                    <Text size="xs" c="dimmed" ta="center">+ {userComments.length - 5} comentarios más</Text>
-                  )}
                 </Stack>
               )
             )}
