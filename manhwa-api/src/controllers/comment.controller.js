@@ -5,6 +5,7 @@
 const { query, transaction } = require('../config/database');
 const { hasPermission } = require('../config/roles');
 const { getUserBadgeStats } = require('./progress.controller');
+const { normalizeWallComment, validateWallComment, WALL_TARGET_ID } = require('../utils/commentValidation');
 
 /**
  * Construye el objeto author con badge stats para respuestas.
@@ -233,29 +234,53 @@ const createComment = async (req, res, next) => {
         const { targetType, targetId, content, parentId, rating, isSpoiler, poll } = req.body;
 
         if (targetType === 'wall') {
-            const normalized = typeof content === 'string' ? content.trim() : '';
-            if (!normalized) {
+            const wallValidation = validateWallComment({ content, rating, isSpoiler, poll });
+            if (wallValidation.code) {
+                const messages = {
+                    CONTENT_EMPTY: 'El mensaje no puede estar vacío',
+                    CONTENT_TOO_LONG: 'El mensaje no puede exceder 500 caracteres',
+                    FIELD_NOT_ALLOWED: 'Encuestas, rating y spoiler no están disponibles en el muro'
+                };
                 return res.status(422).json({
                     success: false,
-                    message: 'El mensaje no puede estar vacío',
-                    code: 'VALIDATION_ERROR',
-                    errors: { body: 'El mensaje no puede estar vacío' }
+                    message: messages[wallValidation.code],
+                    code: wallValidation.code,
+                    field: wallValidation.field
                 });
             }
-            if ([...normalized].length > 500) {
-                return res.status(422).json({
+
+            const dailyCount = await query(
+                `SELECT COUNT(*)::int AS count
+                 FROM comments
+                 WHERE user_id = $1
+                   AND target_type = 'wall'
+                   AND created_at >= date_trunc('day', NOW())`,
+                [req.user.id]
+            );
+            if ((dailyCount.rows[0]?.count || 0) >= 50) {
+                return res.status(429).json({
                     success: false,
-                    message: 'El mensaje no puede exceder 500 caracteres',
-                    code: 'VALIDATION_ERROR',
-                    errors: { body: 'El mensaje no puede exceder 500 caracteres' }
+                    message: 'Llegaste al límite diario de publicaciones',
+                    code: 'RATE_LIMIT_DAILY'
                 });
             }
-            if (/[<>]/.test(normalized) || /<[^>]*>/.test(normalized)) {
-                return res.status(422).json({
+
+            const latestWallComment = await query(
+                `SELECT content
+                 FROM comments
+                 WHERE user_id = $1
+                   AND target_type = 'wall'
+                   AND status = 'visible'
+                 ORDER BY created_at DESC
+                 LIMIT 1`,
+                [req.user.id]
+            );
+            if (latestWallComment.rows.length > 0
+                && normalizeWallComment(latestWallComment.rows[0].content) === wallValidation.normalized) {
+                return res.status(409).json({
                     success: false,
-                    message: 'El mensaje no puede contener HTML',
-                    code: 'VALIDATION_ERROR',
-                    errors: { body: 'El mensaje no puede contener HTML' }
+                    message: 'Ya publicaste ese comentario en el muro',
+                    code: 'DUPLICATE_COMMENT'
                 });
             }
         }
@@ -312,7 +337,7 @@ const createComment = async (req, res, next) => {
             case 'collection': targetTable = 'collections'; break;
             case 'request': targetTable = 'requests'; break;
             case 'wall':
-                if (targetId !== '00000000-0000-0000-0000-000000000000') {
+                if (targetId !== WALL_TARGET_ID) {
                     return res.status(404).json({ success: false, message: 'Target no encontrado' });
                 }
                 targetTable = null;
@@ -376,7 +401,9 @@ const createComment = async (req, res, next) => {
         }
         
         // Si solo hay encuesta y no contenido, guardar contenido vacío
-        const commentContent = (content && content.trim()) || '';
+        const commentContent = targetType === 'wall'
+            ? normalizeWallComment(content)
+            : ((content && content.trim()) || '');
         
         const result = await query(
             `INSERT INTO comments (user_id, target_type, target_id, parent_id, root_id, content, rating, is_spoiler, ip_address)
@@ -438,6 +465,34 @@ const createComment = async (req, res, next) => {
                 'UPDATE comments SET replies_count = replies_count + 1 WHERE id = $1',
                 [parentId]
             );
+
+            if (targetType === 'wall') {
+                const wallReplyParent = await query(
+                    `SELECT user_id
+                     FROM comments
+                     WHERE id = $1
+                       AND target_type = 'wall'
+                       AND status = 'visible'`,
+                    [parentId]
+                );
+                if (wallReplyParent.rows.length > 0
+                    && wallReplyParent.rows[0].user_id !== req.user.id) {
+                    await query(
+                        `INSERT INTO notifications (user_id, type, title, message, data, url)
+                         VALUES ($1, 'wall_comment_reply', 'Nueva respuesta en el muro',
+                                 $2, $3, '/muro')`,
+                        [
+                            wallReplyParent.rows[0].user_id,
+                            `${req.user.username} respondió tu comentario`,
+                            JSON.stringify({
+                                commentId: comment.id,
+                                parentId,
+                                actorId: req.user.id
+                            })
+                        ]
+                    );
+                }
+            }
         }
         
         // Actualizar contador en el target
@@ -586,7 +641,7 @@ const updateComment = async (req, res, next) => {
         
         // Verificar propiedad
         const commentResult = await query(
-            'SELECT user_id FROM comments WHERE id = $1 AND status = \'visible\'',
+            'SELECT user_id, target_type FROM comments WHERE id = $1 AND status = \'visible\'',
             [id]
         );
         
@@ -598,6 +653,26 @@ const updateComment = async (req, res, next) => {
         }
         
         const comment = commentResult.rows[0];
+
+        if (comment.target_type === 'wall') {
+            const wallValidation = validateWallComment({
+                content,
+                rating: undefined,
+                isSpoiler: false,
+                poll: undefined
+            });
+            if (wallValidation.code) {
+                const messages = {
+                    CONTENT_EMPTY: 'El mensaje no puede estar vacío',
+                    CONTENT_TOO_LONG: 'El mensaje no puede exceder 500 caracteres'
+                };
+                return res.status(422).json({
+                    success: false,
+                    message: messages[wallValidation.code],
+                    code: wallValidation.code
+                });
+            }
+        }
         
         // Verificar permisos
         if (comment.user_id !== req.user.id && !hasPermission(req.user.role, 'comments:delete_any')) {
@@ -607,11 +682,15 @@ const updateComment = async (req, res, next) => {
             });
         }
         
+        const updatedContent = comment.target_type === 'wall'
+            ? normalizeWallComment(content)
+            : content;
+
         await query(
             `UPDATE comments 
              SET content = $1, is_edited = true, edited_at = NOW(), updated_at = NOW()
              WHERE id = $2`,
-            [content, id]
+            [updatedContent, id]
         );
         
         res.json({
@@ -1088,7 +1167,8 @@ const reportComment = async (req, res, next) => {
         if (existingReport.rows.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Ya has reportado este comentario'
+                message: 'Ya has reportado este comentario',
+                code: 'ALREADY_REPORTED'
             });
         }
         

@@ -5,6 +5,9 @@ const { optionalAuth } = require('../middleware/auth');
 const { paginationValidation } = require('../middleware/validators');
 const { validate } = require('../middleware/validate');
 
-router.get('/comments', optionalAuth, validate(paginationValidation), commentController.getWallComments);
+router.get('/comments', (req, res, next) => {
+    res.set('Cache-Control', 'private, no-store');
+    next();
+}, optionalAuth, validate(paginationValidation), commentController.getWallComments);
 
 module.exports = router;

@@ -65,7 +65,7 @@ const wallCommentLimiter = rateLimit({
     handler: (req, res) => res.status(429).json({
         success: false,
         message: 'Has publicado demasiado rápido. Intenta de nuevo en un minuto.',
-        code: 'RATE_LIMITED'
+        code: 'RATE_LIMIT_MINUTE'
     }),
     skip: (req) => req.body?.targetType !== 'wall'
 });
