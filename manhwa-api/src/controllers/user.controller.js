@@ -7,6 +7,7 @@ const { canModifyUser, getAssignableRoles } = require('../config/roles');
 const usernameValidator = require('../utils/usernameValidator');
 const { normalizeSocialLinks } = require('../utils/socialLinks');
 const { getLevelInfo, getXpConfig, LEVEL_CONFIG } = require('../utils/xpSystem');
+const { validateFavoriteCharacters } = require('../utils/favoriteCharacters');
 
 /**
  * Obtener top usuarios por racha
@@ -133,6 +134,19 @@ const getProfile = async (req, res, next) => {
                     u.level, u.experience, u.followers_count, u.following_count,
                     u.collections_count, u.theme_primary_color, u.theme_accent_color,
                     u.show_active_reader, u.created_at,
+                    COALESCE((
+                        SELECT json_agg(
+                            json_build_object(
+                                'type', fc.type,
+                                'name', fc.name,
+                                'color', fc.color,
+                                'position', fc.position
+                            )
+                            ORDER BY fc.position
+                        )
+                        FROM user_favorite_characters fc
+                        WHERE fc.user_id = u.id
+                    ), '[]'::json) AS favorite_characters,
                     EXISTS(
                         SELECT 1 FROM user_follows 
                         WHERE follower_id = $2 AND following_id = u.id
@@ -198,6 +212,8 @@ const getProfile = async (req, res, next) => {
                     },
                     showActiveReader: user.show_active_reader,
                     show_active_reader: user.show_active_reader,
+                    favoriteCharacters: user.favorite_characters || [],
+                    favorite_characters: user.favorite_characters || [],
                     stats: {
                         followers: user.followers_count,
                         following: user.following_count,
@@ -264,30 +280,93 @@ const validateUsername = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
     try {
-        const { displayName, bio, location, website, socialLinks, themePrimaryColor, themeAccentColor, colorScheme, showActiveReader } = req.body;
+        const {
+            displayName,
+            bio,
+            location,
+            website,
+            socialLinks,
+            themePrimaryColor,
+            themeAccentColor,
+            colorScheme,
+            showActiveReader,
+            favoriteCharacters,
+            favorite_characters,
+        } = req.body;
         const normalizedSocialLinks = typeof socialLinks === 'undefined'
             ? null
             : JSON.stringify(normalizeSocialLinks(socialLinks || {}));
+        const shouldReplaceFavoriteCharacters =
+            typeof favoriteCharacters !== 'undefined' || typeof favorite_characters !== 'undefined';
+        const favoriteCharactersInput =
+            typeof favoriteCharacters !== 'undefined' ? favoriteCharacters : favorite_characters;
 
-        const result = await query(
-            `UPDATE users 
-             SET display_name = COALESCE($1, display_name),
-                 bio = COALESCE($2, bio),
-                 location = COALESCE($3, location),
-                 website = COALESCE($4, website),
-                 theme_primary_color = COALESCE($5, theme_primary_color),
-                 theme_accent_color = COALESCE($6, theme_accent_color),
-                 theme_mode = COALESCE($7, theme_mode),
-                 show_active_reader = COALESCE($8, show_active_reader),
-                 social_links = COALESCE($9::jsonb, social_links),
-                 updated_at = NOW()
-             WHERE id = $10
-             RETURNING id, username, display_name, bio, location, website,
-                       theme_primary_color, theme_accent_color, theme_mode, show_active_reader, social_links`,
-            [displayName, bio, location, website, themePrimaryColor, themeAccentColor, colorScheme, showActiveReader, normalizedSocialLinks, req.user.id]
-        );
+        let normalizedFavoriteCharacters = null;
+        if (shouldReplaceFavoriteCharacters) {
+            const validation = validateFavoriteCharacters(favoriteCharactersInput);
+            const invalid = Array.isArray(validation)
+                ? validation.find(item => item && item.field && item.message)
+                : null;
+            if (invalid) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Error de validación',
+                    errors: validation,
+                });
+            }
+            normalizedFavoriteCharacters = validation;
+        }
 
-        const user = result.rows[0];
+        const result = await transaction(async (client) => {
+            const userResult = await client.query(
+                `UPDATE users
+                 SET display_name = COALESCE($1, display_name),
+                     bio = COALESCE($2, bio),
+                     location = COALESCE($3, location),
+                     website = COALESCE($4, website),
+                     theme_primary_color = COALESCE($5, theme_primary_color),
+                     theme_accent_color = COALESCE($6, theme_accent_color),
+                     theme_mode = COALESCE($7, theme_mode),
+                     show_active_reader = COALESCE($8, show_active_reader),
+                     social_links = COALESCE($9::jsonb, social_links),
+                     updated_at = NOW()
+                 WHERE id = $10
+                 RETURNING id, username, display_name, bio, location, website,
+                           theme_primary_color, theme_accent_color, theme_mode, show_active_reader, social_links`,
+                [displayName, bio, location, website, themePrimaryColor, themeAccentColor, colorScheme, showActiveReader, normalizedSocialLinks, req.user.id]
+            );
+
+            if (shouldReplaceFavoriteCharacters) {
+                await client.query(
+                    'DELETE FROM user_favorite_characters WHERE user_id = $1',
+                    [req.user.id]
+                );
+                for (const character of normalizedFavoriteCharacters) {
+                    await client.query(
+                        `INSERT INTO user_favorite_characters
+                         (user_id, type, name, color, position)
+                         VALUES ($1, $2, $3, $4, $5)`,
+                        [req.user.id, character.type, character.name, character.color, character.position]
+                    );
+                }
+            }
+
+            const charactersResult = await client.query(
+                `SELECT type, name, color, position
+                 FROM user_favorite_characters
+                 WHERE user_id = $1
+                 ORDER BY position`,
+                [req.user.id]
+            );
+
+            return {
+                user: userResult.rows[0],
+                favoriteCharacters: charactersResult.rows,
+            };
+        });
+
+        const user = result.user;
+        const favoriteCharactersResult = result.favoriteCharacters;
 
         res.json({
             success: true,
@@ -309,7 +388,9 @@ const updateProfile = async (req, res, next) => {
                     showActiveReader: user.show_active_reader,
                     show_active_reader: user.show_active_reader,
                     socialLinks: user.social_links || {},
-                    social_links: user.social_links || {}
+                    social_links: user.social_links || {},
+                    favoriteCharacters: favoriteCharactersResult,
+                    favorite_characters: favoriteCharactersResult
                 }
             }
         });

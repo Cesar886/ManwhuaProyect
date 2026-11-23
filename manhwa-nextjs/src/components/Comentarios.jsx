@@ -254,7 +254,7 @@ const normalizeApiComment = (c) => {
   }
 }
 
-const COMMENT_TARGET_TYPES = new Set(['series', 'chapter', 'collection', 'request'])
+const COMMENT_TARGET_TYPES = new Set(['series', 'chapter', 'collection', 'request', 'wall'])
 
 // series.type describe el formato de la obra (manhwa, manga, etc.), no el
 // tipo de destino aceptado por /api/comments.
@@ -1067,8 +1067,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
   }
 
   // Validación de longitud de comentario
-  const MIN_COMMENT_LENGTH = 5
-  const MAX_COMMENT_LENGTH = 1000
+  const MIN_COMMENT_LENGTH = detailRequest?.targetType === 'wall' ? 1 : 5
+  const MAX_COMMENT_LENGTH = detailRequest?.targetType === 'wall' ? 500 : 1000
   const trimmedLength = commentText.trim().length
   const isTooShort = trimmedLength > 0 && trimmedLength < MIN_COMMENT_LENGTH
   const isTooLong = trimmedLength > MAX_COMMENT_LENGTH
@@ -1102,6 +1102,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       } else if (target.targetType === 'collection') {
         if (!target.slug) throw new Error('No se pudo identificar la colección')
         res = await api.get('collections', target.slug + '/comments?' + query)
+      } else if (target.targetType === 'wall') {
+        res = await api.get('wall', 'comments?' + query)
       } else {
         res = await api.get('requests', target.targetId + '/comments?' + query)
       }

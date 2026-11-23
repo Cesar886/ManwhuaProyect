@@ -32,6 +32,8 @@ import {
   Indicator,
   Slider,
   Switch,
+  Popover,
+  ColorSwatch,
 } from '@mantine/core';
 import { useMediaQuery, useHover } from '@mantine/hooks';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,30 +52,96 @@ import {
   IconStarFilled,
   IconArrowUpRight,
   IconCheck,
-  IconStar,
   IconMessage,
-  IconShield,
-  IconSword,
   IconThumbUp,
   IconThumbDown,
   IconMessageCircle,
   IconBrandX,
   IconBrandInstagram,
   IconBrandDiscord,
+  IconPlus,
+  IconTrash,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { getCurrentUser } from '@/api/client';
 import { getStreak, getStreakStreamUrl } from '@/api/progress';
 import { getUserAchievements } from '@/api/achievements';
 import { VitrinaLogros } from '@/components/achievements';
-import { ENDPOINTS } from '@/config';
 import styles from '@/app/(es)/user-profile/UserProfile.module.css';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import { getLevelInfo, formatXp, getLevelGradient, LEVEL_CONFIG } from '@/utils/xpSystem';
 import { getSocialLinkErrors, getSocialLinkInput } from '@/utils/socialLinks';
 import SocialProfileLinks from '@/components/SocialProfileLinks';
 import UserFollowListModal from '@/components/UserFollowListModal';
+import { useProfilePresence } from '@/hooks/usePresence';
+
+const MAX_DISPLAY_NAME_LENGTH = 10;
+const DEFAULT_FAVORITE_CHARACTER_COLOR = '#E64980';
+const FAVORITE_CHARACTER_PALETTE = [
+  '#E64980',
+  '#F06595',
+  '#FA5252',
+  '#FD7E14',
+  '#FAB005',
+  '#40C057',
+  '#12B886',
+  '#15AABF',
+  '#228BE6',
+  '#7950F2',
+  '#AE3EC9',
+];
+
+const normalizeFavoriteCharacters = (characters) => {
+  if (!Array.isArray(characters)) return [];
+  return characters.slice(0, 3).map((character, index) => ({
+    type: character?.type === 'husband' ? 'husband' : 'waifu',
+    name: String(character?.name || '').normalize('NFC').trim().slice(0, 10),
+    color: FAVORITE_CHARACTER_PALETTE.includes(String(character?.color || '').toUpperCase())
+      ? String(character.color).toUpperCase()
+      : DEFAULT_FAVORITE_CHARACTER_COLOR,
+    position: index,
+  }));
+};
+
+const FavoriteCharacterBadges = ({ characters }) => {
+  const normalized = normalizeFavoriteCharacters(characters);
+  if (normalized.length === 0) return null;
+
+  const getBadgeTextColor = (hex) => {
+    const channels = [1, 3, 5].map((index) =>
+      parseInt(hex.slice(index, index + 2), 16) / 255
+    ).map((value) =>
+      value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+    );
+    const backgroundLuminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    const blackContrast = (backgroundLuminance + 0.05) / (0.0025 + 0.05);
+    const whiteContrast = (1.05) / (backgroundLuminance + 0.05);
+    return blackContrast >= whiteContrast ? '#20242A' : '#FFFFFF';
+  };
+
+  return (
+    <Group gap={6} wrap="wrap" style={{ maxWidth: '100%' }}>
+      {normalized.map((character) => (
+        <Badge
+          key={`${character.position}-${character.type}-${character.name}`}
+          variant="light"
+          radius="xl"
+          size="sm"
+          styles={{
+            root: {
+              backgroundColor: `${character.color}33`,
+              color: getBadgeTextColor(character.color),
+              border: `1px solid ${character.color}99`,
+              textShadow: 'none',
+            },
+          }}
+        >
+          my {character.type} {character.name}
+        </Badge>
+      ))}
+    </Group>
+  );
+};
 
 const COUNTRY_CODES = `
 AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ
@@ -426,6 +494,7 @@ export default function UserProfile() {
     location: '',
     show_active_reader: true,
     social_links: { x: '', instagram: '', discord: '' },
+    favorite_characters: [],
   });
   const [editSaving, setEditSaving] = useState(false);
   const [followListType, setFollowListType] = useState(null);
@@ -439,9 +508,7 @@ export default function UserProfile() {
   const [userBookmarks, setUserBookmarks] = useState([]);
   const [bookmarksLoading, setBookmarksLoading] = useState(true);
   const [profileTab, setProfileTab] = useState('continue');
-
-  // Presencia en tiempo real
-  const [isOnline, setIsOnline] = useState(false);
+  const [ratingsVisibleCount, setRatingsVisibleCount] = useState(6);
 
   useEffect(() => {
     let active = true;
@@ -472,6 +539,8 @@ export default function UserProfile() {
           banner_position_y: source.bannerPositionY ?? source.banner_position_y ?? 50,
           show_active_reader: source.showActiveReader ?? source.show_active_reader,
           social_links: source.socialLinks || source.social_links,
+          favorite_characters: normalizeFavoriteCharacters(source.favoriteCharacters || source.favorite_characters),
+          favoriteCharacters: normalizeFavoriteCharacters(source.favoriteCharacters || source.favorite_characters),
           followers_count: source.stats?.followers ?? source.followers_count,
           following_count: source.stats?.following ?? source.following_count,
           collections_count: source.stats?.collections ?? source.collections_count,
@@ -500,6 +569,8 @@ export default function UserProfile() {
   const currentUserId = authUser?.id || authUser?._id;
   const profileUserId = user?.id || user?._id;
   const isOwner = Boolean(currentUserId && profileUserId && String(currentUserId) === String(profileUserId));
+  const showActiveReader = user?.showActiveReader ?? user?.show_active_reader ?? true;
+  const { isOnline } = useProfilePresence(profileUserId, showActiveReader);
 
   useEffect(() => {
     if (!user?.username) {
@@ -593,47 +664,6 @@ export default function UserProfile() {
     return () => { active = false; };
   }, [user?.username]);
 
-  // SSE — presencia en tiempo real (marca al usuario como online mientras la conexión vive)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const userId = user?.id || user?._id;
-    if (!userId) {
-      setIsOnline(false);
-      return;
-    }
-
-    const showActiveReader = user.showActiveReader ?? user.show_active_reader;
-    if (showActiveReader === false) {
-      setIsOnline(false);
-      return;
-    }
-
-    let presenceStream = null;
-    if (isOwner) {
-      presenceStream = new EventSource(`${ENDPOINTS.presence}/stream`, { withCredentials: true });
-      presenceStream.onerror = () => presenceStream?.close();
-    }
-
-    // Cualquier visitante puede observar el estado público del perfil.
-    let watchStream = null;
-    watchStream = new EventSource(`${ENDPOINTS.presence}/${userId}/watch`, { withCredentials: true });
-    watchStream.onmessage = (e) => {
-      try {
-        const presence = JSON.parse(e.data);
-        setIsOnline(Boolean(presence.online));
-      } catch {}
-    };
-    watchStream.onerror = () => {
-      setIsOnline(false);
-      watchStream.close();
-    };
-
-    return () => {
-      presenceStream?.close();
-      watchStream?.close();
-    };
-  }, [user, isOwner]);
-
   // SSE — actualizaciones de racha en tiempo real
   useEffect(() => {
     if (!isOwner) return;
@@ -687,7 +717,11 @@ export default function UserProfile() {
           ratingsPage += 1;
         } while (ratingsPage <= ratingsTotalPages);
 
-        if (active) setUserRatings(ratings);
+        if (active) {
+          setUserRatings([...ratings].sort((a, b) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          ));
+        }
       } catch (e) {
         console.error('Error fetching ratings:', e);
         if (active) setUserRatings([]);
@@ -725,6 +759,10 @@ export default function UserProfile() {
     return () => { active = false; };
   }, [user?.username]);
 
+  useEffect(() => {
+    if (profileTab === 'ratings') setRatingsVisibleCount(6);
+  }, [profileTab, user?.username]);
+
   const getInitials = () => {
     if (!user) return 'U';
     const name = user.display_name || user.name || user.username || 'U';
@@ -737,7 +775,7 @@ export default function UserProfile() {
   const openEditModal = useCallback(() => {
     if (!isOwner || !user) return;
     setEditForm({
-      display_name: user.display_name || user.name || user.username || '',
+      display_name: (user.display_name || user.name || user.username || '').slice(0, MAX_DISPLAY_NAME_LENGTH),
       bio: user.bio || '',
       location: getCountryCode(user.location),
       show_active_reader: user.showActiveReader ?? user.show_active_reader ?? true,
@@ -746,6 +784,9 @@ export default function UserProfile() {
         instagram: getSocialLinkInput('instagram', user.social_links?.instagram || user.socialLinks?.instagram),
         discord: getSocialLinkInput('discord', user.social_links?.discord || user.socialLinks?.discord),
       },
+      favorite_characters: normalizeFavoriteCharacters(
+        user.favoriteCharacters || user.favorite_characters,
+      ),
       banner_position_x: Number(user.banner_position_x ?? user.bannerPositionX ?? 50),
       banner_position_y: Number(user.banner_position_y ?? user.bannerPositionY ?? 50),
     });
@@ -754,6 +795,29 @@ export default function UserProfile() {
 
   const handleSaveProfile = async () => {
     if (!isOwner || !user) return;
+    const favoriteCharacters = (editForm.favorite_characters || []).slice(0, 3).map((character, index) => ({
+      type: character?.type === 'husband' ? 'husband' : 'waifu',
+      name: String(character?.name || '').normalize('NFC').trim(),
+      color: FAVORITE_CHARACTER_PALETTE.includes(String(character?.color || '').toUpperCase())
+        ? String(character?.color || '').toUpperCase()
+        : DEFAULT_FAVORITE_CHARACTER_COLOR,
+      position: index,
+    }));
+    const invalidFavoriteCharacter = favoriteCharacters.find((character) =>
+      !character.name
+      || [...character.name].length > 10
+      || /[<>]/.test(character.name)
+      || /javascript\s*:|script/i.test(character.name)
+      || /[\u0000-\u001F\u007F]/.test(character.name)
+    );
+    if (invalidFavoriteCharacter) {
+      notifications.show({
+        title: 'Revisa tus personajes favoritos',
+        message: 'Los nombres son obligatorios, deben tener máximo 10 caracteres y no pueden contener HTML ni scripts.',
+        color: 'red',
+      });
+      return;
+    }
     const socialErrors = getSocialLinkErrors(editForm.social_links);
     if (Object.keys(socialErrors).length > 0) {
       notifications.show({ title: 'Revisa tus redes sociales', message: Object.values(socialErrors)[0], color: 'red' });
@@ -763,25 +827,32 @@ export default function UserProfile() {
     setEditSaving(true);
     try {
       const userId = user.id || user._id;
+      const displayName = editForm.display_name.trim().slice(0, MAX_DISPLAY_NAME_LENGTH);
       const response = await updateProfile(userId, {
-        display_name: editForm.display_name.trim(),
+        display_name: displayName,
         bio: editForm.bio.trim(),
         location: editForm.location || '',
         show_active_reader: editForm.show_active_reader,
         social_links: editForm.social_links,
+        favorite_characters: favoriteCharacters,
       });
       const savedUser = response?.data?.user || response?.user || {};
       const savedUsername = savedUser.username || user.username;
       const savedSocialLinks = savedUser.socialLinks || savedUser.social_links || editForm.social_links;
+      const savedFavoriteCharacters = normalizeFavoriteCharacters(
+        savedUser.favoriteCharacters || savedUser.favorite_characters || favoriteCharacters,
+      );
       setUser(prev => ({
         ...prev,
         ...savedUser,
         username: savedUsername,
-        display_name: savedUser.displayName ?? savedUser.display_name ?? editForm.display_name.trim(),
+        display_name: savedUser.displayName ?? savedUser.display_name ?? displayName,
         bio: savedUser.bio ?? editForm.bio.trim(),
         location: savedUser.location ?? editForm.location,
         show_active_reader: savedUser.showActiveReader ?? savedUser.show_active_reader ?? editForm.show_active_reader,
         social_links: savedSocialLinks,
+        favoriteCharacters: savedFavoriteCharacters,
+        favorite_characters: savedFavoriteCharacters,
       }));
       if (routeUsername && savedUsername !== user.username) {
         router.replace(`/users/${encodeURIComponent(savedUsername)}`, { scroll: false });
@@ -1014,10 +1085,9 @@ export default function UserProfile() {
   };
   const socialLinks = user.social_links || user.socialLinks || {};
   const hasSocialLinks = Boolean(socialLinks.x || socialLinks.instagram || socialLinks.discord);
-
-  // Calcular información del nivel basado en experiencia
-  const userExperience = user.experience || user.levelInfo?.currentXp || 0;
-  const levelInfo = getLevelInfo(userExperience);
+  const favoriteCharacters = normalizeFavoriteCharacters(
+    user.favoriteCharacters || user.favorite_characters,
+  );
 
   const joinedDateLabel = userJoinDate
     ? new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(userJoinDate))
@@ -1040,7 +1110,7 @@ export default function UserProfile() {
   const roleBadges = {
     superadmin: { label: 'Super Admin', color: 'red', icon: IconCrown, gradient: { from: 'red', to: 'pink' } },
     admin: { label: 'Admin', color: 'orange', icon: IconCrown, gradient: { from: 'orange', to: 'yellow' } },
-    moderator: { label: 'Mod', color: 'violet', icon: IconStarFilled, gradient: { from: 'violet', to: 'grape' } },
+    // moderator: { label: 'Mod', color: 'violet', icon: IconStarFilled, gradient: { from: 'violet', to: 'grape' } },
     translator: { label: 'Traductor', color: 'blue', icon: IconSparkles, gradient: { from: 'blue', to: 'cyan' } },
     vip: { label: 'VIP', color: 'yellow', icon: IconSparkles, gradient: { from: 'yellow', to: 'orange' } },
     reader: { label: 'Lector', color: 'gray', icon: IconBook, gradient: { from: 'gray', to: 'dark' } },
@@ -1099,6 +1169,7 @@ export default function UserProfile() {
               {userBio !== 'Sin biografía' && (
                 <Text size="sm" c="dimmed" ta="center" maw={320} lh={1.6} style={{ opacity: 0.75 }}>{userBio}</Text>
               )}
+              <FavoriteCharacterBadges characters={favoriteCharacters} />
               <SocialProfileLinks links={socialLinks} />
               {isOwner && !hasSocialLinks && <Button variant="subtle" size="xs" onClick={openEditModal}>Agregar redes sociales</Button>}
               <Group gap={rem(48)} justify="center" mt="md" className={styles.headerStatsGrid}>
@@ -1154,6 +1225,7 @@ export default function UserProfile() {
                 {userBio !== 'Sin biografía' && (
                   <Text size="sm" maw={540} lh={1.65} style={{ opacity: 0.75 }}>{userBio}</Text>
                 )}
+                <FavoriteCharacterBadges characters={favoriteCharacters} />
                 <SocialProfileLinks links={socialLinks} />
                 {isOwner && !hasSocialLinks && <Button variant="subtle" size="xs" onClick={openEditModal} w="fit-content">Agregar redes sociales</Button>}
                 <Group gap={rem(56)} mt="lg" className={styles.headerStatsGrid}>
@@ -1218,6 +1290,7 @@ export default function UserProfile() {
               {userBio !== 'Sin biografía' && (
                 <Text size="sm" lh={1.55} className={styles.profileBio}>{userBio}</Text>
               )}
+              <FavoriteCharacterBadges characters={favoriteCharacters} />
               <Group gap={12} wrap="wrap" className={styles.profileMetaRow}>
                 <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
                   <IconCalendar size={15} stroke={1.7} />
@@ -1279,14 +1352,6 @@ export default function UserProfile() {
         <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'continue' ? 'block' : 'none' }}>
           <Box style={{ position: 'absolute', top: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
           <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
-            <Group justify="space-between" align="center">
-              <Group gap="sm">
-                <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'cyan', to: 'teal', deg: 135 }}>
-                  <IconBook size={18} />
-                </ThemeIcon>
-                <Text fw={700} size={isMobile ? 'md' : 'lg'}>Continuar Leyendo</Text>
-              </Group>
-            </Group>
             {recentLoading ? (
               <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'} className={styles.readingGrid}>
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -1346,82 +1411,7 @@ export default function UserProfile() {
 
         {/* GAMIFICACIÓN */}
         <Grid gutter={16} mb={16} align="stretch" className={styles.gamificationGrid} style={{ display: profileTab === 'achievements' ? 'grid' : 'none' }}>
-
-          {/* NIVEL DE USUARIO */}
-          <Grid.Col span={{ base: 12, md: 5 }}>
-            <Paper id="nivel-usuario" p={isMobile ? 'md' : 'xl'} radius={20} h="100%" className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden' }}>
-              <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
-                <Group justify="space-between" align="center" wrap="nowrap">
-                  <Group gap="sm">
-                    <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={getLevelGradient(levelInfo.level)}><IconStar size={18} /></ThemeIcon>
-                    <Text fw={700} size={isMobile ? 'md' : 'lg'}>Nivel de Usuario</Text>
-                  </Group>
-                  <Badge variant="gradient" gradient={getLevelGradient(levelInfo.level)} size="sm" style={{ padding: '0.35rem 0.9rem', lineHeight: 1 }}>{levelInfo.name}</Badge>
-                </Group>
-                <Group gap="md" align="center" wrap="nowrap">
-                  {(() => {
-                    const LevelIcon = levelInfo.level === 1 ? IconBook : levelInfo.level === 2 ? IconSword : levelInfo.level === 3 ? IconShield : IconCrown;
-                    const sz = isMobile ? 60 : 72;
-                    return (
-                      <Box style={{ width: sz, height: sz, flexShrink: 0, borderRadius: '50%', background: isDark ? `linear-gradient(135deg, rgba(234,179,8,0.2), rgba(249,115,22,0.2))` : `linear-gradient(135deg, rgba(234,179,8,0.15), rgba(249,115,22,0.15))`, border: `2px solid var(--mantine-color-${levelInfo.color}-6)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <LevelIcon size={sz * 0.44} color={`var(--mantine-color-${levelInfo.color}-5)`} stroke={1.7} />
-                      </Box>
-                    );
-                  })()}
-                  <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-                    <Group justify="space-between" gap="xs">
-                      <Text fw={600} size="sm" c="dimmed">{formatXp(levelInfo.currentXp)} XP</Text>
-                      {levelInfo.level < 4 && (
-                        <Text size="xs" c="dimmed">{formatXp(levelInfo.xpToNextLevel)} para subir</Text>
-                      )}
-                    </Group>
-                    <Progress value={levelInfo.progress} color={levelInfo.color} size="md" radius="xl" />
-                    {levelInfo.level < 4 ? (
-                      <Text size="xs" c="dimmed">Progreso al siguiente nivel</Text>
-                    ) : (
-                      <Text size="xs" fw={600} c="yellow">¡Nivel máximo alcanzado!</Text>
-                    )}
-                  </Stack>
-                </Group>
-                <SimpleGrid cols={4} spacing="xs">
-                  {Object.values(LEVEL_CONFIG).map((lvl) => {
-                    const isActive = levelInfo.level >= lvl.level;
-                    const LvlIcon = lvl.level === 1 ? IconBook : lvl.level === 2 ? IconSword : lvl.level === 3 ? IconShield : IconCrown;
-                    return (
-                      <Tooltip
-                        key={lvl.level}
-                        label={
-                          <Stack gap={4}>
-                            <Group gap={6} align="center">
-                              <ThemeIcon size={18} radius="xl" variant={isActive ? 'filled' : 'light'} color={lvl.color}>
-                                {(() => { const I = lvl.level === 1 ? IconBook : lvl.level === 2 ? IconSword : lvl.level === 3 ? IconShield : IconCrown; return <I size={10} />; })()}
-                              </ThemeIcon>
-                              <Text size="sm" fw={700}>{lvl.name}</Text>
-                            </Group>
-                            <Text size="xs" c="dimmed">{formatXp(lvl.minXp)}+ XP para desbloquear</Text>
-                            {isActive && <Text size="xs" fw={600} c={`${lvl.color}.4`}>✓ Nivel alcanzado</Text>}
-                          </Stack>
-                        }
-                        withArrow
-                        position="top"
-                        styles={tooltipStyles(isDark)}
-                      >
-                        <Stack align="center" gap={4} style={{ opacity: isActive ? 1 : 0.4 }}>
-                          <ThemeIcon size={isMobile ? 'sm' : 'md'} radius="xl" variant={isActive ? 'filled' : 'light'} color={lvl.color}>
-                            <LvlIcon size={isMobile ? 12 : 14} />
-                          </ThemeIcon>
-                          <Text size="xs" c={isActive ? levelInfo.color : 'dimmed'} ta="center" lh={1.2} fw={isActive ? 600 : 400}>{lvl.name}</Text>
-                        </Stack>
-                      </Tooltip>
-                    );
-                  })}
-                </SimpleGrid>
-              </Stack>
-            </Paper>
-          </Grid.Col>
-
-          {/* VITRINA DE INSIGNIAS */}
-          <Grid.Col id="vitrina-logros" span={{ base: 12, md: 7 }} mt={ isMobile ? 16 : 0}>
+          <Grid.Col id="vitrina-logros" span={12}>
             <VitrinaLogros stats={achievementsData?.stats || { streak }} isDark={isDark} isMobile={isMobile} />
           </Grid.Col>
         </Grid>
@@ -1434,12 +1424,6 @@ export default function UserProfile() {
           style={{ display: profileTab === 'favorites' ? 'block' : 'none' }}
         >
           <Stack gap="lg">
-            <Group gap="sm">
-              <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'pink', to: 'violet', deg: 135 }}>
-                <IconBook size={18} />
-              </ThemeIcon>
-              <Text fw={700} size={isMobile ? 'md' : 'lg'}>Favoritos</Text>
-            </Group>
             {bookmarksLoading ? (
               <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="sm">
                 {[...Array(5)].map((_, index) => <Skeleton key={index} height={180} radius="lg" />)}
@@ -1472,16 +1456,7 @@ export default function UserProfile() {
         {/* HISTORIAL DE INTERACCIONES (COMUNIDAD) */}
         <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'ratings' || profileTab === 'comments' ? 'block' : 'none' }}>
           <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
-            {/* Header con tabs */}
-            <Group justify="space-between" align="center" wrap="nowrap">
-              <Group gap="sm">
-                <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'cyan', deg: 135 }}>
-                  <IconMessageCircle size={18} />
-                </ThemeIcon>
-                <Text fw={700} size={isMobile ? 'md' : 'lg'}>Actividad en la Comunidad</Text>
-              </Group>
-            </Group>
-
+            
             {/* Contenido según tab */}
             {profileTab === 'ratings' ? (
               // TAB: Calificaciones
@@ -1505,7 +1480,7 @@ export default function UserProfile() {
                 </Center>
               ) : (
                 <Stack gap="sm">
-                  {userRatings.map((rating) => (
+                  {userRatings.slice(0, ratingsVisibleCount).map((rating) => (
                     <Link
                       key={rating.id}
                       href={rating.ratingType === 'chapter' && rating.chapterNumber
@@ -1552,6 +1527,19 @@ export default function UserProfile() {
                       </Paper>
                     </Link>
                   ))}
+                  {ratingsVisibleCount < userRatings.length && (
+                    <Center mt="xs">
+                      <Button
+                        variant="subtle"
+                        color="gray"
+                        size="xs"
+                        radius="xl"
+                        onClick={() => setRatingsVisibleCount((count) => count + 6)}
+                      >
+                        Ver más
+                      </Button>
+                    </Center>
+                  )}
                 </Stack>
               )
             ) : (
@@ -1827,10 +1815,10 @@ export default function UserProfile() {
               placeholder="¿Cómo te llamas?"
               value={editForm.display_name}
               onChange={(e) => {
-                const displayName = e.currentTarget.value;
+                const displayName = e.currentTarget.value.slice(0, MAX_DISPLAY_NAME_LENGTH);
                 setEditForm(prev => ({ ...prev, display_name: displayName }));
               }}
-              maxLength={50}
+              maxLength={MAX_DISPLAY_NAME_LENGTH}
               radius="xl"
               size="md"
               leftSection={<IconUsers size={16} style={{ opacity: 0.5 }} />}
@@ -1918,6 +1906,181 @@ export default function UserProfile() {
                 },
               }}
             />
+            <Paper
+              p={isMobile ? 'md' : 'lg'}
+              radius="xl"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.025)' : 'rgba(15,23,42,0.018)',
+                border: `1px solid ${isDark ? 'rgba(148,163,184,0.14)' : 'rgba(15,23,42,0.08)'}`,
+              }}
+            >
+              <Stack gap="sm">
+                <Group justify="space-between" align="flex-start" gap="md">
+                  <Box>
+                    <Group gap={8} align="center">
+                      <Text fw={750} size="sm">Waifu / Husband</Text>
+                      <Badge variant="light" color="pink" size="sm" radius="xl">
+                        {editForm.favorite_characters.length}/3
+                      </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" mt={3}>
+                      Elige hasta 3 personajes para mostrarlos en tu perfil.
+                    </Text>
+                  </Box>
+                  <Button
+                    variant="light"
+                    radius="xl"
+                    size="xs"
+                    leftSection={<IconPlus size={14} />}
+                    disabled={editForm.favorite_characters.length >= 3}
+                    onClick={() => setEditForm((prev) => ({
+                      ...prev,
+                      favorite_characters: [
+                        ...prev.favorite_characters,
+                        {
+                          type: 'waifu',
+                          name: '',
+                          color: DEFAULT_FAVORITE_CHARACTER_COLOR,
+                          position: prev.favorite_characters.length,
+                        },
+                      ].slice(0, 3),
+                    }))}
+                  >
+                    Añadir
+                  </Button>
+                </Group>
+
+                {(editForm.favorite_characters || []).map((character, index) => {
+                  const safeCharacter = {
+                    type: character?.type === 'husband' ? 'husband' : 'waifu',
+                    name: typeof character?.name === 'string' ? character.name : '',
+                    color: FAVORITE_CHARACTER_PALETTE.includes(String(character?.color || '').toUpperCase())
+                      ? String(character.color).toUpperCase()
+                      : DEFAULT_FAVORITE_CHARACTER_COLOR,
+                    position: Number.isInteger(character?.position) ? character.position : index,
+                  };
+                  return (
+                  <Box
+                    key={safeCharacter.position}
+                    className={styles.favoriteCharacterRow}
+                    style={{
+                      '--character-color': safeCharacter.color,
+                    }}
+                  >
+                    <Text className={styles.favoriteCharacterIndex} size="xs" fw={700} c="dimmed">
+                      {index + 1}
+                    </Text>
+                    <Select
+                      aria-label={`Tipo del personaje ${index + 1}`}
+                      searchable={false}
+                      allowDeselect={false}
+                      value={safeCharacter.type}
+                      data={[
+                        { value: 'waifu', label: 'Waifu' },
+                        { value: 'husband', label: 'Husband' },
+                      ]}
+                      onChange={(type) => setEditForm((prev) => ({
+                        ...prev,
+                        favorite_characters: prev.favorite_characters.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, type: type || 'waifu' } : item
+                        ),
+                      }))}
+                      size="xs"
+                      radius="md"
+                    />
+                    <TextInput
+                      aria-label={`Nombre del personaje ${index + 1}`}
+                      placeholder="Nombre"
+                      value={safeCharacter.name}
+                      maxLength={10}
+                      error={safeCharacter.name.trim(undefined)}
+                      rightSection={
+                        <Text size="9px" c="dimmed" mr={6} style={{ whiteSpace: 'nowrap' }}>
+                          {[...safeCharacter.name].length}/10
+                        </Text>
+                      }
+                      rightSectionWidth={42}
+                      onChange={(event) => {
+                        const rawName = event?.target?.value
+                          ?? event?.currentTarget?.value
+                          ?? '';
+                        const name = String(rawName).normalize('NFC').slice(0, 10);
+                        setEditForm((prev) => ({
+                          ...prev,
+                          favorite_characters: prev.favorite_characters.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, name }
+                              : item
+                          ),
+                        }));
+                      }}
+                      size="xs"
+                      radius="md"
+                    />
+                    <Popover withinPortal shadow="md" position="bottom" withArrow>
+                      <Popover.Target>
+                        <ActionIcon
+                          aria-label={`Elegir color del personaje ${index + 1}`}
+                          variant="outline"
+                          radius="md"
+                          size={42}
+                          style={{
+                            borderColor: `${safeCharacter.color}CC`,
+                            backgroundColor: `${safeCharacter.color}18`,
+                          }}
+                        >
+                          <Box
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: rem(6),
+                              backgroundColor: safeCharacter.color,
+                              border: '1px solid rgba(32,36,42,0.22)',
+                            }}
+                          />
+                        </ActionIcon>
+                      </Popover.Target>
+                      <Popover.Dropdown>
+                        <SimpleGrid cols={4} spacing="xs">
+                          {FAVORITE_CHARACTER_PALETTE.map((color) => (
+                            <ColorSwatch
+                              key={color}
+                              color={color}
+                              size={28}
+                              radius="md"
+                              aria-label={`Elegir color ${color}`}
+                              style={{ cursor: 'pointer', border: safeCharacter.color === color ? '2px solid #20242A' : undefined }}
+                              onClick={() => setEditForm((prev) => ({
+                                ...prev,
+                                favorite_characters: prev.favorite_characters.map((item, itemIndex) =>
+                                  itemIndex === index ? { ...item, color } : item
+                                ),
+                              }))}
+                            />
+                          ))}
+                        </SimpleGrid>
+                      </Popover.Dropdown>
+                    </Popover>
+                    <ActionIcon
+                      aria-label={`Eliminar personaje ${index + 1}`}
+                      variant="subtle"
+                      color="red"
+                      radius="xl"
+                      size={32}
+                      onClick={() => setEditForm((prev) => ({
+                        ...prev,
+                        favorite_characters: prev.favorite_characters
+                          .filter((_, itemIndex) => itemIndex !== index)
+                          .map((item, itemIndex) => ({ ...item, position: itemIndex })),
+                      }))}
+                    >
+                      <IconTrash size={15} />
+                    </ActionIcon>
+                  </Box>
+                  );
+                })}
+              </Stack>
+            </Paper>
             <Paper
               p={isMobile ? 'md' : 'lg'}
               radius="xl"
@@ -2026,7 +2189,15 @@ export default function UserProfile() {
               isDark={isDark}
               onClick={handleSaveProfile}
               loading={editSaving}
-              disabled={!editForm.display_name.trim()}
+              disabled={
+                !editForm.display_name.trim()
+                || editForm.favorite_characters.some((character) =>
+                  !String(character?.name || '').trim()
+                  || [...String(character?.name || '').trim()].length > 10
+                  || /[<>]/.test(String(character?.name || ''))
+                  || /javascript\s*:|script/i.test(String(character?.name || ''))
+                )
+              }
               leftSection={!editSaving ? <IconCheck size={16} /> : undefined}
               size="md"
               fullWidth={isMobile}

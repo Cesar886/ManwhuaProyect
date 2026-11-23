@@ -14,6 +14,7 @@ const { requirePermission, requireRole } = require('../middleware/authorize');
 const { requireApiKeyOrAuth } = require('../middleware/apiKey');
 const { paginationValidation } = require('../middleware/validators');
 const { normalizeSocialLinks } = require('../utils/socialLinks');
+const { validateFavoriteCharacters } = require('../utils/favoriteCharacters');
 
 // Validaciones
 const updateProfileValidation = [
@@ -60,7 +61,19 @@ const updateProfileValidation = [
     body('colorScheme')
         .optional()
         .isIn(['light', 'dark', 'system'])
-        .withMessage('Esquema de color inválido')
+        .withMessage('Esquema de color inválido'),
+    body('favoriteCharacters')
+        .optional()
+        .custom(value => {
+            const result = validateFavoriteCharacters(value);
+            if (Array.isArray(result) && result.some(item => item.field)) {
+                const firstError = result.find(item => item.field && item.message);
+                if (firstError) {
+                    throw new Error(`${firstError.field}: ${firstError.message}`);
+                }
+            }
+            return true;
+        })
 ];
 
 const usernameParam = [

@@ -231,6 +231,34 @@ const getCommentReplies = async (req, res, next) => {
 const createComment = async (req, res, next) => {
     try {
         const { targetType, targetId, content, parentId, rating, isSpoiler, poll } = req.body;
+
+        if (targetType === 'wall') {
+            const normalized = typeof content === 'string' ? content.trim() : '';
+            if (!normalized) {
+                return res.status(422).json({
+                    success: false,
+                    message: 'El mensaje no puede estar vacío',
+                    code: 'VALIDATION_ERROR',
+                    errors: { body: 'El mensaje no puede estar vacío' }
+                });
+            }
+            if ([...normalized].length > 500) {
+                return res.status(422).json({
+                    success: false,
+                    message: 'El mensaje no puede exceder 500 caracteres',
+                    code: 'VALIDATION_ERROR',
+                    errors: { body: 'El mensaje no puede exceder 500 caracteres' }
+                });
+            }
+            if (/[<>]/.test(normalized) || /<[^>]*>/.test(normalized)) {
+                return res.status(422).json({
+                    success: false,
+                    message: 'El mensaje no puede contener HTML',
+                    code: 'VALIDATION_ERROR',
+                    errors: { body: 'El mensaje no puede contener HTML' }
+                });
+            }
+        }
         
         // Validar que haya al menos contenido O encuesta
         const hasContent = content && content.trim().length > 0;
@@ -283,6 +311,12 @@ const createComment = async (req, res, next) => {
             case 'chapter': targetTable = 'chapters'; break;
             case 'collection': targetTable = 'collections'; break;
             case 'request': targetTable = 'requests'; break;
+            case 'wall':
+                if (targetId !== '00000000-0000-0000-0000-000000000000') {
+                    return res.status(404).json({ success: false, message: 'Target no encontrado' });
+                }
+                targetTable = null;
+                break;
             default:
                 return res.status(400).json({
                     success: false,
@@ -290,23 +324,25 @@ const createComment = async (req, res, next) => {
                 });
         }
         
-        const targetResult = await query(
-            `SELECT id FROM ${targetTable} WHERE id = $1`,
-            [targetId]
-        );
-        
-        if (targetResult.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Target no encontrado'
-            });
+        if (targetType !== 'wall') {
+            const targetResult = await query(
+                `SELECT id FROM ${targetTable} WHERE id = $1`,
+                [targetId]
+            );
+
+            if (targetResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Target no encontrado'
+                });
+            }
         }
         
         // Si es respuesta, verificar comentario padre
         let rootId = null;
         if (parentId) {
             const parentResult = await query(
-                'SELECT id, root_id, target_type, target_id FROM comments WHERE id = $1 AND status = \'visible\'',
+                'SELECT id, parent_id, root_id, target_type, target_id FROM comments WHERE id = $1 AND status = \'visible\'',
                 [parentId]
             );
             
@@ -318,6 +354,15 @@ const createComment = async (req, res, next) => {
             }
             
             const parent = parentResult.rows[0];
+
+            if (targetType === 'wall' && (parent.root_id || parent.parent_id)) {
+                return res.status(422).json({
+                    success: false,
+                    message: 'Solo se puede responder a una publicación raíz',
+                    code: 'INVALID_PARENT',
+                    errors: { parentId: 'No se puede responder a una respuesta' }
+                });
+            }
             
             // Verificar que pertenece al mismo target
             if (parent.target_type !== targetType || parent.target_id !== targetId) {
@@ -792,6 +837,141 @@ const removeVote = async (req, res, next) => {
  * Obtener reacciones del usuario para los comentarios de un target
  * GET /api/comments/my-reactions?targetType=request&targetId=<id>
  */
+const getWallComments = async (req, res, next) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 50, 50);
+        const offset = (page - 1) * limit;
+        const targetId = '00000000-0000-0000-0000-000000000000';
+
+        const result = await query(
+            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+                    u.is_premium AS author_is_premium,
+                    EXISTS(
+                        SELECT 1 FROM comment_votes cv
+                        WHERE cv.comment_id = c.id AND cv.user_id = $3 AND cv.vote_type = 1
+                    ) AS user_liked,
+                    EXISTS(
+                        SELECT 1 FROM comment_votes cv
+                        WHERE cv.comment_id = c.id AND cv.user_id = $3 AND cv.vote_type = -1
+                    ) AS user_disliked
+             FROM comments c
+             JOIN users u ON u.id = c.user_id
+             WHERE c.target_type = 'wall'
+               AND c.target_id = $1
+               AND c.parent_id IS NULL
+               AND c.status = 'visible'
+             ORDER BY c.is_pinned DESC, c.created_at DESC
+             LIMIT $2 OFFSET $4`,
+            [targetId, limit, req.user?.id || null, offset]
+        );
+
+        const { getUserBadgeStats } = require('./progress.controller');
+        const comments = await Promise.all(result.rows.map(async (comment) => {
+            let poll = null;
+            try {
+                const pollResult = await query(
+                    `SELECT cp.id, cp.question, cp.total_votes,
+                            (SELECT option_id FROM poll_votes WHERE poll_id = cp.id AND user_id = $2) AS user_voted_option_id
+                     FROM comment_polls cp
+                     WHERE cp.comment_id = $1`,
+                    [comment.id, req.user?.id || null]
+                );
+                if (pollResult.rows.length > 0) {
+                    const pollRow = pollResult.rows[0];
+                    const options = await query(
+                        'SELECT id, option_text, option_order, vote_count FROM poll_options WHERE poll_id = $1 ORDER BY option_order',
+                        [pollRow.id]
+                    );
+                    const userVoted = !!pollRow.user_voted_option_id;
+                    poll = {
+                        id: pollRow.id,
+                        question: pollRow.question,
+                        total_votes: pollRow.total_votes,
+                        user_voted: userVoted,
+                        user_voted_option_id: pollRow.user_voted_option_id,
+                        options: options.rows.map((option) => ({
+                            id: option.id,
+                            text: option.option_text,
+                            order: option.option_order,
+                            vote_count: userVoted ? option.vote_count : null,
+                            percentage: userVoted && pollRow.total_votes > 0
+                                ? Math.round((option.vote_count / pollRow.total_votes) * 100)
+                                : null
+                        }))
+                    };
+                }
+            } catch (pollError) {
+                console.warn('Error obteniendo encuesta del comentario', comment.id, pollError);
+            }
+
+            let badgeStats = {};
+            try {
+                badgeStats = await getUserBadgeStats(comment.user_id, req.user?.timezone || req.headers?.['x-timezone']);
+            } catch {
+                badgeStats = {};
+            }
+
+            return {
+                id: comment.id,
+                content: comment.content,
+                rating: comment.rating,
+                targetType: comment.target_type,
+                targetId: comment.target_id,
+                parentId: comment.parent_id,
+                rootId: comment.root_id,
+                likes: comment.likes_count,
+                dislikes: comment.dislikes_count,
+                repliesCount: comment.replies_count,
+                isPinned: comment.is_pinned,
+                isSpoiler: comment.is_spoiler,
+                isEdited: comment.is_edited,
+                userLiked: comment.user_liked,
+                userDisliked: comment.user_disliked,
+                poll,
+                createdAt: comment.created_at,
+                editedAt: comment.edited_at,
+                author: {
+                    id: comment.user_id,
+                    username: comment.username,
+                    displayName: comment.display_name,
+                    avatarUrl: comment.avatar_url,
+                    role: comment.user_role,
+                    isPremium: comment.author_is_premium,
+                    experience: parseInt(comment.experience) || 0,
+                    ...badgeStats
+                }
+            };
+        }));
+
+        const count = await query(
+            `SELECT COUNT(*)::integer AS count
+             FROM comments
+             WHERE target_type = 'wall'
+               AND target_id = $1
+               AND parent_id IS NULL
+               AND status = 'visible'`,
+            [targetId]
+        );
+
+        const total = count.rows[0]?.count || 0;
+        res.json({
+            success: true,
+            data: {
+                comments,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getMyReactions = async (req, res, next) => {
     try {
         const { targetType, targetId } = req.query;
@@ -1107,6 +1287,7 @@ const getPollVotes = async (req, res, next) => {
 module.exports = {
     getComment,
     getCommentReplies,
+    getWallComments,
     createComment,
     updateComment,
     deleteComment,

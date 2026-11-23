@@ -28,6 +28,8 @@ const migrations = [
     '../db/add_polls.sql',
     '020_add_push_subscriptions.sql',
     '021_create_notifications.sql',
+    '022_add_user_favorite_characters.sql',
+    '023_create_wall_posts.sql',
 ];
 
 function loadMigrations() {

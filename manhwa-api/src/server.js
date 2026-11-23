@@ -426,6 +426,7 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/presence', presenceRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/track', trackRoutes);
+app.use('/api/wall', require('./routes/wall.routes'));
 
 // ============================================
 // MANEJO DE ERRORES

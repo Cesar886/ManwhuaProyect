@@ -112,6 +112,29 @@
   align-self: flex-start;
 }
 
+.favoriteCharacterRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(88px, 0.8fr) minmax(120px, 1.5fr) 42px 32px;
+  align-items: end;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 10px 10px 8px;
+  border: 1px solid color-mix(in srgb, var(--character-color) 28%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--character-color) 6%, transparent);
+}
+
+.favoriteCharacterIndex {
+  align-self: center;
+  text-align: center;
+}
+
+.favoriteCharacterRow :global(.mantine-Select-root),
+.favoriteCharacterRow :global(.mantine-TextInput-root) {
+  min-width: 0;
+}
+
 .profileTabs {
   width: 100%;
   height: 52px;
@@ -128,7 +151,11 @@
 }
 
 .darkMode .profileTabs {
-  background: rgba(15, 23, 42, 0.92);
+  background: rgba(15, 15, 15, 0.94);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 .profileTab {
@@ -235,6 +262,20 @@
 
   .gamificationGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .favoriteCharacterRow {
+    grid-template-columns: 18px minmax(0, 1fr) 42px 32px;
+  }
+
+  .favoriteCharacterRow :global(.mantine-Select-root) {
+    grid-column: 2 / -1;
+  }
+
+  .favoriteCharacterRow :global(.mantine-TextInput-root) {
+    grid-column: 2;
   }
 }
 
@@ -461,11 +502,11 @@
 .darkMode .headerCard {
   background: linear-gradient(
     145deg,
-    rgba(15, 23, 42, 0.84) 0%,
-    rgba(20, 28, 45, 0.72) 100%
+    rgba(20, 20, 20, 0.94) 0%,
+    rgba(15, 15, 15, 0.9) 100%
   );
   border: none;
-  box-shadow: 
+  box-shadow:
     0 24px 56px rgba(0, 0, 0, 0.42),
     0 10px 28px rgba(2, 6, 23, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -1069,13 +1110,16 @@
 .darkMode .infoCard {
   background: linear-gradient(
     145deg,
-    rgba(30, 41, 59, 0.7) 0%,
-    rgba(15, 23, 42, 0.5) 100%
+    rgba(20, 20, 20, 0.94) 0%,
+    rgba(15, 15, 15, 0.9) 100%
   );
-  border: 1px solid rgba(6, 182, 212, 0.2);
-  box-shadow: 
-    0 10px 40px rgba(0, 0, 0, 0.3),
+  border: none;
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.42),
+    0 10px 28px rgba(2, 6, 23, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 .lightMode .infoCard {

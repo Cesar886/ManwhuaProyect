@@ -4,6 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { body, param } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const commentController = require('../controllers/comment.controller');
@@ -15,7 +16,7 @@ const { paginationValidation, uuidParam } = require('../middleware/validators');
 // Validaciones
 const createCommentValidation = [
     body('targetType')
-        .isIn(['series', 'chapter', 'collection', 'request'])
+        .isIn(['series', 'chapter', 'collection', 'request', 'wall'])
         .withMessage('Tipo de target inválido'),
     body('targetId')
         .isUUID()
@@ -55,6 +56,20 @@ const updateCommentValidation = [
         .withMessage('Contenido debe tener entre 1 y 2000 caracteres')
 ];
 
+const wallCommentLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.user?.id || req.ip,
+    handler: (req, res) => res.status(429).json({
+        success: false,
+        message: 'Has publicado demasiado rápido. Intenta de nuevo en un minuto.',
+        code: 'RATE_LIMITED'
+    }),
+    skip: (req) => req.body?.targetType !== 'wall'
+});
+
 // Rutas públicas (protegidas con API key)
 // Indicador de escritura (typing) - requiere API key
 router.post('/typing', requireApiKeyOrAuth, commentController.typingEvent);
@@ -67,7 +82,7 @@ router.get('/:id/replies', requireApiKeyOrAuth, optionalAuth, validate([...uuidP
 // Rutas protegidas
 router.use(authenticate);
 
-router.post('/', validate(createCommentValidation), commentController.createComment);
+router.post('/', wallCommentLimiter, validate(createCommentValidation), commentController.createComment);
 router.put('/:id', validate([...uuidParam(), ...updateCommentValidation]), commentController.updateComment);
 router.delete('/:id', validate(uuidParam()), commentController.deleteComment);
 

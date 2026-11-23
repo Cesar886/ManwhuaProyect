@@ -578,7 +578,7 @@ export function VitrinaLogros({ stats = {}, isDark = false, isMobile = false }) 
             >
               <IconTrophy size={18} />
             </ThemeIcon>
-            <Text fw={700} size={isMobile ? 'md' : 'lg'}>Logros</Text>
+            <Text fw={700} size={isMobile ? 'md' : 'lg'}>Insignias</Text>
           </Group>
           <Badge
             variant="gradient"
@@ -587,7 +587,7 @@ export function VitrinaLogros({ stats = {}, isDark = false, isMobile = false }) 
             leftSection={<IconSparkles size={10} />}
             style={{ padding: '0.4rem 1rem', lineHeight: 1 }}
           >
-            {unlockedCount}/∞
+            {unlockedCount}/{achievements.length}
           </Badge>
         </Group>
 

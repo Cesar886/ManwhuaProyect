@@ -1,0 +1,105 @@
+.page {
+  padding-top: 32px;
+  padding-bottom: 64px;
+  max-width: 760px;
+}
+
+.title {
+  font-size: clamp(1.45rem, 5vw, 2rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.composerCard,
+.loginCard,
+.postCard,
+.replyCard {
+  background: light-dark(var(--mantine-color-white), var(--mantine-color-dark-6));
+}
+
+.loginCard {
+  border-left: 3px solid var(--mantine-primary-color-filled);
+}
+
+.emptyCard {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.authorText {
+  min-width: 0;
+}
+
+.authorName {
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.authorName:hover {
+  text-decoration: underline;
+}
+
+.time {
+  white-space: nowrap;
+}
+
+.postBody {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.55;
+}
+
+.deleteButton {
+  margin-left: auto;
+}
+
+.replies {
+  border-top: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+  padding-top: 14px;
+  margin-left: 10px;
+  padding-left: 12px;
+  border-left: 2px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.replyCard {
+  width: 100%;
+}
+
+.replyComposer {
+  padding-top: 4px;
+}
+
+.loadMore {
+  align-self: center;
+  min-width: 150px;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 20px 12px 48px;
+  }
+
+  .postCard,
+  .composerCard,
+  .loginCard {
+    padding: 14px;
+  }
+
+  .replies {
+    margin-left: 0;
+    padding-left: 8px;
+  }
+
+  .replyCard {
+    padding: 12px;
+  }
+}

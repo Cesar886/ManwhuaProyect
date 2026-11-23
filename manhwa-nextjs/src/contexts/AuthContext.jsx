@@ -120,6 +120,7 @@ export function AuthProvider({ children }) {
         ...(data.location !== undefined ? { location: data.location } : {}),
         ...(data.show_active_reader !== undefined ? { showActiveReader: data.show_active_reader } : {}),
         ...(data.social_links !== undefined ? { socialLinks: data.social_links } : {}),
+        ...(data.favorite_characters !== undefined ? { favoriteCharacters: data.favorite_characters } : {}),
       }
       const res = await apiUpdateUserProfile(payload)
       invalidateUserCache()
@@ -134,6 +135,8 @@ export function AuthProvider({ children }) {
         location: updatedUser.location ?? data.location ?? previousUser.location,
         show_active_reader: updatedUser.showActiveReader ?? updatedUser.show_active_reader ?? data.show_active_reader ?? previousUser.show_active_reader,
         social_links: updatedUser.socialLinks ?? updatedUser.social_links ?? data.social_links ?? previousUser.social_links,
+        favoriteCharacters: updatedUser.favoriteCharacters ?? updatedUser.favorite_characters ?? data.favorite_characters ?? previousUser.favoriteCharacters ?? previousUser.favorite_characters ?? [],
+        favorite_characters: updatedUser.favoriteCharacters ?? updatedUser.favorite_characters ?? data.favorite_characters ?? previousUser.favoriteCharacters ?? previousUser.favorite_characters ?? [],
       }
       userRef.current = nextUser
       setUser(nextUser)

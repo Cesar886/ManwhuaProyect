@@ -17,6 +17,7 @@ const ES_TO_EN = {
   '/mangas': '/manga',
   '/manhwa': '/manhwa',
   '/busqueda-ia': '/search-ai',
+  '/muro': '/wall',
 
   '/buscar': '/buscar',
   '/colecciones': '/colecciones',
@@ -54,6 +55,7 @@ export const ROUTE_MAP = {
   '/pending': '/pedidos',
   '/manga': '/mangas',
   '/buscar': '/buscar',
+  '/wall': '/muro',
 }
 
 /**

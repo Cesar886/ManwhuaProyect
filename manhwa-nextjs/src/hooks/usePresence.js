@@ -100,3 +100,76 @@ export function usePresence(manhwa, chapter) {
 
   return { ...data, isConnected, isAnonymous };
 }
+
+export function useProfilePresence(userId, enabled = true) {
+  const [isOnline, setIsOnline] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !userId || !enabled) {
+      setIsOnline(false);
+      setIsConnected(false);
+      return undefined;
+    }
+
+    const presenceUrl = process.env.NEXT_PUBLIC_PRESENCE_URL;
+    if (!presenceUrl) {
+      setIsConnected(false);
+      return undefined;
+    }
+
+    let socket = null;
+    let retryTimer = null;
+    let closedByCleanup = false;
+
+    const connect = async () => {
+      try {
+        const tokenResponse = await fetch('/api/presence/token', { cache: 'no-store', credentials: 'include' });
+        const tokenBody = tokenResponse.ok ? await tokenResponse.json() : {};
+        if (closedByCleanup) return;
+
+        const url = new URL(presenceUrl);
+        if (tokenBody?.token) url.searchParams.set('token', tokenBody.token);
+        socket = new WebSocket(url.toString());
+        socketRef.current = socket;
+
+        socket.onopen = () => {
+          setIsConnected(true);
+          socket.send(JSON.stringify({ type: 'join-profile', userId: String(userId) }));
+        };
+        socket.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message?.type === 'profilePresence' && String(message.userId) === String(userId)) {
+              setIsOnline(Boolean(message.online));
+            }
+          } catch {
+            // Ignorar mensajes ajenos o mal formados.
+          }
+        };
+        socket.onclose = () => {
+          if (socketRef.current === socket) socketRef.current = null;
+          setIsConnected(false);
+          if (!closedByCleanup) retryTimer = setTimeout(connect, 3000);
+        };
+        socket.onerror = () => socket.close();
+      } catch {
+        setIsConnected(false);
+        if (!closedByCleanup) retryTimer = setTimeout(connect, 3000);
+      }
+    };
+
+    connect();
+    return () => {
+      closedByCleanup = true;
+      clearTimeout(retryTimer);
+      socketRef.current = null;
+      socket?.close();
+      setIsConnected(false);
+      setIsOnline(false);
+    };
+  }, [userId, enabled]);
+
+  return { isOnline, isConnected };
+}

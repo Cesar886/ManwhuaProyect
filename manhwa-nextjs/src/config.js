@@ -55,6 +55,7 @@ export const ENDPOINTS = {
   donations: apiUrl(`${apiPrefix}donations`),
   presence: apiUrl(`${apiPrefix}presence`),
   track: apiUrl(`${apiPrefix}track`),
+  wall: apiUrl(`${apiPrefix}wall`),
 }
 
 export const endpoint = (name, subpath = '') => {

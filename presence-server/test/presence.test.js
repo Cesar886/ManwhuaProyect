@@ -74,3 +74,57 @@ test('muestra un lector logueado y uno anónimo, y mueve al anónimo entre capí
   second.close();
   assert.equal((await removedAfterClose).total, 1);
 });
+
+test('marca el perfil como online al leer o abrir su propio perfil', async (t) => {
+  const { wss } = createPresenceServer({ port: 0, secret });
+  await new Promise((resolve) => wss.once('listening', resolve));
+  const port = wss.address().port;
+
+  const owner = await connect(port, { id: 'profile-1', username: 'ana', avatar: null });
+  const watcher = await connect(port, null);
+  t.after(async () => {
+    owner.terminate();
+    watcher.terminate();
+    await new Promise((resolve) => wss.close(resolve));
+  });
+
+  watcher.send(JSON.stringify({ type: 'join-profile', userId: 'profile-1' }));
+  const initialOffline = await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Timeout esperando estado inicial')), 1500);
+    watcher.once('message', (raw) => {
+      clearTimeout(timeout);
+      resolve(JSON.parse(raw.toString()));
+    });
+  });
+  assert.equal(initialOffline.online, false);
+
+  const wentOnline = new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Timeout esperando perfil online')), 1500);
+    const onMessage = (raw) => {
+      const message = JSON.parse(raw.toString());
+      if (message.type === 'profilePresence' && message.online) {
+        clearTimeout(timeout);
+        watcher.off('message', onMessage);
+        resolve(message);
+      }
+    };
+    watcher.on('message', onMessage);
+  });
+  owner.send(JSON.stringify({ type: 'join-profile', userId: 'profile-1' }));
+  assert.equal((await wentOnline).online, true);
+
+  const wentOffline = new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Timeout esperando perfil offline')), 1500);
+    const onMessage = (raw) => {
+      const message = JSON.parse(raw.toString());
+      if (message.type === 'profilePresence' && !message.online) {
+        clearTimeout(timeout);
+        watcher.off('message', onMessage);
+        resolve(message);
+      }
+    };
+    watcher.on('message', onMessage);
+  });
+  owner.close();
+  assert.equal((await wentOffline).online, false);
+});

@@ -9,8 +9,53 @@ export function createPresenceServer({ port = Number(process.env.PORT || 4001), 
   if (!secret) throw new Error('PRESENCE_SECRET es obligatorio');
 
   const rooms = new Map();
+  const profileWatchers = new Map();
+  const onlineUsers = new Map();
   const connectionsByIp = new Map();
   const wss = new WebSocketServer({ port });
+
+  const broadcastProfilePresence = (userId) => {
+    const watchers = profileWatchers.get(userId);
+    if (!watchers) return;
+    const online = onlineUsers.has(userId) && onlineUsers.get(userId).size > 0;
+    const message = JSON.stringify({ type: 'profilePresence', userId, online });
+    for (const client of watchers) {
+      if (client.readyState === WebSocket.OPEN) client.send(message);
+    }
+  };
+
+  const markUserOnline = (socket) => {
+    if (!socket.user?.id) return;
+    const userId = String(socket.user.id);
+    let sockets = onlineUsers.get(userId);
+    if (!sockets) {
+      sockets = new Set();
+      onlineUsers.set(userId, sockets);
+    }
+    const wasOffline = sockets.size === 0;
+    sockets.add(socket);
+    if (wasOffline) broadcastProfilePresence(userId);
+  };
+
+  const markUserOffline = (socket) => {
+    if (!socket.user?.id) return;
+    const userId = String(socket.user.id);
+    const sockets = onlineUsers.get(userId);
+    if (!sockets) return;
+    sockets.delete(socket);
+    if (sockets.size === 0) {
+      onlineUsers.delete(userId);
+      broadcastProfilePresence(userId);
+    }
+  };
+
+  const leaveProfile = (socket) => {
+    if (!socket.profileUserId) return;
+    const watchers = profileWatchers.get(socket.profileUserId);
+    watchers?.delete(socket);
+    if (watchers?.size === 0) profileWatchers.delete(socket.profileUserId);
+    socket.profileUserId = null;
+  };
 
   const broadcast = (room) => {
     const clients = rooms.get(room);
@@ -42,6 +87,7 @@ export function createPresenceServer({ port = Number(process.env.PORT || 4001), 
     clients?.delete(socket);
     if (clients?.size === 0) rooms.delete(oldRoom);
     socket.room = null;
+    markUserOffline(socket);
     broadcast(oldRoom);
   };
 
@@ -70,6 +116,7 @@ export function createPresenceServer({ port = Number(process.env.PORT || 4001), 
 
     socket.isAlive = true;
     socket.room = null;
+    socket.profileUserId = null;
     socket.anonId = null;
     socket.on('pong', () => { socket.isAlive = true; });
 
@@ -81,7 +128,22 @@ export function createPresenceServer({ port = Number(process.env.PORT || 4001), 
         return;
       }
 
-      if (!message || message.type !== 'join' || typeof message.manhwa !== 'string') return;
+      if (!message) return;
+
+      if (message.type === 'join-profile') {
+        const userId = typeof message.userId === 'string' ? message.userId.trim().slice(0, 128) : '';
+        if (!userId) return;
+        leaveProfile(socket);
+        socket.profileUserId = userId;
+        if (!profileWatchers.has(userId)) profileWatchers.set(userId, new Set());
+        profileWatchers.get(userId).add(socket);
+        const online = onlineUsers.has(userId) && onlineUsers.get(userId).size > 0;
+        socket.send(JSON.stringify({ type: 'profilePresence', userId, online }));
+        if (socket.user?.id && String(socket.user.id) === userId) markUserOnline(socket);
+        return;
+      }
+
+      if (message.type !== 'join' || typeof message.manhwa !== 'string') return;
       if (typeof message.chapter !== 'string' && typeof message.chapter !== 'number') return;
       const manhwa = message.manhwa.trim().slice(0, 120);
       const chapter = String(message.chapter ?? '').trim().slice(0, 20);
@@ -98,11 +160,14 @@ export function createPresenceServer({ port = Number(process.env.PORT || 4001), 
       socket.room = `${manhwa}:${chapter}`;
       if (!rooms.has(socket.room)) rooms.set(socket.room, new Set());
       rooms.get(socket.room).add(socket);
+      if (socket.user) markUserOnline(socket);
       broadcast(socket.room);
     });
 
     socket.on('close', () => {
+      leaveProfile(socket);
       leave(socket);
+      markUserOffline(socket);
       if (socket.connectionIp) {
         const remaining = (connectionsByIp.get(socket.connectionIp) || 1) - 1;
         if (remaining > 0) connectionsByIp.set(socket.connectionIp, remaining);
