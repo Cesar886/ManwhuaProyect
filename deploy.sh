@@ -155,52 +155,6 @@ tar -xzf /root/manhwa-api.tar.gz -C "${deploy_dir}" --strip-components=1 \
 cd "${deploy_dir}"
 npm install --omit=dev
 chown -R www-data:www-data "${deploy_dir}"
-new_psql_marker="${deploy_dir}/.new-psql-migrations-applied"
-if [[ ! -f "${new_psql_marker}" ]]; then
-  if ! command -v psql >/dev/null 2>&1; then
-    printf 'Error: se requiere el comando "psql" para aplicar las migraciones nuevas.\n' >&2
-    exit 1
-  fi
-
-  set -a
-  # shellcheck disable=SC1091
-  . "${deploy_dir}/.env"
-  set +a
-  export PGHOST="${DB_HOST:-localhost}"
-  export PGPORT="${DB_PORT:-5432}"
-  export PGDATABASE="${DB_NAME:-manhwa_db}"
-  export PGUSER="${DB_USER:-manhwa_app}"
-  export PGPASSWORD="${DB_PASSWORD:-}"
-
-  runuser -u www-data -- env \
-    PGHOST="${PGHOST}" \
-    PGPORT="${PGPORT}" \
-    PGDATABASE="${PGDATABASE}" \
-    PGUSER="${PGUSER}" \
-    PGPASSWORD="${PGPASSWORD}" \
-    psql \
-    --no-password \
-    --set=ON_ERROR_STOP=1 \
-    --single-transaction <<'PSQL_NEW_MIGRATIONS'
-CREATE TABLE IF NOT EXISTS public.schema_migrations (
-    name TEXT PRIMARY KEY,
-    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-\i migrations/024_add_user_profile_appearance.sql
-INSERT INTO public.schema_migrations (name)
-VALUES ('024_add_user_profile_appearance.sql')
-ON CONFLICT (name) DO NOTHING;
-\i migrations/025_expand_favorite_character_names.sql
-INSERT INTO public.schema_migrations (name)
-VALUES ('025_expand_favorite_character_names.sql')
-ON CONFLICT (name) DO NOTHING;
-\i migrations/026_harden_wall_comments.sql
-INSERT INTO public.schema_migrations (name)
-VALUES ('026_harden_wall_comments.sql')
-ON CONFLICT (name) DO NOTHING;
-PSQL_NEW_MIGRATIONS
-  touch "${new_psql_marker}"
-fi
 runuser -u www-data -- npm run migrate:all
 systemctl start "${service_name}"
 service_stopped=0
