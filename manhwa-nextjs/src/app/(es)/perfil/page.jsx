@@ -438,7 +438,6 @@ export default function UserProfile() {
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [userBookmarks, setUserBookmarks] = useState([]);
   const [bookmarksLoading, setBookmarksLoading] = useState(true);
-  const [communityTab, setCommunityTab] = useState('ratings'); // 'ratings' | 'comments'
   const [profileTab, setProfileTab] = useState('continue');
 
   // Presencia en tiempo real
@@ -1255,11 +1254,11 @@ export default function UserProfile() {
 
         <Box className={styles.profileTabs} role="tablist" aria-label="Secciones del perfil">
           {[
-            ['continue', 'Continue Read'],
+            ['continue', 'Historial'],
             ['achievements', 'Logros'],
             ['favorites', 'Favoritos'],
-            ['ratings', 'Calificaciones'],
             ['comments', 'Comentarios'],
+            ['ratings', 'Calificaciones'],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -1267,11 +1266,7 @@ export default function UserProfile() {
               role="tab"
               aria-selected={profileTab === key}
               className={`${styles.profileTab} ${profileTab === key ? styles.profileTabActive : ''}`}
-              onClick={() => {
-                setProfileTab(key);
-                if (key === 'ratings') setCommunityTab('ratings');
-                if (key === 'comments') setCommunityTab('comments');
-              }}
+              onClick={() => setProfileTab(key)}
             >
               {label}
             </button>
@@ -1486,7 +1481,7 @@ export default function UserProfile() {
             </Group>
 
             {/* Contenido según tab */}
-            {communityTab === 'ratings' ? (
+            {profileTab === 'ratings' ? (
               // TAB: Calificaciones
               ratingsLoading ? (
                 <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="sm">

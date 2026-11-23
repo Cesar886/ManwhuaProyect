@@ -1408,7 +1408,7 @@ const getUserComments = async (req, res, next) => {
         const result = await query(
             `SELECT c.id, c.content, c.target_type, c.target_id, c.rating,
                     c.is_spoiler, c.likes_count, c.dislikes_count, c.replies_count,
-                    c.created_at, c.is_edited, c.edited_at,
+                    c.created_at,
                     CASE 
                         WHEN c.target_type = 'series' THEN s.title
                         WHEN c.target_type = 'chapter' THEN CONCAT(s2.title, ' - Cap. ', ch.number)
@@ -1461,8 +1461,6 @@ const getUserComments = async (req, res, next) => {
                     dislikesCount: c.dislikes_count,
                     repliesCount: c.replies_count,
                     createdAt: c.created_at,
-                    isEdited: c.is_edited,
-                    editedAt: c.edited_at
                 })),
                 pagination: {
                     page,
