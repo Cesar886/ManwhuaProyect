@@ -10,6 +10,37 @@
   overflow-x: hidden;
 }
 
+.profileAppearanceAccentPreview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 22px;
+  margin-top: 6px;
+}
+
+.profileAppearanceAccentLine {
+  width: 28px;
+  height: 3px;
+  flex: 0 0 28px;
+  border-radius: 999px;
+}
+
+.profileAppearanceAccentTag {
+  max-width: calc(100% - 34px);
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding-inline: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .profileContainerShell[data-profile-background='amanecer'] { --profile-accent: #C35E78; --profile-accent-text: #451A27; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
 .profileContainerShell[data-profile-background='sakura'] { --profile-accent: #D96BA0; --profile-accent-text: #57233F; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
 .profileContainerShell[data-profile-background='cielo'] { --profile-accent: #3798CD; --profile-accent-text: #0F3852; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }

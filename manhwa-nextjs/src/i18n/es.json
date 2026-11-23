@@ -380,5 +380,16 @@
     "message": "¿Prefieres ver este sitio en español?",
     "switch": "Cambiar a español",
     "stay": "Seguir en inglés"
+  },
+  "profileAppearance": {
+    "title": "Apariencia del perfil",
+    "previewName": "Tu nombre",
+    "previewBio": "Una breve presentación",
+    "textures": {
+      "none": "Sin textura",
+      "dots": "Puntos",
+      "stars": "Estrellas",
+      "sakura": "Pétalos"
+    }
   }
 }

@@ -51,7 +51,6 @@ import {
   IconCrown,
   IconStarFilled,
   IconHeartFilled,
-  IconUser,
   IconArrowUpRight,
   IconCheck,
   IconMessage,
@@ -137,15 +136,13 @@ const FavoriteCharacterBadges = ({ characters }) => {
               size={18}
               radius="xl"
               variant="filled"
-              color={character.type === 'waifu' ? 'pink' : 'violet'}
+              color={character.type === 'waifu' ? 'pink' : 'blue'}
               style={{
                 color: '#FFFFFF',
                 boxShadow: '0 2px 6px rgba(15,23,42,0.16)',
               }}
             >
-              {character.type === 'waifu'
-                ? <IconHeartFilled size={10} />
-                : <IconUser size={11} />}
+              <IconHeartFilled size={10} />
             </ThemeIcon>
           }
           styles={{
@@ -498,6 +495,17 @@ const ProfileSkeleton = ({ isDark, isMobile }) => (
 export default function UserProfile() {
   const isDark = useComputedColorScheme() === 'dark';
   const { lang, t } = useLang();
+  const profileAppearanceText = t?.profileAppearance || {
+    title: lang === 'en' ? 'Profile appearance' : 'Apariencia del perfil',
+    previewName: lang === 'en' ? 'Your name' : 'Tu nombre',
+    previewBio: lang === 'en' ? 'A short introduction' : 'Una breve presentación',
+    textures: {
+      none: lang === 'en' ? 'No texture' : 'Sin textura',
+      dots: lang === 'en' ? 'Dots' : 'Puntos',
+      stars: lang === 'en' ? 'Stars' : 'Estrellas',
+      sakura: lang === 'en' ? 'Petals' : 'Pétalos',
+    },
+  };
   const { updateProfile, updateAvatar, updateFollowingCount, openLogin, user: authUser } = useAuth();
   const params = useParams();
   const router = useRouter();
@@ -1815,10 +1823,27 @@ export default function UserProfile() {
               </Box>
               <Stack gap={4} style={{ flex: 1 }}>
                 <Text size={isMobile ? 'md' : 'lg'} fw={700} className={styles.gradientText} lineClamp={1}>
-                  {editForm.display_name || t.profileAppearance.previewName}
+                  {editForm.display_name || profileAppearanceText.previewName}
                 </Text>
                 <Text size="sm" c="dimmed">@{userUsername}</Text>
-                <Text size="xs" c="dimmed">{t.profileAppearance.previewBio}</Text>
+                <Text size="xs" c="dimmed">{profileAppearanceText.previewBio}</Text>
+                {previewPreset && (
+                  <Box className={styles.profileAppearanceAccentPreview} aria-label="Vista previa del acento" mt={4}>
+                    <Box
+                      className={styles.profileAppearanceAccentLine}
+                      style={{ background: previewPreset.accent }}
+                    />
+                    <Box
+                      className={styles.profileAppearanceAccentTag}
+                      style={{
+                        background: `color-mix(in srgb, ${previewPreset.accent} 14%, #FFFFFF)`,
+                        color: previewPreset.accentText,
+                      }}
+                    >
+                      Serie
+                    </Box>
+                  </Box>
+                )}
               </Stack>
             </Group>
           </Paper>
@@ -1839,13 +1864,13 @@ export default function UserProfile() {
                 onClick={() => setAppearanceOpen((open) => !open)}
               >
                 <Box>
-                  <Text fw={750} size="sm">{t.profileAppearance.title}</Text>
+                  <Text fw={750} size="sm">{profileAppearanceText.title}</Text>
                   <Text size="xs" c="dimmed" mt={3}>
                     {previewPreset
                       ? previewPreset.label[lang]
                       : (lang === 'en' ? 'No background' : 'Sin fondo')}
                     {' · '}
-                    {t.profileAppearance.textures[
+                    {profileAppearanceText.textures[
                       editForm.profile_texture === 'puntos'
                         ? 'dots'
                         : editForm.profile_texture === 'estrellas'
@@ -1897,6 +1922,21 @@ export default function UserProfile() {
                         className={styles.profileAppearanceSwatchPreview}
                         style={{ background: `linear-gradient(135deg, ${palette.from}, ${palette.to})` }}
                       />
+                      <Box className={styles.profileAppearanceAccentPreview} aria-hidden="true">
+                        <Box
+                          className={styles.profileAppearanceAccentLine}
+                          style={{ background: preset.accent }}
+                        />
+                        <Box
+                          className={styles.profileAppearanceAccentTag}
+                          style={{
+                            background: `color-mix(in srgb, ${preset.accent} 14%, #FFFFFF)`,
+                            color: preset.accentText,
+                          }}
+                        >
+                          Serie
+                        </Box>
+                      </Box>
                       <Text size="xs" fw={700} ta="center">{preset.label[lang]}</Text>
                       {selected && <IconCheck size={14} className={styles.profileAppearanceCheck} />}
                     </UnstyledButton>
@@ -1908,10 +1948,10 @@ export default function UserProfile() {
                     label={lang === 'en' ? 'Texture' : 'Textura'}
                     value={editForm.profile_texture || 'none'}
                     data={[
-                      { value: 'none', label: t.profileAppearance.textures.none },
-                      { value: 'puntos', label: t.profileAppearance.textures.dots },
-                      { value: 'estrellas', label: t.profileAppearance.textures.stars },
-                      { value: 'petalos-sakura', label: t.profileAppearance.textures.sakura },
+                      { value: 'none', label: profileAppearanceText.textures.none },
+                      { value: 'puntos', label: profileAppearanceText.textures.dots },
+                      { value: 'estrellas', label: profileAppearanceText.textures.stars },
+                      { value: 'petalos-sakura', label: profileAppearanceText.textures.sakura },
                     ]}
                     onChange={(value) => setEditForm((prev) => ({
                       ...prev,
@@ -2171,11 +2211,9 @@ export default function UserProfile() {
                             size={24}
                             radius="xl"
                             variant={checked ? 'filled' : 'light'}
-                            color={option.value === 'waifu' ? 'pink' : 'violet'}
+                            color={option.value === 'waifu' ? 'pink' : 'blue'}
                           >
-                            {option.value === 'waifu'
-                              ? <IconHeartFilled size={12} />
-                              : <IconUser size={13} />}
+                            <IconHeartFilled size={12} />
                           </ThemeIcon>
                           <Text size="sm" fw={checked ? 700 : 500}>{option.label}</Text>
                         </Group>
@@ -2189,9 +2227,7 @@ export default function UserProfile() {
                       size="xs"
                       radius="md"
                       leftSection={
-                        safeCharacter.type === 'waifu'
-                          ? <IconHeartFilled size={14} />
-                          : <IconUser size={14} />
+                        <IconHeartFilled size={14} />
                       }
                       leftSectionWidth={32}
                       classNames={{ input: styles.favoriteCharacterTypeInput }}
@@ -2209,7 +2245,7 @@ export default function UserProfile() {
                         section: {
                           color: safeCharacter.type === 'waifu'
                             ? 'var(--mantine-color-pink-5)'
-                            : 'var(--mantine-color-violet-5)',
+                            : 'var(--mantine-color-blue-5)',
                         },
                         dropdown: {
                           padding: rem(6),

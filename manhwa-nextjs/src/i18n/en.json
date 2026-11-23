@@ -380,5 +380,16 @@
     "message": "Would you like to view this site in English?",
     "switch": "Switch to English",
     "stay": "Keep Spanish"
+  },
+  "profileAppearance": {
+    "title": "Profile appearance",
+    "previewName": "Your name",
+    "previewBio": "A short introduction",
+    "textures": {
+      "none": "No texture",
+      "dots": "Dots",
+      "stars": "Stars",
+      "sakura": "Petals"
+    }
   }
 }
