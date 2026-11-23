@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS reading_sessions (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     work_id UUID NOT NULL REFERENCES series(id) ON DELETE CASCADE,
-    chapter_id UUID NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+    chapter_id BIGINT NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
     
     -- Duración y engagement
     session_start TIMESTAMP NOT NULL,
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS chapter_progress (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     work_id UUID NOT NULL REFERENCES series(id) ON DELETE CASCADE,
-    chapter_id UUID NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+    chapter_id BIGINT NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
     
     -- Progreso
     chapters_read_count INTEGER DEFAULT 0,              -- Capítulos leídos de esta obra
@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS work_abandonment (
     work_id UUID NOT NULL REFERENCES series(id) ON DELETE CASCADE,
     
     -- Punto de abandono
-    last_chapter_read UUID REFERENCES chapters(id) ON DELETE SET NULL,
+    last_chapter_read BIGINT REFERENCES chapters(id) ON DELETE SET NULL,
     last_chapter_number INTEGER NOT NULL DEFAULT 0,     -- Número del capítulo donde paró
     total_chapters_available INTEGER NOT NULL,          -- Total de capítulos disponibles al momento
     abandonment_percentage DECIMAL(5,2),                -- Porcentaje leído cuando abandonó
@@ -248,7 +248,7 @@ CREATE TABLE IF NOT EXISTS user_behavior_events (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     work_id UUID REFERENCES series(id) ON DELETE SET NULL,
-    chapter_id UUID REFERENCES chapters(id) ON DELETE SET NULL,
+    chapter_id BIGINT REFERENCES chapters(id) ON DELETE SET NULL,
     
     -- Evento
     event_type VARCHAR(50) NOT NULL,                    -- 'page_load', 'scroll', 'chapter_change', 'session_end', 'tab_close'

@@ -1,21 +1,6 @@
 -- Migration: Add chapter ratings system
--- Tabla para votos de capítulos individuales (1-5 estrellas)
--- Usa visitor_id (FingerprintJS) para identificación sin login
-
--- Tabla de ratings de capítulos
-CREATE TABLE IF NOT EXISTS chapter_ratings (
-    id SERIAL PRIMARY KEY,
-    chapter_id UUID NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
-    visitor_id VARCHAR(255) NOT NULL,
-    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(chapter_id, visitor_id)
-);
-
--- Índices para consultas frecuentes
-CREATE INDEX IF NOT EXISTS idx_chapter_ratings_chapter_id ON chapter_ratings(chapter_id);
-CREATE INDEX IF NOT EXISTS idx_chapter_ratings_visitor_id ON chapter_ratings(visitor_id);
+-- Los votos por capítulo se crean en la migración 004 usando slug y número,
+-- porque chapters.id es BIGINT y los capítulos pueden servirse desde Spaces.
 
 -- Agregar columnas de rating a la tabla de capítulos (si no existen)
 DO $$
