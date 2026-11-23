@@ -10,7 +10,6 @@ import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateWebApplicati
 import NavigationProgress from '@/components/NavigationProgress'
 import MainLayout from '@/components/MainLayout'
 import HtmlLangSync from '@/components/HtmlLangSync'
-import PwaRuntime from '@/components/PwaRuntime'
 
 /**
  * SEO Metadata Global
@@ -263,7 +262,6 @@ export default function RootLayout({ children }) {
         <MantineProvider theme={imperialTheme} defaultColorScheme="auto">
           <Notifications position="top-right" zIndex={1000} />
           <Providers>
-            <PwaRuntime />
             <MainLayout>
               {children}
             </MainLayout>
