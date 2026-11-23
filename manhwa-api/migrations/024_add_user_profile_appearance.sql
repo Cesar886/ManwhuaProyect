@@ -1,0 +1,3 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS profile_background VARCHAR(32) NULL,
+  ADD COLUMN IF NOT EXISTS profile_texture VARCHAR(32) NULL;
