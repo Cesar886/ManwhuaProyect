@@ -129,6 +129,7 @@ export function AuthProvider({ children }) {
         ...(data.favorite_characters !== undefined ? { favoriteCharacters: data.favorite_characters } : {}),
         ...(data.profile_background !== undefined ? { profileBackground: data.profile_background } : {}),
         ...(data.profile_texture !== undefined ? { profileTexture: data.profile_texture } : {}),
+        ...(data.profile_text_color !== undefined ? { profileTextColor: data.profile_text_color } : {}),
       }
       const res = await apiUpdateUserProfile(payload)
       invalidateUserCache()
@@ -145,13 +146,15 @@ export function AuthProvider({ children }) {
         social_links: updatedUser.socialLinks ?? updatedUser.social_links ?? data.social_links ?? previousUser.social_links,
         favoriteCharacters: updatedUser.favoriteCharacters ?? updatedUser.favorite_characters ?? data.favorite_characters ?? previousUser.favoriteCharacters ?? previousUser.favorite_characters ?? [],
         favorite_characters: updatedUser.favoriteCharacters ?? updatedUser.favorite_characters ?? data.favorite_characters ?? previousUser.favoriteCharacters ?? previousUser.favorite_characters ?? [],
+        profileTextColor: updatedUser.profileTextColor ?? updatedUser.profile_text_color ?? data.profileTextColor ?? data.profile_text_color ?? previousUser.profileTextColor ?? previousUser.profile_text_color,
+        profile_text_color: updatedUser.profileTextColor ?? updatedUser.profile_text_color ?? data.profile_text_color ?? data.profileTextColor ?? previousUser.profile_text_color ?? previousUser.profileTextColor,
       }
       userRef.current = nextUser
       setUser(nextUser)
 
       return res;
     } catch (e) {
-      console.error('Error updating profile:', e);
+      console.error('Error updating profile:', e, e?.body?.errors || '');
       throw e;
     }
   }

@@ -18,8 +18,60 @@ export const PROFILE_TEXTURES = [
   { key: 'puntos', label: { es: 'Puntos', en: 'Dots' } },
   { key: 'estrellas', label: { es: 'Estrellas', en: 'Stars' } },
   { key: 'petalos-sakura', label: { es: 'Pétalos de sakura', en: 'Sakura petals' } },
+  { key: 'corazones', label: { es: 'Corazones', en: 'Hearts' } },
+  { key: 'espadas', label: { es: 'Espadas', en: 'Swords' } },
 ];
 
 export function getProfilePreset(key) {
   return PROFILE_BACKGROUNDS.find((preset) => preset.key === key) || null;
+}
+
+export function getReadableTextColor(gradientColors) {
+  const parseHex = (value) => {
+    if (typeof value !== 'string') return null;
+    const hex = value.trim().replace(/^#/, '');
+    if (!/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)) return null;
+    const normalized = hex.length === 3
+      ? hex.split('').map((character) => character + character).join('')
+      : hex;
+    return [
+      parseInt(normalized.slice(0, 2), 16),
+      parseInt(normalized.slice(2, 4), 16),
+      parseInt(normalized.slice(4, 6), 16),
+    ];
+  };
+
+  const luminance = (rgb) => {
+    const channels = rgb.map((channel) => {
+      const value = channel / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+
+  const contrast = (foreground, background) =>
+    (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+
+  const validColors = (gradientColors || [])
+    .map(parseHex)
+    .filter(Boolean);
+
+  if (validColors.length === 0) return 'dark';
+
+  const white = luminance([255, 255, 255]);
+  const almostBlack = luminance([17, 24, 39]);
+
+  // The selected tone must be the winner at the least readable gradient stop.
+  const minimumContrastForTone = (foreground) =>
+    Math.min(...validColors.map((rgb) => contrast(foreground, luminance(rgb))));
+
+  const whiteWorstCase = minimumContrastForTone(white);
+  const darkWorstCase = minimumContrastForTone(almostBlack);
+
+  if (whiteWorstCase >= 4.5 && darkWorstCase >= 4.5) {
+    return whiteWorstCase >= darkWorstCase ? 'light' : 'dark';
+  }
+  if (whiteWorstCase >= 4.5) return 'light';
+  if (darkWorstCase >= 4.5) return 'dark';
+  return whiteWorstCase >= darkWorstCase ? 'light' : 'dark';
 }

@@ -162,7 +162,6 @@ export default function InstallPrompt() {
       <section className={styles.banner} aria-label="Instalar Manhwa Imperial">
         <div>
           <strong>Lee Manhwa Imperial como una app</strong>
-          <p>Instálala en tu pantalla de inicio para volver más rápido.</p>
         </div>
         <button type="button" onClick={() => setModalOpen(true)}>Instalar app</button>
         <button className={styles.dismiss} type="button" aria-label="Cerrar aviso de instalación" onClick={closePrompt}>×</button>

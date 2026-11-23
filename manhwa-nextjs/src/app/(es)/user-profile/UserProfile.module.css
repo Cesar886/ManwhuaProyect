@@ -8,6 +8,35 @@
   max-width: 900px;
   margin-inline: auto;
   overflow-x: hidden;
+  --profile-fg: #111827;
+  --profile-fg-muted: #374151;
+  --profile-border: rgba(17, 24, 39, 0.24);
+  --profile-chip-bg: rgba(17, 24, 39, 0.10);
+  --profile-icon-bg: rgba(17, 24, 39, 0.10);
+}
+
+.darkMode .profileContainerShell {
+  --profile-fg: #FFFFFF;
+  --profile-fg-muted: #E5E7EB;
+  --profile-border: rgba(255, 255, 255, 0.28);
+  --profile-chip-bg: rgba(255, 255, 255, 0.15);
+  --profile-icon-bg: rgba(255, 255, 255, 0.14);
+}
+
+.profileContainerShell:global([data-tone="light"]) {
+  --profile-fg: #FFFFFF;
+  --profile-fg-muted: #E5E7EB;
+  --profile-border: rgba(255, 255, 255, 0.28);
+  --profile-chip-bg: rgba(255, 255, 255, 0.15);
+  --profile-icon-bg: rgba(255, 255, 255, 0.14);
+}
+
+.profileContainerShell:global([data-tone="dark"]) {
+  --profile-fg: #111827;
+  --profile-fg-muted: #374151;
+  --profile-border: rgba(17, 24, 39, 0.24);
+  --profile-chip-bg: rgba(17, 24, 39, 0.10);
+  --profile-icon-bg: rgba(17, 24, 39, 0.10);
 }
 
 .profileAppearanceToggle {
@@ -162,6 +191,26 @@
   background-color: #FFF1F2;
 }
 
+.profileTextureSelectIconcorazones::before,
+.profileTextureOptionPreviewcorazones::before {
+  background-image:
+    radial-gradient(circle at 35% 55%, #E11D48 0 5%, transparent 6%),
+    radial-gradient(circle at 65% 55%, #E11D48 0 5%, transparent 6%),
+    linear-gradient(45deg, transparent 48%, #E11D48 49% 51%, transparent 52%);
+  background-size: 12px 12px;
+  background-position: 2px 2px;
+  background-color: #FFF1F2;
+}
+
+.profileTextureSelectIconespadas::before,
+.profileTextureOptionPreviewespadas::before {
+  background-image:
+    linear-gradient(45deg, transparent 44%, #64748B 45% 55%, transparent 56%);
+  background-size: 10px 10px;
+  background-position: 2px 2px;
+  background-color: #F1F5F9;
+}
+
 .profileTextureOption {
   min-height: 48px;
   padding: 8px;
@@ -200,6 +249,16 @@
 .darkMode .profileTextureSelectIconpetalos-sakura::before,
 .darkMode .profileTextureOptionPreviewpetalos-sakura::before {
   background-color: #500724;
+}
+
+.darkMode .profileTextureSelectIconcorazones::before,
+.darkMode .profileTextureOptionPreviewcorazones::before {
+  background-color: #500724;
+}
+
+.darkMode .profileTextureSelectIconespadas::before,
+.darkMode .profileTextureOptionPreviewespadas::before {
+  background-color: #1E293B;
 }
 
 .profileContainerShell[data-profile-background='amanecer'] { --profile-accent: #C35E78; --profile-accent-text: #451A27; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
@@ -250,9 +309,10 @@
 
 .profileContainerShell[data-profile-texture='puntos'] .headerCard.profileAppearanceCard,
 .profileContainerShell[data-profile-texture='puntos'] .infoCard {
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--profile-text) 18%, transparent) 1px, transparent 1.5px),
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--profile-fg) 28%, transparent) 1.2px, transparent 1.8px),
     linear-gradient(135deg, var(--profile-bg-from), var(--profile-bg-to)) !important;
-  background-size: 18px 18px, 100% 100%;
+  background-position: 3px 3px, 0 0;
+  background-size: 12px 12px, 100% 100%;
 }
 
 .profileContainerShell[data-profile-texture='estrellas'] .headerCard.profileAppearanceCard,
@@ -271,6 +331,29 @@
     linear-gradient(135deg, var(--profile-bg-from), var(--profile-bg-to)) !important;
   background-position: 3px 7px, 19px 21px, 0 0;
   background-size: 28px 28px, 34px 34px, 100% 100%;
+}
+
+.profileContainerShell[data-profile-texture='corazones'] .headerCard.profileAppearanceCard,
+.profileContainerShell[data-profile-texture='corazones'] .infoCard,
+.profileEditorPreview[data-profile-texture='corazones'] {
+  background-image:
+    radial-gradient(circle at 35% 55%, color-mix(in srgb, var(--profile-fg) 42%, transparent) 0 5%, transparent 6%),
+    radial-gradient(circle at 65% 55%, color-mix(in srgb, var(--profile-fg) 42%, transparent) 0 5%, transparent 6%),
+    linear-gradient(45deg, transparent 48%, color-mix(in srgb, var(--profile-fg) 32%, transparent) 49% 51%, transparent 52%),
+    linear-gradient(135deg, var(--profile-bg-from), var(--profile-bg-to));
+  background-position: 4px 4px, 4px 4px, 4px 4px, 0 0;
+  background-size: 18px 18px, 18px 18px, 18px 18px, 100% 100%;
+}
+
+.profileContainerShell[data-profile-texture='espadas'] .headerCard.profileAppearanceCard,
+.profileContainerShell[data-profile-texture='espadas'] .infoCard,
+.profileEditorPreview[data-profile-texture='espadas'] {
+  background-image:
+    linear-gradient(45deg, transparent 42%, color-mix(in srgb, var(--profile-fg, #111827) 46%, transparent) 43% 57%, transparent 58%),
+    linear-gradient(135deg, var(--profile-bg-from, #FFFFFF), var(--profile-bg-to, #F8FAFC)) !important;
+  background-position: 4px 4px, 0 0;
+  background-size: 16px 16px, 100% 100%;
+  background-repeat: repeat, no-repeat;
 }
 
 .profileEditorPreview[data-profile-texture='puntos'] {
@@ -469,6 +552,76 @@
   border-bottom-color: var(--profile-accent, var(--cyan-primary));
   color: inherit;
   font-weight: 700;
+}
+
+/* Readable profile-card foreground variables */
+.profileContainerShell [data-tone],
+.profileContainerShell [data-tone] * {
+  transition-property: color, background-color, border-color;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+.headerCard[data-tone],
+.infoCard[data-tone] {
+  color: var(--profile-fg);
+  border-color: var(--profile-border);
+}
+
+.headerCard[data-tone] :is(
+  p, span, div, text, button, svg, small
+) {
+  color: var(--profile-fg);
+}
+
+.headerCard[data-tone] :is([class*='dimmed'], [class*='Bio'], [class*='Username'], [class*='Meta'], [class*='Stats']) {
+  color: var(--profile-fg-muted);
+}
+
+.infoCard[data-tone] :is(p, span, div, text, svg, button, small) {
+  color: var(--profile-fg);
+}
+
+.headerCard[data-tone] .gradientText,
+.headerCard[data-tone] [class*='profileName'] {
+  color: var(--profile-fg);
+  background: none;
+  -webkit-text-fill-color: var(--profile-fg);
+}
+
+.profileMetaBadge,
+.headerCard[data-tone] .profileMetaBadge {
+  color: var(--profile-fg) !important;
+  background: var(--profile-chip-bg);
+  border: 1px solid var(--profile-border);
+  box-shadow: none;
+}
+
+.profileActionButton,
+.headerCard[data-tone] .profileActionButton {
+  color: var(--profile-fg) !important;
+  border: 1px solid var(--profile-border);
+  background: transparent;
+}
+
+.profileActionButton:hover,
+.headerCard[data-tone] .profileActionButton:hover {
+  color: var(--profile-fg) !important;
+  background: var(--profile-icon-bg);
+  border-color: var(--profile-fg);
+}
+
+.profileTabs {
+  color: var(--profile-fg);
+}
+
+.profileTab {
+  color: var(--profile-fg-muted);
+}
+
+.profileTab:hover,
+.profileTabActive {
+  color: var(--profile-fg);
 }
 
 .gamificationGrid {

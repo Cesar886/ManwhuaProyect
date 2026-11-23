@@ -389,7 +389,9 @@
       "none": "No texture",
       "dots": "Dots",
       "stars": "Stars",
-      "sakura": "Petals"
+      "sakura": "Petals",
+      "hearts": "Hearts",
+      "swords": "Swords"
     }
   }
 }

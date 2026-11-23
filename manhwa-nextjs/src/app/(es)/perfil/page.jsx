@@ -77,33 +77,53 @@ import SocialProfileLinks from '@/components/SocialProfileLinks';
 import UserFollowListModal from '@/components/UserFollowListModal';
 import { useProfilePresence } from '@/hooks/usePresence';
 import { useLang } from '@/hooks/useLang';
-import { PROFILE_BACKGROUNDS, PROFILE_TEXTURES, getProfilePreset } from '@/lib/profileAppearance';
+import { PROFILE_BACKGROUNDS, PROFILE_TEXTURES, getProfilePreset, getReadableTextColor } from '@/lib/profileAppearance';
 
 const MAX_DISPLAY_NAME_LENGTH = 10;
 const MAX_FAVORITE_CHARACTER_LENGTH = 25;
-const DEFAULT_FAVORITE_CHARACTER_COLOR = '#E64980';
+const DEFAULT_FAVORITE_CHARACTER_COLOR = '#F9A8D4';
 const FAVORITE_CHARACTER_PALETTE = [
-  '#E64980',
-  '#F06595',
-  '#FA5252',
-  '#FD7E14',
-  '#FAB005',
-  '#40C057',
-  '#12B886',
-  '#15AABF',
-  '#228BE6',
-  '#7950F2',
-  '#AE3EC9',
+  '#F9A8D4',
+  '#FBCFE8',
+  '#FDA4AF',
+  '#FDBA74',
+  '#FDE68A',
+  '#86EFAC',
+  '#5EEAD4',
+  '#67E8F9',
+  '#93C5FD',
+  '#C4B5FD',
+  '#D8B4FE',
 ];
+
+const FAVORITE_CHARACTER_COLOR_MIGRATIONS = {
+  '#E64980': '#F9A8D4',
+  '#F06595': '#FBCFE8',
+  '#FA5252': '#FDA4AF',
+  '#FD7E14': '#FDBA74',
+  '#FAB005': '#FDE68A',
+  '#40C057': '#86EFAC',
+  '#12B886': '#5EEAD4',
+  '#15AABF': '#67E8F9',
+  '#228BE6': '#93C5FD',
+  '#7950F2': '#C4B5FD',
+  '#AE3EC9': '#D8B4FE',
+};
+
+const normalizeFavoriteCharacterColor = (color) => {
+  const normalizedColor = String(color || '').toUpperCase();
+  const migratedColor = FAVORITE_CHARACTER_COLOR_MIGRATIONS[normalizedColor] || normalizedColor;
+  return FAVORITE_CHARACTER_PALETTE.includes(migratedColor)
+    ? migratedColor
+    : DEFAULT_FAVORITE_CHARACTER_COLOR;
+};
 
 const normalizeFavoriteCharacters = (characters) => {
   if (!Array.isArray(characters)) return [];
   return characters.slice(0, 3).map((character, index) => ({
     type: character?.type === 'husband' ? 'husband' : 'waifu',
     name: String(character?.name || '').normalize('NFC').trim().slice(0, MAX_FAVORITE_CHARACTER_LENGTH),
-    color: FAVORITE_CHARACTER_PALETTE.includes(String(character?.color || '').toUpperCase())
-      ? String(character.color).toUpperCase()
-      : DEFAULT_FAVORITE_CHARACTER_COLOR,
+    color: normalizeFavoriteCharacterColor(character?.color),
     position: index,
   }));
 };
@@ -113,15 +133,8 @@ const FavoriteCharacterBadges = ({ characters }) => {
   const isDark = useComputedColorScheme() === 'dark';
   if (normalized.length === 0) return null;
 
-  const getBadgeTextColor = (hex) => {
-    const channels = [1, 3, 5].map((index) =>
-      parseInt(hex.slice(index, index + 2), 16) / 255
-    ).map((value) =>
-      value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-    );
-    const backgroundLuminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-    return backgroundLuminance >= 0.58 ? '#20242A' : '#FFFFFF';
-  };
+  const getBadgeTextColor = (hex) =>
+    getReadableTextColor([hex]) === 'light' ? '#FFFFFF' : '#111827';
 
   return (
     <Group gap={6} wrap="wrap" style={{ maxWidth: '100%' }}>
@@ -142,7 +155,7 @@ const FavoriteCharacterBadges = ({ characters }) => {
                 boxShadow: '0 2px 6px rgba(15,23,42,0.16)',
               }}
             >
-              <IconHeartFilled size={10} />
+              <IconHeartFilled size={10} color="#FFFFFF" />
             </ThemeIcon>
           }
           styles={{
@@ -393,7 +406,7 @@ const PremiumAvatar = ({ src, size, initials, name, streak, isDark, isOnline }) 
       <Box className={styles.avatarRing} style={{ opacity: hovered ? 1 : 0.8 }} />
       <Box
         className={styles.avatarRingInner}
-        style={{ background: isDark ? '#0f172a' : '#ffffff' }}
+        style={{ background: isDark ? '#0f172a' : 'transparent' }}
       />
 
       <Indicator
@@ -407,7 +420,7 @@ const PremiumAvatar = ({ src, size, initials, name, streak, isDark, isOnline }) 
         processing
         styles={{
           indicator: {
-            border: `3px solid ${isDark ? '#0f172a' : '#ffffff'}`,
+            border: `3px solid ${isDark ? '#0f172a' : 'transparent'}`,
             zIndex: 2,
           },
         }}
@@ -456,7 +469,7 @@ const PremiumAvatar = ({ src, size, initials, name, streak, isDark, isOnline }) 
             className={styles.avatarBadge}
             style={{
               boxShadow: '0 4px 15px rgba(249, 115, 22, 0.4)',
-              border: `2px solid ${isDark ? '#0f172a' : '#ffffff'}`,
+              border: `2px solid ${isDark ? '#0f172a' : 'transparent'}`,
               zIndex: 3,
             }}
           >
@@ -504,6 +517,8 @@ export default function UserProfile() {
       dots: lang === 'en' ? 'Dots' : 'Puntos',
       stars: lang === 'en' ? 'Stars' : 'Estrellas',
       sakura: lang === 'en' ? 'Petals' : 'Pétalos',
+      hearts: lang === 'en' ? 'Hearts' : 'Corazones',
+      swords: lang === 'en' ? 'Swords' : 'Espadas',
     },
   };
   const { updateProfile, updateAvatar, updateFollowingCount, openLogin, user: authUser } = useAuth();
@@ -538,6 +553,7 @@ export default function UserProfile() {
     favorite_characters: [],
     profile_background: null,
     profile_texture: null,
+    profile_text_color: null,
   });
   const [editSaving, setEditSaving] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -621,6 +637,8 @@ export default function UserProfile() {
           profileBackground: source.profileBackground ?? source.profile_background ?? null,
           profile_texture: source.profileTexture ?? source.profile_texture ?? null,
           profileTexture: source.profileTexture ?? source.profile_texture ?? null,
+          profile_text_color: source.profileTextColor ?? source.profile_text_color ?? null,
+          profileTextColor: source.profileTextColor ?? source.profile_text_color ?? null,
           followers_count: source.stats?.followers ?? source.followers_count,
           following_count: source.stats?.following ?? source.following_count,
           collections_count: source.stats?.collections ?? source.collections_count,
@@ -874,6 +892,9 @@ export default function UserProfile() {
       profile_texture: PROFILE_TEXTURES.some((texture) => texture.key === (user.profileTexture ?? user.profile_texture))
         ? (user.profileTexture ?? user.profile_texture)
         : null,
+      profile_text_color: ['white', 'black'].includes(user.profileTextColor ?? user.profile_text_color)
+        ? (user.profileTextColor ?? user.profile_text_color)
+        : null,
     });
     setEditOpen(true);
   }, [user, isOwner]);
@@ -883,9 +904,7 @@ export default function UserProfile() {
     const favoriteCharacters = (editForm.favorite_characters || []).slice(0, 3).map((character, index) => ({
       type: character?.type === 'husband' ? 'husband' : 'waifu',
       name: String(character?.name || '').normalize('NFC').trim(),
-      color: FAVORITE_CHARACTER_PALETTE.includes(String(character?.color || '').toUpperCase())
-        ? String(character?.color || '').toUpperCase()
-        : DEFAULT_FAVORITE_CHARACTER_COLOR,
+      color: normalizeFavoriteCharacterColor(character?.color),
       position: index,
     }));
     const invalidFavoriteCharacter = favoriteCharacters.find((character) =>
@@ -922,6 +941,7 @@ export default function UserProfile() {
         favorite_characters: favoriteCharacters,
         profile_background: editForm.profile_background,
         profile_texture: editForm.profile_texture,
+        profile_text_color: editForm.profile_text_color,
       });
       const savedUser = response?.data?.user || response?.user || {};
       const savedUsername = savedUser.username || user.username;
@@ -944,6 +964,8 @@ export default function UserProfile() {
         profile_background: savedUser.profileBackground ?? savedUser.profile_background ?? editForm.profile_background,
         profileTexture: savedUser.profileTexture ?? savedUser.profile_texture ?? editForm.profile_texture,
         profile_texture: savedUser.profileTexture ?? savedUser.profile_texture ?? editForm.profile_texture,
+        profileTextColor: savedUser.profileTextColor ?? savedUser.profile_text_color ?? editForm.profile_text_color,
+        profile_text_color: savedUser.profileTextColor ?? savedUser.profile_text_color ?? editForm.profile_text_color,
       }));
       if (routeUsername && savedUsername !== user.username) {
         router.replace(`/users/${encodeURIComponent(savedUsername)}`, { scroll: false });
@@ -951,7 +973,14 @@ export default function UserProfile() {
       setEditOpen(false);
       notifications.show({ title: 'Perfil actualizado', message: 'Tus cambios se guardaron correctamente', color: 'cyan', icon: <IconCheck size={16} /> });
     } catch (error) {
-      notifications.show({ title: 'Error al guardar', message: error?.message || 'No se pudo actualizar tu perfil', color: 'red' });
+      const validationMessage = Array.isArray(error?.body?.errors)
+        ? error.body.errors.find((item) => item?.message)?.message
+        : null;
+      notifications.show({
+        title: 'Error al guardar',
+        message: validationMessage || error?.message || 'No se pudo actualizar tu perfil',
+        color: 'red',
+      });
     } finally {
       setEditSaving(false);
     }
@@ -1216,22 +1245,32 @@ export default function UserProfile() {
     ? (user?.profileTexture ?? user?.profile_texture)
     : null;
   const profilePalette = profilePreset ? profilePreset[isDark ? 'dark' : 'light'] : null;
-  const profileAppearanceVars = profilePalette ? {
-    '--profile-bg-from': profilePalette.from,
-    '--profile-bg-to': profilePalette.to,
-    '--profile-text': profilePalette.text,
-    '--profile-text-secondary': profilePalette.text === '#FFFFFF'
-      ? 'rgba(255,255,255,0.82)'
-      : 'rgba(26,26,46,0.72)',
-  } : {
-    '--profile-text': isDark ? '#FFFFFF' : '#1A1A2E',
+  const profileTone = profilePalette
+    ? getReadableTextColor([profilePalette.from, profilePalette.to])
+    : (isDark ? 'light' : 'dark');
+  const savedProfileTextColor = user?.profileTextColor ?? user?.profile_text_color;
+  const profileTextTone = ['white', 'black'].includes(savedProfileTextColor)
+    ? (savedProfileTextColor === 'white' ? 'light' : 'dark')
+    : profileTone;
+  const profileAppearanceVars = {
+    '--profile-bg-from': profilePalette?.from || (isDark ? '#1A1A2E' : '#FFFFFF'),
+    '--profile-bg-to': profilePalette?.to || (isDark ? '#252542' : '#F8FAFC'),
+    '--profile-fg': profileTextTone === 'light' ? '#FFFFFF' : '#111827',
+    '--profile-text': profileTextTone === 'light' ? '#FFFFFF' : '#111827',
+    '--profile-fg-muted': profileTextTone === 'light' ? '#E5E7EB' : '#374151',
+    '--profile-border': profileTextTone === 'light' ? 'rgba(255,255,255,0.28)' : 'rgba(17,24,39,0.24)',
+    '--profile-chip-bg': profileTextTone === 'light' ? 'rgba(255,255,255,0.15)' : 'rgba(17,24,39,0.10)',
+    '--profile-icon-bg': profileTextTone === 'light' ? 'rgba(255,255,255,0.14)' : 'rgba(17,24,39,0.10)',
   };
   const previewPreset = getProfilePreset(editForm.profile_background);
   const previewPalette = previewPreset ? previewPreset[isDark ? 'dark' : 'light'] : null;
+  const previewTextTone = ['white', 'black'].includes(editForm.profile_text_color)
+    ? (editForm.profile_text_color === 'white' ? '#FFFFFF' : '#111827')
+    : (previewPalette ? (getReadableTextColor([previewPalette.from, previewPalette.to]) === 'light' ? '#FFFFFF' : '#111827') : undefined);
   const previewAppearanceVars = previewPalette ? {
     '--profile-bg-from': previewPalette.from,
     '--profile-bg-to': previewPalette.to,
-    '--profile-text': previewPalette.text,
+    '--profile-text': previewTextTone,
   } : {};
 
   return (
@@ -1242,6 +1281,7 @@ export default function UserProfile() {
         px={isMobile ? 0 : 'md'}
         pt={isMobile ? 72 : 96}
         className={styles.profileContainerShell}
+        data-tone={profileTextTone}
         data-profile-background={profileBackgroundKey || 'none'}
         data-profile-texture={profileTexture || 'none'}
         style={profileAppearanceVars}
@@ -1253,7 +1293,8 @@ export default function UserProfile() {
           radius={rem(24)}
           mb="xl"
           className={`${styles.headerCard} ${styles.legacyHeaderCard}`}
-          style={{ position: 'relative', zIndex: 2, overflow: 'hidden' }}
+          data-tone={profileTone}
+          style={{ position: 'relative', zIndex: 2, overflow: 'hidden', ...profileAppearanceVars }}
         >
           <Box
             aria-hidden="true"
@@ -1279,7 +1320,20 @@ export default function UserProfile() {
               <Stack gap={8} align="center">
                 <Stack gap={4} align="center">
                   <Text fw={800} size={rem(26)} lh={1.1} className={styles.gradientText} ta="center">{userName}</Text>
-                  <Badge variant="gradient" gradient={{ from: role.gradient.from, to: role.gradient.to, deg: 135 }} size="sm" leftSection={<RoleIcon size={10} />} className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}>{role.label}</Badge>
+                  <Badge
+                    variant={userRole === 'reader' || !userRole ? 'light' : 'gradient'}
+                    gradient={{ from: role.gradient.from, to: role.gradient.to, deg: 135 }}
+                    size="sm"
+                    leftSection={<RoleIcon size={10} />}
+                    className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}
+                    style={userRole === 'reader' || !userRole ? {
+                      background: 'var(--profile-chip-bg)',
+                      color: 'var(--profile-fg)',
+                      border: '1px solid var(--profile-border)',
+                    } : undefined}
+                  >
+                    {role.label}
+                  </Badge>
                 </Stack>
                 <Group gap={8} justify="center" wrap="wrap">
                   <Badge variant="light" color="gray" radius="xl" className={styles.profileMetaBadge}>@{userUsername}</Badge>
@@ -1323,7 +1377,20 @@ export default function UserProfile() {
                 <Stack gap={6}>
                   <Group gap="sm" wrap="wrap" align="center">
                     <Text fw={800} size={rem(32)} lh={1.05} className={styles.gradientText}>{userName}</Text>
-                    <Badge variant="gradient" gradient={{ from: role.gradient.from, to: role.gradient.to, deg: 135 }} size="md" leftSection={<RoleIcon size={12} />} className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}>{role.label}</Badge>
+                    <Badge
+                      variant={userRole === 'reader' || !userRole ? 'light' : 'gradient'}
+                      gradient={{ from: role.gradient.from, to: role.gradient.to, deg: 135 }}
+                      size="md"
+                      leftSection={<RoleIcon size={12} />}
+                      className={`${styles.roleBadge} ${styles.roleBadgeMinimal}`}
+                      style={userRole === 'reader' || !userRole ? {
+                        background: 'var(--profile-chip-bg)',
+                        color: 'var(--profile-fg)',
+                        border: '1px solid var(--profile-border)',
+                      } : undefined}
+                    >
+                      {role.label}
+                    </Badge>
                   </Group>
                   <Group gap={8} wrap="wrap" className={styles.profileMetaGroup}>
                     <Badge variant="light" color="gray" radius="xl" className={styles.profileMetaBadge}>@{userUsername}</Badge>
@@ -1381,6 +1448,7 @@ export default function UserProfile() {
           radius={20}
           mb={16}
           className={`${styles.headerCard} ${(profileBackgroundKey || profileTexture) ? styles.profileAppearanceCard : ''}`}
+          data-tone={profileTone}
           data-profile-background={profileBackgroundKey || 'none'}
           data-profile-texture={profileTexture || 'none'}
           style={profileAppearanceVars}
@@ -1414,7 +1482,20 @@ export default function UserProfile() {
             <Box className={styles.profileIdentity}>
               <Group gap={8} wrap="nowrap" align="center" className={styles.profileNameRow}>
                 <Text fw={700} size={isMobile ? 20 : 22} lh={1.15}>{userName}</Text>
-                <Badge variant="light" color={role.color} size="sm" radius="sm" leftSection={<RoleIcon size={10} />}>{role.label}</Badge>
+                <Badge
+                  variant="light"
+                  color={role.color}
+                  size="sm"
+                  radius="sm"
+                  leftSection={<RoleIcon size={10} />}
+                  style={userRole === 'reader' || !userRole ? {
+                    background: 'var(--profile-chip-bg)',
+                    color: 'var(--profile-fg)',
+                    border: '1px solid var(--profile-border)',
+                  } : undefined}
+                >
+                  {role.label}
+                </Badge>
               </Group>
               <Text size="sm" c="dimmed" className={styles.profileUsername}>@{userUsername}</Text>
               {userBio !== 'Sin biografía' && (
@@ -1480,7 +1561,7 @@ export default function UserProfile() {
         </Box>
 
         {/* CONTINUAR LEYENDO */}
-        <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'continue' ? 'block' : 'none' }}>
+        <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} data-tone={profileTone} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'continue' ? 'block' : 'none', ...profileAppearanceVars }}>
           <Box style={{ position: 'absolute', top: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
           <Stack gap="lg" style={{ position: 'relative', zIndex: 1 }}>
             {recentLoading ? (
@@ -1901,7 +1982,11 @@ export default function UserProfile() {
                           ? 'stars'
                           : editForm.profile_texture === 'petalos-sakura'
                             ? 'sakura'
-                            : 'none'
+                            : editForm.profile_texture === 'corazones'
+                              ? 'hearts'
+                              : editForm.profile_texture === 'espadas'
+                                ? 'swords'
+                                : 'none'
                     ]}
                   </Text>
                 </Box>
@@ -1957,10 +2042,12 @@ export default function UserProfile() {
                     label={lang === 'en' ? 'Texture' : 'Textura'}
                     value={editForm.profile_texture || 'none'}
                     data={[
-                      { value: 'none', label: profileAppearanceText.textures.none },
-                      { value: 'puntos', label: profileAppearanceText.textures.dots },
-                      { value: 'estrellas', label: profileAppearanceText.textures.stars },
-                      { value: 'petalos-sakura', label: profileAppearanceText.textures.sakura },
+                      { value: 'none', label: String(profileAppearanceText.textures?.none || (lang === 'en' ? 'No texture' : 'Sin textura')) },
+                      { value: 'puntos', label: String(profileAppearanceText.textures?.dots || (lang === 'en' ? 'Dots' : 'Puntos')) },
+                      { value: 'estrellas', label: String(profileAppearanceText.textures?.stars || (lang === 'en' ? 'Stars' : 'Estrellas')) },
+                      { value: 'petalos-sakura', label: String(profileAppearanceText.textures?.sakura || (lang === 'en' ? 'Sakura petals' : 'Pétalos de sakura')) },
+                      { value: 'corazones', label: String(profileAppearanceText.textures?.hearts || (lang === 'en' ? 'Hearts' : 'Corazones')) },
+                      { value: 'espadas', label: String(profileAppearanceText.textures?.swords || (lang === 'en' ? 'Swords' : 'Espadas')) },
                     ]}
                     onChange={(value) => setEditForm((prev) => ({
                       ...prev,
@@ -2000,6 +2087,92 @@ export default function UserProfile() {
                         marginBottom: rem(6),
                         fontWeight: 650,
                       },
+                      input: {
+                        minHeight: rem(48),
+                        paddingLeft: rem(42),
+                        background: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+                        border: `1px solid ${isDark ? 'rgba(148,163,184,0.24)' : 'rgba(15,23,42,0.12)'}`,
+                        boxShadow: isDark
+                          ? '0 4px 14px rgba(0,0,0,0.12)'
+                          : '0 4px 14px rgba(15,23,42,0.05)',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                        '&:focus': {
+                          borderColor: 'var(--mantine-color-cyan-5)',
+                          boxShadow: '0 0 0 3px rgba(6,182,212,0.14)',
+                        },
+                      },
+                      section: {
+                        color: 'var(--mantine-color-dimmed)',
+                      },
+                      dropdown: {
+                        padding: rem(6),
+                        border: `1px solid ${isDark ? 'rgba(148,163,184,0.22)' : 'rgba(15,23,42,0.1)'}`,
+                        boxShadow: isDark
+                          ? '0 14px 30px rgba(0,0,0,0.3)'
+                          : '0 14px 30px rgba(15,23,42,0.12)',
+                      },
+                      option: {
+                        padding: 0,
+                        borderRadius: rem(8),
+                      },
+                    }}
+                  />
+                  <Select
+                    mt="md"
+                    label={lang === 'en' ? 'Text color' : 'Color del texto'}
+                    value={editForm.profile_text_color || 'auto'}
+                    data={[
+                      { value: 'auto', label: lang === 'en' ? 'Automatic' : 'Automático' },
+                      { value: 'white', label: lang === 'en' ? 'White' : 'Blanco' },
+                      { value: 'black', label: lang === 'en' ? 'Black' : 'Negro' },
+                    ]}
+                    onChange={(value) => setEditForm((prev) => ({
+                      ...prev,
+                      profile_text_color: value === 'auto' ? null : value,
+                    }))}
+                    leftSection={(
+                      <ColorSwatch
+                        size={18}
+                        radius="xl"
+                        color={editForm.profile_text_color === 'white'
+                          ? '#FFFFFF'
+                          : editForm.profile_text_color === 'black'
+                            ? '#111827'
+                            : 'var(--mantine-color-gray-5)'}
+                        style={{ border: '1px solid rgba(127,127,127,0.35)' }}
+                      />
+                    )}
+                    searchable={false}
+                    allowDeselect={false}
+                    radius="md"
+                    renderOption={({ option, checked }) => (
+                      <Group
+                        className={`${styles.profileTextureOption} ${checked ? styles.profileTextureOptionSelected : ''}`}
+                        gap="sm"
+                        wrap="nowrap"
+                      >
+                        <ColorSwatch
+                          size={28}
+                          radius="xl"
+                          color={option.value === 'white'
+                            ? '#FFFFFF'
+                            : option.value === 'black'
+                              ? '#111827'
+                              : 'linear-gradient(135deg, #CBD5E1, #64748B)'}
+                          style={{ border: '1px solid rgba(127,127,127,0.35)' }}
+                        />
+                        <Stack gap={0}>
+                          <Text size="sm" fw={checked ? 700 : 550}>{option.label}</Text>
+                          <Text size="xs" c="dimmed">
+                            {option.value === 'auto'
+                              ? (lang === 'en' ? 'Adapt to the background' : 'Se adapta al fondo')
+                              : (lang === 'en' ? 'Use this text color' : 'Usar este color de texto')}
+                          </Text>
+                        </Stack>
+                      </Group>
+                    )}
+                    styles={{
+                      label: { marginBottom: rem(6), fontWeight: 650 },
                       input: {
                         minHeight: rem(48),
                         paddingLeft: rem(42),
@@ -2249,9 +2422,7 @@ export default function UserProfile() {
                   const safeCharacter = {
                     type: character?.type === 'husband' ? 'husband' : 'waifu',
                     name: typeof character?.name === 'string' ? character.name : '',
-                    color: FAVORITE_CHARACTER_PALETTE.includes(String(character?.color || '').toUpperCase())
-                      ? String(character.color).toUpperCase()
-                      : DEFAULT_FAVORITE_CHARACTER_COLOR,
+                    color: normalizeFavoriteCharacterColor(character?.color),
                     position: Number.isInteger(character?.position) ? character.position : index,
                   };
                   return (

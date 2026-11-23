@@ -103,7 +103,7 @@ describe('validateFavoriteCharacters', () => {
         expect(result).toEqual([{
             type: 'waifu',
             name: 'Asuna',
-            color: '#E64980',
+            color: '#F9A8D4',
             position: 0,
         }]);
     });

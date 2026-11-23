@@ -4,6 +4,8 @@ describe('profile appearance validation', () => {
   test.each([
     ['profileBackground', 'sakura', ALLOWED_PROFILE_BACKGROUNDS],
     ['profileTexture', 'puntos', ALLOWED_PROFILE_TEXTURES],
+    ['profileTexture', 'corazones', ALLOWED_PROFILE_TEXTURES],
+    ['profileTexture', 'espadas', ALLOWED_PROFILE_TEXTURES],
   ])('accepts a valid %s', (field, value, allowed) => {
     expect(validateProfileAppearance(field, value, allowed)).toBeNull();
   });

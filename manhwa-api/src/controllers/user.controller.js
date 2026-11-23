@@ -11,6 +11,7 @@ const { validateFavoriteCharacters } = require('../utils/favoriteCharacters');
 const {
     ALLOWED_PROFILE_BACKGROUNDS,
     ALLOWED_PROFILE_TEXTURES,
+    ALLOWED_PROFILE_TEXT_COLORS,
     validateProfileAppearance,
 } = require('../utils/profileAppearance');
 
@@ -138,7 +139,7 @@ const getProfile = async (req, res, next) => {
                     u.bio, u.location, u.website, u.social_links, u.role, u.is_premium,
                     u.level, u.experience, u.followers_count, u.following_count,
                     u.collections_count, u.theme_primary_color, u.theme_accent_color,
-                    u.show_active_reader, u.profile_background, u.profile_texture, u.created_at,
+                    u.show_active_reader, u.profile_background, u.profile_texture, u.profile_text_color, u.created_at,
                     COALESCE((
                         SELECT json_agg(
                             json_build_object(
@@ -221,6 +222,8 @@ const getProfile = async (req, res, next) => {
                     profile_background: user.profile_background,
                     profileTexture: user.profile_texture,
                     profile_texture: user.profile_texture,
+                    profileTextColor: user.profile_text_color,
+                    profile_text_color: user.profile_text_color,
                     favoriteCharacters: user.favorite_characters || [],
                     favorite_characters: user.favorite_characters || [],
                     stats: {
@@ -305,6 +308,8 @@ const updateProfile = async (req, res, next) => {
             profile_background,
             profileTexture,
             profile_texture,
+            profileTextColor,
+            profile_text_color,
         } = req.body;
         const normalizedSocialLinks = typeof socialLinks === 'undefined'
             ? null
@@ -315,6 +320,9 @@ const updateProfile = async (req, res, next) => {
         const normalizedProfileTexture = typeof profileTexture !== 'undefined'
             ? profileTexture
             : (typeof profile_texture !== 'undefined' ? profile_texture : '__UNSET__');
+        const normalizedProfileTextColor = typeof profileTextColor !== 'undefined'
+            ? profileTextColor
+            : (typeof profile_text_color !== 'undefined' ? profile_text_color : '__UNSET__');
         const profileBackgroundError = validateProfileAppearance(
             'profileBackground',
             normalizedProfileBackground === '__UNSET__' ? undefined : normalizedProfileBackground,
@@ -325,11 +333,16 @@ const updateProfile = async (req, res, next) => {
             normalizedProfileTexture === '__UNSET__' ? undefined : normalizedProfileTexture,
             ALLOWED_PROFILE_TEXTURES,
         );
-        if (profileBackgroundError || profileTextureError) {
+        const profileTextColorError = validateProfileAppearance(
+            'profileTextColor',
+            normalizedProfileTextColor === '__UNSET__' ? undefined : normalizedProfileTextColor,
+            ALLOWED_PROFILE_TEXT_COLORS,
+        );
+        if (profileBackgroundError || profileTextureError || profileTextColorError) {
             return res.status(400).json({
                 success: false,
                 message: 'Error de validación',
-                errors: [profileBackgroundError, profileTextureError].filter(Boolean),
+                errors: [profileBackgroundError, profileTextureError, profileTextColorError].filter(Boolean),
             });
         }
         const shouldReplaceFavoriteCharacters =
@@ -367,12 +380,13 @@ const updateProfile = async (req, res, next) => {
                      social_links = COALESCE($9::jsonb, social_links),
                      profile_background = CASE WHEN $11 = '__UNSET__' THEN profile_background ELSE $11 END,
                      profile_texture = CASE WHEN $12 = '__UNSET__' THEN profile_texture ELSE $12 END,
+                     profile_text_color = CASE WHEN $13 = '__UNSET__' THEN profile_text_color ELSE $13 END,
                      updated_at = NOW()
                  WHERE id = $10
                  RETURNING id, username, display_name, bio, location, website,
                            theme_primary_color, theme_accent_color, theme_mode, show_active_reader, social_links,
-                           profile_background, profile_texture`,
-                [displayName, bio, location, website, themePrimaryColor, themeAccentColor, colorScheme, showActiveReader, normalizedSocialLinks, req.user.id, normalizedProfileBackground, normalizedProfileTexture]
+                           profile_background, profile_texture, profile_text_color`,
+                [displayName, bio, location, website, themePrimaryColor, themeAccentColor, colorScheme, showActiveReader, normalizedSocialLinks, req.user.id, normalizedProfileBackground, normalizedProfileTexture, normalizedProfileTextColor]
             );
 
             if (shouldReplaceFavoriteCharacters) {
@@ -428,6 +442,12 @@ const updateProfile = async (req, res, next) => {
                     show_active_reader: user.show_active_reader,
                     socialLinks: user.social_links || {},
                     social_links: user.social_links || {},
+                    profileBackground: user.profile_background,
+                    profile_background: user.profile_background,
+                    profileTexture: user.profile_texture,
+                    profile_texture: user.profile_texture,
+                    profileTextColor: user.profile_text_color,
+                    profile_text_color: user.profile_text_color,
                     favoriteCharacters: favoriteCharactersResult,
                     favorite_characters: favoriteCharactersResult
                 }

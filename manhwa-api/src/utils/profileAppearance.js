@@ -5,8 +5,10 @@ const ALLOWED_PROFILE_BACKGROUNDS = new Set([
 ]);
 
 const ALLOWED_PROFILE_TEXTURES = new Set([
-  'puntos', 'estrellas', 'petalos-sakura',
+  'puntos', 'estrellas', 'petalos-sakura', 'corazones', 'espadas',
 ]);
+
+const ALLOWED_PROFILE_TEXT_COLORS = new Set(['white', 'black']);
 
 function validateProfileAppearance(field, value, allowedKeys) {
   if (typeof value === 'undefined') return null;
@@ -23,5 +25,6 @@ function validateProfileAppearance(field, value, allowedKeys) {
 module.exports = {
   ALLOWED_PROFILE_BACKGROUNDS,
   ALLOWED_PROFILE_TEXTURES,
+  ALLOWED_PROFILE_TEXT_COLORS,
   validateProfileAppearance,
 };

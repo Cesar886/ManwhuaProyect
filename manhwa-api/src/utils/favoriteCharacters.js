@@ -1,16 +1,36 @@
 const FAVORITE_CHARACTER_PALETTE = [
-    '#E64980',
-    '#F06595',
-    '#FA5252',
-    '#FD7E14',
-    '#FAB005',
-    '#40C057',
-    '#12B886',
-    '#15AABF',
-    '#228BE6',
-    '#7950F2',
-    '#AE3EC9',
+    '#F9A8D4',
+    '#FBCFE8',
+    '#FDA4AF',
+    '#FDBA74',
+    '#FDE68A',
+    '#86EFAC',
+    '#5EEAD4',
+    '#67E8F9',
+    '#93C5FD',
+    '#C4B5FD',
+    '#D8B4FE',
 ];
+
+const LEGACY_FAVORITE_CHARACTER_COLORS = {
+    '#E64980': '#F9A8D4',
+    '#F06595': '#FBCFE8',
+    '#FA5252': '#FDA4AF',
+    '#FD7E14': '#FDBA74',
+    '#FAB005': '#FDE68A',
+    '#40C057': '#86EFAC',
+    '#12B886': '#5EEAD4',
+    '#15AABF': '#67E8F9',
+    '#228BE6': '#93C5FD',
+    '#7950F2': '#C4B5FD',
+    '#AE3EC9': '#D8B4FE',
+};
+
+const normalizeFavoriteCharacterColor = (value) => {
+    const color = typeof value === 'string' ? value.trim().toUpperCase() : '';
+    if (FAVORITE_CHARACTER_PALETTE.includes(color)) return color;
+    return LEGACY_FAVORITE_CHARACTER_COLORS[color] || null;
+};
 
 const normalizeFavoriteCharacterName = (value) => {
     if (typeof value !== 'string') return '';
@@ -47,10 +67,10 @@ const validateFavoriteCharacters = (value) => {
                 field: `favoriteCharacters.${index}.name`,
                 message: 'El nombre del personaje es obligatorio',
             });
-        } else if ([...name].length > 10) {
+        } else if ([...name].length > 25) {
             errors.push({
                 field: `favoriteCharacters.${index}.name`,
-                message: 'El nombre no puede exceder 10 caracteres',
+                message: 'El nombre no puede exceder 25 caracteres',
             });
         }
 
@@ -68,7 +88,8 @@ const validateFavoriteCharacters = (value) => {
         const color = typeof character.color === 'string'
             ? character.color.trim().toUpperCase()
             : '';
-        if (!FAVORITE_CHARACTER_PALETTE.includes(color)) {
+        const normalizedColor = normalizeFavoriteCharacterColor(color);
+        if (!normalizedColor) {
             errors.push({
                 field: `favoriteCharacters.${index}.color`,
                 message: 'El color seleccionado no pertenece a la paleta permitida',
@@ -96,7 +117,7 @@ const validateFavoriteCharacters = (value) => {
     return value.slice(0, 3).map((character, index) => ({
         type: character.type,
         name: normalizeFavoriteCharacterName(character.name),
-        color: character.color.trim().toUpperCase(),
+        color: normalizeFavoriteCharacterColor(character.color),
         position: Number.isInteger(character.position) ? character.position : index,
     }));
 };

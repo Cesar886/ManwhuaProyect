@@ -30,6 +30,8 @@ const migrations = [
     '021_create_notifications.sql',
     '022_add_user_favorite_characters.sql',
     '023_create_wall_posts.sql',
+    '024_add_user_profile_appearance.sql',
+    '025_expand_favorite_character_names.sql',
     '026_harden_wall_comments.sql',
 ];
 
