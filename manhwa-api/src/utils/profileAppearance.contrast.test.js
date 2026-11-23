@@ -38,11 +38,11 @@ describe('profile preset text contrast', () => {
 });
 
 const ACCENT_PRESETS = [
-  ['amanecer', '#DF6C89', '#5C2335'],
+  ['amanecer', '#C35E78', '#451A27'],
   ['sakura', '#D96BA0', '#57233F'],
   ['cielo', '#3798CD', '#0F3852'],
   ['menta', '#29A379', '#0D3E2E'],
-  ['oro-imperial', '#B88A17', '#483408'],
+  ['oro-imperial', '#B88A17', '#483409'],
   ['lavanda', '#8E74E8', '#322562'],
   ['atardecer', '#D9683F', '#4F2313'],
   ['oceano', '#3E8DB5', '#113142'],
@@ -73,7 +73,7 @@ describe('profile accent contrast', () => {
   test.each(ACCENT_PRESETS)('%s meets accent contrast in dark mode', (key, accent) => {
     const darkAccent = mixHex(accent, '#FFFFFF', 0.15);
     const darkAccentText = '#FFFFFF';
-    const darkSoft = mixHex(darkAccent, '#141414', 0.20);
+    const darkSoft = mixHex(darkAccent, '#141414', 0.80);
     expect(contrast(darkAccent, '#141414')).toBeGreaterThanOrEqual(3);
     expect(contrast(darkAccentText, '#141414')).toBeGreaterThanOrEqual(4.5);
     expect(contrast(darkAccentText, darkSoft)).toBeGreaterThanOrEqual(4.5);

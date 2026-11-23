@@ -10,6 +10,32 @@
   overflow-x: hidden;
 }
 
+.profileContainerShell[data-profile-background='amanecer'] { --profile-accent: #C35E78; --profile-accent-text: #451A27; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='sakura'] { --profile-accent: #D96BA0; --profile-accent-text: #57233F; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='cielo'] { --profile-accent: #3798CD; --profile-accent-text: #0F3852; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='menta'] { --profile-accent: #29A379; --profile-accent-text: #0D3E2E; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='oro-imperial'] { --profile-accent: #B88A17; --profile-accent-text: #483409; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='lavanda'] { --profile-accent: #8E74E8; --profile-accent-text: #322562; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='atardecer'] { --profile-accent: #D9683F; --profile-accent-text: #4F2313; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='oceano'] { --profile-accent: #3E8DB5; --profile-accent-text: #113142; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='bosque'] { --profile-accent: #3F9467; --profile-accent-text: #153323; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='rubi'] { --profile-accent: #D0456B; --profile-accent-text: #3D101D; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='medianoche'] { --profile-accent: #5B6EE0; --profile-accent-text: #181F48; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+.profileContainerShell[data-profile-background='neon-sistema'] { --profile-accent: #5B7CFA; --profile-accent-text: #1C2964; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
+
+.darkMode .profileContainerShell[data-profile-background='amanecer'] { --profile-accent: #CC768C; --profile-accent-soft: color-mix(in srgb, #CC768C 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='sakura'] { --profile-accent: #DF81AE; --profile-accent-soft: color-mix(in srgb, #DF81AE 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='cielo'] { --profile-accent: #58ADDD; --profile-accent-soft: color-mix(in srgb, #58ADDD 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='menta'] { --profile-accent: #4EBE9A; --profile-accent-soft: color-mix(in srgb, #4EBE9A 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='oro-imperial'] { --profile-accent: #BEB04D; --profile-accent-soft: color-mix(in srgb, #BEB04D 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='lavanda'] { --profile-accent: #9F89EB; --profile-accent-soft: color-mix(in srgb, #9F89EB 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='atardecer'] { --profile-accent: #DF7F5C; --profile-accent-soft: color-mix(in srgb, #DF7F5C 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='oceano'] { --profile-accent: #5B9EC0; --profile-accent-soft: color-mix(in srgb, #5B9EC0 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='bosque'] { --profile-accent: #5CA47E; --profile-accent-soft: color-mix(in srgb, #5CA47E 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='rubi'] { --profile-accent: #D76181; --profile-accent-soft: color-mix(in srgb, #D76181 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='medianoche'] { --profile-accent: #7484E5; --profile-accent-soft: color-mix(in srgb, #7484E5 20%, #141414); --profile-accent-text: #FFFFFF; }
+.darkMode .profileContainerShell[data-profile-background='neon-sistema'] { --profile-accent: #7490FB; --profile-accent-soft: color-mix(in srgb, #7490FB 20%, #141414); --profile-accent-text: #FFFFFF; }
+
 .legacyHeaderCard {
   display: none !important;
 }
@@ -179,12 +205,12 @@
 }
 
 .profileTab:hover {
-  background: rgba(6, 182, 212, 0.06);
-  color: var(--cyan-primary);
+  background: var(--profile-accent-soft, rgba(6, 182, 212, 0.06));
+  color: var(--profile-accent-text, var(--cyan-primary));
 }
 
 .profileTabActive {
-  border-bottom-color: var(--cyan-primary);
+  border-bottom-color: var(--profile-accent, var(--cyan-primary));
   color: inherit;
   font-weight: 700;
 }
@@ -1128,7 +1154,7 @@
     rgba(255, 255, 255, 0.9) 0%,
     rgba(248, 250, 252, 0.8) 100%
   );
-  border: 1px solid rgba(6, 182, 212, 0.25);
+  border: 1px solid var(--profile-accent, rgba(6, 182, 212, 0.25));
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
 }
 
@@ -1137,14 +1163,14 @@
 }
 
 .darkMode .infoCard:hover {
-  border-color: rgba(6, 182, 212, 0.4);
+  border-color: var(--profile-accent, rgba(6, 182, 212, 0.4));
   box-shadow: 
     0 20px 50px rgba(6, 182, 212, 0.12),
     0 15px 40px rgba(0, 0, 0, 0.35);
 }
 
 .lightMode .infoCard:hover {
-  border-color: rgba(6, 182, 212, 0.4);
+  border-color: var(--profile-accent, rgba(6, 182, 212, 0.4));
   box-shadow: 0 15px 40px rgba(6, 182, 212, 0.12);
 }
 
