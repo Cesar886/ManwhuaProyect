@@ -2,6 +2,18 @@
 -- This migration is intentionally reversible.
 
 ALTER TABLE public.comments
+    DROP CONSTRAINT IF EXISTS comments_target_type_check;
+
+ALTER TABLE public.comments
+    ADD CONSTRAINT comments_target_type_check
+    CHECK (
+        target_type IN ('series', 'chapter', 'collection', 'request', 'wall')
+    ) NOT VALID;
+
+ALTER TABLE public.comments
+    VALIDATE CONSTRAINT comments_target_type_check;
+
+ALTER TABLE public.comments
     DROP CONSTRAINT IF EXISTS comments_wall_target_id_check;
 
 ALTER TABLE public.comments
