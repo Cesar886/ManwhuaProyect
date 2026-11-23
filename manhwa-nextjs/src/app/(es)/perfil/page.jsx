@@ -1219,9 +1219,11 @@ export default function UserProfile() {
                 <Text size="sm" lh={1.55} className={styles.profileBio}>{userBio}</Text>
               )}
               <Group gap={12} wrap="wrap" className={styles.profileMetaRow}>
-                <Group gap={6} wrap="nowrap">
+                <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
                   <IconCalendar size={15} stroke={1.7} />
-                  <Text size="sm" c="dimmed">Se unió en {joinedDateLabel}</Text>
+                  <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                    Se unió en {joinedDateLabel}
+                  </Text>
                 </Group>
                 {userLocation && (
                   <Group gap={6} wrap="nowrap">
@@ -1897,9 +1899,8 @@ export default function UserProfile() {
                 setEditForm(prev => ({ ...prev, location }));
               }}
               data={countryOptions}
-              searchable
+              searchable={false}
               clearable
-              nothingFoundMessage="No se encontró el país"
               radius="xl"
               size="md"
               leftSection={<IconMapPin size={16} style={{ opacity: 0.5 }} />}

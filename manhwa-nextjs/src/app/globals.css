@@ -296,3 +296,63 @@ html:not(:fullscreen)::before {
   width: 100% !important;
   height: 100% !important;
 }
+
+/* Notifications: the global reset above overrides Mantine's layered spacing. */
+.mantine-Notification-root {
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background: rgba(24, 24, 32, 0.96);
+  color: #f8fafc;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.mantine-Notification-body {
+  min-width: 0;
+}
+
+.mantine-Notification-title {
+  margin-bottom: 3px;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.mantine-Notification-description {
+  color: rgba(226, 232, 240, 0.76);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.mantine-Notification-closeButton {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px 0 0;
+  border-radius: 8px;
+  color: inherit;
+  opacity: 0.72;
+}
+
+.mantine-Notification-closeButton:hover {
+  background: rgba(255, 255, 255, 0.09);
+  opacity: 1;
+}
+
+[data-mantine-color-scheme='light'] .mantine-Notification-root {
+  border-color: rgba(30, 41, 59, 0.1);
+  background: rgba(255, 255, 255, 0.97);
+  color: #1e293b;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+[data-mantine-color-scheme='light'] .mantine-Notification-description {
+  color: #64748b;
+}
+
+[data-mantine-color-scheme='light'] .mantine-Notification-closeButton:hover {
+  background: rgba(15, 23, 42, 0.06);
+}

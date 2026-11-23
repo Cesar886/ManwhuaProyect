@@ -27,6 +27,7 @@ const migrations = [
     '019_add_user_banner_position.sql',
     '../db/add_polls.sql',
     '020_add_push_subscriptions.sql',
+    '021_create_notifications.sql',
 ];
 
 function loadMigrations() {
