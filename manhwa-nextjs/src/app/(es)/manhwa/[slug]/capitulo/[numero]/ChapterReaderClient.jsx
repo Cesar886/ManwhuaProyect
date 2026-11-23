@@ -170,7 +170,11 @@ export default function ChapterReader({ initialPages = [], initialSeries = null,
     anonymous: allAnonymousReaders,
     total: allReadersTotal,
     isAnonymous: currentReaderIsAnonymous,
-  } = usePresence(slug, chapterNum);
+  } = usePresence(
+    slug,
+    chapterNum,
+    user?.avatarUrl || user?.avatar_url || user?.avatar || null,
+  );
   
   // Filtrar: mostrar solo otros usuarios (no al usuario actual)
   // Solo usuarios autenticados pueden ver this feature

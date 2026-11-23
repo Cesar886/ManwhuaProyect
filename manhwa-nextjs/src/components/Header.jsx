@@ -112,11 +112,15 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   const pathSegments = normalizedPath.split('/').filter(Boolean);
   const hasSegment = (segment) => pathSegments.includes(segment);
 
-  const activeTab = (hasSegment('biblioteca') || hasSegment('library')) ? 'library'
+  const derivedActiveTab = (hasSegment('biblioteca') || hasSegment('library')) ? 'library'
     : (hasSegment('mangas') || hasSegment('manga')) ? 'manga'
       : (hasSegment('muro') || hasSegment('wall')) ? 'wall'
       : (hasSegment('perfil') || hasSegment('profile')) ? 'profile'
         : 'home';
+
+  // usePathname() can differ between the server snapshot and the first
+  // client render. Keep navigation stable until the component is mounted.
+  const activeTab = mounted ? derivedActiveTab : 'home';
 
   const handleHeaderSearchSubmit = (event) => {
     event.preventDefault();
@@ -175,6 +179,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
     id: user.id || user.userId || user._id || null,
     displayName: user.displayName || user.display_name || user.username || user.name || (user.id ? String(user.id) : ''),
     email: user.email || user.mail || '',
+    avatarUrl: user.avatarUrl || user.avatar_url || user.avatar || null,
     level: user.level || 0,
     createdAt: user.createdAt || user.created_at || null,
   } : null, [user]);
@@ -314,6 +319,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
                     >
                       <Group gap={6} wrap="nowrap">
                         <Avatar
+                          src={uiUser.avatarUrl}
                           name={uiUser.displayName || 'Usuario'}
                           color="initials"
                           allowedInitialsColors={['blue', 'red', 'cyan', 'indigo', 'pink', 'violet']}

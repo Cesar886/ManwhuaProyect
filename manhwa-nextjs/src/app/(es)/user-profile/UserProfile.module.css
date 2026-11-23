@@ -10,6 +10,74 @@
   overflow-x: hidden;
 }
 
+.profileAppearanceToggle {
+  width: 100%;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 20px;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  border-radius: 12px;
+}
+
+.profileAppearanceChevron {
+  transition: transform 180ms ease;
+  color: var(--cyan-primary);
+}
+
+.profileAppearanceChevronOpen {
+  transform: rotate(180deg);
+}
+
+.profileAppearanceCurrentSwatch {
+  width: 64px;
+  height: 40px;
+  border-radius: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.profileAppearanceSwatch {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.profileAppearanceSwatch:hover {
+  border-color: rgba(6, 182, 212, 0.35);
+}
+
+.profileAppearanceSwatchSelected {
+  border-color: var(--cyan-primary);
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.10);
+}
+
+.profileAppearanceSwatchPreview {
+  width: 100%;
+  height: 52px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.profileAppearanceCheck {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border-radius: 50%;
+  padding: 2px;
+  background: #FFFFFF;
+  color: #0891B2;
+  box-sizing: content-box;
+}
+
 .profileAppearanceAccentPreview {
   display: flex;
   align-items: center;
@@ -41,6 +109,99 @@
   text-overflow: ellipsis;
 }
 
+.profileTextureSelectIcon,
+.profileTextureOptionPreview {
+  position: relative;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  background-color: #FFFFFF;
+}
+
+.profileTextureSelectIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+}
+
+.profileTextureSelectIcon::before,
+.profileTextureOptionPreview::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.profileTextureSelectIconNone::before,
+.profileTextureOptionPreviewNone::before {
+  background: linear-gradient(135deg, #FFFFFF, #E2E8F0);
+}
+
+.profileTextureSelectIconpuntos::before,
+.profileTextureOptionPreviewpuntos::before {
+  background-image: radial-gradient(circle, #06B6D4 1.5px, transparent 1.6px);
+  background-size: 8px 8px;
+  background-color: #ECFEFF;
+}
+
+.profileTextureSelectIconestrellas::before,
+.profileTextureOptionPreviewestrellas::before {
+  background-image: radial-gradient(circle, #F59E0B 1.5px, transparent 1.6px), radial-gradient(circle, #FBBF24 1px, transparent 1.1px);
+  background-position: 2px 2px, 6px 6px;
+  background-size: 9px 9px, 10px 10px;
+  background-color: #FFFBEB;
+}
+
+.profileTextureSelectIconpetalos-sakura::before,
+.profileTextureOptionPreviewpetalos-sakura::before {
+  background-image: radial-gradient(ellipse at center, #F472B6 0 36%, transparent 40%);
+  background-position: 2px 2px;
+  background-size: 11px 11px;
+  background-color: #FFF1F2;
+}
+
+.profileTextureOption {
+  min-height: 48px;
+  padding: 8px;
+  transition: background-color 160ms ease;
+}
+
+.profileTextureOption:hover,
+.profileTextureOptionSelected {
+  background: rgba(6, 182, 212, 0.09);
+}
+
+.profileTextureOptionSelected {
+  box-shadow: inset 3px 0 0 var(--cyan-primary);
+}
+
+.darkMode .profileTextureSelectIcon,
+.darkMode .profileTextureOptionPreview {
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.darkMode .profileTextureSelectIconNone::before,
+.darkMode .profileTextureOptionPreviewNone::before {
+  background: linear-gradient(135deg, #1E293B, #334155);
+}
+
+.darkMode .profileTextureSelectIconpuntos::before,
+.darkMode .profileTextureOptionPreviewpuntos::before {
+  background-color: #164E63;
+}
+
+.darkMode .profileTextureSelectIconestrellas::before,
+.darkMode .profileTextureOptionPreviewestrellas::before {
+  background-color: #422006;
+}
+
+.darkMode .profileTextureSelectIconpetalos-sakura::before,
+.darkMode .profileTextureOptionPreviewpetalos-sakura::before {
+  background-color: #500724;
+}
+
 .profileContainerShell[data-profile-background='amanecer'] { --profile-accent: #C35E78; --profile-accent-text: #451A27; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
 .profileContainerShell[data-profile-background='sakura'] { --profile-accent: #D96BA0; --profile-accent-text: #57233F; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
 .profileContainerShell[data-profile-background='cielo'] { --profile-accent: #3798CD; --profile-accent-text: #0F3852; --profile-accent-soft: color-mix(in srgb, var(--profile-accent) 14%, #FFFFFF); }
@@ -66,6 +227,70 @@
 .darkMode .profileContainerShell[data-profile-background='rubi'] { --profile-accent: #D76181; --profile-accent-soft: color-mix(in srgb, #D76181 20%, #141414); --profile-accent-text: #FFFFFF; }
 .darkMode .profileContainerShell[data-profile-background='medianoche'] { --profile-accent: #7484E5; --profile-accent-soft: color-mix(in srgb, #7484E5 20%, #141414); --profile-accent-text: #FFFFFF; }
 .darkMode .profileContainerShell[data-profile-background='neon-sistema'] { --profile-accent: #7490FB; --profile-accent-soft: color-mix(in srgb, #7490FB 20%, #141414); --profile-accent-text: #FFFFFF; }
+
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .headerCard.profileAppearanceCard,
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .infoCard {
+  background: linear-gradient(135deg, var(--profile-bg-from), var(--profile-bg-to)) !important;
+  color: var(--profile-text);
+  border-color: color-mix(in srgb, var(--profile-accent) 34%, transparent) !important;
+}
+
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .headerCard.profileAppearanceCard .profileHeaderBody,
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .infoCard {
+  color: var(--profile-text);
+}
+
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .headerCard.profileAppearanceCard [class*='profileName'],
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .headerCard.profileAppearanceCard [class*='profileBio'],
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .headerCard.profileAppearanceCard [class*='profileMeta'],
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .headerCard.profileAppearanceCard [class*='profileStats'],
+.profileContainerShell[data-profile-background]:not([data-profile-background='none']) .headerCard.profileAppearanceCard [class*='profileUsername'] {
+  color: var(--profile-text);
+}
+
+.profileContainerShell[data-profile-texture='puntos'] .headerCard.profileAppearanceCard,
+.profileContainerShell[data-profile-texture='puntos'] .infoCard {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--profile-text) 18%, transparent) 1px, transparent 1.5px),
+    linear-gradient(135deg, var(--profile-bg-from), var(--profile-bg-to)) !important;
+  background-size: 18px 18px, 100% 100%;
+}
+
+.profileContainerShell[data-profile-texture='estrellas'] .headerCard.profileAppearanceCard,
+.profileContainerShell[data-profile-texture='estrellas'] .infoCard {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--profile-text) 28%, transparent) 1.2px, transparent 1.8px),
+    radial-gradient(circle, color-mix(in srgb, var(--profile-accent) 32%, transparent) 1px, transparent 1.6px),
+    linear-gradient(135deg, var(--profile-bg-from), var(--profile-bg-to)) !important;
+  background-position: 4px 4px, 13px 11px, 0 0;
+  background-size: 24px 24px, 30px 30px, 100% 100%;
+}
+
+.profileContainerShell[data-profile-texture='petalos-sakura'] .headerCard.profileAppearanceCard,
+.profileContainerShell[data-profile-texture='petalos-sakura'] .infoCard {
+  background-image: radial-gradient(ellipse at center, color-mix(in srgb, #F472B6 42%, transparent) 0 24%, transparent 28%),
+    radial-gradient(ellipse at center, color-mix(in srgb, #FB7185 26%, transparent) 0 18%, transparent 22%),
+    linear-gradient(135deg, var(--profile-bg-from), var(--profile-bg-to)) !important;
+  background-position: 3px 7px, 19px 21px, 0 0;
+  background-size: 28px 28px, 34px 34px, 100% 100%;
+}
+
+.profileEditorPreview[data-profile-texture='puntos'] {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.45) 1px, transparent 1.5px);
+  background-size: 18px 18px;
+}
+
+.profileEditorPreview[data-profile-texture='estrellas'] {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.58) 1.2px, transparent 1.8px),
+    radial-gradient(circle, rgba(251,191,36,0.48) 1px, transparent 1.6px);
+  background-position: 4px 4px, 13px 11px;
+  background-size: 24px 24px, 30px 30px;
+}
+
+.profileEditorPreview[data-profile-texture='petalos-sakura'] {
+  background-image: radial-gradient(ellipse at center, rgba(244,114,182,0.52) 0 24%, transparent 28%),
+    radial-gradient(ellipse at center, rgba(251,113,133,0.38) 0 18%, transparent 22%);
+  background-position: 3px 7px, 19px 21px;
+  background-size: 28px 28px, 34px 34px;
+}
 
 .legacyHeaderCard {
   display: none !important;

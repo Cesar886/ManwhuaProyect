@@ -77,12 +77,18 @@ export const api = {
     const url = endpoint(name, subpath)
     // allow callers to opt-in to cache and set per-call TTL via options.cache and options.cacheTTL
     const { cache: cacheOpt, cacheTTL, ...fetchOptions } = options || {}
-    const init = { method: 'GET', credentials: 'include', headers: getAuthHeaders(fetchOptions.headers || {}), ...fetchOptions }
+    const init = {
+      method: 'GET',
+      credentials: 'include',
+      ...(cacheOpt === false ? { cache: 'no-store' } : {}),
+      headers: getAuthHeaders(fetchOptions.headers || {}),
+      ...fetchOptions,
+    }
 
     const key = makeCacheKey(url, init)
 
     // Determine whether to use cache: explicit opt-in or sensible defaults for stable endpoints (auth/me)
-    const useCache = cacheOpt === true || (name === 'auth' && (subpath === '' || String(subpath) === 'me'))
+    const useCache = cacheOpt !== false && (cacheOpt === true || (name === 'auth' && (subpath === '' || String(subpath) === 'me')))
     const cacheTtlMs = (typeof cacheTTL === 'number' && cacheTTL >= 0) ? cacheTTL : CACHE_TTL_MS
 
     if (useCache) {
@@ -93,7 +99,7 @@ export const api = {
     }
 
     // If a request for the same key is in-flight, reuse its promise
-    if (inFlightRequests.has(key)) {
+    if (useCache && inFlightRequests.has(key)) {
       return inFlightRequests.get(key)
     }
 
@@ -110,7 +116,7 @@ export const api = {
         throw err
       })
 
-    inFlightRequests.set(key, p)
+    if (useCache) inFlightRequests.set(key, p)
     return p
   },
   post: (name, subpath = '', body, options = {}) => {
@@ -182,7 +188,7 @@ export const logout = (subpath = 'logout') => api.post('auth', subpath)
   .finally(() => invalidateUserCache())
 
 // Obtener el usuario autenticado (sesión). Por defecto llama a /api/auth/me
-export const getCurrentUser = (subpath = 'me') => api.get('auth', subpath, { cache: true, cacheTTL: CACHE_TTL_MS })
+export const getCurrentUser = (subpath = 'me') => api.get('auth', subpath, { cache: false })
 
 // Invalida respuestas GET guardadas (especialmente /auth/me) despues de mutar el usuario.
 export const invalidateUserCache = () => {

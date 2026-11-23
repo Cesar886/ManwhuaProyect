@@ -555,16 +555,48 @@ export default function UserProfile() {
   const [ratingsVisibleCount, setRatingsVisibleCount] = useState(6);
 
   useEffect(() => {
+    const openAchievementsFromHash = () => {
+      if (['#vitrina-logros', '#logros', '#insignias'].includes(window.location.hash)) {
+        setProfileTab('achievements');
+      }
+    };
+
+    openAchievementsFromHash();
+    window.addEventListener('hashchange', openAchievementsFromHash);
+    return () => window.removeEventListener('hashchange', openAchievementsFromHash);
+  }, []);
+
+  useEffect(() => {
+    if (
+      loading
+      || profileTab !== 'achievements'
+      || !['#vitrina-logros', '#logros', '#insignias'].includes(window.location.hash)
+    ) return;
+
+    const focusTimer = window.setTimeout(() => {
+      const achievementsTab = document.getElementById('profile-tab-achievements');
+      const achievementsSection = document.getElementById('vitrina-logros');
+
+      achievementsTab?.focus({ preventScroll: true });
+      achievementsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+
+    return () => window.clearTimeout(focusTimer);
+  }, [loading, profileTab]);
+
+  useEffect(() => {
     let active = true;
     setLoading(true);
     setUser(null);
     const loadProfile = routeUsername
-      ? api.get('users', encodeURIComponent(routeUsername))
-      : getCurrentUser().then((response) => {
-        const currentUser = response?.data?.user || response?.user || response?.data || response;
-        if (!currentUser?.username) return null;
-        return api.get('users', encodeURIComponent(currentUser.username));
-      });
+      ? api.get('users', encodeURIComponent(routeUsername), { cache: false })
+      : authUser?.username
+        ? api.get('users', encodeURIComponent(authUser.username), { cache: false })
+        : getCurrentUser().then((response) => {
+          const currentUser = response?.data?.user || response?.user || response?.data || response;
+          if (!currentUser?.username) return null;
+          return api.get('users', encodeURIComponent(currentUser.username));
+        });
 
     loadProfile
       .then((res) => {
@@ -612,7 +644,7 @@ export default function UserProfile() {
       });
 
     return () => { active = false; };
-  }, [routeUsername]);
+  }, [routeUsername, authUser?.id, authUser?.username]);
 
   const currentUserId = authUser?.id || authUser?._id;
   const profileUserId = user?.id || user?._id;
@@ -1205,7 +1237,15 @@ export default function UserProfile() {
   return (
     <Box className={`${styles.pageContainer} ${isDark ? styles.darkMode : styles.lightMode}`}>
       <Header />
-      <Container size="lg" px={isMobile ? 0 : 'md'} pt={isMobile ? 72 : 96} className={styles.profileContainerShell}>
+      <Container
+        size="lg"
+        px={isMobile ? 0 : 'md'}
+        pt={isMobile ? 72 : 96}
+        className={styles.profileContainerShell}
+        data-profile-background={profileBackgroundKey || 'none'}
+        data-profile-texture={profileTexture || 'none'}
+        style={profileAppearanceVars}
+      >
 
         {/* HEADER CARD */}
         <Paper
@@ -1428,6 +1468,7 @@ export default function UserProfile() {
             <button
               key={key}
               type="button"
+              id={key === 'achievements' ? 'profile-tab-achievements' : undefined}
               role="tab"
               aria-selected={profileTab === key}
               className={`${styles.profileTab} ${profileTab === key ? styles.profileTabActive : ''}`}
@@ -1684,11 +1725,11 @@ export default function UserProfile() {
                               {new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(comment.createdAt))}
                             </Text>
                           </Group>
-                          <Text size="sm" lineClamp={2} style={{ opacity: 0.85 }}>
+                          <Box component="div" style={{ fontSize: 'var(--mantine-font-size-sm)', lineHeight: 'var(--mantine-line-height-sm)', opacity: 0.85, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                             {comment.isSpoiler ? (
                               <Badge size="xs" color="orange" variant="light" style={{ padding: '0.25rem 0.6rem', lineHeight: 1 }}>Spoiler oculto</Badge>
                             ) : comment.content}
-                          </Text>
+                          </Box>
                           <Group gap="md">
                             <Group gap={4}>
                               <IconThumbUp size={12} style={{ opacity: 0.5 }} />
@@ -1827,23 +1868,6 @@ export default function UserProfile() {
                 </Text>
                 <Text size="sm" c="dimmed">@{userUsername}</Text>
                 <Text size="xs" c="dimmed">{profileAppearanceText.previewBio}</Text>
-                {previewPreset && (
-                  <Box className={styles.profileAppearanceAccentPreview} aria-label="Vista previa del acento" mt={4}>
-                    <Box
-                      className={styles.profileAppearanceAccentLine}
-                      style={{ background: previewPreset.accent }}
-                    />
-                    <Box
-                      className={styles.profileAppearanceAccentTag}
-                      style={{
-                        background: `color-mix(in srgb, ${previewPreset.accent} 14%, #FFFFFF)`,
-                        color: previewPreset.accentText,
-                      }}
-                    >
-                      Serie
-                    </Box>
-                  </Box>
-                )}
               </Stack>
             </Group>
           </Paper>
@@ -1922,21 +1946,6 @@ export default function UserProfile() {
                         className={styles.profileAppearanceSwatchPreview}
                         style={{ background: `linear-gradient(135deg, ${palette.from}, ${palette.to})` }}
                       />
-                      <Box className={styles.profileAppearanceAccentPreview} aria-hidden="true">
-                        <Box
-                          className={styles.profileAppearanceAccentLine}
-                          style={{ background: preset.accent }}
-                        />
-                        <Box
-                          className={styles.profileAppearanceAccentTag}
-                          style={{
-                            background: `color-mix(in srgb, ${preset.accent} 14%, #FFFFFF)`,
-                            color: preset.accentText,
-                          }}
-                        >
-                          Serie
-                        </Box>
-                      </Box>
                       <Text size="xs" fw={700} ta="center">{preset.label[lang]}</Text>
                       {selected && <IconCheck size={14} className={styles.profileAppearanceCheck} />}
                     </UnstyledButton>
@@ -1957,9 +1966,69 @@ export default function UserProfile() {
                       ...prev,
                       profile_texture: value === 'none' ? null : value,
                     }))}
+                    leftSection={(
+                      <Box
+                        className={`${styles.profileTextureSelectIcon} ${styles[`profileTextureSelectIcon${editForm.profile_texture || 'None'}`] || ''}`}
+                        aria-hidden="true"
+                      />
+                    )}
+                    renderOption={({ option, checked }) => (
+                      <Group
+                        className={`${styles.profileTextureOption} ${checked ? styles.profileTextureOptionSelected : ''}`}
+                        gap="sm"
+                        wrap="nowrap"
+                      >
+                        <Box
+                          className={`${styles.profileTextureOptionPreview} ${styles[`profileTextureOptionPreview${option.value === 'none' ? 'None' : option.value}`] || ''}`}
+                          aria-hidden="true"
+                        />
+                        <Stack gap={0}>
+                          <Text size="sm" fw={checked ? 700 : 550}>{option.label}</Text>
+                          <Text size="xs" c="dimmed">
+                            {option.value === 'none'
+                              ? (lang === 'en' ? 'Clean profile background' : 'Fondo limpio')
+                              : (lang === 'en' ? 'Subtle decorative texture' : 'Textura decorativa sutil')}
+                          </Text>
+                        </Stack>
+                      </Group>
+                    )}
                     searchable={false}
                     allowDeselect={false}
                     radius="md"
+                    styles={{
+                      label: {
+                        marginBottom: rem(6),
+                        fontWeight: 650,
+                      },
+                      input: {
+                        minHeight: rem(48),
+                        paddingLeft: rem(42),
+                        background: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+                        border: `1px solid ${isDark ? 'rgba(148,163,184,0.24)' : 'rgba(15,23,42,0.12)'}`,
+                        boxShadow: isDark
+                          ? '0 4px 14px rgba(0,0,0,0.12)'
+                          : '0 4px 14px rgba(15,23,42,0.05)',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                        '&:focus': {
+                          borderColor: 'var(--mantine-color-cyan-5)',
+                          boxShadow: '0 0 0 3px rgba(6,182,212,0.14)',
+                        },
+                      },
+                      section: {
+                        color: 'var(--mantine-color-dimmed)',
+                      },
+                      dropdown: {
+                        padding: rem(6),
+                        border: `1px solid ${isDark ? 'rgba(148,163,184,0.22)' : 'rgba(15,23,42,0.1)'}`,
+                        boxShadow: isDark
+                          ? '0 14px 30px rgba(0,0,0,0.3)'
+                          : '0 14px 30px rgba(15,23,42,0.12)',
+                      },
+                      option: {
+                        padding: 0,
+                        borderRadius: rem(8),
+                      },
+                    }}
                   />
                 </Box>
               )}

@@ -239,7 +239,7 @@ const createComment = async (req, res, next) => {
                 const messages = {
                     CONTENT_EMPTY: 'El mensaje no puede estar vacío',
                     CONTENT_TOO_LONG: 'El mensaje no puede exceder 500 caracteres',
-                    FIELD_NOT_ALLOWED: 'Encuestas, rating y spoiler no están disponibles en el muro'
+                    FIELD_NOT_ALLOWED: 'El rating no está disponible en el muro'
                 };
                 return res.status(422).json({
                     success: false,
@@ -637,7 +637,7 @@ const createComment = async (req, res, next) => {
 const updateComment = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { content } = req.body;
+        const { content, isSpoiler } = req.body;
         
         // Verificar propiedad
         const commentResult = await query(
@@ -688,9 +688,13 @@ const updateComment = async (req, res, next) => {
 
         await query(
             `UPDATE comments 
-             SET content = $1, is_edited = true, edited_at = NOW(), updated_at = NOW()
-             WHERE id = $2`,
-            [updatedContent, id]
+             SET content = $1,
+                 is_spoiler = COALESCE($2, is_spoiler),
+                 is_edited = true,
+                 edited_at = NOW(),
+                 updated_at = NOW()
+             WHERE id = $3`,
+            [updatedContent, isSpoiler, id]
         );
         
         res.json({

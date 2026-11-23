@@ -53,7 +53,10 @@ const updateCommentValidation = [
     body('content')
         .trim()
         .isLength({ min: 1, max: 2000 })
-        .withMessage('Contenido debe tener entre 1 y 2000 caracteres')
+        .withMessage('Contenido debe tener entre 1 y 2000 caracteres'),
+    body('isSpoiler')
+        .optional()
+        .isBoolean()
 ];
 
 const wallCommentLimiter = rateLimit({

@@ -21,7 +21,7 @@ function getAnonymousId() {
   }
 }
 
-export function usePresence(manhwa, chapter) {
+export function usePresence(manhwa, chapter, avatarUrl = null) {
   const [data, setData] = useState(EMPTY_PRESENCE);
   const [isConnected, setIsConnected] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(true);
@@ -96,7 +96,7 @@ export function usePresence(manhwa, chapter) {
       setIsConnected(false);
       setData(EMPTY_PRESENCE);
     };
-  }, [manhwa, chapter]);
+  }, [manhwa, chapter, avatarUrl]);
 
   return { ...data, isConnected, isAnonymous };
 }

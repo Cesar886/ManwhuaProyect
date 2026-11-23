@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
       return Promise.resolve(userRef.current)
     }
 
-    if (fetchUserPromiseRef.current) return fetchUserPromiseRef.current
+    if (!force && fetchUserPromiseRef.current) return fetchUserPromiseRef.current
 
     fetchUserPromiseRef.current = (async () => {
       try {
@@ -69,6 +69,7 @@ export function AuthProvider({ children }) {
   }, [refreshUser])
 
   const doLogin = async (credentials) => {
+    invalidateUserCache()
     const payload = {
       login: credentials.login || credentials.email || credentials.username || '',
       password: credentials.password,
@@ -77,12 +78,14 @@ export function AuthProvider({ children }) {
     const res = await apiLogin(payload)
     const u = extractUser(res)
     if (u) setUser(u)
+    invalidateUserCache()
     await refreshUser(true)
     closeLogin()
     return res
   }
 
   const doGoogleLogin = async (token, tokenType = 'credential') => {
+    invalidateUserCache()
     if (!token) throw new Error('Token de Google requerido')
     const res = await apiGoogleLogin(token, tokenType)
     if (!res || (!res.success && !res.data && !res.user)) {
@@ -90,15 +93,18 @@ export function AuthProvider({ children }) {
     }
     const u = extractUser(res)
     if (u) setUser(u)
+    invalidateUserCache()
     await refreshUser(true)
     closeLogin()
     return res
   }
 
   const doDiscordLogin = async (code) => {
+    invalidateUserCache()
     const res = await apiDiscordLogin(code)
     const u = extractUser(res)
     if (u) setUser(u)
+    invalidateUserCache()
     await refreshUser(true)
     closeLogin()
     return res
@@ -121,6 +127,8 @@ export function AuthProvider({ children }) {
         ...(data.show_active_reader !== undefined ? { showActiveReader: data.show_active_reader } : {}),
         ...(data.social_links !== undefined ? { socialLinks: data.social_links } : {}),
         ...(data.favorite_characters !== undefined ? { favoriteCharacters: data.favorite_characters } : {}),
+        ...(data.profile_background !== undefined ? { profileBackground: data.profile_background } : {}),
+        ...(data.profile_texture !== undefined ? { profileTexture: data.profile_texture } : {}),
       }
       const res = await apiUpdateUserProfile(payload)
       invalidateUserCache()
@@ -151,7 +159,10 @@ export function AuthProvider({ children }) {
   const updateAvatar = async (avatarUrl) => {
     try {
       const res = await apiUpdateUserAvatar(avatarUrl)
-      setUser(prev => ({ ...prev, avatar_url: avatarUrl, avatarUrl }))
+      const currentUser = userRef.current || user || {}
+      const nextUser = { ...currentUser, avatar_url: avatarUrl, avatarUrl }
+      userRef.current = nextUser
+      setUser(nextUser)
       return res
     } catch (e) {
       console.error('Error updating profile avatar:', e)

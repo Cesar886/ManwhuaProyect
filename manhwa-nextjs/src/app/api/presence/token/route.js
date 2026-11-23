@@ -39,7 +39,11 @@ export async function GET(request) {
     }
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, avatar: user.avatarUrl || null },
+      {
+        id: user.id,
+        username: user.username,
+        avatar: user.avatarUrl || user.avatar_url || user.avatar || null,
+      },
       secret,
       { expiresIn: '5m' },
     );

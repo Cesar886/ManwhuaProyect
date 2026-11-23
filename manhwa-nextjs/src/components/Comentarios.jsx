@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react'
 import logger from '../utils/logger'
 import { Group, Text, Avatar, Button, Menu, ActionIcon, Modal, Checkbox, Textarea, Loader, Badge, Stack, Card, TextInput, Tooltip, Popover } from '@mantine/core'
-import { IconMessage, IconSend, IconCheck, IconAlertCircle, IconThumbUp, IconThumbDown, IconEye, IconEyeOff, IconDotsVertical, IconChartBar, IconPlus, IconX, IconSparkles, IconTrendingUp, IconHistory, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight, IconBook, IconSword, IconShield, IconCrown } from '@tabler/icons-react'
+import { IconMessage, IconSend, IconCheck, IconAlertCircle, IconThumbUp, IconThumbDown, IconEye, IconEyeOff, IconDotsVertical, IconChartBar, IconPlus, IconX, IconSparkles, IconTrendingUp, IconHistory, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight, IconBook, IconSword, IconShield, IconCrown, IconEdit, IconTrash, IconFlag } from '@tabler/icons-react'
 import api from '../api/client'
 import { endpoint } from '../config'
 import UserBadges from './UserBadges'
@@ -11,6 +11,64 @@ import styles from './VipComment.module.css'
 import { getLevelInfo, LEVEL_CONFIG } from '../utils/xpSystem'
 
 const LEVEL_ICONS = { IconBook, IconSword, IconShield, IconCrown }
+
+const getAvatarUrl = (person) => (
+  person?.avatarUrl ?? person?.avatar_url ?? person?.avatar ?? null
+)
+
+function CommentActionsMenu({ canEdit, canDelete, onEdit, onDelete, onReport, compact = false }) {
+  return (
+    <Menu
+      withinPortal
+      position="bottom-end"
+      placement="end"
+      width={compact ? 172 : 184}
+      offset={6}
+      styles={{
+        dropdown: {
+          padding: 6,
+          borderRadius: 12,
+          border: '1px solid var(--border-color-subtle)',
+          background: 'var(--card-bg-solid)',
+          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.18)',
+        },
+        item: {
+          minHeight: 36,
+          borderRadius: 8,
+          fontSize: compact ? 12 : 13,
+          fontWeight: 600,
+        },
+      }}
+    >
+      <Menu.Target>
+        <ActionIcon
+          size={compact ? 'xs' : 'sm'}
+          aria-label="Opciones del comentario"
+          variant="subtle"
+          radius="xl"
+          style={{ color: 'var(--dimmed-text)', transition: 'color 150ms ease, background 150ms ease' }}
+        >
+          <IconDotsVertical size={compact ? 14 : 17} stroke={1.8} />
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown>
+        {canEdit && (
+          <Menu.Item leftSection={<IconEdit size={15} stroke={1.8} />} onClick={onEdit}>
+            Editar
+          </Menu.Item>
+        )}
+        {canDelete && (
+          <Menu.Item color="red" leftSection={<IconTrash size={15} stroke={1.8} />} onClick={onDelete}>
+            Eliminar
+          </Menu.Item>
+        )}
+        <Menu.Item leftSection={<IconFlag size={15} stroke={1.8} />} onClick={onReport}>
+          Reportar
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
+  )
+}
 
 function LevelBadge({ experience }) {
   const [opened, setOpened] = useState(false)
@@ -219,7 +277,7 @@ const buildOptimisticAuthor = (createdAuthor, fallbackUser) => {
     id: base.id ?? fallbackUser?.id ?? null,
     username: base.username ?? fallbackUser?.username ?? null,
     displayName: base.displayName ?? fallbackUser?.displayName ?? fallbackUser?.username ?? null,
-    avatarUrl: base.avatarUrl ?? fallbackUser?.avatarUrl ?? null,
+    avatarUrl: getAvatarUrl(base) ?? getAvatarUrl(fallbackUser),
     role: base.role ?? fallbackUser?.role ?? null,
     isPremium: base.isPremium ?? fallbackUser?.isPremium ?? false,
     experience: base.experience ?? fallbackUser?.experience ?? 0,
@@ -241,7 +299,8 @@ const normalizeApiComment = (c) => {
   const author = c.author || (c.username || c.user ? {
     username: c.username || (c.user && c.user.username),
     displayName: c.displayName || c.display_name || (c.user && c.user.displayName),
-    id: c.userId || c.user_id || (c.user && c.user.id)
+    id: c.userId || c.user_id || (c.user && c.user.id),
+    avatarUrl: c.avatarUrl || c.avatar_url || c.avatar || (c.user && getAvatarUrl(c.user))
   } : null)
 
   return {
@@ -250,7 +309,9 @@ const normalizeApiComment = (c) => {
     likesCount: Number(likesCount || 0),
     dislikesCount: Number(dislikesCount || 0),
     replies,
-    author
+    author: author
+      ? { ...author, avatarUrl: getAvatarUrl(author) }
+      : author
   }
 }
 
@@ -335,14 +396,26 @@ const hybridSortComments = (arr, BOOST_MINUTES = 10) => {
 }
 
 
-export default function Comentarios({ detailRequest, openLogin, user, maxReplyDepth = 2, boostMinutes = 10, username, lang = 'es' }) {
-  const isWall = resolveCommentTarget(detailRequest)?.targetType === 'wall'
+export default function Comentarios({ detailRequest, openLogin, user, maxReplyDepth = 2, boostMinutes = 10, username, lang = 'es', variant }) {
+  const isWall = variant === 'wall' || resolveCommentTarget(detailRequest)?.targetType === 'wall'
+  const currentUserId = user?.id ?? user?._id ?? user?.userId
+  const currentUserAvatar = getAvatarUrl(user)
+  const getCommentAvatar = (author) => {
+    const authorId = author?.id ?? author?._id ?? author?.userId
+    const isCurrentUser = currentUserId && authorId
+      ? String(currentUserId) === String(authorId)
+      : Boolean(user?.username && author?.username && user.username === author.username)
+    return isCurrentUser ? currentUserAvatar : getAvatarUrl(author)
+  }
   const [commentText, setCommentText] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentSuccess, setCommentSuccess] = useState(false)
   const [commentError, setCommentError] = useState('')
   const commentInputRef = useRef(null)
   const commentsContainerRef = useRef(null)
+  const wallComposerRef = useRef(null)
+  const [wallComposerHeight, setWallComposerHeight] = useState(96)
+  const [wallKeyboardOffset, setWallKeyboardOffset] = useState(0)
   const processedCommentIdsRef = useRef(new Set())
   // Evitar envíos duplicados por doble click o reintentos simultáneos
   const pendingPostsRef = useRef(new Set())
@@ -816,6 +889,50 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
   const [editText, setEditText] = useState('')
   const [editIsSpoiler, setEditIsSpoiler] = useState(false)
   const [editSubmitting, setEditSubmitting] = useState(false)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [reportingComment, setReportingComment] = useState(null)
+  const [reportReason, setReportReason] = useState('spam')
+  const [reportDescription, setReportDescription] = useState('')
+  const [reportSubmitting, setReportSubmitting] = useState(false)
+  const [reportSent, setReportSent] = useState(false)
+  const [reportError, setReportError] = useState('')
+
+  useEffect(() => {
+    if (!isWall) {
+      setWallKeyboardOffset(0)
+      return
+    }
+
+    const viewport = window.visualViewport
+    const updateOffset = () => {
+      if (!viewport) {
+        setWallKeyboardOffset(0)
+        return
+      }
+      const offset = Math.max(0, window.innerHeight - (viewport.height + viewport.offsetTop))
+      setWallKeyboardOffset(offset)
+    }
+
+    updateOffset()
+    viewport?.addEventListener('resize', updateOffset)
+    viewport?.addEventListener('scroll', updateOffset)
+    window.addEventListener('orientationchange', updateOffset)
+    return () => {
+      viewport?.removeEventListener('resize', updateOffset)
+      viewport?.removeEventListener('scroll', updateOffset)
+      window.removeEventListener('orientationchange', updateOffset)
+    }
+  }, [isWall])
+
+  useEffect(() => {
+    const composer = wallComposerRef.current
+    if (!isWall || !composer || typeof ResizeObserver === 'undefined') return
+    const updateHeight = () => setWallComposerHeight(Math.ceil(composer.getBoundingClientRect().height))
+    updateHeight()
+    const observer = new ResizeObserver(updateHeight)
+    observer.observe(composer)
+    return () => observer.disconnect()
+  }, [isWall, user])
 
   const openEditModal = (comment) => {
     if (!comment) return
@@ -823,6 +940,44 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     setEditText(comment.content || '')
     setEditIsSpoiler(!!comment.isSpoiler)
     setEditModalOpen(true)
+  }
+
+  const openReportModal = (comment) => {
+    if (!user) {
+      openLogin()
+      return
+    }
+    setReportingComment(comment)
+    setReportReason('spam')
+    setReportDescription('')
+    setReportSent(false)
+    setReportError('')
+    setReportModalOpen(true)
+  }
+
+  const submitReport = async () => {
+    if (!reportingComment?.id) return
+    setReportSubmitting(true)
+    setReportSent(false)
+    setReportError('')
+    try {
+      await api.post('comments', `${reportingComment.id}/report`, {
+        reason: reportReason,
+        description: reportDescription.trim()
+      })
+      setReportSent(true)
+    } catch (err) {
+      if (err?.status === 401) {
+        openLogin()
+        return
+      }
+      const code = err?.body?.code || err?.body?.error?.code
+      setReportError(code === 'ALREADY_REPORTED'
+        ? (lang === 'en' ? 'You have already reported this comment.' : 'Ya reportaste este comentario.')
+        : (err?.message || (lang === 'en' ? 'Could not send the report.' : 'No se pudo enviar el reporte.')))
+    } finally {
+      setReportSubmitting(false)
+    }
   }
 
   // legacy: replaced by `canEditComment` / `canDeleteComment`
@@ -910,7 +1065,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     if ((String(editText || '').trim().length) < 1) return
     setEditSubmitting(true)
     try {
-      const payload = { content: String(editText || '').trim(), isSpoiler: !!editIsSpoiler }
+      const payload = { content: String(editText || '').trim() }
+      payload.isSpoiler = !!editIsSpoiler
       const res = await api.put('comments', String(id), payload)
       const updated = (res && res.data && res.data.comment) ? res.data.comment : (res && res.comment) || null
       if (updated) {
@@ -1323,7 +1479,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     try {
       const target = resolveCommentTarget(detailRequest)
       if (!target?.targetId) return
-      const payload = { targetType: target.targetType, targetId: target.targetId, content: text, isSpoiler: !!box.isSpoiler }
+      const payload = { targetType: target.targetType, targetId: target.targetId, content: text }
+      payload.isSpoiler = !!box.isSpoiler
       // If a specific reply target is set (replying to a reply), use that id as parentId
       if (box.replyTargetId) payload.parentId = box.replyTargetId
       else if (parentId) payload.parentId = parentId
@@ -1686,29 +1843,18 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
             }}>
               {/* Acción: menú pegado arriba a la derecha en replies */}
               <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 5 }}>
-                <Menu withinPortal position="bottom-end" placement="end" withArrow>
-                  <Menu.Target>
-                    <ActionIcon size="xs" aria-label="Opciones" variant="subtle">
-                      <IconDotsVertical size={14} />
-                    </ActionIcon>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    {(canEditComment(r) || canDeleteComment(r)) ? (
-                      <>
-                        {canEditComment(r) && <Menu.Item onClick={() => openEditModal(r)}>Editar</Menu.Item>}
-                        {canDeleteComment(r) && <Menu.Item color="red" onClick={() => handleDeleteComment(r.id)}>Eliminar</Menu.Item>}
-                        <Menu.Item onClick={() => logger.debug('Reportar comentario', r.id)}>Reportar</Menu.Item>
-                      </>
-                    ) : (
-                      <>
-                        <Menu.Item onClick={() => logger.debug('Reportar comentario', r.id)}>Reportar</Menu.Item>
-                      </>
-                    )}
-                  </Menu.Dropdown>
-                </Menu>
+                <CommentActionsMenu
+                  compact
+                  canEdit={canEditComment(r)}
+                  canDelete={canDeleteComment(r)}
+                  onEdit={() => openEditModal(r)}
+                  onDelete={() => handleDeleteComment(r.id)}
+                  onReport={() => openReportModal(r)}
+                />
               </div>
               <Group spacing={8} align="flex-start">
                 <Avatar
+                  src={getCommentAvatar(r.author)}
                   name={r.author?.displayName || r.author?.username || 'Usuario'}
                   color="initials"
                   allowedInitialsColors={['blue', 'red', 'cyan', 'indigo', 'pink', 'violet']}
@@ -1753,7 +1899,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                     </Group>
                   </Group>
                   <div style={{ marginTop: 6, color: 'var(--text-color)', wordBreak: 'break-word' }}>
-                    <Text size="sm" component="span">
+                    <Text size="sm" component="span" className={styles.commentText}>
                       {renderTruncatedContent(r.content, r.id, 300)}
                     </Text>
                   </div>
@@ -1763,7 +1909,6 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                     <Button
                       size="xs"
                       variant="subtle"
-                      compact
                       onClick={() => {
                         handleReply(r.author, parentId, r.id)
                         // Scroll suave al comentario después de un pequeño delay
@@ -2291,9 +2436,10 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       const payload = {
         targetType: targetType,
         targetId: targetId,
-        content: content || '', // Si no hay contenido pero hay encuesta, dejar vacío
-        isSpoiler: !!isSpoilerMode
+        content: content || '' // Si no hay contenido pero hay encuesta, dejar vacío
       }
+
+      payload.isSpoiler = !!isSpoilerMode
 
       // Agregar datos de encuesta si está activo
       if (isPollMode && pollQuestion.trim()) {
@@ -2349,6 +2495,12 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
 
       setCommentText('')
       setCommentSuccess(true)
+      if (isWall && created?.id) {
+        requestAnimationFrame(() => {
+          const node = commentNodesRef.current?.[String(created.id)]
+          node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        })
+      }
       setIsSpoilerMode(false)
       setIsPollMode(false)
       setPollQuestion('')
@@ -2357,59 +2509,79 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     } catch (err) {
       if (err && err.status === 401) { openLogin(); return }
       console.warn('Error enviando comentario', err)
-      setCommentError(err?.message || 'No se pudo publicar el comentario')
+      const code = err?.body?.code || err?.body?.error?.code
+      const wallMessages = {
+        RATE_LIMIT_MINUTE: lang === 'en' ? 'Wait a minute before posting again.' : 'Espera un minuto antes de publicar otra vez',
+        RATE_LIMIT_DAILY: lang === 'en' ? 'You reached today&apos;s posting limit.' : 'Llegaste al límite de publicaciones de hoy',
+        DUPLICATE_COMMENT: lang === 'en' ? 'You already posted this.' : 'Ya publicaste eso',
+        CONTENT_TOO_LONG: lang === 'en' ? 'Maximum 500 characters.' : 'Máximo 500 caracteres',
+        CONTENT_EMPTY: lang === 'en' ? 'Write a message before posting.' : 'Escribe un mensaje antes de publicar',
+        FIELD_NOT_ALLOWED: lang === 'en' ? 'Some submitted fields are not available.' : 'Algunos campos enviados no están disponibles.'
+      }
+      setCommentError(isWall && wallMessages[code]
+        ? wallMessages[code]
+        : (err?.message || 'No se pudo publicar el comentario'))
     } finally {
       setCommentSubmitting(false)
     }
   }
 
   return (
-    <div style={{ marginTop: 24, position: 'relative', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+    <div style={{
+      marginTop: 24,
+      position: 'relative',
+      width: '100%',
+      minWidth: 0,
+      boxSizing: 'border-box',
+      paddingBottom: isWall ? wallComposerHeight + 24 : undefined
+    }}>
 
       {/* Header con Contador Refinado */}
-      <Group position="apart" mb="lg">
-        <Group spacing={12}>
-          <div style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, var(--accent-cyan-0-15) 0%, var(--accent-cyan-0-05) 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid var(--accent-cyan-0-2)',
-            boxShadow: '0 2px 8px var(--accent-cyan-0-1)'
-          }}>
-            <IconMessage size={22} color="rgb(var(--accent-cyan))" />
-          </div>
-          <div>
-            <Text fw={700} size="lg" style={{ color: 'var(--text-color)', letterSpacing: '-0.01em' }}>
-              {lang === 'en' ? 'Comments' : 'Comentarios'}
-            </Text>
-          </div>
-        </Group>
+      {!isWall && (
+        <Group position="apart" mb="lg">
+          <Group spacing={12}>
+            <div style={{
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, var(--accent-cyan-0-15) 0%, var(--accent-cyan-0-05) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid var(--accent-cyan-0-2)',
+              boxShadow: '0 2px 8px var(--accent-cyan-0-1)'
+            }}>
+              <IconMessage size={22} color="rgb(var(--accent-cyan))" />
+            </div>
+            <div>
+              <Text fw={700} size="lg" style={{ color: 'var(--text-color)', letterSpacing: '-0.01em' }}>
+                {lang === 'en' ? 'Comments' : 'Comentarios'}
+              </Text>
+            </div>
+          </Group>
 
-        {detailComments.length > 0 && (
-          <Badge
-            size="lg"
-            variant="filled"
-            styles={{
-              root: {
-                backgroundColor: 'var(--accent-cyan-0-1)',
-                color: 'rgb(var(--accent-cyan))',
-                border: '1px solid var(--accent-cyan-0-25)',
-                fontWeight: 600,
-                fontSize: '13px',
-                padding: '0 14px',
-                height: 28,
-                boxShadow: '0 2px 8px var(--accent-cyan-0-1)'
-              }
-            }}
-          >
-            {detailComments.length}
-          </Badge>
-        )}
-      </Group>
+          {detailComments.length > 0 && (
+            <Badge
+              size="lg"
+              variant="filled"
+              styles={{
+                root: {
+                  backgroundColor: 'var(--accent-cyan-0-1)',
+                  color: 'rgb(var(--accent-cyan))',
+                  border: '1px solid var(--accent-cyan-0-25)',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  padding: '0 14px',
+                  height: 28,
+                  boxShadow: '0 2px 8px var(--accent-cyan-0-1)'
+                }
+              }}
+            >
+              {detailComments.length}
+            </Badge>
+          )}
+        </Group>
+      )}
 
       {commentError && (
         <Text c="red" size="sm" mb="md" role="alert">
@@ -2425,7 +2597,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
             position: 'fixed',
             left: 0,
             right: 0,
-            bottom: 'env(safe-area-inset-bottom)',
+            bottom: `calc(env(safe-area-inset-bottom) + ${wallKeyboardOffset}px)`,
             width: '100%',
             maxWidth: 760,
             height: 72,
@@ -2458,7 +2630,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       )}
 
       {/* Input de Comentario Premium */}
-      <div style={{
+      <div ref={wallComposerRef} style={{
         display: isWall && !user ? 'none' : undefined,
         marginBottom: 28,
         order: isWall ? 3 : undefined,
@@ -2466,7 +2638,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           position: 'fixed',
           left: 0,
           right: 0,
-          bottom: 'env(safe-area-inset-bottom)',
+          bottom: `calc(env(safe-area-inset-bottom) + ${wallKeyboardOffset}px)`,
           width: 'calc(100% - 24px)',
           maxWidth: 760,
           maxHeight: '30dvh',
@@ -2477,6 +2649,9 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           WebkitBackdropFilter: 'blur(18px)',
           zIndex: 40,
           overflowY: 'auto',
+          border: '1px solid var(--border-color-subtle)',
+          borderBottom: 'none',
+          background: 'color-mix(in srgb, var(--subtle-bg) 96%, transparent)',
         } : {}),
         padding: 16,
         background: 'linear-gradient(135deg, var(--subtle-bg-hover) 0%, var(--subtle-bg) 100%)',
@@ -2484,11 +2659,12 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         border: `1px solid var(--border-color-subtle)`,
         boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 12px rgba(0, 0, 0, 0.03)',
         transition: 'all 0.3s ease',
-        position: 'relative'
+        position: isWall ? 'fixed' : 'relative'
       }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           {user && (
             <Avatar
+              src={currentUserAvatar}
               name={username || user?.username || user?.displayName || 'Usuario'}
               color="initials"
               allowedInitialsColors={['blue', 'red', 'cyan', 'indigo', 'pink', 'violet']}
@@ -2842,6 +3018,11 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 Límite excedido
               </Text>
             )}
+            {isWall && trimmedLength >= 400 && (
+              <Text size="xs" c="dimmed" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                {trimmedLength}/500
+              </Text>
+            )}
           </div>
 
           <Button
@@ -2879,7 +3060,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       </div>
 
       {/* Filtros de Comentarios */}
-      {detailComments.length > 0 && (
+      {!isWall && detailComments.length > 0 && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -3045,7 +3226,10 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
             } : {}),
           }}
         >
-          <Stack spacing="md" style={isWall && detailComments.length === 0 ? { width: '100%' } : undefined}>
+          <Stack
+            spacing={isWall ? 8 : 'md'}
+            style={isWall && detailComments.length === 0 ? { width: '100%' } : undefined}
+          >
             {detailComments.length === 0 && (
               <div style={{
                 textAlign: 'center',
@@ -3108,7 +3292,11 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 <div
                   key={c.id}
                   ref={(el) => { try { if (el) commentNodesRef.current[String(c.id)] = el; else delete commentNodesRef.current[String(c.id)]; } catch { /* noop */ } }}
-                  style={{ willChange: 'transform', position: 'relative', marginTop: index === 0 ? 20 : 20 }}
+                  style={{
+                    willChange: 'transform',
+                    position: 'relative',
+                    marginTop: isWall ? 0 : (index === 0 ? 20 : 20)
+                  }}
                 >
                   <UserBadges
                     userStats={{
@@ -3142,36 +3330,28 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                     className={`comment-card${c.author?.isPremium ? ` ${styles.vipCommentCard}` : ''}`}
                   >
                     
-                    <div style={{ padding: 10, position: 'relative', zIndex: c.author?.isPremium ? 1 : undefined }}>
+                    <div style={{
+                      padding: '6px 10px',
+                      position: 'relative',
+                      zIndex: c.author?.isPremium ? 1 : undefined
+                    }}>
                       {/* Acción: menú pegado arriba a la derecha */}
                       <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 6 }}>
-                        <Menu withinPortal position="bottom-end" placement="end" withArrow>
-                          <Menu.Target>
-                            <ActionIcon size="sm" aria-label="Opciones" variant="subtle">
-                              <IconDotsVertical size={18} />
-                            </ActionIcon>
-                          </Menu.Target>
-                          <Menu.Dropdown>
-                            {(canEditComment(c) || canDeleteComment(c)) ? (
-                              <>
-                                {canEditComment(c) && <Menu.Item onClick={() => openEditModal(c)}>Editar</Menu.Item>}
-                                {canDeleteComment(c) && <Menu.Item color="red" onClick={() => handleDeleteComment(c.id)}>Eliminar</Menu.Item>}
-                                <Menu.Item onClick={() => logger.debug('Reportar comentario', c.id)}>Reportar</Menu.Item>
-                              </>
-                            ) : (
-                              <>
-                                <Menu.Item onClick={() => logger.debug('Reportar comentario', c.id)}>Reportar</Menu.Item>
-                              </>
-                            )}
-                          </Menu.Dropdown>
-                        </Menu>
+                        <CommentActionsMenu
+                          canEdit={canEditComment(c)}
+                          canDelete={canDeleteComment(c)}
+                          onEdit={() => openEditModal(c)}
+                          onDelete={() => handleDeleteComment(c.id)}
+                          onReport={() => openReportModal(c)}
+                        />
                       </div>
                       <Group align="flex-start" spacing={14} style={{ flexWrap: 'nowrap' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <Group position="apart" mb={6} style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
+                          <Group position="apart" mb={3} style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
                             <Group spacing={8} style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
                               <div style={{ position: 'relative' }}>
                                 <Avatar
+                                  src={getCommentAvatar(c.author)}
                                   name={c.author?.displayName || c.author?.username || 'Usuario'}
                                   color="initials"
                                   allowedInitialsColors={['blue', 'red', 'cyan', 'indigo', 'pink', 'violet']}
@@ -3256,8 +3436,9 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                 >
                                   <Text
                                     size="sm"
+                                    className={styles.commentText}
                                     style={{
-                                      lineHeight: 1.65,
+                                      lineHeight: 1.35,
                                       color: 'var(--text-color)',
                                       opacity: 0.88,
                                       wordBreak: 'break-word'
@@ -3302,12 +3483,12 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                             ) : (
                               <>
                                 <div style={{
-                                  lineHeight: 1.65,
+                                  lineHeight: 1.35,
                                   color: 'var(--text-color)',
                                   opacity: 0.88,
                                   wordBreak: 'break-word'
                                 }}>
-                                  <Text size="sm" component="span">
+                                  <Text size="sm" component="span" className={styles.commentText}>
                                     {renderTruncatedContent(c.content, c.id, 400)}
                                   </Text>
                                 </div>
@@ -3317,7 +3498,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                   <div style={{ marginTop: 16, padding: 16, background: 'var(--subtle-bg)', borderRadius: 12, border: '1px solid var(--border-color-subtle)' }}>
                                     {/* Pregunta */}
                                     {c.poll.question && (
-                                      <Text fw={600} size="sm" mb={12} style={{
+                                      <Text fw={600} size="sm" mb={12} className={styles.commentText} style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 8
@@ -3385,7 +3566,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                             )}
 
                                             <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                              <Text size="sm" style={{ color: isUserChoice ? 'rgb(var(--accent-cyan))' : 'var(--text-color)' }}>
+                                              <Text size="sm" className={styles.commentText} style={{ color: isUserChoice ? 'rgb(var(--accent-cyan))' : 'var(--text-color)' }}>
                                                 {optionText}
                                               </Text>
 
@@ -3421,7 +3602,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                           </div>
 
                           {/* Acciones del comentario */}
-                          <Group spacing={16} mt={12} style={{ marginLeft: 10, alignItems: 'center' }}>
+                          <Group spacing={16} mt={4} style={{ marginLeft: 10, alignItems: 'center' }}>
                             <Text
                               size="xs"
                               role="button"
@@ -3616,22 +3797,177 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         </div>
       )}
 
-      {/* Modal para editar comentario */}
-      <Modal opened={editModalOpen} onClose={() => { setEditModalOpen(false); setEditingComment(null) }} title="Editar comentario" centered>
-        <div>
+      {/* Modal para reportar comentario */}
+      <Modal
+        opened={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        centered
+        radius="lg"
+        size="md"
+        overlayProps={{ blur: 5, opacity: 0.55 }}
+        styles={{
+          content: {
+            border: '1px solid var(--border-color-subtle)',
+            background: 'var(--card-bg-solid)',
+            boxShadow: '0 24px 64px rgba(0, 0, 0, 0.28)',
+            overflow: 'hidden',
+          },
+          header: { background: 'var(--card-bg-solid)', paddingBottom: 8 },
+          body: { background: 'var(--card-bg-solid)', paddingTop: 4 },
+          title: { fontWeight: 800, letterSpacing: '-0.01em' },
+        }}
+        title={
+          <Group spacing={8}>
+            <IconFlag size={18} stroke={1.8} style={{ color: 'rgb(var(--accent-cyan))' }} />
+            <span>{lang === 'en' ? 'Report comment' : 'Reportar comentario'}</span>
+          </Group>
+        }
+      >
+        <div style={{ padding: '2px 2px 0' }}>
+          <Text size="xs" fw={700} mb={8} style={{ color: 'var(--dimmed-text)', letterSpacing: '0.02em' }}>
+            {lang === 'en' ? 'Reason' : 'Motivo'}
+          </Text>
+          <select
+            value={reportReason}
+            onChange={(e) => setReportReason(e.currentTarget.value)}
+            style={{
+              width: '100%',
+              height: 44,
+              padding: '0 12px',
+              borderRadius: 10,
+              border: '1px solid var(--border-color-subtle)',
+              background: 'var(--card-bg-solid)',
+              color: 'var(--text-color)'
+            }}
+          >
+            <option value="spam">{lang === 'en' ? 'Spam' : 'Spam'}</option>
+            <option value="harassment">{lang === 'en' ? 'Harassment' : 'Acoso'}</option>
+            <option value="hate">{lang === 'en' ? 'Hate speech' : 'Contenido de odio'}</option>
+            <option value="inappropriate">{lang === 'en' ? 'Inappropriate content' : 'Contenido inapropiado'}</option>
+            <option value="other">{lang === 'en' ? 'Other' : 'Otro'}</option>
+          </select>
           <Textarea
-            minRows={3}
+            mt="md"
+            maxLength={500}
+            value={reportDescription}
+            onChange={(e) => setReportDescription(e.currentTarget.value)}
+            placeholder={lang === 'en' ? 'Additional details (optional)' : 'Detalles adicionales (opcional)'}
+            autosize
+            minRows={4}
+            styles={{
+              input: {
+                borderRadius: 10,
+                border: '1px solid var(--border-color-subtle)',
+                background: 'var(--page-bg)',
+                color: 'var(--text-color)',
+                lineHeight: 1.45,
+                padding: '10px 12px',
+              },
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 5 }}>
+            <Text size="xs" style={{ color: 'var(--dimmed-text)' }}>
+              {reportDescription.length}/500
+            </Text>
+          </div>
+          {reportSent && (
+            <Text size="sm" c="green" mt="sm" fw={600} role="status">
+              {lang === 'en' ? 'Report submitted.' : 'Reporte enviado correctamente.'}
+            </Text>
+          )}
+          {reportError && (
+            <Text size="sm" c="red" mt="md" role="alert">{reportError}</Text>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-color-subtle)' }}>
+            <Button variant="subtle" radius="md" onClick={() => setReportModalOpen(false)}>
+              {reportSent ? (lang === 'en' ? 'Close' : 'Cerrar') : (lang === 'en' ? 'Cancel' : 'Cancelar')}
+            </Button>
+            {!reportSent && (
+              <Button
+                radius="md"
+                loading={reportSubmitting}
+                disabled={reportSubmitting}
+                onClick={submitReport}
+              >
+                {lang === 'en' ? 'Send report' : 'Enviar reporte'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal para editar comentario */}
+      <Modal
+        opened={editModalOpen}
+        onClose={() => { setEditModalOpen(false); setEditingComment(null) }}
+        title={
+          <Group spacing={8}>
+            <IconEdit size={18} stroke={1.8} style={{ color: 'rgb(var(--accent-cyan))' }} />
+            <span>Editar comentario</span>
+          </Group>
+        }
+        centered
+        radius="lg"
+        size="md"
+        overlayProps={{ blur: 5, opacity: 0.55 }}
+        styles={{
+          content: {
+            border: '1px solid var(--border-color-subtle)',
+            background: 'var(--card-bg-solid)',
+            boxShadow: '0 24px 64px rgba(0, 0, 0, 0.28)',
+            overflow: 'hidden',
+          },
+          header: { background: 'var(--card-bg-solid)', paddingBottom: 8 },
+          body: { background: 'var(--card-bg-solid)', paddingTop: 4 },
+          title: { fontWeight: 800, letterSpacing: '-0.01em' },
+        }}
+      >
+        <div style={{ padding: '2px 2px 0' }}>
+          <Textarea
+            autosize
+            minRows={5}
             value={editText}
             onChange={(e) => setEditText(e.currentTarget.value)}
             maxLength={MAX_COMMENT_LENGTH}
-            styles={{ input: { color: 'var(--text-color)' } }}
+            placeholder="Escribe tu comentario..."
+            styles={{
+              input: {
+                borderRadius: 10,
+                border: '1px solid var(--border-color-subtle)',
+                background: 'var(--page-bg)',
+                color: 'var(--text-color)',
+                lineHeight: 1.5,
+                padding: '12px',
+              },
+            }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-            <Checkbox label="Spoiler" checked={editIsSpoiler} onChange={(e) => setEditIsSpoiler(e.currentTarget.checked)} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button variant="subtle" onClick={() => { setEditModalOpen(false); setEditingComment(null) }}>Cancelar</Button>
-              <Button onClick={handleSaveEdit} loading={editSubmitting} disabled={editSubmitting || (String(editText || '').trim().length < MIN_COMMENT_LENGTH)}>Guardar</Button>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+            <Checkbox
+              size="sm"
+              label="Marcar como spoiler"
+              checked={editIsSpoiler}
+              onChange={(e) => setEditIsSpoiler(e.currentTarget.checked)}
+            />
+            <Text size="xs" style={{ color: 'var(--dimmed-text)' }}>
+              {String(editText || '').length}/{MAX_COMMENT_LENGTH}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-color-subtle)' }}>
+            <Button
+              variant="subtle"
+              radius="md"
+              onClick={() => { setEditModalOpen(false); setEditingComment(null) }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              radius="md"
+              onClick={handleSaveEdit}
+              loading={editSubmitting}
+              disabled={editSubmitting || (String(editText || '').trim().length < MIN_COMMENT_LENGTH)}
+            >
+              Guardar cambios
+            </Button>
           </div>
         </div>
       </Modal>

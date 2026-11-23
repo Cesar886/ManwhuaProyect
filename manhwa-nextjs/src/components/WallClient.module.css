@@ -1,7 +1,17 @@
 .page {
-  padding-top: 32px;
-  padding-bottom: calc(170px + env(safe-area-inset-bottom));
+  margin-top: calc(env(safe-area-inset-top, 0px) + 78px);
+  margin-right: auto;
+  margin-left: auto;
+  padding-top: 8px;
+  padding-bottom: 24px;
   max-width: 760px;
+}
+
+@media (max-width: 768px) {
+  .page {
+    margin-top: calc(env(safe-area-inset-top, 0px) + 60px);
+    padding-top: 8px;
+  }
 }
 
 .title {
@@ -85,7 +95,7 @@
 
 @media (max-width: 480px) {
   .page {
-    padding: 20px 12px calc(170px + env(safe-area-inset-bottom));
+    padding: 20px 12px 24px;
   }
 
   .postCard,

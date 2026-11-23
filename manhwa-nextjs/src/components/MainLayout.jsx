@@ -9,6 +9,10 @@ const NO_BREADCRUMBS_PATHS = [
   '/login',
   '/register',
 ];
+const NO_FOOTER_PATHS = [
+  '/muro',
+  '/en/wall',
+];
 
 export default function MainLayout({ children, lang }) {
   const pathname = usePathname() || '';
@@ -16,6 +20,7 @@ export default function MainLayout({ children, lang }) {
 
   // Comprueba si la ruta actual debe ocultar los breadcrumbs y el footer
   const shouldHideBreadcrumbs = NO_BREADCRUMBS_PATHS.some(path => pathname.startsWith(path));
+  const shouldHideFooter = NO_FOOTER_PATHS.some(path => pathname.startsWith(path));
 
   return (
     <>
@@ -23,7 +28,7 @@ export default function MainLayout({ children, lang }) {
       <ErrorBoundary>
         {children}
       </ErrorBoundary>
-      {!shouldHideBreadcrumbs && <Footer lang={activeLang} />}
+      {!shouldHideFooter && <Footer lang={activeLang} />}
     </>
   );
 }

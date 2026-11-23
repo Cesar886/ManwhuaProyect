@@ -28,6 +28,7 @@ export default function WallClient({ lang: propLang }) {
           openLogin={openLogin}
           user={user}
           maxReplyDepth={1}
+          variant="wall"
           lang={lang}
         />
       </Container>

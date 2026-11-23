@@ -246,7 +246,11 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
     anonymous: allAnonymousReaders,
     total: allManhwaReadersTotal,
     isAnonymous: currentReaderIsAnonymous,
-  } = usePresence(slug, 'detail');
+  } = usePresence(
+    slug,
+    'detail',
+    user?.avatarUrl || user?.avatar_url || user?.avatar || null,
+  );
 
   const manhwaReaders = useMemo(() => {
     if (!Array.isArray(allManhwaReaders)) return [];

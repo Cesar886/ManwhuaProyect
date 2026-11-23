@@ -23,6 +23,10 @@
   font-weight: 700;
 }
 
+:global([data-mantine-color-scheme='dark']) .commentText {
+  color: #FFFFFF !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vipCommentCard {
     animation: fadeInUp 0.4s ease var(--vip-entry-delay, 0s) both;
