@@ -1170,7 +1170,7 @@ export default function UserProfile() {
                   </>}
                 </Group>
               </Stack>
-              <Stack gap="sm" align="flex-end" style={{ flexShrink: 0 }}>
+              <Stack gap="sm" align="flex-end" style={{ flexShrink: 0, padding: rem(9) }}>
                 {isOwner
                   ? <PremiumButton leftSection={<IconPencil size={16} />} isDark={isDark} onClick={openEditModal}>Editar perfil</PremiumButton>
                   : authUser && <PremiumButton isDark={isDark} onClick={toggleFollow} loading={followBusy}>{user.isFollowing ? 'Siguiendo' : 'Seguir'}</PremiumButton>}

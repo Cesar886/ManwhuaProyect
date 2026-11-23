@@ -1,4 +1,4 @@
-CREATE TABLE "push_subscriptions" (
+CREATE TABLE IF NOT EXISTS "push_subscriptions" (
   "id" UUID NOT NULL,
   "user_id" TEXT,
   "endpoint" TEXT NOT NULL,
@@ -9,9 +9,9 @@ CREATE TABLE "push_subscriptions" (
   CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "push_subscriptions_endpoint_key" ON "push_subscriptions"("endpoint");
+CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_endpoint_key" ON "push_subscriptions"("endpoint");
 
-CREATE TABLE "push_follows" (
+CREATE TABLE IF NOT EXISTS "push_follows" (
   "subscription_id" UUID NOT NULL,
   "manhwa_slug" TEXT NOT NULL,
   "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -21,4 +21,4 @@ CREATE TABLE "push_follows" (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE INDEX "push_follows_manhwa_slug_idx" ON "push_follows"("manhwa_slug");
+CREATE INDEX IF NOT EXISTS "push_follows_manhwa_slug_idx" ON "push_follows"("manhwa_slug");

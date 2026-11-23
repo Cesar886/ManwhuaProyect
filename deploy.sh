@@ -155,14 +155,7 @@ tar -xzf /root/manhwa-api.tar.gz -C "${deploy_dir}" --strip-components=1 \
 cd "${deploy_dir}"
 npm install --omit=dev
 chown -R www-data:www-data "${deploy_dir}"
-runuser -u www-data -- node scripts/migrate-and-verify-007-009.js
-runuser -u www-data -- node scripts/run_migration_013.js
-runuser -u www-data -- npm run migrate:comments
-runuser -u www-data -- npm run migrate:user-follows
-runuser -u www-data -- npm run migrate:series-ratings
-runuser -u www-data -- npm run migrate:runtime-schema
-runuser -u www-data -- npm run migrate:social-links
-runuser -u www-data -- npm run migrate:banner-position
+runuser -u www-data -- npm run migrate:all
 systemctl start "${service_name}"
 service_stopped=0
 systemctl --no-pager --full status "${service_name}"
