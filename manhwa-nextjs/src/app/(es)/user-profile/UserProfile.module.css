@@ -2181,6 +2181,6 @@
 }
 
 .streakChipIcon {
-  color: #f97316;
+  color: #f97316 !important;
   flex-shrink: 0;
 }
