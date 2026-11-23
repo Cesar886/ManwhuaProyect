@@ -116,12 +116,13 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Cache agresivo SOLO para los chunks internos de Next.js (/_next/static/).
-        // NUNCA usa /(.*)\.(js|...) porque eso también matchea /sw.js y lo sobreescribe.
-        // Todos los JS/CSS/fonts compilados por Next.js van a /_next/static/ automáticamente.
+        // Los chunks de desarrollo no deben quedar cacheados mientras HMR los reemplaza.
         source: '/_next/static/(.*)',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+          {
+            key: 'Cache-Control',
+            value: isDevelopment ? 'no-store, must-revalidate' : 'public, max-age=31536000, immutable',
+          },
         ],
       },
       {

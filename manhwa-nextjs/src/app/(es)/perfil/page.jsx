@@ -1046,7 +1046,7 @@ export default function UserProfile() {
 
         <Box className={styles.profileTabs} role="tablist" aria-label="Secciones del perfil">
           {[
-            ['continue', 'Continuar leyendo'],
+            ['continue', 'Continue Read'],
             ['achievements', 'Logros'],
             ['ratings', 'Calificaciones'],
             ['comments', 'Comentarios'],
@@ -1068,7 +1068,6 @@ export default function UserProfile() {
           ))}
         </Box>
 
-        {isOwner && <>
         {/* CONTINUAR LEYENDO */}
         <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'continue' ? 'block' : 'none' }}>
           <Box style={{ position: 'absolute', top: -60, left: -60, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
@@ -1080,12 +1079,6 @@ export default function UserProfile() {
                 </ThemeIcon>
                 <Text fw={700} size={isMobile ? 'md' : 'lg'}>Continuar Leyendo</Text>
               </Group>
-              <Link href="/biblioteca" style={{ textDecoration: 'none' }}>
-                <Group gap={4}>
-                  <Text size="sm" c="cyan" fw={600}>Ver todo</Text>
-                  <IconArrowUpRight size={16} style={{ color: 'var(--mantine-color-cyan-5)' }} />
-                </Group>
-              </Link>
             </Group>
             {recentLoading ? (
               <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing={isMobile ? 'xs' : 'sm'} className={styles.readingGrid}>
@@ -1145,7 +1138,7 @@ export default function UserProfile() {
         </Paper>
 
         {/* GAMIFICACIÓN */}
-        <Grid gutter={16} mb={16} align="stretch" className={styles.gamificationGrid} style={{ display: profileTab === 'continue' || profileTab === 'achievements' ? 'grid' : 'none' }}>
+        <Grid gutter={16} mb={16} align="stretch" className={styles.gamificationGrid} style={{ display: profileTab === 'achievements' ? 'grid' : 'none' }}>
 
           {/* NIVEL DE USUARIO */}
           <Grid.Col span={{ base: 12, md: 5 }}>
@@ -1221,11 +1214,10 @@ export default function UserProfile() {
           </Grid.Col>
 
           {/* VITRINA DE INSIGNIAS */}
-          <Grid.Col id="vitrina-logros" span={{ base: 12, md: 7 }}>
+          <Grid.Col id="vitrina-logros" span={{ base: 12, md: 7 }} mt={ isMobile ? 16 : 0}>
             <VitrinaLogros stats={achievementsData?.stats || { streak }} isDark={isDark} isMobile={isMobile} />
           </Grid.Col>
         </Grid>
-        </>}
 
         {/* HISTORIAL DE INTERACCIONES (COMUNIDAD) */}
         <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'ratings' || profileTab === 'comments' ? 'block' : 'none' }}>
@@ -1238,32 +1230,6 @@ export default function UserProfile() {
                 </ThemeIcon>
                 <Text fw={700} size={isMobile ? 'md' : 'lg'}>Actividad en la Comunidad</Text>
               </Group>
-            </Group>
-
-            {/* Tabs de navegación */}
-            <Group gap="xs">
-              <Button
-                variant={communityTab === 'ratings' ? 'filled' : 'subtle'}
-                color={communityTab === 'ratings' ? 'violet' : 'gray'}
-                size="sm"
-                radius="xl"
-                leftSection={<IconStarFilled size={14} />}
-                onClick={() => setCommunityTab('ratings')}
-                style={{ padding: '0.5rem 1.2rem' }}
-              >
-                Calificaciones ({userRatings.length})
-              </Button>
-              <Button
-                variant={communityTab === 'comments' ? 'filled' : 'subtle'}
-                color={communityTab === 'comments' ? 'cyan' : 'gray'}
-                size="sm"
-                radius="xl"
-                leftSection={<IconMessage size={14} />}
-                onClick={() => setCommunityTab('comments')}
-                style={{ padding: '0.5rem 1.2rem' }}
-              >
-                Comentarios ({userComments.length})
-              </Button>
             </Group>
 
             {/* Contenido según tab */}
@@ -1283,7 +1249,7 @@ export default function UserProfile() {
                     </ThemeIcon>
                     <Text c="dimmed" size="sm">Aún no has calificado ninguna obra</Text>
                     <Button component={Link} href="/mangas" variant="light" color="violet" size="xs" radius="xl">
-                      Explorar manhwas
+                      Explorar Manhwas
                     </Button>
                   </Stack>
                 </Center>
@@ -1351,7 +1317,7 @@ export default function UserProfile() {
                     </ThemeIcon>
                     <Text c="dimmed" size="sm">Aún no has comentado en ninguna obra</Text>
                     <Button component={Link} href="/mangas" variant="light" color="cyan" size="xs" radius="xl">
-                      Explorar mangas
+                      Explorar Manhwas
                     </Button>
                   </Stack>
                 </Center>
@@ -1420,26 +1386,39 @@ export default function UserProfile() {
         opened={editOpen}
         onClose={() => setEditOpen(false)}
         title={
-          <Group gap="xs">
-            <ThemeIcon size="md" radius="xl" variant="gradient" gradient={{ from: 'cyan', to: 'teal' }}>
-              <IconPencil size={14} />
+          <Group gap="md" wrap="nowrap">
+            <ThemeIcon
+              size={42}
+              radius="xl"
+              variant="gradient"
+              gradient={{ from: 'cyan', to: 'teal' }}
+              style={{ boxShadow: '0 6px 18px rgba(6,182,212,0.28)', flexShrink: 0 }}
+            >
+              <IconPencil size={19} />
             </ThemeIcon>
-            <Text fw={700} size="lg">Editar perfil</Text>
+            <Stack gap={2}>
+              <Text fw={800} size="lg" lh={1.2}>Editar perfil</Text>
+              <Text size="xs" c="dimmed" fw={500}>Personaliza cómo te ve la comunidad</Text>
+            </Stack>
           </Group>
         }
         centered
         radius="xl"
-        size={isMobile ? 'full' : 'lg'}
+        size={isMobile ? 'full' : 680}
         overlayProps={{ backgroundOpacity: 0.6, blur: 10 }}
         classNames={{
           content: `${styles.modalContent} ${isDark ? styles.darkMode : styles.lightMode}`,
           header: styles.modalHeader,
         }}
         styles={{
-          body: { padding: isMobile ? rem(16) : rem(24) },
+          header: {
+            padding: `${rem(isMobile ? 18 : 24)} ${rem(isMobile ? 18 : 30)}`,
+            margin: 0,
+          },
+          body: { padding: isMobile ? rem(18) : rem(30) },
         }}
       >
-        <Stack gap="lg">
+        <Stack gap={isMobile ? 'lg' : rem(24)}>
           <input
             ref={avatarInputRef}
             type="file"
@@ -1521,6 +1500,9 @@ export default function UserProfile() {
             loading={bannerUploading}
             disabled={bannerUploading}
             onClick={() => bannerInputRef.current?.click()}
+            fullWidth={isMobile}
+            radius="xl"
+            size="md"
           >
             Cambiar banner
           </Button>
@@ -1578,6 +1560,10 @@ export default function UserProfile() {
 
           {/* Campos del formulario */}
           <Stack gap="md">
+            <Box>
+              <Text fw={750} size="sm">Información personal</Text>
+              <Text size="xs" c="dimmed" mt={3}>Cuéntanos un poco sobre ti.</Text>
+            </Box>
             <TextInput
               label={<Text size="sm" fw={600} mb={4}>Nombre para mostrar</Text>}
               placeholder="¿Cómo te llamas?"
@@ -1655,49 +1641,61 @@ export default function UserProfile() {
                 },
               }}
             />
-            <Stack gap="xs">
-              <Text fw={700} size="sm">Redes sociales</Text>
-              <TextInput
-                label="X"
-                placeholder="@usuario o https://x.com/usuario"
-                value={editForm.social_links.x}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
-                  setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, x: value } }));
-                }}
-                maxLength={256}
-                leftSection={<IconBrandX size={16} />}
-                error={getSocialLinkErrors(editForm.social_links).x}
-                radius="xl"
-              />
-              <TextInput
-                label="Instagram"
-                placeholder="@usuario o https://instagram.com/usuario"
-                value={editForm.social_links.instagram}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
-                  setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: value } }));
-                }}
-                maxLength={256}
-                leftSection={<IconBrandInstagram size={16} />}
-                error={getSocialLinkErrors(editForm.social_links).instagram}
-                radius="xl"
-              />
-              <TextInput
-                label="Discord"
-                placeholder="@usuario"
-                value={editForm.social_links.discord}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
-                  setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, discord: value } }));
-                }}
-                maxLength={33}
-                leftSection={<IconBrandDiscord size={16} />}
-                error={getSocialLinkErrors(editForm.social_links).discord}
-                radius="xl"
-              />
-              <Text size="xs" c="dimmed">Deja vacío cualquier campo para eliminar esa red social.</Text>
-            </Stack>
+            <Paper
+              p={isMobile ? 'md' : 'lg'}
+              radius="xl"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.025)' : 'rgba(15,23,42,0.018)',
+                border: `1px solid ${isDark ? 'rgba(148,163,184,0.14)' : 'rgba(15,23,42,0.08)'}`,
+              }}
+            >
+              <Stack gap="sm">
+                <Box mb={4}>
+                  <Text fw={750} size="sm">Redes sociales</Text>
+                  <Text size="xs" c="dimmed" mt={3}>Conecta tus perfiles con otros lectores.</Text>
+                </Box>
+                <TextInput
+                  label="X"
+                  placeholder="@usuario o https://x.com/usuario"
+                  value={editForm.social_links.x}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, x: value } }));
+                  }}
+                  maxLength={256}
+                  leftSection={<IconBrandX size={16} />}
+                  error={getSocialLinkErrors(editForm.social_links).x}
+                  radius="xl"
+                />
+                <TextInput
+                  label="Instagram"
+                  placeholder="@usuario o https://instagram.com/usuario"
+                  value={editForm.social_links.instagram}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: value } }));
+                  }}
+                  maxLength={256}
+                  leftSection={<IconBrandInstagram size={16} />}
+                  error={getSocialLinkErrors(editForm.social_links).instagram}
+                  radius="xl"
+                />
+                <TextInput
+                  label="Discord"
+                  placeholder="@usuario"
+                  value={editForm.social_links.discord}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setEditForm(prev => ({ ...prev, social_links: { ...prev.social_links, discord: value } }));
+                  }}
+                  maxLength={33}
+                  leftSection={<IconBrandDiscord size={16} />}
+                  error={getSocialLinkErrors(editForm.social_links).discord}
+                  radius="xl"
+                />
+                <Text size="xs" c="dimmed">Deja vacío cualquier campo para eliminar esa red social.</Text>
+              </Stack>
+            </Paper>
             <Paper
               p="md"
               radius="lg"
@@ -1722,11 +1720,12 @@ export default function UserProfile() {
           </Stack>
 
           {/* Botones de acción */}
-          <Group justify="flex-end" gap="sm" mt="xs">
+          <Group justify="flex-end" gap="sm" mt="xs" grow={isMobile}>
             <Button
               variant="default"
               radius="xl"
               size="md"
+              fullWidth={isMobile}
               onClick={() => setEditOpen(false)}
               style={{
                 border: `1px solid ${isDark ? 'rgba(148,163,184,0.2)' : 'rgba(0,0,0,0.1)'}`,
@@ -1741,6 +1740,7 @@ export default function UserProfile() {
               disabled={!editForm.display_name.trim()}
               leftSection={!editSaving ? <IconCheck size={16} /> : undefined}
               size="md"
+              fullWidth={isMobile}
             >
               Guardar cambios
             </PremiumButton>
