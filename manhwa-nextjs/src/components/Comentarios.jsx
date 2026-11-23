@@ -336,6 +336,7 @@ const hybridSortComments = (arr, BOOST_MINUTES = 10) => {
 
 
 export default function Comentarios({ detailRequest, openLogin, user, maxReplyDepth = 2, boostMinutes = 10, username, lang = 'es' }) {
+  const isWall = resolveCommentTarget(detailRequest)?.targetType === 'wall'
   const [commentText, setCommentText] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentSuccess, setCommentSuccess] = useState(false)
@@ -2416,9 +2417,67 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         </Text>
       )}
 
+      {isWall && !user && (
+        <div
+          role="region"
+          aria-label={lang === 'en' ? 'Sign in to comment' : 'Inicia sesión para comentar'}
+          style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: `calc(env(safe-area-inset-bottom) + ${wallKeyboardOffset}px)`,
+            width: '100%',
+            maxWidth: 760,
+            height: 72,
+            margin: '0 auto',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            borderRadius: '16px 16px 0 0',
+            border: '1px solid var(--border-color-subtle)',
+            borderBottom: 'none',
+            background: 'color-mix(in srgb, var(--subtle-bg) 94%, transparent)',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            zIndex: 40,
+          }}
+        >
+          <Text size="sm" fw={600}>
+            {lang === 'en' ? 'Sign in to comment' : 'Inicia sesión para comentar'}
+          </Text>
+          <Button
+            radius="xl"
+            onClick={openLogin}
+            style={{ flexShrink: 0 }}
+          >
+            {lang === 'en' ? 'Sign in' : 'Iniciar sesión'}
+          </Button>
+        </div>
+      )}
+
       {/* Input de Comentario Premium */}
       <div style={{
+        display: isWall && !user ? 'none' : undefined,
         marginBottom: 28,
+        order: isWall ? 3 : undefined,
+        ...(isWall ? {
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: `calc(env(safe-area-inset-bottom) + ${wallKeyboardOffset}px)`,
+          width: 'calc(100% - 24px)',
+          maxWidth: 760,
+          maxHeight: '30dvh',
+          margin: '0 auto',
+          borderRadius: '16px 16px 0 0',
+          borderBottom: 'none',
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          zIndex: 40,
+          overflowY: 'auto',
+        } : {}),
         padding: 16,
         background: 'linear-gradient(135deg, var(--subtle-bg-hover) 0%, var(--subtle-bg) 100%)',
         borderRadius: 16,
@@ -2444,8 +2503,12 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           )}
           <div style={{ flex: 1 }}>
             <Textarea
-              placeholder={lang === 'en' ? 'Share your opinion about this series...' : 'Comparte tu opinión sobre esta serie...'}
-              minRows={3}
+              placeholder={isWall
+                ? (lang === 'en' ? 'Write something on the wall...' : 'Escribe algo en el muro...')
+                : (lang === 'en' ? 'Share your opinion about this series...' : 'Comparte tu opinión sobre esta serie...')}
+              autosize
+              minRows={isWall ? 1 : 3}
+              maxRows={4}
               variant="unstyled"
               value={commentText}
               ref={commentInputRef}
@@ -2974,10 +3037,15 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           ref={commentsContainerRef}
           style={{
             overflowY: 'visible',
-            paddingRight: 8
+            paddingRight: 8,
+            ...(isWall && detailComments.length === 0 ? {
+              minHeight: 'calc(100dvh - 300px - env(safe-area-inset-bottom))',
+              display: 'flex',
+              alignItems: 'center',
+            } : {}),
           }}
         >
-          <Stack spacing="md">
+          <Stack spacing="md" style={isWall && detailComments.length === 0 ? { width: '100%' } : undefined}>
             {detailComments.length === 0 && (
               <div style={{
                 textAlign: 'center',
@@ -3002,7 +3070,9 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                   {lang === 'en' ? 'No comments yet' : 'Sin comentarios aún'}
                 </Text>
                 <Text c="dimmed" size="sm" style={{ maxWidth: 280, margin: '0 auto' }}>
-                  {lang === 'en' ? 'Be the first to share your opinion about this series!' : '¡Sé el primero en compartir tu opinión sobre esta serie!'}
+                  {isWall
+                    ? (lang === 'en' ? 'Be the first to post on the wall!' : '¡Sé el primero en publicar en el muro!')
+                    : (lang === 'en' ? 'Be the first to share your opinion about this series!' : '¡Sé el primero en compartir tu opinión sobre esta serie!')}
                 </Text>
               </div>
             )}

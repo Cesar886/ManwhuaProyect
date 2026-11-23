@@ -1,6 +1,6 @@
 .page {
   padding-top: 32px;
-  padding-bottom: 64px;
+  padding-bottom: calc(170px + env(safe-area-inset-bottom));
   max-width: 760px;
 }
 
@@ -85,7 +85,7 @@
 
 @media (max-width: 480px) {
   .page {
-    padding: 20px 12px 48px;
+    padding: 20px 12px calc(170px + env(safe-area-inset-bottom));
   }
 
   .postCard,
