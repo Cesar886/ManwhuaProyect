@@ -37,3 +37,8 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://manhwaimperial.site
           NEXT_PUBLIC_API_URL_PROD: https://manhwaimperial.site/api
         run: npm run build
+      - name: Check production site URL
+        working-directory: manhwa-nextjs
+        env:
+          NEXT_PUBLIC_SITE_URL: https://manhwaimperial.site
+        run: npm run postbuild

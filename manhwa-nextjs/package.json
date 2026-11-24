@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 5173",
     "build": "next build",
+    "postbuild": "node scripts/check-site-url.mjs",
     "build:tracker": "node scripts/build-tracker.js",
     "start": "next start",
     "lint": "next lint"

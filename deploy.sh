@@ -65,13 +65,15 @@ ssh -o BatchMode=yes "${REMOTE}" true
 log "Compilando frontend"
 cd "${FRONTEND_DIR}"
 rm -rf -- .next
-npm run build
+NEXT_PUBLIC_SITE_URL=https://manhwaimperial.site npm run build
 
 if [[ ! -d .next/standalone ]]; then
   printf 'Error: Next.js no genero .next/standalone.\n' >&2
   exit 1
 fi
 
+find .next/standalone -type f -name '.env' -delete
+find .next/standalone -type f -name '.env.*' -delete
 mkdir -p .next/standalone/.next
 cp -a .next/static .next/standalone/.next/static
 cp -a public .next/standalone/public

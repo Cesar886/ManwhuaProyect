@@ -18,7 +18,16 @@ export const SERVER_API_BASE =
     ? process.env.INTERNAL_API_URL.replace(/\/$/, '')
     : (API_BASE || '').replace(/\/$/, '')
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://manhwaimperial.site'
+export const PRODUCTION_SITE_URL = 'https://manhwaimperial.site'
+
+const configuredSiteUrl = (process.env['NEXT_PUBLIC_' + 'SITE_URL'] || '').trim().replace(/\/+$/, '')
+const isLocalSiteUrl = /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(?:\/|$)/i.test(configuredSiteUrl)
+
+export const SITE_URL = (
+  process.env.NODE_ENV === 'production' && isLocalSiteUrl
+) || !configuredSiteUrl
+  ? PRODUCTION_SITE_URL
+  : configuredSiteUrl
 
 export const SITE_NAME = 'Manhwa Imperial'
 

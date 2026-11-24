@@ -16,6 +16,29 @@ const getAvatarUrl = (person) => (
   person?.avatarUrl ?? person?.avatar_url ?? person?.avatar ?? null
 )
 
+const getProfileUrl = (person, fallbackUsername) => {
+  const profileUsername = person?.username || fallbackUsername
+  return profileUsername ? `/users/${encodeURIComponent(profileUsername)}` : null
+}
+
+function ProfileAvatar({ person, fallbackUsername, profileLabel, ...avatarProps }) {
+  const avatar = <Avatar {...avatarProps} />
+  const profileUrl = getProfileUrl(person, fallbackUsername)
+
+  if (!profileUrl) return avatar
+
+  return (
+    <a
+      href={profileUrl}
+      aria-label={profileLabel || `Ver perfil de ${person?.displayName || person?.username || fallbackUsername || 'usuario'}`}
+      title={profileLabel || `Ver perfil de ${person?.displayName || person?.username || fallbackUsername || 'usuario'}`}
+      style={{ display: 'inline-flex', borderRadius: '999px', textDecoration: 'none', flexShrink: 0 }}
+    >
+      {avatar}
+    </a>
+  )
+}
+
 function CommentActionsMenu({ canEdit, canDelete, onEdit, onDelete, onReport, compact = false }) {
   return (
     <Menu
@@ -1853,7 +1876,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 />
               </div>
               <Group spacing={8} align="flex-start">
-                <Avatar
+                <ProfileAvatar
+                  person={r.author}
                   src={getCommentAvatar(r.author)}
                   name={r.author?.displayName || r.author?.username || 'Usuario'}
                   color="initials"
@@ -2663,7 +2687,9 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           {user && (
-            <Avatar
+            <ProfileAvatar
+              person={user}
+              fallbackUsername={username}
               src={currentUserAvatar}
               name={username || user?.username || user?.displayName || 'Usuario'}
               color="initials"
@@ -3350,7 +3376,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                           <Group position="apart" mb={3} style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
                             <Group spacing={8} style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
                               <div style={{ position: 'relative' }}>
-                                <Avatar
+                                <ProfileAvatar
+                                  person={c.author}
                                   src={getCommentAvatar(c.author)}
                                   name={c.author?.displayName || c.author?.username || 'Usuario'}
                                   color="initials"

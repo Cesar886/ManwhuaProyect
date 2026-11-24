@@ -10,6 +10,7 @@ import { generateWebSiteJsonLd, generateOrganizationJsonLd, generateWebApplicati
 import NavigationProgress from '@/components/NavigationProgress'
 import MainLayout from '@/components/MainLayout'
 import HtmlLangSync from '@/components/HtmlLangSync'
+import { SITE_URL } from '@/config'
 
 /**
  * SEO Metadata Global
@@ -62,7 +63,7 @@ export const metadata = {
   authors: [{ name: 'Manhwa Imperial' }],
   creator: 'Manhwa Imperial',
   publisher: 'Manhwa Imperial',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(SITE_URL),
   alternates: {
     canonical: '/',
     languages: {
