@@ -581,14 +581,14 @@ function getGreetingExplanation(lang) {
 const USER_MESSAGES_BY_LANG = {
     es: {
         directResults: ({ q }) => `Resultados directos para "${q}"`,
-        semanticResults: ({ q }) => `Resultados semánticos para "${q}"`,
+        semanticResults: ({ q }) => `Resultados para "${q}"`,
         foundResults: ({ q }) => `Encontré estos resultados para "${q}"`,
         noResults: ({ q }) => `No encontré resultados para "${q}". Intenta describir lo que buscas de otra forma.`,
         resultsFor: ({ q }) => `Resultados para "${q}"`,
     },
     en: {
         directResults: ({ q }) => `Direct results for "${q}"`,
-        semanticResults: ({ q }) => `Semantic results for "${q}"`,
+        semanticResults: ({ q }) => `Results for "${q}"`,
         foundResults: ({ q }) => `Here's what I found for "${q}"`,
         noResults: ({ q }) => `No results for "${q}". Try describing what you're looking for differently.`,
         resultsFor: ({ q }) => `Results for "${q}"`,
@@ -2638,13 +2638,51 @@ const GENRE_CAROUSEL_RULES = [
 const LAST_QUERY_TITLE_TEMPLATES = [
     'Basado en tu interés por "{query}"',
     'Más ideas relacionadas con "{query}" para ti',
-    'Recomendaciones para tu búsqueda de "{query}"'
+    'Recomendaciones para tu búsqueda de "{query}"',
+    'Porque buscaste "{query}"',
+    'Historias parecidas a "{query}"',
+    'Para seguir con "{query}"',
+    'Quizás te guste, según "{query}"',
+    'Inspirado en tu búsqueda: "{query}"',
+    'Lecturas que van con "{query}"',
+    'Más como "{query}"',
+    'Elegidos para "{query}"',
+    'Sigue explorando "{query}"',
+    'Lo más cercano a "{query}"',
+    'Tus próximas lecturas tras buscar "{query}"',
+    'Te recomendamos, según "{query}"',
+    'Mundos similares a "{query}"'
 ];
 
 const LAST_QUERY_SUBTITLE_TEMPLATES = [
-    'Te dejamos una seleccion afinada para que no pierdas tiempo.',
-    'Elegimos recomendaciones que van directo con esa idea.',
-    'Partimos de esa consulta para mostrarte lo mas cercano.'
+    'Elegidos a mano para ti.',
+    'Estos van con lo que buscabas.',
+    'Por si no encontraste lo que querías.',
+    'Para que sigas leyendo.',
+    'Lo más parecido a tu búsqueda.',
+    'Empieza por cualquiera de estos.',
+    'Seguro encuentras tu próxima lectura.',
+    'Pensados para tu búsqueda.',
+    'Vale la pena echarles un vistazo.',
+    'Tu próxima lectura puede estar aquí.',
+    'Más opciones para seguir explorando.',
+    'Directo a lo que te interesa.',
+    'Dale una oportunidad a estos.',
+    'Quizás aquí está tu siguiente favorito.',
+    'Tenemos algo parecido para ti.',
+    'Mira si alguno te convence.',
+    'Historias que van con tu estilo.',
+    'Aquí hay más de lo que te gusta.',
+    'Para que no te quedes sin qué leer.',
+    'Una selección rápida para ti.',
+    'Prueba con alguno de estos.',
+    'Los más cercanos a tu idea.',
+    'Ideas frescas para tu próxima lectura.',
+    'Echa un ojo a estos títulos.',
+    'Pensamos que te pueden gustar.',
+    'Lo mejor que encontramos para ti.',
+    'Descubre algo nuevo con estos.',
+    'Sigue la lectura por aquí.'
 ];
 
 const RECENT_QUERY_TITLE_TEMPLATES = [
@@ -2654,9 +2692,26 @@ const RECENT_QUERY_TITLE_TEMPLATES = [
 ];
 
 const RECENT_QUERY_SUBTITLE_TEMPLATES = [
-    'Tomamos tus intereses recientes y armamos esta fila para ti.',
-    'Basado en lo que vienes explorando, esto encaja muy bien.',
-    'Contenido curado desde tus ultimas consultas IA.'
+    'Esto encaja contigo.',
+    'Según lo que exploras.',
+    'Va con tus gustos.',
+    'Elegido para ti.',
+    'Hecho a tu medida.',
+    'Lo que te interesa.',
+    'Tus gustos recientes.',
+    'Seguro te gusta.',
+    'Va con tu estilo.',
+    'Pensado para ti.',
+    'Más de lo que buscas.',
+    'Encaja con tu búsqueda.',
+    'Tu próxima lectura.',
+    'Siguiendo tu vibe.',
+    'Prueba estos.',
+    'Parecido a lo tuyo.',
+    'Según tu historial.',
+    'Algo nuevo para ti.',
+    'Cerca de lo que buscas.',
+    'Te pueden gustar.',
 ];
 
 function sanitizeIncomingHistory(rawHistory) {

@@ -1431,9 +1431,6 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
         {smartRecommendation.loading && (
           <section className={styles.querySection}>
             <div className={styles.queryRow}>
-              <div className={styles.queryHeader}>
-                <h2 className={styles.queryName}>{t.home.recommendationsForYou}</h2>
-              </div>
               <div className={styles.queryScroll}>
                 <PremiumSkeletonGrid count={6} />
               </div>
