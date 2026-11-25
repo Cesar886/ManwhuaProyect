@@ -467,7 +467,7 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
                                                         {getSeriesTypeLabel(series)}
                                                     </span>
                                                     <ManhwaCover
-                                                        src={normalizeImageUrl(series.coverUrl || series.cover_url || series.cover || series.coverUrlWeb || series.cover_url_web || series.coverUrlTmo || series.cover_url_tmo || series.coverUrlOni || series.cover_url_oni) || ''}
+                                                        src={series}
                                                         fallbackSrc={[
                                                             series.coverUrlWeb, series.cover_url_web,
                                                             series.coverUrlTmo, series.cover_url_tmo,

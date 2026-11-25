@@ -387,6 +387,10 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
               cover_url:     s.cover_url     || init.cover_url,
               coverUrlWeb:   s.coverUrlWeb   || init.coverUrlWeb,
               cover_url_web: s.cover_url_web || init.cover_url_web,
+              coverUrlTmo: s.coverUrlTmo || init.coverUrlTmo,
+              cover_url_tmo: s.cover_url_tmo || init.cover_url_tmo,
+              coverUrlOni: s.coverUrlOni || init.coverUrlOni,
+              cover_url_oni: s.cover_url_oni || init.cover_url_oni,
             }
           })
           setSeries(merged)
@@ -1158,7 +1162,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                       const c = normalizeImageUrl(s.cover || s.coverUrl || s.cover_url || s.coverUrlWeb || s.cover_url_web) || ''
                       return c ? (
                         <div key={s.slug} className={styles.surpriseFanCard} style={{ '--fi': i }}>
-                          <ManhwaCover src={c} fallbackSrc={c} slug={s.slug} alt="" className={styles.heroCoverImg} sizes="120px" />
+                          <ManhwaCover src={s} fallbackSrc={[s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.coverUrlWeb, s.coverUrlTmo, s.coverUrlOni].map(normalizeImageUrl).filter(Boolean)} slug={s.slug} alt="" className={styles.heroCoverImg} sizes="120px" />
                         </div>
                       ) : null
                     })}
@@ -1209,7 +1213,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   </div>
 
                   <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroCoverWrap} tabIndex={-1}>
-                    <ManhwaCover src={heroCover} fallbackSrc={heroCover} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
+                    <ManhwaCover src={heroSeries} fallbackSrc={[heroSeries.cover_url_web, heroSeries.cover_url_tmo, heroSeries.cover_url_oni, heroSeries.coverUrlWeb, heroSeries.coverUrlTmo, heroSeries.coverUrlOni].map(normalizeImageUrl).filter(Boolean)} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
                     <div className={styles.heroCoverGlow} style={{ backgroundImage: `url(${heroCover})` }} />
                   </Link>
                 </>
@@ -1328,8 +1332,8 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     <span className={styles.top10Rank} data-rank={i + 1}>{i + 1}</span>
                     <div className={styles.top10Card}>
                       <ManhwaCover
-                        src={cover}
-                        fallbackSrc={[item.coverUrlWeb, item.cover_url_web, item.coverUrlTmo, item.cover_url_tmo, item.coverUrlOni, item.cover_url_oni, item.cover, item.coverUrl, item.cover_url, cover].map(normalizeImageUrl).filter(Boolean)}
+                        src={item}
+                        fallbackSrc={[item.cover_url_web, item.cover_url_tmo, item.cover_url_oni, item.coverUrlWeb, item.cover_url_web, item.coverUrlTmo, item.cover_url_tmo, item.coverUrlOni, item.cover_url_oni, item.cover, item.coverUrl, item.cover_url, cover].map(normalizeImageUrl).filter(Boolean)}
                         slug={item.slug}
                         alt={getImageAlt.cover(item.title, lang)}
                         className={styles.top10Img}
@@ -1398,8 +1402,8 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     >
                       <div className={styles.popularCard}>
                         <ManhwaCover
-                          src={normalizeImageUrl(cover) || ''}
-                          fallbackSrc={normalizeImageUrl(cover) || ''}
+                          src={item.series || item}
+                          fallbackSrc={[item.cover_url_web, item.cover_url_tmo, item.cover_url_oni, item.coverUrlWeb, item.coverUrlTmo, item.coverUrlOni, item.cover].map(normalizeImageUrl).filter(Boolean)}
                           slug={slug}
                           alt={getImageAlt.cover(title, lang)}
                           className={styles.popularImg}
@@ -1495,7 +1499,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                       >
                         <div className={styles.popularCard}>
                           <ManhwaCover
-                            src={normalizeImageUrl(item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web) || ''}
+                            src={item}
                             fallbackSrc={[item.coverUrlWeb, item.cover_url_web, item.coverUrlTmo, item.cover_url_tmo, item.coverUrlOni, item.cover_url_oni, item.cover, item.coverUrl, item.cover_url].map(normalizeImageUrl).filter(Boolean)}
                             slug={item.slug}
                             alt={getImageAlt.cover(item.title, lang)}
@@ -1567,7 +1571,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   >
                     <div className={styles.popularCard}>
                       <ManhwaCover
-                        src={normalizeImageUrl(item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web) || ''}
+                        src={item}
                         fallbackSrc={[item.coverUrlWeb, item.cover_url_web, item.coverUrlTmo, item.cover_url_tmo, item.coverUrlOni, item.cover_url_oni, item.cover, item.coverUrl, item.cover_url].map(normalizeImageUrl).filter(Boolean)}
                         slug={item.slug}
                         alt={getImageAlt.cover(item.title, lang)}
@@ -1663,7 +1667,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                       >
                         <div className={styles.popularCard}>
                           <ManhwaCover
-                            src={normalizeImageUrl(item.cover) || ''}
+                            src={item}
                             fallbackSrc={normalizeImageUrl(item.cover) || ''}
                             slug={item.slug}
                             alt={getImageAlt.cover(item.title, lang)}

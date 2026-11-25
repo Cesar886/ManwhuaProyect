@@ -531,15 +531,15 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
     const unique = new Set();
     const candidates = [
-      localCoverUrl,
-      series?.coverUrl,
       series?.cover_url,
-      series?.coverUrlWeb,
       series?.cover_url_web,
-      series?.coverUrlTmo,
       series?.cover_url_tmo,
-      series?.coverUrlOni,
       series?.cover_url_oni,
+      series?.coverUrl,
+      series?.coverUrlWeb,
+      series?.coverUrlTmo,
+      series?.coverUrlOni,
+      localCoverUrl,
       series?.cover,
     ]
       .map(sanitizeCover)
@@ -551,7 +551,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
     return {
       primary: candidates[0] || null,
-      fallback: candidates[1] || null,
+      fallback: candidates.slice(1),
     };
   }, [localCoverUrl, series?.coverUrl, series?.cover_url, series?.coverUrlWeb, series?.cover_url_web, series?.coverUrlTmo, series?.cover_url_tmo, series?.coverUrlOni, series?.cover_url_oni, series?.cover]);
 
@@ -561,14 +561,14 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
   );
 
   const normalizedFallbackCover = useMemo(
-    () => normalizeImageUrl(effectiveCoverUrls.fallback) || '',
+    () => effectiveCoverUrls.fallback.map(normalizeImageUrl).filter(Boolean),
     [effectiveCoverUrls.fallback]
   );
 
   const heroBackgroundImage = useMemo(() => {
     const gradient = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
-    if (normalizedPrimaryCover && normalizedFallbackCover) {
-      return `url(${normalizedPrimaryCover}), url(${normalizedFallbackCover}), ${gradient}`;
+    if (normalizedPrimaryCover && normalizedFallbackCover.length) {
+      return `url(${normalizedPrimaryCover}), ${normalizedFallbackCover.map((url) => `url(${url})`).join(', ')}, ${gradient}`;
     }
     if (normalizedPrimaryCover) {
       return `url(${normalizedPrimaryCover}), ${gradient}`;

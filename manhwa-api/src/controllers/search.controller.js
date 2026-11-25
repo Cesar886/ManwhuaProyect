@@ -4,6 +4,7 @@
 
 const crypto = require('crypto');
 const { query } = require('../config/database');
+const { mapSeriesCoverFields } = require('../utils/seriesCover');
 
 const envLimit = (name, fallback) => Math.max(1, parseInt(process.env[name], 10) || fallback);
 const IA_DAILY_LIMITS = Object.freeze({
@@ -138,7 +139,7 @@ const search = async (req, res, next) => {
 
         // Buscar series
         const seriesResult = await query(
-            `SELECT id, title, slug, cover_url, status, rating_average, chapter_count
+            `SELECT id, title, slug, cover_url, cover_url_web, cover_url_tmo, cover_url_oni, status, rating_average, chapter_count
              FROM series
              WHERE deleted_at IS NULL AND is_adult = false
                    AND (title ILIKE $1 OR original_title ILIKE $1 OR synopsis ILIKE $1)
@@ -182,7 +183,7 @@ const search = async (req, res, next) => {
                         id: s.id,
                         title: s.title,
                         slug: s.slug,
-                        coverUrl: s.cover_url,
+                        ...mapSeriesCoverFields(s),
                         status: s.status,
                         rating: parseFloat(s.rating_average),
                         chapterCount: s.chapter_count
@@ -502,7 +503,7 @@ const autocomplete = async (req, res, next) => {
         const containsTerm = `%${trimmed}%`;
 
         const result = await query(
-            `SELECT s.title, s.slug, s.cover_url, s.content_type,
+            `SELECT s.title, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.content_type,
                     COALESCE(
                         (SELECT json_agg(json_build_object('name', g.name, 'slug', g.slug))
                          FROM (
@@ -529,7 +530,7 @@ const autocomplete = async (req, res, next) => {
                 suggestions: result.rows.map(r => ({
                     title: r.title,
                     slug: r.slug,
-                    coverUrl: r.cover_url,
+                    ...mapSeriesCoverFields(r),
                     contentType: r.content_type,
                     genres: r.genres,
                     type: 'series'
@@ -634,7 +635,7 @@ const advancedSearch = async (req, res, next) => {
         const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
         
         const result = await query(
-            `SELECT s.id, s.title, s.original_title, s.slug, s.cover_url, s.status,
+            `SELECT s.id, s.title, s.original_title, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status,
                     s.content_type, s.view_count, s.rating_average, s.chapter_count,
                     s.release_year, s.is_hot, s.is_new,
                     COALESCE(
@@ -665,7 +666,7 @@ const advancedSearch = async (req, res, next) => {
                     title: s.title,
                     originalTitle: s.original_title,
                     slug: s.slug,
-                    coverUrl: s.cover_url,
+                    ...mapSeriesCoverFields(s),
                     status: s.status,
                     contentType: s.content_type,
                     views: s.view_count,

@@ -3,6 +3,7 @@ import { generateCollectionPageJsonLd, generateBreadcrumbJsonLd } from '@/lib/se
 import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 import Link from 'next/link'
 import { extractSeries, fetchInternalJson } from '@/lib/seo/serverFetch'
+import ManhwaCover from '@/components/ManhwaCover'
 
 export const dynamic = 'force-dynamic'
 import styles from './GenrePage.module.css'
@@ -18,7 +19,7 @@ function normText(str) {
 }
 
 function getCover(s) {
-  return s?.coverUrl || s?.cover_url || s?.cover || s?.coverUrlWeb || s?.cover_url_web || s?.coverUrlTmo || s?.cover_url_tmo || s?.coverUrlOni || s?.cover_url_oni || ''
+  return s?.cover_url || s?.cover_url_web || s?.cover_url_tmo || s?.cover_url_oni || s?.coverUrl || s?.coverUrlWeb || s?.coverUrlTmo || s?.coverUrlOni || s?.cover || ''
 }
 
 function getChapters(s) {
@@ -172,16 +173,7 @@ export default async function GenrePage({ params }) {
                   title={s.title}
                 >
                   <div className={styles.coverWrapper}>
-                    {getCover(s) ? (
-                      <img
-                        src={getCover(s)}
-                        alt={s.title}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <div className={styles.coverPlaceholder} />
-                    )}
+                    <ManhwaCover src={s} slug={s.slug} alt={s.title} className={styles.coverImage} />
                   </div>
                   <span className={styles.seriesTitle}>{s.title}</span>
                   {getChapters(s) > 0 && (

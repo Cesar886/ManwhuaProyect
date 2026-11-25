@@ -7,6 +7,7 @@ import {
   generateWebPageJsonLd,
 } from '@/lib/seo/jsonld'
 import styles from './RankingSeries.module.css'
+import ManhwaCover from '@/components/ManhwaCover'
 
 export const revalidate = 3600
 export const dynamic = 'force-dynamic'
@@ -52,7 +53,7 @@ export const metadata = {
 }
 
 function getCover(s) {
-  return s?.coverUrl || s?.cover_url || s?.cover || s?.coverUrlWeb || s?.cover_url_web || s?.coverUrlTmo || s?.cover_url_tmo || s?.coverUrlOni || s?.cover_url_oni || ''
+  return s?.cover_url || s?.cover_url_web || s?.cover_url_tmo || s?.cover_url_oni || s?.coverUrl || s?.coverUrlWeb || s?.coverUrlTmo || s?.coverUrlOni || s?.cover || ''
 }
 
 function getChapters(s) {
@@ -158,11 +159,7 @@ export default async function RankingSeriesPage() {
 
                     <Link href={`/manhwa/${s.slug}`} className={styles.card} title={s.title}>
                       <div className={styles.cover}>
-                        {cover ? (
-                          <img src={cover} alt={s.title} loading={rank <= 6 ? 'eager' : 'lazy'} decoding="async" />
-                        ) : (
-                          <div className={styles.coverFallback} />
-                        )}
+                        <ManhwaCover src={s} slug={s.slug} alt={s.title} priority={rank <= 6} className={styles.coverImage} />
                       </div>
 
                       <div className={styles.info}>

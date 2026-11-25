@@ -3,6 +3,7 @@
  */
 
 const { query } = require('../config/database');
+const { mapSeriesCoverFields } = require('../utils/seriesCover');
 
 /**
  * Obtener bookmarks del usuario
@@ -36,7 +37,7 @@ const getBookmarks = async (req, res, next) => {
         
         const result = await query(
             `SELECT b.*, 
-                    s.id as series_id, s.title, s.slug, s.cover_url, s.status,
+                    s.id as series_id, s.title, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status,
                     s.chapter_count, s.rating_average, s.content_type, s.last_chapter_at,
                     c.number as last_read_number, c.title as last_read_title, c.slug as last_read_slug,
                     COALESCE(
@@ -69,7 +70,7 @@ const getBookmarks = async (req, res, next) => {
                         id: b.series_id,
                         title: b.title,
                         slug: b.slug,
-                        coverUrl: b.cover_url,
+                        ...mapSeriesCoverFields(b),
                         status: b.status,
                         chapterCount: b.chapter_count,
                         rating: parseFloat(b.rating_average),

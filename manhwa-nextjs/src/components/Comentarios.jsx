@@ -13,6 +13,8 @@ import { useSpaces } from '../hooks/useSpaces'
 import { normalizeImageUrl } from '../utils/imageUtils'
 
 const LEVEL_ICONS = { IconBook, IconSword, IconShield, IconCrown }
+const PRODUCTION_API_BASE = String(process.env.NEXT_PUBLIC_API_URL_PROD || '').replace(/\/+$/, '')
+const INTERNAL_API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
 const getAvatarUrl = (person) => (
   person?.avatarUrl ?? person?.avatar_url ?? person?.avatar ?? null
@@ -527,6 +529,75 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
   const [replyPages, setReplyPages] = useState({}) // { [commentId]: { page, totalPages, limit } }
   const [repliesLoadingState, setRepliesLoadingState] = useState({}) // { [commentId]: boolean }
   const repliesCacheRef = useRef({}) // caché de respuestas ya cargadas
+  const requestedRecommendationCoversRef = useRef(new Set())
+  const [fallbackRecommendationCovers, setFallbackRecommendationCovers] = useState({})
+
+  useEffect(() => {
+    const recommendations = []
+    const collect = (items) => {
+      for (const comment of items || []) {
+        if (comment?.recommendedSeries) recommendations.push(comment.recommendedSeries)
+        if (Array.isArray(comment?.replies)) collect(comment.replies)
+      }
+    }
+    collect(detailComments)
+    if (recommendedSeries) recommendations.push(recommendedSeries)
+    Object.values(replyBoxes || {}).forEach((box) => {
+      if (box?.recommendedSeries) recommendations.push(box.recommendedSeries)
+    })
+
+    for (const series of recommendations) {
+      const normalizedTitle = normalizeSeriesTitle(series?.title)
+      const catalogMatch = (Array.isArray(catalogSeries) ? catalogSeries : []).find((item) => (
+        (series?.slug && item?.slug && String(item.slug).toLowerCase() === String(series.slug).toLowerCase()) ||
+        (series?.id && item?.id && String(item.id) === String(series.id)) ||
+        (normalizedTitle && normalizedTitle === normalizeSeriesTitle(item?.title))
+      ))
+      const slug = String(series?.slug || catalogMatch?.slug || '').trim()
+      if (!slug || requestedRecommendationCoversRef.current.has(slug)) continue
+      requestedRecommendationCoversRef.current.add(slug)
+
+      const loadCover = async () => {
+        let coverUrls = []
+
+        // La base de producción contiene las portadas definitivas aunque el
+        // catálogo local de desarrollo todavía tenga sus columnas vacías.
+        if (PRODUCTION_API_BASE) {
+          try {
+            const response = await fetch(`${PRODUCTION_API_BASE}/series/${encodeURIComponent(slug)}`, {
+              credentials: 'include',
+              headers: {
+                Accept: 'application/json',
+                ...(INTERNAL_API_KEY ? { 'x-api-key': INTERNAL_API_KEY } : {})
+              }
+            })
+            if (response.ok) {
+              const result = await response.json()
+              const productionSeries = result?.data?.series || result?.data || result?.series
+              coverUrls = getRecommendedSeriesCovers(productionSeries)
+            }
+          } catch { /* El fallback local mantiene disponible la recomendación. */ }
+        }
+
+        if (!coverUrls.length) {
+          try {
+            const result = await api.get('spaces', `manhwas/${encodeURIComponent(slug)}/cover`, {
+              cache: true,
+              cacheTTL: 60 * 60 * 1000
+            })
+            coverUrls = getRecommendedSeriesCovers(result?.data)
+          } catch { /* La recomendación sigue visible aunque no exista imagen. */ }
+        }
+
+        if (coverUrls.length) {
+          setFallbackRecommendationCovers((previous) => ({ ...previous, [slug]: coverUrls }))
+        }
+      }
+
+      loadCover()
+    }
+
+  }, [detailComments, recommendedSeries, replyBoxes, catalogSeries])
 
   // Nuevo: estado para autocompletado de menciones (main y por reply box)
   const [mentionSuggestions, setMentionSuggestions] = useState({}) // { key: { visible, items, query } }
@@ -1322,10 +1393,28 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     const timer = setTimeout(async () => {
       setSeriesSearching(true)
       try {
-        const res = await api.get('search', `series?q=${encodeURIComponent(seriesSearch.trim())}&limit=8`)
+        let res
+        if (PRODUCTION_API_BASE) {
+          const response = await fetch(`${PRODUCTION_API_BASE}/search/series?q=${encodeURIComponent(seriesSearch.trim())}&limit=8`, {
+            credentials: 'include',
+            headers: {
+              Accept: 'application/json',
+              ...(INTERNAL_API_KEY ? { 'x-api-key': INTERNAL_API_KEY } : {})
+            }
+          })
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          res = await response.json()
+        } else {
+          res = await api.get('search', `series?q=${encodeURIComponent(seriesSearch.trim())}&limit=8`)
+        }
         const rows = res?.data?.results?.series || res?.data?.series || res?.results?.series || []
         setSeriesResults(rows)
-      } catch { setSeriesResults([]) } finally { setSeriesSearching(false) }
+      } catch {
+        try {
+          const res = await api.get('search', `series?q=${encodeURIComponent(seriesSearch.trim())}&limit=8`)
+          setSeriesResults(res?.data?.results?.series || res?.data?.series || res?.results?.series || [])
+        } catch { setSeriesResults([]) }
+      } finally { setSeriesSearching(false) }
     }, 250)
     return () => clearTimeout(timer)
   }, [seriesPickerOpen, seriesSearch])
@@ -2714,17 +2803,34 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         return title && title === normalizeSeriesTitle(item?.title)
       })
     const slug = String(series.slug || catalogMatch?.slug || '').trim()
+    const productionCovers = Array.isArray(fallbackRecommendationCovers[slug])
+      ? fallbackRecommendationCovers[slug]
+      : getRecommendedSeriesCovers({ coverUrl: fallbackRecommendationCovers[slug] })
     const coverUrls = [
+      ...productionCovers,
       ...getRecommendedSeriesCovers(catalogMatch),
       ...getRecommendedSeriesCovers(series)
-    ].map((cover) => normalizeImageUrl(cover.startsWith('//') ? `https:${cover}` : cover))
-      .filter(Boolean)
+    ].filter((cover) => typeof cover === 'string' && cover.trim())
+      .map((cover) => cover.trim())
+      .map((cover) => normalizeImageUrl(cover.startsWith('//') ? `https:${cover}` : cover))
+      .filter((cover) => typeof cover === 'string' && cover.trim())
       .filter((cover, index, covers) => covers.indexOf(cover) === index)
     if (!coverUrls.length || !slug) return null
     const title = series.title || catalogMatch?.title || 'Manhwa recomendado'
 
     return (
-      <a href={`/manhwa/${slug}`} aria-label={`Abrir ${title}`} style={{ display: 'inline-block', marginTop: 12, color: 'inherit', textDecoration: 'none', lineHeight: 0 }}>
+      <a
+        href={`/manhwa/${slug}`}
+        aria-label={`Abrir ${title}`}
+        style={{
+          display: 'block',
+          width: 'fit-content',
+          marginTop: 10,
+          color: 'inherit',
+          textDecoration: 'none',
+          lineHeight: 0
+        }}
+      >
         <img
           src={coverUrls[0]}
           alt={title}
@@ -2736,9 +2842,40 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
               event.currentTarget.src = coverUrls[nextIndex]
             }
           }}
-          style={{ width: 88, height: 124, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+          style={{
+            width: 92,
+            height: 130,
+            objectFit: 'cover',
+            borderRadius: 7,
+            display: 'block'
+          }}
         />
       </a>
+    )
+  }
+
+  const renderSeriesPickerCover = (series, width, height) => {
+    const covers = getRecommendedSeriesCovers(series)
+      .map((cover) => normalizeImageUrl(cover.startsWith('//') ? `https:${cover}` : cover))
+      .filter(Boolean)
+    if (!covers.length) return null
+
+    return (
+      <img
+        src={covers[0]}
+        alt={series.title || ''}
+        onError={(event) => {
+          const failedIndex = Number(event.currentTarget.dataset.coverIndex || 0)
+          const nextIndex = failedIndex + 1
+          if (nextIndex < covers.length) {
+            event.currentTarget.dataset.coverIndex = String(nextIndex)
+            event.currentTarget.src = covers[nextIndex]
+          } else {
+            event.currentTarget.style.display = 'none'
+          }
+        }}
+        style={{ width, height, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+      />
     )
   }
 
@@ -2934,13 +3071,13 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
               </div>
             )}
             {isWall && seriesPickerOpen && !seriesPickerTarget && (
-              <div style={{ marginTop: 10, padding: 10, border: '1px solid var(--border-color-subtle)', borderRadius: 12, background: 'var(--card-bg-solid)' }}>
-                <TextInput autoFocus value={seriesSearch} onChange={(e) => setSeriesSearch(e.currentTarget.value)} placeholder={lang === 'en' ? 'Search a manhwa...' : 'Buscar un manhwa...'} styles={{ input: { paddingLeft: 12 } }} />
+              <div style={{ marginTop: 10, padding: 10, border: '1px solid var(--border-color-subtle)', borderRadius: 12, background: 'transparent' }}>
+                <TextInput autoFocus value={seriesSearch} onChange={(e) => setSeriesSearch(e.currentTarget.value)} placeholder={lang === 'en' ? 'Search a manhwa...' : 'Buscar un manhwa...'} styles={{ input: { paddingLeft: 12, background: 'transparent', color: 'var(--text-color)' } }} />
                 {seriesSearching && <Text size="xs" c="dimmed" mt={6}>Buscando...</Text>}
-                <div style={{ display: 'flex', gap: 10, marginTop: 10, overflowX: 'auto', padding: '2px 2px 8px', scrollbarWidth: 'thin' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: 10, marginTop: 10, maxHeight: 230, overflowY: 'auto', padding: '2px 2px 8px', scrollbarWidth: 'thin' }}>
                   {seriesResults.map((series) => (
-                    <button key={series.id} type="button" title={series.title} onClick={() => chooseRecommendedSeries(series)} style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', flex: '0 0 78px', border: '1px solid var(--border-color-subtle)', borderRadius: 9, padding: 5, background: 'transparent', color: 'var(--text-color)', cursor: 'pointer' }}>
-                      <img src={series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web || series.coverUrlOni || series.cover_url_oni} alt={series.title || ''} style={{ width: 68, height: 96, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
+                    <button key={series.id} type="button" title={series.title} onClick={() => chooseRecommendedSeries(series)} style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', minWidth: 0, border: '1px solid var(--border-color-subtle)', borderRadius: 9, padding: 6, background: 'var(--subtle-bg)', color: 'var(--text-color)', cursor: 'pointer' }}>
+                      {renderSeriesPickerCover(series, 68, 96)}
                       <span style={{ fontSize: 10, fontWeight: 600, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{series.title}</span>
                     </button>
                   ))}
@@ -3987,12 +4124,12 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                       </div>
                                     )}
                                     {seriesPickerOpen && seriesPickerTarget === c.id && (
-                                      <div style={{ marginTop: 8, padding: 8, border: '1px solid var(--border-color-subtle)', borderRadius: 10, background: 'var(--card-bg-solid)' }}>
-                                        <TextInput autoFocus value={seriesSearch} onChange={(e) => setSeriesSearch(e.currentTarget.value)} placeholder="Buscar un manhwa..." styles={{ input: { paddingLeft: 12 } }} />
-                                        <div style={{ display: 'flex', gap: 9, marginTop: 9, overflowX: 'auto', padding: '2px 2px 7px', scrollbarWidth: 'thin' }}>
+                                      <div style={{ marginTop: 8, padding: 8, border: '1px solid var(--border-color-subtle)', borderRadius: 10, background: 'transparent' }}>
+                                        <TextInput autoFocus value={seriesSearch} onChange={(e) => setSeriesSearch(e.currentTarget.value)} placeholder="Buscar un manhwa..." styles={{ input: { paddingLeft: 12, background: 'transparent', color: 'var(--text-color)' } }} />
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(82px, 1fr))', gap: 9, marginTop: 9, maxHeight: 210, overflowY: 'auto', padding: '2px 2px 7px', scrollbarWidth: 'thin' }}>
                                           {seriesResults.map((series) => (
-                                            <button key={series.id} type="button" title={series.title} onClick={() => chooseRecommendedSeries(series)} style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', flex: '0 0 70px', border: '1px solid var(--border-color-subtle)', borderRadius: 8, padding: 4, background: 'transparent', color: 'var(--text-color)', cursor: 'pointer' }}>
-                                              <img src={series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web || series.coverUrlOni || series.cover_url_oni} alt={series.title || ''} style={{ width: 60, height: 84, objectFit: 'cover', borderRadius: 5, display: 'block' }} />
+                                            <button key={series.id} type="button" title={series.title} onClick={() => chooseRecommendedSeries(series)} style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', minWidth: 0, border: '1px solid var(--border-color-subtle)', borderRadius: 8, padding: 5, background: 'var(--subtle-bg)', color: 'var(--text-color)', cursor: 'pointer' }}>
+                                              {renderSeriesPickerCover(series, 60, 84)}
                                               <span style={{ fontSize: 10, fontWeight: 600, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{series.title}</span>
                                             </button>
                                           ))}

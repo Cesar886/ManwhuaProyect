@@ -16,7 +16,7 @@ const handleResponse = async (res) => {
 
 // Build headers. Using cookie-based auth (httpOnly) — do not read token from localStorage.
 // Include internal API key for backend access control (defense-in-depth).
-const API_KEY = process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
+const API_KEY = process.env.INTERNAL_API_KEY || process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 const getAuthHeaders = (extra = {}) => ({
   ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
   ...extra,

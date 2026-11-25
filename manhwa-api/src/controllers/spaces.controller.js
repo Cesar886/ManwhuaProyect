@@ -3,7 +3,7 @@
  * Lee la estructura de manhwas directamente desde Spaces y los expone via webhook/SSE
  */
 
-const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { S3Client, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { query } = require('../config/database');
 const logger = require('../utils/logger');
 
@@ -263,6 +263,10 @@ const seriesToArray = async (seriesMap) => {
         seriesArray.push({
             slug: series.slug,
             title: dbData?.title || series.title,
+            cover_url: dbData?.cover_url || null,
+            cover_url_web: dbData?.cover_url_web || null,
+            cover_url_tmo: dbData?.cover_url_tmo || null,
+            cover_url_oni: dbData?.cover_url_oni || null,
             cover: dbData?.cover_url || dbData?.cover_url_web || dbData?.cover_url_tmo || dbData?.cover_url_oni || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
                 ? chapters[0].pages[0].url
                 : null),
@@ -312,10 +316,14 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
         seriesArray.push({
             slug: series.slug,
             title: dbData?.title || series.title,
-            cover: dbData?.cover_url || dbData?.cover_url_tmo || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
+            cover_url: dbData?.cover_url || null,
+            cover_url_web: dbData?.cover_url_web || null,
+            cover_url_tmo: dbData?.cover_url_tmo || null,
+            cover_url_oni: dbData?.cover_url_oni || null,
+            cover: dbData?.cover_url || dbData?.cover_url_web || dbData?.cover_url_tmo || dbData?.cover_url_oni || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
                 ? chapters[0].pages[0].url
                 : null),
-            coverUrl: dbData?.cover_url || dbData?.cover_url_tmo || series.cover,
+            coverUrl: dbData?.cover_url || dbData?.cover_url_web || dbData?.cover_url_tmo || dbData?.cover_url_oni || series.cover,
             coverUrlTmo: dbData?.cover_url_tmo || null,
             coverUrlWeb: dbData?.cover_url_web || null,
             coverUrlOni: dbData?.cover_url_oni || null,
@@ -551,8 +559,15 @@ const getSeriesFromDatabase = async () => {
         const series = result.rows.map(row => ({
             slug: row.slug,
             title: row.title,
+            cover_url: row.cover_url || null,
+            cover_url_web: row.cover_url_web || null,
+            cover_url_tmo: row.cover_url_tmo || null,
+            cover_url_oni: row.cover_url_oni || null,
             cover: row.cover_url || row.cover_url_web || row.cover_url_tmo || row.cover_url_oni,
             coverUrl: row.cover_url || row.cover_url_web || row.cover_url_tmo || row.cover_url_oni,
+            coverUrlWeb: row.cover_url_web || null,
+            coverUrlTmo: row.cover_url_tmo || null,
+            coverUrlOni: row.cover_url_oni || null,
             status: row.status || 'ongoing',
             chapterCount: getChapterCount(row.slug),
             chapters: [],
@@ -646,8 +661,13 @@ const listManhwasFromDatabase = async (req, res, next) => {
         const series = result.rows.map(row => ({
             slug: row.slug,
             title: row.title,
+            cover_url: row.cover_url || null,
+            cover_url_web: row.cover_url_web || null,
+            cover_url_tmo: row.cover_url_tmo || null,
+            cover_url_oni: row.cover_url_oni || null,
             cover: row.cover_url || row.cover_url_web || row.cover_url_tmo || row.cover_url_oni,
             coverUrl: row.cover_url || row.cover_url_web || row.cover_url_tmo || row.cover_url_oni,
+            coverUrlWeb: row.cover_url_web || null,
             coverUrlTmo: row.cover_url_tmo || null,
                     coverUrlWeb: row.cover_url_web || null,
                     coverUrlOni: row.cover_url_oni || null,
@@ -917,7 +937,7 @@ const getManhwaFromSpaces = async (req, res, next) => {
         try {
             // Consulta unificada: serie + autor + géneros en una sola query
             const dbResult = await query(
-                `SELECT s.id, s.cover_url, s.cover_url_tmo, s.title, s.original_title, s.synopsis, s.status,
+                `SELECT s.id, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.title, s.original_title, s.synopsis, s.status,
                         s.rating_average, s.rating_count, s.release_year, s.view_count,
                         s.is_adult, s.language, s.meta_title, s.meta_description,
                         a.name as author_name,
@@ -936,10 +956,12 @@ const getManhwaFromSpaces = async (req, res, next) => {
 
             if (dbResult.rows.length > 0) {
                 const dbSeries = dbResult.rows[0];
-                if (dbSeries.cover_url || dbSeries.cover_url_tmo) {
-                    coverUrl = dbSeries.cover_url || dbSeries.cover_url_tmo;
+                if (dbSeries.cover_url || dbSeries.cover_url_web || dbSeries.cover_url_tmo || dbSeries.cover_url_oni) {
+                    coverUrl = dbSeries.cover_url || dbSeries.cover_url_web || dbSeries.cover_url_tmo || dbSeries.cover_url_oni;
                 }
+                if (dbSeries.cover_url_web) dbMetadata.coverUrlWeb = dbSeries.cover_url_web;
                 if (dbSeries.cover_url_tmo) dbMetadata.coverUrlTmo = dbSeries.cover_url_tmo;
+                if (dbSeries.cover_url_oni) dbMetadata.coverUrlOni = dbSeries.cover_url_oni;
                 if (dbSeries.title)          dbMetadata.title         = dbSeries.title;
                 if (dbSeries.original_title) dbMetadata.originalTitle = dbSeries.original_title;
                 if (dbSeries.synopsis)       dbMetadata.synopsis      = dbSeries.synopsis;
@@ -1071,6 +1093,47 @@ const getChapterPagesFromSpaces = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error obteniendo páginas desde Spaces:', error);
+        next(error);
+    }
+};
+
+/**
+ * Resolve una imagen inicial para una serie cuando Spaces no tiene portada
+ * propia. Algunas series solo guardan el índice images.json de cada capítulo.
+ */
+const getManhwaCoverFromSpaces = async (req, res, next) => {
+    try {
+        const { slug } = req.params;
+        res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+
+        const objects = await listAllObjects(`${slug}/`);
+        const imageIndexes = objects
+            .filter(({ Key }) => /\/cap[^/]*\/images\.json$/i.test(Key || ''))
+            .sort((a, b) => {
+                const chapterNumber = (key) => Number(key.match(/\/cap[^/]*?(\d+)\/images\.json$/i)?.[1] || 0);
+                return chapterNumber(a.Key) - chapterNumber(b.Key);
+            });
+
+        for (const index of imageIndexes) {
+            try {
+                const response = await s3Client.send(new GetObjectCommand({
+                    Bucket: process.env.DO_SPACES_BUCKET,
+                    Key: index.Key
+                }));
+                const indexData = JSON.parse(await response.Body.transformToString());
+                const pages = Array.isArray(indexData) ? indexData : (indexData.pages || indexData.images || []);
+                const firstPage = pages.find((page) => typeof page === 'string' ? /^https?:\/\//i.test(page) : /^https?:\/\//i.test(page?.url || page?.src || ''));
+                const coverUrl = typeof firstPage === 'string' ? firstPage : (firstPage?.url || firstPage?.src);
+                if (coverUrl) {
+                    return res.json({ success: true, data: { coverUrl, source: 'chapter-page' } });
+                }
+            } catch (error) {
+                logger.warn(`No se pudo leer el índice de imágenes ${index.Key}: ${error.message}`);
+            }
+        }
+
+        return res.status(404).json({ success: false, message: 'No hay imagen disponible para esta serie' });
+    } catch (error) {
         next(error);
     }
 };
@@ -1498,7 +1561,7 @@ const preloadCache = async () => {
             // Ejecutar listado de Spaces y consulta BD en PARALELO
             // La BD no depende de Spaces, así ahorramos tiempo
             const dbQueryPromise = query(
-                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.title, s.original_title, s.status,
+                `SELECT s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.title, s.original_title, s.status,
                         s.content_type, s.is_adult, s.language, s.chapter_count,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
@@ -2070,6 +2133,7 @@ module.exports = {
     listManhwasFromDatabase,  // ✅ NUEVO: Lectura rápida desde BD
     listManhwasFromSpaces,    // LEGACY: Solo para sincronización
     getManhwaFromSpaces,
+    getManhwaCoverFromSpaces,
     getChapterPagesFromSpaces,
     streamUpdates,
     streamUpdatesOnly,

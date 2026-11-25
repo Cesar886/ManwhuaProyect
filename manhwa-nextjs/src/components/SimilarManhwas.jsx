@@ -69,8 +69,8 @@ export default function SimilarManhwas({ currentSeries, basePath = '/manhwa', la
           >
             <div className={styles.coverWrapper}>
               <ManhwaCover
-                src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
-                fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
+                src={series}
+                fallbackSrc={[series.cover_url_web, series.cover_url_tmo, series.cover_url_oni, series.coverUrlWeb, series.coverUrlTmo, series.coverUrlOni, series.cover, series.coverUrl, series.cover_url].map(normalizeImageUrl).filter(Boolean)}
                 slug={series.slug}
                 alt={getImageAlt.cover(series.title)}
                 className={styles.cover}

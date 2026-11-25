@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getCoverUrls, normalizeImageUrl } from '@/utils/imageUtils';
 
 /**
  * Registry global (módulo): recuerda la última URL exitosa por slug.
@@ -31,14 +32,22 @@ const clean = (value) => {
  * @param {string}  className   - Clases CSS
  * @param {boolean} priority    - LCP priority
  */
-export default function ManhwaCover({ src, alt, className, fallbackSrc, slug, priority = false }) {
-    const primary   = useMemo(() => clean(src),         [src]);
+export default function ManhwaCover({ src, alt, className, fallbackSrc, slug, series, priority = false }) {
+    const coverInput = series || (src && typeof src === 'object' && !Array.isArray(src)) ? (series || src) : null;
+    const coverInputKey = coverInput ? getCoverUrls(coverInput).join('\u0000') : '';
+    const fallbackValues = Array.isArray(fallbackSrc) ? fallbackSrc : [fallbackSrc];
+    const fallbackKey = fallbackValues.map(clean).filter(Boolean).join('\u0000');
+    const coverSources = useMemo(() => (
+        coverInputKey
+            ? coverInputKey.split('\u0000').map(normalizeImageUrl).map(clean).filter(Boolean)
+            : []
+    ), [coverInputKey]);
+    const primary   = useMemo(() => clean(typeof src === 'string' ? src : '') || coverSources[0] || '', [coverSources, src]);
     // fallbackSrc puede ser una URL o una lista. Probamos todas las fuentes
     // porque una URL no vacía también puede estar caída o haber expirado.
     const secondary = useMemo(() => {
-        const values = Array.isArray(fallbackSrc) ? fallbackSrc : [fallbackSrc];
-        return values.map(clean).filter(Boolean);
-    }, [fallbackSrc]);
+        return [...coverSources.slice(1), ...fallbackKey.split('\u0000').map(clean).filter(Boolean)];
+    }, [fallbackKey, coverSources]);
     const cached    = slug ? (coverRegistry.get(slug) || '') : '';
 
     // Lista de fuentes a intentar en orden, sin duplicados

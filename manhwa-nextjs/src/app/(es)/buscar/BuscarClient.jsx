@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import {
   Badge,
   Button,
@@ -22,6 +21,7 @@ import { api } from '@/api/client';
 import { useLang } from '@/hooks/useLang';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
 import { normalizeImageUrl } from '@/utils/imageUtils';
+import ManhwaCover from '@/components/ManhwaCover';
 import { filterByLanguage } from '@/utils/adultContent';
 import styles from './buscar.module.css';
 
@@ -45,7 +45,7 @@ const formatViews = (views) => {
 };
 
 const getCoverUrl = (item) =>
-  normalizeImageUrl(item?.coverUrl || item?.cover_url || item?.cover || '/placeholder-manhwa.jpg');
+  normalizeImageUrl(item?.cover_url || item?.cover_url_web || item?.cover_url_tmo || item?.cover_url_oni || item?.coverUrl || item?.coverUrlWeb || item?.coverUrlTmo || item?.coverUrlOni || item?.cover || '/placeholder-manhwa.jpg');
 
 export default function BuscarClient() {
   const router = useRouter();
@@ -212,13 +212,7 @@ export default function BuscarClient() {
                 >
                   <Stack gap="sm">
                     <div className={styles.coverWrapper}>
-                      <Image
-                        src={getCoverUrl(item)}
-                        alt={item.title || 'manhwa'}
-                        fill
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                        style={{ objectFit: 'cover' }}
-                      />
+                      <ManhwaCover src={item} alt={item.title || 'manhwa'} />
                     </div>
 
                     <Stack gap={4}>

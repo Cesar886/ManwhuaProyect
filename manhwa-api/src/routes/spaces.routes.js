@@ -31,6 +31,8 @@ const { slugParam, chapterNumParam, paginationValidation } = require('../middlew
  */
 router.get('/manhwas', requireApiKeyOrAuth, validate(paginationValidation), spacesController.listManhwasFromDatabase);
 
+router.get('/manhwas/:slug/cover', requireApiKeyOrAuth, validate(slugParam), spacesController.getManhwaCoverFromSpaces);
+
 /**
  * GET /api/spaces/manhwas/:slug
  * Obtiene detalles de una serie específica

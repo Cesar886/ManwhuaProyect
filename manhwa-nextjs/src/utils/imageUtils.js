@@ -29,12 +29,19 @@ export function normalizeImageUrl(url) {
  * siempre la fuente principal.
  */
 export function getCoverUrl(item) {
-  if (!item) return ''
+  return getCoverUrls(item)[0] || ''
+}
+
+/** Return every available cover source in the preferred display order. */
+export function getSeriesCovers(series) {
+  const item = series
+  if (!item) return []
 
   const candidates = [
     item.coverUrl,
     item.cover_url,
     item.cover,
+    item.image,
     item.coverUrlWeb,
     item.cover_url_web,
     item.coverUrlTmo,
@@ -43,12 +50,17 @@ export function getCoverUrl(item) {
     item.cover_url_oni,
   ]
 
-  return candidates.find((value) => {
+  return [...new Set(candidates.filter((value) => {
     if (!value) return false
     const normalized = String(value).trim()
     return normalized && !['undefined', 'null', 'false', '0'].includes(normalized)
-  }) || ''
+  }).map((value) => {
+    const cover = String(value).trim()
+    return normalizeImageUrl(cover.startsWith('//') ? `https:${cover}` : cover)
+  }).filter(Boolean))]
 }
+
+export const getCoverUrls = getSeriesCovers;
 
 /**
  * @deprecated Use normalizeImageUrl instead. Cache busters destroy browser/CDN caching.

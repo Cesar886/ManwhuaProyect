@@ -18,7 +18,7 @@ const SPACES_URL = (() => {
   return `${base}${hasApi ? '' : '/api'}/spaces/manhwas`;
 })();
 
-const API_KEY = process.env.INTERNAL_API_KEY || '';
+const API_KEY = process.env.INTERNAL_API_KEY || process.env.NEXT_PUBLIC_INTERNAL_API_KEY || '';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutos
 const MAX_EACH = 5;              // 5 populares + 5 similares = 10 total
 const READ_TIMEOUT_MS = 5000;    // máx por llamada individual a /api/read
@@ -102,7 +102,7 @@ async function getCatalogMaps() {
 }
 
 function getCover(s) {
-  return s?.coverUrl || s?.cover_url || s?.cover || s?.coverUrlWeb || s?.cover_url_web || s?.coverUrlTmo || s?.cover_url_tmo || s?.coverUrlOni || s?.cover_url_oni || '';
+  return s?.cover_url || s?.cover_url_web || s?.cover_url_tmo || s?.cover_url_oni || s?.coverUrl || s?.coverUrlWeb || s?.coverUrlTmo || s?.coverUrlOni || s?.cover || '';
 }
 
 function getChapters(s) {
@@ -181,7 +181,15 @@ export async function GET(request) {
             id: s.id ?? catalog?.id,
             title: s.title,
             slug: s.slug || catalog?.slug,
+            cover_url: catalog?.cover_url || s.cover_url || null,
+            cover_url_web: catalog?.cover_url_web || s.cover_url_web || null,
+            cover_url_tmo: catalog?.cover_url_tmo || s.cover_url_tmo || null,
+            cover_url_oni: catalog?.cover_url_oni || s.cover_url_oni || null,
             cover,
+            coverUrl: catalog?.coverUrl || s.coverUrl || cover,
+            coverUrlWeb: catalog?.coverUrlWeb || catalog?.cover_url_web || s.coverUrlWeb || s.cover_url_web || null,
+            coverUrlTmo: catalog?.coverUrlTmo || catalog?.cover_url_tmo || s.coverUrlTmo || s.cover_url_tmo || null,
+            coverUrlOni: catalog?.coverUrlOni || catalog?.cover_url_oni || s.coverUrlOni || s.cover_url_oni || null,
             chapterCount,
             status: catalog?.status || s.status || 'ongoing',
             isAdult: s.isAdult ?? catalog?.isAdult,

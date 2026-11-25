@@ -90,7 +90,7 @@ const listSeries = async (req, res, next) => {
         // Query principal
         const result = await query(
             `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis,
-                s.content_type, s.status, s.cover_url, s.cover_url_web, s.release_year, s.country, s.original_language,
+                s.content_type, s.status, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.release_year, s.country, s.original_language,
                 s.author_id, s.view_count, s.monthly_views, s.weekly_views, s.daily_views,
                 s.bookmark_count, s.likes_count, s.rating_average, s.rating_count,
                 s.chapter_count, s.comment_count, s.meta_title, s.meta_description,
@@ -147,8 +147,15 @@ const listSeries = async (req, res, next) => {
                     originalTitle: s.original_title,
                     alternativeTitles: s.alternative_titles,
                     slug: s.slug,
+                    cover_url: s.cover_url,
+                    cover_url_web: s.cover_url_web,
+                    cover_url_tmo: s.cover_url_tmo,
+                    cover_url_oni: s.cover_url_oni,
+                    cover: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
                     coverUrl: s.cover_url,
                     coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     bannerUrl: s.banner_url,
                     status: s.status,
                     contentType: s.content_type,
@@ -306,6 +313,11 @@ const getSeriesDetail = async (req, res, next) => {
                     slug: series.slug,
                     synopsis: series.synopsis,
                     description: series.description,
+                    cover_url: series.cover_url,
+                    cover_url_web: series.cover_url_web,
+                    cover_url_tmo: series.cover_url_tmo,
+                    cover_url_oni: series.cover_url_oni,
+                    cover: series.cover_url || series.cover_url_web || series.cover_url_tmo || series.cover_url_oni,
                     coverUrl: series.cover_url,
                     coverUrlWeb: series.cover_url_web,
                     coverUrlTmo: series.cover_url_tmo,
@@ -442,7 +454,7 @@ const getFeaturedSeries = async (req, res, next) => {
 
         const result = await query(
             `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis,
-                    s.content_type, s.status, s.cover_url, s.cover_url_web, s.banner_url, s.release_year, s.country, s.original_language,
+                    s.content_type, s.status, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url, s.release_year, s.country, s.original_language,
                     s.author_id, s.view_count, s.monthly_views, s.weekly_views, s.daily_views,
                     s.bookmark_count, s.likes_count, s.rating_average, s.rating_count,
                     s.chapter_count, s.comment_count, s.meta_title, s.meta_description,
@@ -470,8 +482,15 @@ const getFeaturedSeries = async (req, res, next) => {
                     alternativeTitles: s.alternative_titles,
                     slug: s.slug,
                     synopsis: s.synopsis,
+                    cover_url: s.cover_url,
+                    cover_url_web: s.cover_url_web,
+                    cover_url_tmo: s.cover_url_tmo,
+                    cover_url_oni: s.cover_url_oni,
+                    cover: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
                     coverUrl: s.cover_url,
                     coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     bannerUrl: s.banner_url,
                     status: s.status,
                     contentType: s.content_type,
@@ -521,7 +540,7 @@ const getPopularSeries = async (req, res, next) => {
 
         const result = await query(
             `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis,
-                    s.content_type, s.status, s.cover_url, s.cover_url_web, s.banner_url, s.release_year, s.country, s.original_language,
+                    s.content_type, s.status, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url, s.release_year, s.country, s.original_language,
                     s.author_id, s.${viewColumn} as period_views, s.view_count, s.monthly_views, s.weekly_views, s.daily_views,
                     s.bookmark_count, s.likes_count, s.rating_average, s.rating_count,
                     s.chapter_count, s.comment_count, s.meta_title, s.meta_description,
@@ -550,8 +569,15 @@ const getPopularSeries = async (req, res, next) => {
                     alternativeTitles: s.alternative_titles,
                     slug: s.slug,
                     synopsis: s.synopsis,
+                    cover_url: s.cover_url,
+                    cover_url_web: s.cover_url_web,
+                    cover_url_tmo: s.cover_url_tmo,
+                    cover_url_oni: s.cover_url_oni,
+                    cover: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
                     coverUrl: s.cover_url,
                     coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     bannerUrl: s.banner_url,
                     status: s.status,
                     contentType: s.content_type,
@@ -596,7 +622,7 @@ const getLatestSeries = async (req, res, next) => {
 
         const result = await query(
             `SELECT DISTINCT ON (s.id)
-                    s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.cover_url, s.cover_url_web, s.banner_url, s.status,
+                    s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url, s.status,
                     s.content_type, s.release_year, s.country, s.original_language, s.author_id,
                     s.view_count, s.monthly_views, s.weekly_views, s.daily_views,
                     s.bookmark_count, s.likes_count, s.rating_average, s.rating_count,
@@ -625,8 +651,15 @@ const getLatestSeries = async (req, res, next) => {
                     alternativeTitles: s.alternative_titles,
                     synopsis: s.synopsis,
                     slug: s.slug,
+                    cover_url: s.cover_url,
+                    cover_url_web: s.cover_url_web,
+                    cover_url_tmo: s.cover_url_tmo,
+                    cover_url_oni: s.cover_url_oni,
+                    cover: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
                     coverUrl: s.cover_url,
                     coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     bannerUrl: s.banner_url,
                     status: s.status,
                     contentType: s.content_type,
@@ -673,7 +706,7 @@ const getTrendingSeries = async (req, res, next) => {
         const limit = Math.min(parseInt(req.query.limit) || 10, 20);
 
         const result = await query(
-            `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.cover_url, s.cover_url_web, s.banner_url, s.status,
+            `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url, s.status,
                     s.content_type, s.release_year, s.country, s.original_language, s.author_id,
                     s.view_count, s.monthly_views, s.weekly_views, s.daily_views, s.bookmark_count, s.likes_count,
                     s.rating_average, s.rating_count, s.chapter_count, s.comment_count, s.meta_title, s.meta_description,
@@ -701,8 +734,15 @@ const getTrendingSeries = async (req, res, next) => {
                     alternativeTitles: s.alternative_titles,
                     synopsis: s.synopsis,
                     slug: s.slug,
+                    cover_url: s.cover_url,
+                    cover_url_web: s.cover_url_web,
+                    cover_url_tmo: s.cover_url_tmo,
+                    cover_url_oni: s.cover_url_oni,
+                    cover: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
                     coverUrl: s.cover_url,
                     coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     bannerUrl: s.banner_url,
                     status: s.status,
                     contentType: s.content_type,
@@ -745,7 +785,7 @@ const getNewReleases = async (req, res, next) => {
         const limit = Math.min(parseInt(req.query.limit) || 12, 50);
 
         const result = await query(
-            `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.cover_url, s.cover_url_web, s.banner_url, s.status,
+            `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url, s.status,
                     s.content_type, s.release_year, s.country, s.original_language, s.author_id,
                     s.view_count, s.monthly_views, s.weekly_views, s.daily_views, s.bookmark_count, s.likes_count,
                     s.rating_average, s.rating_count, s.chapter_count, s.comment_count, s.meta_title, s.meta_description,
@@ -773,8 +813,15 @@ const getNewReleases = async (req, res, next) => {
                     alternativeTitles: s.alternative_titles,
                     slug: s.slug,
                     synopsis: s.synopsis,
+                    cover_url: s.cover_url,
+                    cover_url_web: s.cover_url_web,
+                    cover_url_tmo: s.cover_url_tmo,
+                    cover_url_oni: s.cover_url_oni,
+                    cover: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
                     coverUrl: s.cover_url,
                     coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     bannerUrl: s.banner_url,
                     status: s.status,
                     contentType: s.content_type,
@@ -942,7 +989,7 @@ const getRelatedSeries = async (req, res, next) => {
 
         // Buscar series con géneros similares
         const result = await query(
-            `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.cover_url, s.cover_url_web, s.banner_url, s.status,
+            `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url, s.status,
                     s.content_type, s.release_year, s.country, s.original_language, s.author_id,
                     s.view_count, s.monthly_views, s.weekly_views, s.daily_views, s.bookmark_count, s.likes_count,
                     s.rating_average, s.rating_count, s.chapter_count, s.comment_count, s.meta_title, s.meta_description,
@@ -971,8 +1018,15 @@ const getRelatedSeries = async (req, res, next) => {
                     alternativeTitles: s.alternative_titles,
                     synopsis: s.synopsis,
                     slug: s.slug,
+                    cover_url: s.cover_url,
+                    cover_url_web: s.cover_url_web,
+                    cover_url_tmo: s.cover_url_tmo,
+                    cover_url_oni: s.cover_url_oni,
+                    cover: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
                     coverUrl: s.cover_url,
                     coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     bannerUrl: s.banner_url,
                     status: s.status,
                     contentType: s.content_type,
@@ -2091,7 +2145,7 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
             GROUP BY sv.series_id
         )
         SELECT s.id, s.title, s.slug, s.synopsis,
-               s.cover_url, s.cover_url_web, s.banner_url,
+               s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url,
                s.content_type, s.status, s.country, s.original_language,
                s.chapter_count, s.rating_average, s.rating_count,
                s.view_count, s.is_adult,
@@ -2173,7 +2227,7 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
         }
         const buildGlobalSql = (extraWhere) => `
             SELECT s.id, s.title, s.slug, s.synopsis,
-                   s.cover_url, s.cover_url_web, s.banner_url,
+                   s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url,
                    s.content_type, s.status, s.country, s.original_language,
                    s.chapter_count, s.rating_average, s.rating_count,
                    s.view_count, s.is_adult,
@@ -2223,7 +2277,7 @@ async function computeTop10Payload({ country, lang, includeAdult, resolvedFrom }
         const needed = 10 - result.rows.length;
         const fillSql = `
             SELECT s.id, s.title, s.slug, s.synopsis,
-                   s.cover_url, s.cover_url_web, s.banner_url,
+                   s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.banner_url,
                    s.content_type, s.status, s.country, s.original_language,
                    s.chapter_count, s.rating_average, s.rating_count,
                    s.view_count, s.is_adult,

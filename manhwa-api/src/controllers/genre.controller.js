@@ -3,6 +3,7 @@
  */
 
 const { query } = require('../config/database');
+const { mapSeriesCoverFields } = require('../utils/seriesCover');
 
 /**
  * Listar todos los géneros
@@ -127,7 +128,7 @@ const getGenreSeries = async (req, res, next) => {
         const sortClause = validSorts[sort] || validSorts['popular'];
         
         const result = await query(
-            `SELECT s.id, s.title, s.slug, s.cover_url, s.status, s.content_type,
+            `SELECT s.id, s.title, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status, s.content_type,
                     s.view_count, s.rating_average, s.chapter_count, s.bookmark_count,
                     s.is_hot, s.is_new, s.last_chapter_at,
                     COALESCE(
@@ -163,7 +164,7 @@ const getGenreSeries = async (req, res, next) => {
                     id: s.id,
                     title: s.title,
                     slug: s.slug,
-                    coverUrl: s.cover_url,
+                    ...mapSeriesCoverFields(s),
                     status: s.status,
                     contentType: s.content_type,
                     views: s.view_count,

@@ -876,7 +876,7 @@ export default function NsfwClient({ initialSeries = [], lang = 'es' }) {
                     <Link href={`/nsfw/${itemSlug}`} className={classes.releaseCoverContainer}>
                       <div className={classes.releaseCoverWrapper}>
                         <ManhwaCover
-                          src={primary}
+                          src={item}
                           fallbackSrc={fallback}
                           slug={itemSlug}
                           alt={`Portada ${item.title} - Contenido +18`}
@@ -897,7 +897,7 @@ export default function NsfwClient({ initialSeries = [], lang = 'es' }) {
                     <div className={classes.releaseCoverContainer} aria-disabled="true">
                       <div className={classes.releaseCoverWrapper}>
                         <ManhwaCover
-                          src={primary}
+                          src={item}
                           fallbackSrc={fallback}
                           slug={itemSlug || undefined}
                           alt={`Portada ${item.title} - Contenido +18`}
@@ -959,7 +959,7 @@ export default function NsfwClient({ initialSeries = [], lang = 'es' }) {
                         </span>
                       )}
                       <ManhwaCover
-                        src={primary}
+                        src={item}
                         fallbackSrc={fallback}
                         slug={itemSlug}
                         alt={`Portada ${item.title} - Contenido +18`}
@@ -985,7 +985,7 @@ export default function NsfwClient({ initialSeries = [], lang = 'es' }) {
                         </span>
                       )}
                       <ManhwaCover
-                        src={primary}
+                        src={item}
                         fallbackSrc={fallback}
                         slug={itemSlug || undefined}
                         alt={`Portada ${item.title} - Contenido +18`}

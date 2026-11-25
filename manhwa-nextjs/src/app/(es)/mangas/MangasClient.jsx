@@ -195,7 +195,7 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
         const initialMap = new Map(initialSeries.map(s => [s.slug, s]));
 
         return mangaOnly.map(s => {
-            const hasAnyCover = s.coverUrlWeb || s.cover_url_web || s.coverUrl || s.cover_url || s.cover;
+            const hasAnyCover = s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni || s.coverUrl || s.coverUrlWeb || s.coverUrlTmo || s.coverUrlOni || s.cover;
             if (hasAnyCover) return s;
             const init = initialMap.get(s.slug);
             if (!init) return s;
@@ -206,6 +206,10 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                 cover_url:   s.cover_url   || init.cover_url,
                 coverUrlWeb: s.coverUrlWeb || init.coverUrlWeb,
                 cover_url_web: s.cover_url_web || init.cover_url_web,
+              coverUrlTmo: s.coverUrlTmo || init.coverUrlTmo,
+              cover_url_tmo: s.cover_url_tmo || init.cover_url_tmo,
+              coverUrlOni: s.coverUrlOni || init.coverUrlOni,
+              cover_url_oni: s.cover_url_oni || init.cover_url_oni,
             };
         });
     }, [spacesData, initialSeries]);
@@ -425,7 +429,7 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                                                         {getSeriesChapterCount(series)} {t.chaptersShort}
                                                     </span>
                                                     <ManhwaCover
-                                                        src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
+                                                        src={series}
                                                         fallbackSrc={[series.coverUrlWeb, series.cover_url_web, series.coverUrlTmo, series.cover_url_tmo, series.coverUrlOni, series.cover_url_oni, series.cover, series.coverUrl, series.cover_url].map(normalizeImageUrl).filter(Boolean)}
                                                         slug={series.slug}
                                                         alt={t.coverAlt.replace('{title}', series.title)}

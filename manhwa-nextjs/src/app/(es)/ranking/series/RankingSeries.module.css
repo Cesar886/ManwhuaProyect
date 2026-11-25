@@ -84,6 +84,7 @@
 
 /* Cover */
 .cover {
+  position: relative;
   width: 52px;
   flex-shrink: 0;
   aspect-ratio: 2/3;
