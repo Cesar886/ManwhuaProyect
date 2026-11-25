@@ -8,6 +8,8 @@ import { isAdultSeries, matchesLanguage } from '@/utils/adultContent'
 import Link from 'next/link'
 import ssrStyles from './ManhwaSSR.module.css'
 
+export const dynamic = 'force-dynamic'
+
 export const revalidate = 3600
 
 function getGenreNames(series) {

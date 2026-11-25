@@ -14,8 +14,11 @@ export const API_BASE = MODE === 'production'
  * para que sea exclusiva del servidor y leída en runtime, sin necesidad de rebuild).
  */
 export const SERVER_API_BASE =
-  typeof window === 'undefined' && MODE === 'production' && process.env.INTERNAL_API_URL
-    ? process.env.INTERNAL_API_URL.replace(/\/$/, '')
+  typeof window === 'undefined' && MODE === 'production'
+    ? (process.env.INTERNAL_API_URL || 'http://127.0.0.1:3000')
+      .replace(/127\.0\.0\.1:5173\b/, '127.0.0.1:3000')
+      .replace(/localhost:5173\b/, '127.0.0.1:3000')
+      .replace(/\/$/, '')
     : (API_BASE || '').replace(/\/$/, '')
 
 export const PRODUCTION_SITE_URL = 'https://manhwaimperial.site'

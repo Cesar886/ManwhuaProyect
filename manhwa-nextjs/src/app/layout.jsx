@@ -80,7 +80,7 @@ export const metadata = {
   },
   openGraph: {
     type: 'website',
-    locale: 'es_ES',
+    locale: 'es_MX',
     url: '/',
     siteName: 'Manhwa Imperial · By AI Imperial',
     title: 'Manhwa Imperial - Lee Manhwas y Webtoons en Español | Legal y Gratuito',

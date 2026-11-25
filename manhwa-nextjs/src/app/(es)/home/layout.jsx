@@ -15,9 +15,9 @@ export const metadata = {
   description: META_TEMPLATES.home.description,
   keywords: PAGE_KEYWORDS.home,
   alternates: {
-    canonical: '/home',
+    canonical: '/',
     languages: {
-      es: '/home',
+      es: '/',
       en: '/en/home',
     },
   },
@@ -25,8 +25,8 @@ export const metadata = {
     title: META_TEMPLATES.home.title,
     description: META_TEMPLATES.home.description,
     type: 'website',
-    url: '/home',
-    locale: 'es_ES',
+    url: '/',
+    locale: 'es_MX',
     // SEO: og:site_name y og:image obligatorios para CTR en redes sociales
     siteName: 'Manhwa Imperial',
     images: [{

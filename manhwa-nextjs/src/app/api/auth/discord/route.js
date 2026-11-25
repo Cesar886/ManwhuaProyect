@@ -9,7 +9,9 @@ function getDiscordConfig(request) {
 
   // Determine redirect URI based on environment
   const origin = request.headers.get('origin') || request.headers.get('referer')
-  let redirectUri = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI
+  let redirectUri = process.env.NODE_ENV === 'production'
+    ? (process.env.DISCORD_REDIRECT_URI_PROD || 'https://manhwaimperial.site/auth/discord/callback')
+    : process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI
 
   // For production, use the production URL
   if (process.env.NODE_ENV === 'production' || (origin && origin.includes('manhwaimperial.site'))) {

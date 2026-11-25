@@ -1,4 +1,5 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
+import { fetchInternalJson } from './serverFetch'
 
 const API_KEY = process.env.INTERNAL_API_KEY || process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 
@@ -10,27 +11,17 @@ const sseHeaders = () => ({
 })
 
 export async function fetchSeriesForSEO(slug) {
-  const fetchJson = async (url) => {
-    const res = await fetch(url, {
-      next: { revalidate: 300 },
-      headers: sseHeaders(),
-    })
-    if (res.status === 404) return null
-    if (!res.ok) throw new Error('Series API responded ' + res.status)
-    return res.json()
-  }
-
   try {
     // PostgreSQL conserva la metadata editorial, pero Spaces es la única fuente
     // de verdad para disponibilidad y cantidad de capítulos.
     const [databaseResult, spacesResult] = await Promise.all([
-      fetchJson(`${SERVER_API_BASE}/series/${slug}`),
-      fetchJson(`${SERVER_API_BASE}/spaces/manhwas/${slug}`),
+      fetchInternalJson(`/series/${slug}`, { revalidate: 1800, allowNotFound: true }),
+      fetchInternalJson(`/spaces/manhwas/${slug}`, { revalidate: 1800, allowNotFound: true }),
     ])
 
     const databaseSeries = databaseResult?.data?.series || databaseResult?.data || databaseResult || null
     const spacesSeries = spacesResult?.data || spacesResult || null
-    if (!databaseSeries && !spacesSeries) return null
+    if (!databaseSeries && !spacesSeries) throw new Error('Series not found in internal API')
 
     const chapters = Array.isArray(spacesSeries?.chapters)
       ? spacesSeries.chapters

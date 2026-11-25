@@ -127,7 +127,9 @@ function LoginModalInner({ opened, onClose }) {
 
   const handleDiscordLogin = useCallback(() => {
     const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
-    const redirectUri = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI;
+    const redirectUri = process.env.NODE_ENV === 'production'
+      ? (process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI || 'https://manhwaimperial.site/auth/discord/callback')
+      : (process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI || 'http://localhost:5173/auth/discord/callback');
     const scope = 'identify email';
     const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`;
     window.location.href = discordAuthUrl;

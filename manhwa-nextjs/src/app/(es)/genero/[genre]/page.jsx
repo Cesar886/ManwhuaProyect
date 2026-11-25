@@ -1,12 +1,13 @@
 import { GENRE_SEO, META_TEMPLATES, SEO_CONTENT, getAnchorText } from '@/lib/seo/constants'
 import { generateCollectionPageJsonLd, generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
 import { filterAvailableSeriesForLang } from '@/utils/adultContent'
-import { SERVER_API_BASE, SITE_URL } from '@/config'
 import Link from 'next/link'
+import { extractSeries, fetchInternalJson } from '@/lib/seo/serverFetch'
+
+export const dynamic = 'force-dynamic'
 import styles from './GenrePage.module.css'
 
 const SITE_NAME = 'Manhwa Imperial'
-const API_KEY = process.env.INTERNAL_API_KEY || ''
 
 export const revalidate = 3600
 
@@ -25,18 +26,8 @@ function getChapters(s) {
 }
 
 async function getSeriesByGenre(genreSlug) {
-  try {
-    const res = await fetch(`${SERVER_API_BASE}/spaces/manhwas`, {
-      headers: {
-        'Accept': 'application/json',
-        'Origin': SITE_URL,
-        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-      },
-      next: { revalidate: 3600 },
-    })
-    if (!res.ok) return []
-    const result = await res.json()
-    const all = result.data?.series || result.series || []
+  const result = await fetchInternalJson('/spaces/manhwas', { revalidate: 3600, requireNonEmpty: true })
+    const all = extractSeries(result)
     const safe = filterAvailableSeriesForLang(all, 'es')
     const target = normText(genreSlug)
     return safe
@@ -48,24 +39,11 @@ async function getSeriesByGenre(genreSlug) {
         })
       })
       .slice(0, 20)
-  } catch {
-    return []
-  }
 }
 
-// Lista de géneros válidos para generar estáticamente
-const VALID_GENRES = [
-  'accion', 'romance', 'fantasia', 'drama', 'comedia', 'escolar',
-  'artes-marciales', 'terror', 'ciencia-ficcion', 'aventura',
-  'supernatural', 'misterio', 'historico', 'venganza', 'isekai', 'sistema'
-]
-
-/**
- * Genera rutas estáticas para géneros conocidos
- */
-export async function generateStaticParams() {
-  return VALID_GENRES.map(genre => ({ genre }))
-}
+// Las páginas de género se generan bajo demanda para que el build no dependa
+// de que PostgreSQL/API estén disponibles en la máquina que compila Next.js.
+export const dynamicParams = true
 
 /**
  * SEO Metadata para páginas de género

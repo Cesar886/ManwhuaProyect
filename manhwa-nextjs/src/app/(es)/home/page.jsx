@@ -1,7 +1,10 @@
 import HomeClient from './HomeClient'
-import { endpoint, SITE_URL } from '@/config'
 import { generateFAQJsonLdForHome, generateHomePageJsonLd } from '@/lib/seo/jsonld'
 import { filterAvailableSeriesForLang } from '@/utils/adultContent'
+import { extractSeries, fetchInternalJson } from '@/lib/seo/serverFetch'
+
+// La home se renderiza en runtime; el contenido SSR no se fabrica durante build.
+export const dynamic = 'force-dynamic'
 
 // ============================================================================
 // SERVER COMPONENT - Fetches initial data para SSR
@@ -14,26 +17,9 @@ import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 // (cada query requiere un fetch adicional al API de búsqueda ~1.5s)
 // ============================================================================
 
-const API_KEY = process.env.INTERNAL_API_KEY || ''
-
-const defaultHeaders = {
-  'Accept': 'application/json',
-  'Origin': SITE_URL,
-  ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-}
-
 async function getInitialSeries() {
-  try {
-    const res = await fetch(endpoint('spaces', 'manhwas'), {
-      headers: defaultHeaders,
-      next: { revalidate: 300 },
-    })
-    if (!res.ok) return []
-    const result = await res.json()
-    return result.data?.series || result.series || []
-  } catch {
-    return []
-  }
+  const result = await fetchInternalJson('/spaces/manhwas', { revalidate: 300, requireNonEmpty: true })
+  return extractSeries(result)
 }
 
 function getFirstCover(series) {

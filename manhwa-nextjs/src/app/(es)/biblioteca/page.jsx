@@ -1,9 +1,11 @@
-import { SERVER_API_BASE, SITE_URL } from '@/config'
 import { META_TEMPLATES } from '@/lib/seo/constants'
 import BibliotecaClient from './BibliotecaClient'
 import { filterAvailableSeriesForLang } from '@/utils/adultContent'
 // SEO: JSON-LD para CollectionPage y breadcrumbs
 import { generateBreadcrumbJsonLd, generateWebPageJsonLd } from '@/lib/seo/jsonld'
+import { extractSeries, fetchInternalJson } from '@/lib/seo/serverFetch'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: META_TEMPLATES.biblioteca.title,
@@ -54,24 +56,9 @@ export const metadata = {
 
 export const revalidate = 300
 
-const API_KEY = process.env.INTERNAL_API_KEY || ''
-
 async function getInitialSeries() {
-  try {
-    const res = await fetch(`${SERVER_API_BASE}/spaces/manhwas`, {
-      headers: {
-        'Accept': 'application/json',
-        'Origin': SITE_URL,
-        ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
-      },
-      next: { revalidate: 300 }, // ISR: revalidar cada 5 minutos
-    })
-    if (!res.ok) return []
-    const result = await res.json()
-    return result.data?.series || result.series || []
-  } catch {
-    return []
-  }
+  const result = await fetchInternalJson('/spaces/manhwas', { revalidate: 300, requireNonEmpty: true })
+  return extractSeries(result)
 }
 
 export default async function BibliotecaPage() {

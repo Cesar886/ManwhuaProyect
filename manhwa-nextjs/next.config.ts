@@ -137,6 +137,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      { source: '/home', destination: '/', permanent: true },
       { source: '/populares', destination: '/biblioteca', permanent: true },
       { source: '/en/popular', destination: '/en/library', permanent: true },
     ]

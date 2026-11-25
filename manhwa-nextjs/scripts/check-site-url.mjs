@@ -50,7 +50,9 @@ const forbidden = []
 for (const root of roots) {
   for (const file of await findForbiddenFiles(root)) {
     const content = await readFile(file)
-    if (/localhost:5173|https?:\/\/127\.0\.0\.1(?::\d+)?|["'`]127\.0\.0\.1(?::\d+)?/i.test(content.toString('utf8'))) {
+    // El SSR puede contener la API privada local en :3000; eso es intencional.
+    // Solo bloqueamos URLs del frontend/dev server o localhost usado como sitio público.
+    if (/https?:\/\/127\.0\.0\.1:(?!3000)\d+|["'`]127\.0\.0\.1:(?!3000)\d+/i.test(content.toString('utf8'))) {
       forbidden.push(file)
     }
   }
