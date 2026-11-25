@@ -1698,8 +1698,10 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       if (!target?.targetId) return
       const payload = { targetType: target.targetType, targetId: target.targetId, content: text }
       payload.isSpoiler = !!box.isSpoiler
-      if (box.recommendedSeries?.id) {
-        payload.recommendedSeriesId = box.recommendedSeries.id
+      if (box.recommendedSeries?.id || box.recommendedSeries?.slug) {
+        if (box.recommendedSeries.id) payload.recommendedSeriesId = box.recommendedSeries.id
+        payload.recommendedSeriesSlug = box.recommendedSeries.slug
+        payload.recommendedSeriesTitle = box.recommendedSeries.title
         payload.recommendedSeriesCoverUrl = getRecommendedSeriesCover(box.recommendedSeries)
       }
       // If a specific reply target is set (replying to a reply), use that id as parentId
@@ -2693,8 +2695,10 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         content: content || '' // Si no hay contenido pero hay encuesta, dejar vacío
       }
 
-      if (recommendedSeries?.id) {
-        payload.recommendedSeriesId = recommendedSeries.id
+      if (recommendedSeries?.id || recommendedSeries?.slug) {
+        if (recommendedSeries.id) payload.recommendedSeriesId = recommendedSeries.id
+        payload.recommendedSeriesSlug = recommendedSeries.slug
+        payload.recommendedSeriesTitle = recommendedSeries.title
         payload.recommendedSeriesCoverUrl = getRecommendedSeriesCover(recommendedSeries)
       }
 

@@ -51,6 +51,17 @@ const createCommentValidation = [
         .optional({ checkFalsy: true })
         .isUUID()
         .withMessage('Manhwa recomendado inválido')
+    ,body('recommendedSeriesSlug')
+        .optional({ checkFalsy: true })
+        .trim()
+        .matches(/^[^\s/]+$/)
+        .isLength({ max: 255 })
+        .withMessage('Slug del manhwa recomendado inválido')
+    ,body('recommendedSeriesTitle')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Título del manhwa recomendado inválido')
 ];
 
 const updateCommentValidation = [

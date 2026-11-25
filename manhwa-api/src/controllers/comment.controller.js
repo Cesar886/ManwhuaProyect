@@ -46,7 +46,7 @@ const getComment = async (req, res, next) => {
         
         // ✅ OPTIMIZADO: Una sola query con LEFT JOIN para encuestas y opciones
         const result = await query(
-            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, rs.slug AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, COALESCE(c.recommended_series_slug, rs.slug) AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
                     u.is_premium AS author_is_premium,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $2 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $2 AND comment_id = c.id AND vote_type = -1) as user_disliked,
@@ -186,7 +186,7 @@ const getCommentReplies = async (req, res, next) => {
         const total = commentResult.rows[0].replies_count;
         
         const result = await query(
-            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, rs.slug AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, COALESCE(c.recommended_series_slug, rs.slug) AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
                     u.is_premium AS author_is_premium,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = -1) as user_disliked
@@ -255,7 +255,11 @@ const getCommentReplies = async (req, res, next) => {
  */
 const createComment = async (req, res, next) => {
     try {
-        const { targetType, targetId, content, parentId, rating, isSpoiler, poll, recommendedSeriesId, recommendedSeriesCoverUrl } = req.body;
+        const {
+            targetType, targetId, content, parentId, rating, isSpoiler, poll,
+            recommendedSeriesId, recommendedSeriesSlug, recommendedSeriesTitle,
+            recommendedSeriesCoverUrl
+        } = req.body;
 
         if (targetType === 'wall' && !parentId) {
             const wallValidation = validateWallComment({ content, rating, isSpoiler, poll });
@@ -389,6 +393,7 @@ const createComment = async (req, res, next) => {
         
         // Si es respuesta, verificar comentario padre
         let rootId = null;
+        let effectiveParentId = parentId || null;
         if (parentId) {
             const parentResult = await query(
                 'SELECT id, parent_id, root_id, target_type, target_id FROM comments WHERE id = $1 AND status = \'visible\'',
@@ -404,15 +409,6 @@ const createComment = async (req, res, next) => {
             
             const parent = parentResult.rows[0];
 
-            if (targetType === 'wall' && (parent.root_id || parent.parent_id)) {
-                return res.status(422).json({
-                    success: false,
-                    message: 'Solo se puede responder a una publicación raíz',
-                    code: 'INVALID_PARENT',
-                    errors: { parentId: 'No se puede responder a una respuesta' }
-                });
-            }
-            
             // Verificar que pertenece al mismo target
             if (parent.target_type !== targetType || parent.target_id !== targetId) {
                 return res.status(400).json({
@@ -421,7 +417,12 @@ const createComment = async (req, res, next) => {
                 });
             }
             
-            rootId = parent.root_id || parentId;
+            rootId = parent.root_id || parent.parent_id || parentId;
+            // El muro muestra un único nivel de respuestas. Si el usuario responde
+            // a otra respuesta, se conserva la mención pero se asocia a la raíz.
+            if (targetType === 'wall' && (parent.root_id || parent.parent_id)) {
+                effectiveParentId = rootId;
+            }
         }
         
         // Si solo hay encuesta y no contenido, guardar contenido vacío
@@ -430,32 +431,38 @@ const createComment = async (req, res, next) => {
             : ((content && content.trim()) || '');
         
         let recommendation = null;
-        if (recommendedSeriesId) {
+        if (recommendedSeriesId || recommendedSeriesSlug) {
             const seriesResult = await query(
                 `SELECT id, title, slug, cover_url, cover_url_web, cover_url_tmo, cover_url_oni
-                 FROM series WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
-                [recommendedSeriesId]
+                 FROM series
+                 WHERE deleted_at IS NULL
+                   AND (id = $1 OR slug = $2)
+                 ORDER BY CASE WHEN id = $1 THEN 0 ELSE 1 END
+                 LIMIT 1`,
+                [recommendedSeriesId || null, recommendedSeriesSlug || null]
             );
-            if (!seriesResult.rows.length) {
-                return res.status(404).json({ success: false, message: 'Manhwa recomendado no encontrado' });
+            const series = seriesResult.rows[0] || null;
+            const submittedCover = /^https?:\/\//i.test(String(recommendedSeriesCoverUrl || ''))
+                ? recommendedSeriesCoverUrl
+                : null;
+            if (!series && (!recommendedSeriesSlug || !recommendedSeriesTitle || !submittedCover)) {
+                return res.status(422).json({ success: false, message: 'Datos del manhwa recomendado incompletos' });
             }
-            const series = seriesResult.rows[0];
             recommendation = {
-                id: series.id,
-                title: series.title,
-                slug: series.slug,
-                coverUrl: series.cover_url || series.cover_url_web || series.cover_url_tmo || series.cover_url_oni ||
-                    (/^https?:\/\//i.test(String(recommendedSeriesCoverUrl || '')) ? recommendedSeriesCoverUrl : null)
+                id: series?.id || null,
+                title: series?.title || recommendedSeriesTitle,
+                slug: series?.slug || recommendedSeriesSlug,
+                coverUrl: series?.cover_url || series?.cover_url_web || series?.cover_url_tmo || series?.cover_url_oni || submittedCover
             };
         }
 
         const result = await query(
             `INSERT INTO comments (user_id, target_type, target_id, parent_id, root_id, content, rating, is_spoiler, ip_address,
-                                   recommended_series_id, recommended_series_title, recommended_series_cover_url)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                                   recommended_series_id, recommended_series_title, recommended_series_slug, recommended_series_cover_url)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              RETURNING *`,
-            [req.user.id, targetType, targetId, parentId, rootId, commentContent, rating, isSpoiler || false, req.ip,
-                recommendation?.id || null, recommendation?.title || null, recommendation?.coverUrl || null]
+            [req.user.id, targetType, targetId, effectiveParentId, rootId, commentContent, rating, isSpoiler || false, req.ip,
+                recommendation?.id || null, recommendation?.title || null, recommendation?.slug || null, recommendation?.coverUrl || null]
         );
         
         const comment = result.rows[0];
@@ -634,8 +641,10 @@ const createComment = async (req, res, next) => {
                     content: comment.content,
                     rating: comment.rating,
                     isSpoiler: comment.is_spoiler,
-                    recommendedSeries: comment.recommended_series_id ? {
-                        id: comment.recommended_series_id,
+                    parentId: comment.parent_id,
+                    rootId: comment.root_id,
+                    recommendedSeries: (comment.recommended_series_id || comment.recommended_series_title) ? {
+                        id: comment.recommended_series_id || null,
                         title: comment.recommended_series_title,
                         slug: recommendation?.slug || null,
                         coverUrl: comment.recommended_series_cover_url
@@ -664,10 +673,10 @@ const createComment = async (req, res, next) => {
                 userId: req.user.id,
                 targetType,
                 targetId,
-                parentId: comment.parent_id || parentId || null,
+                parentId: comment.parent_id || effectiveParentId || null,
                 isSpoiler: !!comment.is_spoiler,
-                recommendedSeries: comment.recommended_series_id ? {
-                    id: comment.recommended_series_id,
+                recommendedSeries: (comment.recommended_series_id || comment.recommended_series_title) ? {
+                    id: comment.recommended_series_id || null,
                     title: comment.recommended_series_title,
                     slug: recommendation?.slug || null,
                     coverUrl: comment.recommended_series_cover_url
@@ -987,7 +996,7 @@ const getWallComments = async (req, res, next) => {
         const targetId = '00000000-0000-0000-0000-000000000000';
 
         const result = await query(
-            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, rs.slug AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, COALESCE(c.recommended_series_slug, rs.slug) AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
                     u.is_premium AS author_is_premium,
                     EXISTS(
                         SELECT 1 FROM comment_votes cv
