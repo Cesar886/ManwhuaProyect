@@ -33,13 +33,18 @@ const clean = (value) => {
  */
 export default function ManhwaCover({ src, alt, className, fallbackSrc, slug, priority = false }) {
     const primary   = useMemo(() => clean(src),         [src]);
-    const secondary = useMemo(() => clean(fallbackSrc), [fallbackSrc]);
+    // fallbackSrc puede ser una URL o una lista. Probamos todas las fuentes
+    // porque una URL no vacía también puede estar caída o haber expirado.
+    const secondary = useMemo(() => {
+        const values = Array.isArray(fallbackSrc) ? fallbackSrc : [fallbackSrc];
+        return values.map(clean).filter(Boolean);
+    }, [fallbackSrc]);
     const cached    = slug ? (coverRegistry.get(slug) || '') : '';
 
     // Lista de fuentes a intentar en orden, sin duplicados
     const sources = useMemo(() => {
         const seen = new Set();
-        return [primary, secondary, cached].filter(u => {
+        return [primary, ...secondary, cached].filter(u => {
             if (!u || seen.has(u)) return false;
             seen.add(u);
             return true;

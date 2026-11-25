@@ -426,7 +426,7 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
                                                     </span>
                                                     <ManhwaCover
                                                         src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
-                                                        fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
+                                                        fallbackSrc={[series.coverUrlWeb, series.cover_url_web, series.coverUrlTmo, series.cover_url_tmo, series.coverUrlOni, series.cover_url_oni, series.cover, series.coverUrl, series.cover_url].map(normalizeImageUrl).filter(Boolean)}
                                                         slug={series.slug}
                                                         alt={t.coverAlt.replace('{title}', series.title)}
                                                         className={classes.popularImg}

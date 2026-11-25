@@ -1329,7 +1329,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     <div className={styles.top10Card}>
                       <ManhwaCover
                         src={cover}
-                        fallbackSrc={cover}
+                        fallbackSrc={[item.coverUrlWeb, item.cover_url_web, item.coverUrlTmo, item.cover_url_tmo, item.coverUrlOni, item.cover_url_oni, item.cover, item.coverUrl, item.cover_url, cover].map(normalizeImageUrl).filter(Boolean)}
                         slug={item.slug}
                         alt={getImageAlt.cover(item.title, lang)}
                         className={styles.top10Img}
@@ -1496,7 +1496,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         <div className={styles.popularCard}>
                           <ManhwaCover
                             src={normalizeImageUrl(item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web) || ''}
-                            fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
+                            fallbackSrc={[item.coverUrlWeb, item.cover_url_web, item.coverUrlTmo, item.cover_url_tmo, item.coverUrlOni, item.cover_url_oni, item.cover, item.coverUrl, item.cover_url].map(normalizeImageUrl).filter(Boolean)}
                             slug={item.slug}
                             alt={getImageAlt.cover(item.title, lang)}
                             className={styles.popularImg}
@@ -1568,7 +1568,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     <div className={styles.popularCard}>
                       <ManhwaCover
                         src={normalizeImageUrl(item.coverUrl || item.cover_url || item.cover || item.coverUrlWeb || item.cover_url_web) || ''}
-                        fallbackSrc={normalizeImageUrl(item.coverUrlWeb || item.cover_url_web || item.cover || item.coverUrl || item.cover_url) || ''}
+                        fallbackSrc={[item.coverUrlWeb, item.cover_url_web, item.coverUrlTmo, item.cover_url_tmo, item.coverUrlOni, item.cover_url_oni, item.cover, item.coverUrl, item.cover_url].map(normalizeImageUrl).filter(Boolean)}
                         slug={item.slug}
                         alt={getImageAlt.cover(item.title, lang)}
                         className={styles.popularImg}

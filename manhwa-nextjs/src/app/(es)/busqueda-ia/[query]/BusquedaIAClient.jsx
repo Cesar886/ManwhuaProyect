@@ -479,7 +479,7 @@ export default function BusquedaIAClient({ querySlug }) {
                                                 </span>
                                                 <ManhwaCover
                                                     src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
-                                                    fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
+                                                    fallbackSrc={[series.coverUrlWeb, series.cover_url_web, series.coverUrlTmo, series.cover_url_tmo, series.coverUrlOni, series.cover_url_oni, series.cover, series.coverUrl, series.cover_url].map(normalizeImageUrl).filter(Boolean)}
                                                     slug={series.slug}
                                                     alt={lang === 'en' ? `${series.title} manhwa cover - Read online free at Manhwa Imperial` : `Portada del manhwa ${series.title} - Leer en español online gratis en Manhwa Imperial`}
                                                     className={classes.popularImg}
