@@ -450,6 +450,10 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       return arr
     }
   }
+  const sortWallComments = (arr) => {
+    if (!Array.isArray(arr)) return arr
+    return arr.slice().sort((a, b) => new Date(a?.createdAt || a?.created_at || 0).getTime() - new Date(b?.createdAt || b?.created_at || 0).getTime())
+  }
   const replyInputRefs = useRef({})
   const [detailComments, setDetailComments] = useState([])
   const [detailCommentsPage, setDetailCommentsPage] = useState(1)
@@ -2156,7 +2160,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                   } catch { return true }
                 })()
 
-                const next = maybeSortComments(dedupeComments([normalized, ...now]))
+                const next = isWall ? sortWallComments(dedupeComments([...now, normalized])) : maybeSortComments(dedupeComments([normalized, ...now]))
                 // if user is not near top, show floating "Nuevo comentario" button instead of forcing scroll
                 if (!isNearTop) {
                   latestIncomingCommentRef.current = String(normalized.id)
@@ -3289,7 +3293,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
 
             {(() => {
               // Filtrar y ordenar comentarios según el filtro seleccionado
-              let filteredComments = [...detailComments]
+              let filteredComments = isWall ? sortWallComments(detailComments) : [...detailComments]
 
               if (commentFilter === 'newest') {
                 // Más nuevos primero (orden descendente por fecha)
