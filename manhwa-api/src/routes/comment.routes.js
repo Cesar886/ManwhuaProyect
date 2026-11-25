@@ -47,6 +47,10 @@ const createCommentValidation = [
         .optional()
         .isArray({ min: 2, max: 5 })
         .withMessage('La encuesta debe tener entre 2 y 5 opciones')
+    ,body('recommendedSeriesId')
+        .optional({ checkFalsy: true })
+        .isUUID()
+        .withMessage('Manhwa recomendado inválido')
 ];
 
 const updateCommentValidation = [

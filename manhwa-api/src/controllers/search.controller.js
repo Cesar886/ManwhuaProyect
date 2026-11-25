@@ -254,6 +254,10 @@ const searchSeries = async (req, res, next) => {
             whereClause += ` AND s.content_type = $${paramCount}`;
             params.push(contentType);
         }
+
+        // El COUNT solo usa los parámetros del WHERE. La búsqueda por
+        // relevancia agrega después un parámetro exclusivo para ORDER BY.
+        const countParams = [...params];
         
         let orderClause;
         switch (sort) {
@@ -276,7 +280,8 @@ const searchSeries = async (req, res, next) => {
         }
         
         const result = await query(
-            `SELECT s.id, s.title, s.original_title, s.slug, s.cover_url, s.status,
+            `SELECT s.id, s.title, s.original_title, s.slug, s.cover_url, s.cover_url_web,
+                    s.cover_url_oni, s.cover_url_tmo, s.status,
                     s.content_type, s.view_count, s.rating_average, s.chapter_count,
                     s.is_hot, s.is_new,
                     COALESCE(
@@ -294,7 +299,7 @@ const searchSeries = async (req, res, next) => {
         
         const countResult = await query(
             `SELECT COUNT(*) FROM series s ${whereClause}`,
-            params
+            countParams
         );
         
         const total = parseInt(countResult.rows[0].count);
@@ -308,7 +313,10 @@ const searchSeries = async (req, res, next) => {
                     title: s.title,
                     originalTitle: s.original_title,
                     slug: s.slug,
-                    coverUrl: s.cover_url,
+                    coverUrl: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
+                    coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     status: s.status,
                     contentType: s.content_type,
                     views: s.view_count,

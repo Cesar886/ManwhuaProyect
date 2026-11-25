@@ -2,7 +2,7 @@ import { Card, Badge, Text, Group, Stack, ActionIcon } from '@mantine/core';
 import { IconStar, IconEye, IconBook } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import LazyImage from './LazyImage';
-import { normalizeImageUrl } from '../utils/imageUtils';
+import { normalizeImageUrl, getCoverUrl } from '../utils/imageUtils';
 import { useLang } from '../hooks/useLang';
 import { getLocalizedPath } from '../utils/i18nRoutes';
 import { getTranslations } from '../i18n/translations';
@@ -86,7 +86,7 @@ export default function ManhwaCard({
       {/* Cover con LazyImage - SEO: alt incluye "manhwa" */}
       <div className={classes.coverWrapper}>
         <LazyImage
-          src={normalizeImageUrl(manhwa.cover || manhwa.coverUrl || manhwa.cover_url)}
+          src={normalizeImageUrl(getCoverUrl(manhwa))}
           alt={coverAlt}
           className={classes.coverImage}
           aspectRatio="3/4"

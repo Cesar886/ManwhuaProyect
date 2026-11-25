@@ -46,7 +46,7 @@ const getComment = async (req, res, next) => {
         
         // ✅ OPTIMIZADO: Una sola query con LEFT JOIN para encuestas y opciones
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, rs.slug AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
                     u.is_premium AS author_is_premium,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $2 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $2 AND comment_id = c.id AND vote_type = -1) as user_disliked,
@@ -67,6 +67,7 @@ const getComment = async (req, res, next) => {
                     ) as poll_options
              FROM comments c
              JOIN users u ON c.user_id = u.id
+             LEFT JOIN series rs ON rs.id = c.recommended_series_id
              LEFT JOIN comment_polls cp ON cp.comment_id = c.id
              WHERE c.id = $1 AND c.status = 'visible'`,
             [id, req.user?.id || null]
@@ -177,12 +178,13 @@ const getCommentReplies = async (req, res, next) => {
         const total = commentResult.rows[0].replies_count;
         
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, rs.slug AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
                     u.is_premium AS author_is_premium,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = 1) as user_liked,
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = -1) as user_disliked
              FROM comments c
              JOIN users u ON c.user_id = u.id
+             LEFT JOIN series rs ON rs.id = c.recommended_series_id
              WHERE c.parent_id = $1 AND c.status = 'visible'
              ORDER BY c.created_at ASC
              LIMIT $2 OFFSET $4`,
@@ -201,6 +203,12 @@ const getCommentReplies = async (req, res, next) => {
                     likes: c.likes_count,
                     dislikes: c.dislikes_count,
                     isSpoiler: c.is_spoiler,
+                    recommendedSeries: c.recommended_series_id ? {
+                        id: c.recommended_series_id,
+                        title: c.recommended_series_title,
+                        slug: c.recommended_series_slug,
+                        coverUrl: c.recommended_series_cover_url
+                    } : null,
                     userLiked: c.user_liked,
                     userDisliked: c.user_disliked,
                     createdAt: c.created_at
@@ -231,9 +239,9 @@ const getCommentReplies = async (req, res, next) => {
  */
 const createComment = async (req, res, next) => {
     try {
-        const { targetType, targetId, content, parentId, rating, isSpoiler, poll } = req.body;
+        const { targetType, targetId, content, parentId, rating, isSpoiler, poll, recommendedSeriesId, recommendedSeriesCoverUrl } = req.body;
 
-        if (targetType === 'wall') {
+        if (targetType === 'wall' && !parentId) {
             const wallValidation = validateWallComment({ content, rating, isSpoiler, poll });
             if (wallValidation.code) {
                 const messages = {
@@ -405,11 +413,33 @@ const createComment = async (req, res, next) => {
             ? normalizeWallComment(content)
             : ((content && content.trim()) || '');
         
+        let recommendation = null;
+        if (recommendedSeriesId) {
+            const seriesResult = await query(
+                `SELECT id, title, slug, cover_url, cover_url_web, cover_url_tmo, cover_url_oni
+                 FROM series WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+                [recommendedSeriesId]
+            );
+            if (!seriesResult.rows.length) {
+                return res.status(404).json({ success: false, message: 'Manhwa recomendado no encontrado' });
+            }
+            const series = seriesResult.rows[0];
+            recommendation = {
+                id: series.id,
+                title: series.title,
+                slug: series.slug,
+                coverUrl: series.cover_url || series.cover_url_web || series.cover_url_tmo || series.cover_url_oni ||
+                    (/^https?:\/\//i.test(String(recommendedSeriesCoverUrl || '')) ? recommendedSeriesCoverUrl : null)
+            };
+        }
+
         const result = await query(
-            `INSERT INTO comments (user_id, target_type, target_id, parent_id, root_id, content, rating, is_spoiler, ip_address)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            `INSERT INTO comments (user_id, target_type, target_id, parent_id, root_id, content, rating, is_spoiler, ip_address,
+                                   recommended_series_id, recommended_series_title, recommended_series_cover_url)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING *`,
-            [req.user.id, targetType, targetId, parentId, rootId, commentContent, rating, isSpoiler || false, req.ip]
+            [req.user.id, targetType, targetId, parentId, rootId, commentContent, rating, isSpoiler || false, req.ip,
+                recommendation?.id || null, recommendation?.title || null, recommendation?.coverUrl || null]
         );
         
         const comment = result.rows[0];
@@ -588,6 +618,12 @@ const createComment = async (req, res, next) => {
                     content: comment.content,
                     rating: comment.rating,
                     isSpoiler: comment.is_spoiler,
+                    recommendedSeries: comment.recommended_series_id ? {
+                        id: comment.recommended_series_id,
+                        title: comment.recommended_series_title,
+                        slug: comment.recommended_series_slug,
+                        coverUrl: comment.recommended_series_cover_url
+                    } : null,
                     poll: pollData,
                     createdAt: comment.created_at,
                     author: authorWithBadges
@@ -613,6 +649,11 @@ const createComment = async (req, res, next) => {
                 targetType,
                 targetId,
                 isSpoiler: !!comment.is_spoiler,
+                recommendedSeries: comment.recommended_series_id ? {
+                    id: comment.recommended_series_id,
+                    title: comment.recommended_series_title,
+                    coverUrl: comment.recommended_series_cover_url
+                } : null,
                 createdAt: comment.created_at,
                 author: authorWithBadges
             })
@@ -928,7 +969,7 @@ const getWallComments = async (req, res, next) => {
         const targetId = '00000000-0000-0000-0000-000000000000';
 
         const result = await query(
-            `SELECT c.*, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
+            `SELECT c.*, COALESCE(c.recommended_series_cover_url, rs.cover_url, rs.cover_url_web, rs.cover_url_tmo, rs.cover_url_oni) AS recommended_series_cover_url, rs.slug AS recommended_series_slug, u.username, u.display_name, u.avatar_url, u.role as user_role, u.experience,
                     u.is_premium AS author_is_premium,
                     EXISTS(
                         SELECT 1 FROM comment_votes cv
@@ -940,6 +981,7 @@ const getWallComments = async (req, res, next) => {
                     ) AS user_disliked
              FROM comments c
              JOIN users u ON u.id = c.user_id
+             LEFT JOIN series rs ON rs.id = c.recommended_series_id
              WHERE c.target_type = 'wall'
                AND c.target_id = $1
                AND c.parent_id IS NULL
@@ -1009,6 +1051,12 @@ const getWallComments = async (req, res, next) => {
                 isPinned: comment.is_pinned,
                 isSpoiler: comment.is_spoiler,
                 isEdited: comment.is_edited,
+                recommendedSeries: comment.recommended_series_id ? {
+                    id: comment.recommended_series_id,
+                    title: comment.recommended_series_title,
+                    slug: comment.recommended_series_slug,
+                    coverUrl: comment.recommended_series_cover_url
+                } : null,
                 userLiked: comment.user_liked,
                 userDisliked: comment.user_disliked,
                 poll,

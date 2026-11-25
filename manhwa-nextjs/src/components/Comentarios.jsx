@@ -9,6 +9,7 @@ import { endpoint } from '../config'
 import UserBadges from './UserBadges'
 import styles from './VipComment.module.css'
 import { getLevelInfo, LEVEL_CONFIG } from '../utils/xpSystem'
+import { useSpaces } from '../hooks/useSpaces'
 
 const LEVEL_ICONS = { IconBook, IconSword, IconShield, IconCrown }
 
@@ -19,6 +20,17 @@ const getAvatarUrl = (person) => (
 const getProfileUrl = (person, fallbackUsername) => {
   const profileUsername = person?.username || fallbackUsername
   return profileUsername ? `/users/${encodeURIComponent(profileUsername)}` : null
+}
+
+const getRecommendedSeriesCover = (series) => (
+  series?.coverUrl || series?.cover_url || series?.cover || series?.image || series?.coverUrlWeb || series?.cover_url_web ||
+  series?.coverUrlTmo || series?.cover_url_tmo || series?.coverUrlOni || series?.cover_url_oni || null
+)
+
+const normalizeRecommendedSeries = (series) => {
+  if (!series) return null
+  const coverUrl = getRecommendedSeriesCover(series)
+  return { ...series, coverUrl }
 }
 
 function ProfileAvatar({ person, fallbackUsername, profileLabel, ...avatarProps }) {
@@ -423,6 +435,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
   const isWall = variant === 'wall' || resolveCommentTarget(detailRequest)?.targetType === 'wall'
   const currentUserId = user?.id ?? user?._id ?? user?.userId
   const currentUserAvatar = getAvatarUrl(user)
+  const { series: catalogSeries = [] } = useSpaces()
   const getCommentAvatar = (author) => {
     const authorId = author?.id ?? author?._id ?? author?.userId
     const isCurrentUser = currentUserId && authorId
@@ -431,6 +444,12 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     return isCurrentUser ? currentUserAvatar : getAvatarUrl(author)
   }
   const [commentText, setCommentText] = useState('')
+  const [recommendedSeries, setRecommendedSeries] = useState(null)
+  const [seriesPickerOpen, setSeriesPickerOpen] = useState(false)
+  const [seriesPickerTarget, setSeriesPickerTarget] = useState(null)
+  const [seriesSearch, setSeriesSearch] = useState('')
+  const [seriesResults, setSeriesResults] = useState([])
+  const [seriesSearching, setSeriesSearching] = useState(false)
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentSuccess, setCommentSuccess] = useState(false)
   const [commentError, setCommentError] = useState('')
@@ -455,6 +474,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     return arr.slice().sort((a, b) => new Date(a?.createdAt || a?.created_at || 0).getTime() - new Date(b?.createdAt || b?.created_at || 0).getTime())
   }
   const replyInputRefs = useRef({})
+  const wallInitialScrollDoneRef = useRef(false)
   const [detailComments, setDetailComments] = useState([])
   const [detailCommentsPage, setDetailCommentsPage] = useState(1)
   const [detailCommentsLoading, setDetailCommentsLoading] = useState(false)
@@ -1268,6 +1288,54 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
   // 2) La encuesta está completa (con o sin texto)
   const canSubmit = isTextValid || isPollComplete
 
+  useEffect(() => {
+    if (!seriesPickerOpen || seriesSearch.trim().length < 2) {
+      setSeriesResults([])
+      return undefined
+    }
+    const timer = setTimeout(async () => {
+      setSeriesSearching(true)
+      try {
+        const res = await api.get('search', `series?q=${encodeURIComponent(seriesSearch.trim())}&limit=8`)
+        const rows = res?.data?.results?.series || res?.data?.series || res?.results?.series || []
+        setSeriesResults(rows)
+      } catch { setSeriesResults([]) } finally { setSeriesSearching(false) }
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [seriesPickerOpen, seriesSearch])
+
+  const chooseRecommendedSeries = (series) => {
+    const normalizedSeries = normalizeRecommendedSeries(series)
+    if (seriesPickerTarget) {
+      setReplyBoxes(prev => ({ ...(prev || {}), [seriesPickerTarget]: { ...(prev[seriesPickerTarget] || {}), recommendedSeries: normalizedSeries } }))
+    } else {
+      setRecommendedSeries(normalizedSeries)
+    }
+    setSeriesPickerOpen(false)
+    setSeriesPickerTarget(null)
+    setSeriesSearch('')
+  }
+
+  const openReplySeriesPicker = (parentId) => {
+    setSeriesPickerTarget(parentId)
+    setSeriesPickerOpen(true)
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const box = document.querySelector(`[data-reply-box="${String(parentId)}"]`)
+        box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }, 80)
+    })
+  }
+
+  useEffect(() => {
+    if (!seriesPickerOpen || !seriesPickerTarget || seriesResults.length === 0) return
+    const frame = requestAnimationFrame(() => {
+      const box = document.querySelector(`[data-reply-box="${String(seriesPickerTarget)}"]`)
+      box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [seriesPickerOpen, seriesPickerTarget, seriesResults.length])
+
   const fetchTargetComments = async (page = 1, limit = 50) => {
     setDetailCommentsLoading(true)
     setCommentError('')
@@ -1477,7 +1545,14 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     } catch { /* noop */ }
   }
 
-  const cancelReplyBox = (parentId) => setReplyBoxes(prev => ({ ...(prev || {}), [parentId]: { ...(prev[parentId] || {}), open: false, replyTargetId: null } }))
+  const cancelReplyBox = (parentId) => {
+    if (String(seriesPickerTarget || '') === String(parentId)) {
+      setSeriesPickerOpen(false)
+      setSeriesPickerTarget(null)
+      setSeriesSearch('')
+    }
+    setReplyBoxes(prev => ({ ...(prev || {}), [parentId]: { ...(prev[parentId] || {}), open: false, replyTargetId: null } }))
+  }
 
   // devuelve longitud del contenido real excluyendo menciones iniciales como "@user "
   const contentLengthExcludingMentions = (txt) => {
@@ -1508,6 +1583,10 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       if (!target?.targetId) return
       const payload = { targetType: target.targetType, targetId: target.targetId, content: text }
       payload.isSpoiler = !!box.isSpoiler
+      if (box.recommendedSeries?.id) {
+        payload.recommendedSeriesId = box.recommendedSeries.id
+        payload.recommendedSeriesCoverUrl = getRecommendedSeriesCover(box.recommendedSeries)
+      }
       // If a specific reply target is set (replying to a reply), use that id as parentId
       if (box.replyTargetId) payload.parentId = box.replyTargetId
       else if (parentId) payload.parentId = parentId
@@ -1524,6 +1603,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           author: buildOptimisticAuthor(created.author, user),
           createdAt: created.createdAt || new Date().toISOString(),
           isSpoiler: !!created.isSpoiler,
+          recommendedSeries: normalizeRecommendedSeries({ ...(box.recommendedSeries || {}), ...(created.recommendedSeries || {}) }),
           likesCount: 0
         }
       }
@@ -1930,6 +2010,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                     <Text size="sm" component="span" className={styles.commentText}>
                       {renderTruncatedContent(r.content, r.id, 300)}
                     </Text>
+                    {renderRecommendedSeries(r.recommendedSeries)}
                   </div>
 
                   {/* Botón Responder */}
@@ -2015,6 +2096,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
 
   useEffect(() => {
     if (detailRequest && detailRequest.id) {
+      if (isWall) wallInitialScrollDoneRef.current = false
       setDetailComments([])
       setDetailCommentsPage(1)
       // ordenar según configuración (Boost Temporal) en la carga inicial
@@ -2028,6 +2110,25 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       setDetailCommentsPagination(null)
     }
   }, [detailRequest])
+
+  // En el muro las publicaciones se muestran de antiguas a nuevas. Después de
+  // cargar la primera tanda, lleva al lector suavemente a la publicación más reciente.
+  useEffect(() => {
+    if (!isWall || wallInitialScrollDoneRef.current || detailComments.length === 0 || detailCommentsLoading) return
+    const scrollToLatest = () => {
+      try {
+        const container = commentsContainerRef.current
+        if (container && typeof container.scrollTo === 'function' && container.scrollHeight > container.clientHeight) {
+          container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+        } else {
+          window.scrollTo({ top: document.documentElement.scrollHeight, left: 0, behavior: 'smooth' })
+        }
+        wallInitialScrollDoneRef.current = true
+      } catch { /* noop */ }
+    }
+    const frame = requestAnimationFrame(() => requestAnimationFrame(scrollToLatest))
+    return () => cancelAnimationFrame(frame)
+  }, [isWall, detailComments.length, detailCommentsLoading])
 
   // Hide the "Nuevo comentario" button when user scrolls back to top
   useEffect(() => {
@@ -2477,6 +2578,11 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         content: content || '' // Si no hay contenido pero hay encuesta, dejar vacío
       }
 
+      if (recommendedSeries?.id) {
+        payload.recommendedSeriesId = recommendedSeries.id
+        payload.recommendedSeriesCoverUrl = getRecommendedSeriesCover(recommendedSeries)
+      }
+
       payload.isSpoiler = !!isSpoilerMode
 
       // Agregar datos de encuesta si está activo
@@ -2503,6 +2609,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           createdAt: created.createdAt || new Date().toISOString(),
           isSpoiler: !!created.isSpoiler,
           poll: created.poll || null,
+          recommendedSeries: normalizeRecommendedSeries({ ...(recommendedSeries || {}), ...(created.recommendedSeries || {}) }),
           likesCount: 0
         }
 
@@ -2532,6 +2639,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       }
 
       setCommentText('')
+      setRecommendedSeries(null)
       setCommentSuccess(true)
       if (isWall && created?.id) {
         requestAnimationFrame(() => {
@@ -2562,6 +2670,24 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
     } finally {
       setCommentSubmitting(false)
     }
+  }
+
+  const renderRecommendedSeries = (series) => {
+    if (!series) return null
+    const catalogMatch = catalogSeries.find((item) => (
+      String(item?.id || '') === String(series?.id || '') ||
+      (series?.slug && item?.slug === series.slug)
+    ))
+    // El comentario puede traer coverUrl=null; el catálogo de Spaces contiene
+    // la portada real y debe tener prioridad al combinar ambos objetos.
+    const resolvedSeries = catalogMatch ? { ...series, ...catalogMatch } : series
+    const cover = getRecommendedSeriesCover(resolvedSeries)
+    if (!cover) return null
+    return (
+      <a href={resolvedSeries.slug ? `/manhwa/${resolvedSeries.slug}` : '#'} aria-label={`Abrir ${resolvedSeries.title || 'manhwa recomendado'}`} style={{ display: 'inline-block', marginTop: 12, color: 'inherit', textDecoration: 'none', lineHeight: 0 }}>
+        <img src={cover} alt={resolvedSeries.title || 'Manhwa recomendado'} style={{ width: 88, height: 124, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
+      </a>
+    )
   }
 
   return (
@@ -2745,19 +2871,30 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
               maxLength={MAX_COMMENT_LENGTH}
               disabled={commentSubmitting}
               aria-busy={commentSubmitting}
-              styles={{
-                input: {
-                  fontSize: '14px',
-                  color: 'var(--text-color)',
-                  padding: '4px 0',
-                  lineHeight: 1.6,
-                  '&::placeholder': {
-                    color: 'var(--dimmed-text)',
-                    opacity: 0.7
-                  }
-                }
-              }}
+              classNames={{ input: styles.commentComposerInput }}
             />
+            {isWall && recommendedSeries && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                {renderRecommendedSeries(recommendedSeries)}
+                <ActionIcon aria-label="Quitar portada" variant="subtle" color="red" onClick={() => setRecommendedSeries(null)}>
+                  <IconX size={16} />
+                </ActionIcon>
+              </div>
+            )}
+            {isWall && seriesPickerOpen && !seriesPickerTarget && (
+              <div style={{ marginTop: 10, padding: 10, border: '1px solid var(--border-color-subtle)', borderRadius: 12, background: 'var(--card-bg-solid)' }}>
+                <TextInput autoFocus value={seriesSearch} onChange={(e) => setSeriesSearch(e.currentTarget.value)} placeholder={lang === 'en' ? 'Search a manhwa...' : 'Buscar un manhwa...'} styles={{ input: { paddingLeft: 12 } }} />
+                {seriesSearching && <Text size="xs" c="dimmed" mt={6}>Buscando...</Text>}
+                <div style={{ display: 'flex', gap: 10, marginTop: 10, overflowX: 'auto', padding: '2px 2px 8px', scrollbarWidth: 'thin' }}>
+                  {seriesResults.map((series) => (
+                    <button key={series.id} type="button" title={series.title} onClick={() => chooseRecommendedSeries(series)} style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', flex: '0 0 78px', border: '1px solid var(--border-color-subtle)', borderRadius: 9, padding: 5, background: 'transparent', color: 'var(--text-color)', cursor: 'pointer' }}>
+                      <img src={series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web || series.coverUrlOni || series.cover_url_oni} alt={series.title || ''} style={{ width: 68, height: 96, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
+                      <span style={{ fontSize: 10, fontWeight: 600, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{series.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {typingCount > 0 && (
               <div style={{ marginTop: 8 }}>
                 <Text size="sm" color="dimmed">{typingCount === 1 ? '1 persona está escribiendo...' : `${typingCount} personas están escribiendo...`}</Text>
@@ -3037,6 +3174,11 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                   <IconChartBar size={18} />
                 </ActionIcon>
               </Tooltip>
+              {isWall && <Tooltip label={lang === 'en' ? 'Recommend a manhwa' : 'Recomendar un manhwa'} withArrow>
+                <ActionIcon variant="light" size="lg" onClick={() => { setSeriesPickerTarget(null); setSeriesPickerOpen((open) => !open) }} style={{ color: recommendedSeries ? 'rgb(var(--accent-cyan))' : 'var(--dimmed-text)', borderRadius: 8 }}>
+                  <IconBook size={18} />
+                </ActionIcon>
+              </Tooltip>}
             </div>
 
             {isTooShort && trimmedLength > 0 && (
@@ -3492,6 +3634,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                   >
                                     {renderContentWithMentions(c.content, c.id)}
                                   </Text>
+                                  {renderRecommendedSeries(c.recommendedSeries)}
                                 </div>
 
                                 {!revealedComments[c.id] && (
@@ -3538,6 +3681,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                     {renderTruncatedContent(c.content, c.id, 400)}
                                   </Text>
                                 </div>
+                                {renderRecommendedSeries(c.recommendedSeries)}
 
                                 {/* Renderizado de encuesta */}
                                 {c.poll && c.poll.options && (
@@ -3755,7 +3899,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
 
                           {/* Caja de respuesta por comentario (input exclusivo) */}
                           {replyBoxes[c.id ?? c._id]?.open && (
-                            <div style={{ marginTop: 12, marginLeft: 0, marginRight: 0, width: '100%', boxSizing: 'border-box' }}>
+                            <div data-reply-box={String(c.id ?? c._id)} style={{ marginTop: 12, marginLeft: 0, marginRight: 0, width: '100%', boxSizing: 'border-box' }}>
                               <div style={{ borderLeft: '3px solid rgb(var(--accent-cyan))', paddingLeft: 12, background: 'linear-gradient(90deg, rgba(var(--accent-cyan),0.02), transparent)', borderRadius: 8 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -3778,9 +3922,31 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                       maxLength={MAX_COMMENT_LENGTH}
                                       disabled={replyBoxes[c.id ?? c._id]?.submitting}
                                       style={{ width: '100%' }}
-                                      styles={{ input: { fontSize: '13px', color: 'var(--text-color)', padding: '4px 0', lineHeight: 1.5 } }}
+                                      styles={{ input: { fontSize: '13px', color: 'var(--text-color)', padding: '8px 12px', lineHeight: 1.5 } }}
                                       ref={(el) => { try { replyInputRefs.current[c.id ?? c._id] = el } catch { /* noop */ } }}
                                     />
+
+                                    {replyBoxes[c.id]?.recommendedSeries && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        {renderRecommendedSeries(replyBoxes[c.id].recommendedSeries)}
+                                        <ActionIcon aria-label="Quitar portada" variant="subtle" color="red" onClick={() => setReplyBoxes(prev => ({ ...(prev || {}), [c.id]: { ...(prev[c.id] || {}), recommendedSeries: null } }))}>
+                                          <IconX size={15} />
+                                        </ActionIcon>
+                                      </div>
+                                    )}
+                                    {seriesPickerOpen && seriesPickerTarget === c.id && (
+                                      <div style={{ marginTop: 8, padding: 8, border: '1px solid var(--border-color-subtle)', borderRadius: 10, background: 'var(--card-bg-solid)' }}>
+                                        <TextInput autoFocus value={seriesSearch} onChange={(e) => setSeriesSearch(e.currentTarget.value)} placeholder="Buscar un manhwa..." styles={{ input: { paddingLeft: 12 } }} />
+                                        <div style={{ display: 'flex', gap: 9, marginTop: 9, overflowX: 'auto', padding: '2px 2px 7px', scrollbarWidth: 'thin' }}>
+                                          {seriesResults.map((series) => (
+                                            <button key={series.id} type="button" title={series.title} onClick={() => chooseRecommendedSeries(series)} style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', flex: '0 0 70px', border: '1px solid var(--border-color-subtle)', borderRadius: 8, padding: 4, background: 'transparent', color: 'var(--text-color)', cursor: 'pointer' }}>
+                                              <img src={series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web || series.coverUrlOni || series.cover_url_oni} alt={series.title || ''} style={{ width: 60, height: 84, objectFit: 'cover', borderRadius: 5, display: 'block' }} />
+                                              <span style={{ fontSize: 10, fontWeight: 600, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{series.title}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
 
                                     {mentionSuggestions[String(c.id ?? c._id)] && mentionSuggestions[String(c.id ?? c._id)].visible && (
                                       <div style={{ position: 'relative' }}>
@@ -3796,8 +3962,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                                     )}
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <Button size="xs" variant="subtle" onClick={() => cancelReplyBox(c.id)}>Cancelar</Button>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Button size="xs" variant="subtle" onClick={() => openReplySeriesPicker(c.id)} leftSection={<IconBook size={14} />}>Manhwa</Button>
                                       </div>
                                       <div style={{ display: 'flex', alignItems: 'center' }}>
                                         <Button

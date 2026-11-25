@@ -34,6 +34,7 @@ const migrations = [
     '025_expand_favorite_character_names.sql',
     '026_harden_wall_comments.sql',
     '027_create_ai_usage_daily.sql',
+    '028_add_manhwa_recommendations_to_comments.sql',
 ];
 
 function loadMigrations() {
