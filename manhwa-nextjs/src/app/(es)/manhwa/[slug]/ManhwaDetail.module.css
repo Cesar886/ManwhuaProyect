@@ -743,6 +743,22 @@
   text-decoration: underline;
 }
 
+.heroAlternativeTitles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  align-items: baseline;
+  margin-top: 4px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.68));
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.heroAlternativeTitlesLabel {
+  color: var(--text-color, inherit);
+  font-weight: 600;
+}
+
 /* Hero Synopsis Wrapper */
 .heroSynopsisWrap {
   grid-area: synopsis;

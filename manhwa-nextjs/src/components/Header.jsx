@@ -113,7 +113,9 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   const pathSegments = normalizedPath.split('/').filter(Boolean);
   const hasSegment = (segment) => pathSegments.includes(segment);
 
-  const derivedActiveTab = (hasSegment('biblioteca') || hasSegment('library')) ? 'library'
+  // El detalle de una obra y sus capítulos forman parte del flujo de la
+  // biblioteca, aunque no tengan literalmente `/biblioteca` en la URL.
+  const derivedActiveTab = (hasSegment('biblioteca') || hasSegment('library') || hasSegment('manhwa')) ? 'library'
     : (hasSegment('mangas') || hasSegment('manga')) ? 'manga'
       : (hasSegment('muro') || hasSegment('wall')) ? 'wall'
       : (hasSegment('perfil') || hasSegment('profile')) ? 'profile'

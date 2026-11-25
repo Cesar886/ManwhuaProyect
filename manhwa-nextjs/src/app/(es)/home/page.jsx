@@ -24,7 +24,7 @@ async function getInitialSeries() {
 
 function getFirstCover(series) {
   for (const s of series) {
-    const url = s?.cover || s?.coverUrl || s?.cover_url || s?.coverUrlWeb || s?.cover_url_web
+    const url = s?.coverUrl || s?.cover_url || s?.cover || s?.coverUrlWeb || s?.cover_url_web || s?.coverUrlTmo || s?.cover_url_tmo || s?.coverUrlOni || s?.cover_url_oni
     if (url && s?.slug) return url
   }
   return null

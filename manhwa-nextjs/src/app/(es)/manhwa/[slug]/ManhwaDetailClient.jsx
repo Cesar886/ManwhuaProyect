@@ -536,6 +536,10 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
       series?.cover_url,
       series?.coverUrlWeb,
       series?.cover_url_web,
+      series?.coverUrlTmo,
+      series?.cover_url_tmo,
+      series?.coverUrlOni,
+      series?.cover_url_oni,
       series?.cover,
     ]
       .map(sanitizeCover)
@@ -549,7 +553,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
       primary: candidates[0] || null,
       fallback: candidates[1] || null,
     };
-  }, [localCoverUrl, series?.coverUrl, series?.cover_url, series?.coverUrlWeb, series?.cover_url_web, series?.cover]);
+  }, [localCoverUrl, series?.coverUrl, series?.cover_url, series?.coverUrlWeb, series?.cover_url_web, series?.coverUrlTmo, series?.cover_url_tmo, series?.coverUrlOni, series?.cover_url_oni, series?.cover]);
 
   const normalizedPrimaryCover = useMemo(
     () => normalizeImageUrl(effectiveCoverUrls.primary) || '',
@@ -1065,6 +1069,25 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                 </Link>
               </div>
             )}
+
+            {(() => {
+              const rawTitles = effectiveSeries?.alternativeTitles ?? series?.alternativeTitles;
+              const titles = Array.isArray(rawTitles)
+                ? rawTitles
+                : typeof rawTitles === 'string'
+                  ? rawTitles.split(/[,|\n]/).map(title => title.trim()).filter(Boolean)
+                  : [];
+              if (titles.length === 0) return null;
+
+              return (
+                <div className={styles.heroAlternativeTitles}>
+                  <span className={styles.heroAlternativeTitlesLabel}>
+                    {lang === 'en' ? 'Alternative titles' : 'Títulos alternativos'}:
+                  </span>{' '}
+                  <span>{titles.join(' · ')}</span>
+                </div>
+              );
+            })()}
 
             {/* Calificación de la serie */}
             <SeriesRating

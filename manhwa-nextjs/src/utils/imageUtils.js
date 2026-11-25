@@ -24,6 +24,33 @@ export function normalizeImageUrl(url) {
 }
 
 /**
+ * Devuelve la primera portada disponible. Las APIs antiguas pueden exponer
+ * cualquiera de estas variantes, por eso no se debe asumir que cover_url es
+ * siempre la fuente principal.
+ */
+export function getCoverUrl(item) {
+  if (!item) return ''
+
+  const candidates = [
+    item.coverUrl,
+    item.cover_url,
+    item.cover,
+    item.coverUrlWeb,
+    item.cover_url_web,
+    item.coverUrlTmo,
+    item.cover_url_tmo,
+    item.coverUrlOni,
+    item.cover_url_oni,
+  ]
+
+  return candidates.find((value) => {
+    if (!value) return false
+    const normalized = String(value).trim()
+    return normalized && !['undefined', 'null', 'false', '0'].includes(normalized)
+  }) || ''
+}
+
+/**
  * @deprecated Use normalizeImageUrl instead. Cache busters destroy browser/CDN caching.
  */
 export function addCacheBuster(url) {

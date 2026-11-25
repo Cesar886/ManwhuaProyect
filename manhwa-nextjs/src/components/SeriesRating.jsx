@@ -31,7 +31,6 @@ export default function SeriesRating({
   const [currentCount, setCurrentCount] = useState(totalRatings);
   const [visitorId, setVisitorId] = useState(null);
 
-  const mountTimeRef = useRef(Date.now());
   const isSubmittingRef = useRef(false);
   const isMountedRef = useRef(true);
   const fpInitRef = useRef(false);
@@ -131,7 +130,7 @@ export default function SeriesRating({
       try {
         const res = await fetch(apiUrl(`series/${slug}/rating`));
         const data = await res.json();
-        if (mounted && data.success && data.data && !localVoteSetRef.current) {
+        if (mounted && res.ok && data.success && data.data && !localVoteSetRef.current) {
           if (data.data.rating !== null && data.data.rating !== undefined) {
             setCurrentAverage(parseFloat(data.data.rating) || 0);
           }
@@ -172,19 +171,22 @@ export default function SeriesRating({
         body: JSON.stringify({
           rating: value, // 1-5 para validación
           score, // 2-10 para el controlador
-          visitorId,
-          timestamp: new Date(mountTimeRef.current).toISOString()
+          visitorId
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (data.success) {
+      if (response.ok && data.success) {
         setRating(value);
         setHasRated(true);
         localVoteSetRef.current = true;
-        if (data.rating) setCurrentAverage(parseFloat(data.rating));
-        if (data.ratingCount) setCurrentCount(parseInt(data.ratingCount, 10));
+        if (data.rating !== undefined && data.rating !== null) {
+          setCurrentAverage(parseFloat(data.rating) || 0);
+        }
+        if (data.ratingCount !== undefined && data.ratingCount !== null) {
+          setCurrentCount(parseInt(data.ratingCount, 10) || 0);
+        }
 
         // Guardar en localStorage para persistencia al recargar
         if (typeof window !== 'undefined') {
@@ -237,18 +239,6 @@ export default function SeriesRating({
           {hasRated ? '¡Gracias por calificar!' : '¿Qué te pareció esta obra?'}
         </h3>
       )}
-
-      {/* SEO Visible Text */}
-      {/* {(currentCount > 0 || hasRated) && (
-        <p style={{
-          fontSize: '14px',
-          fontWeight: 600,
-          color: 'var(--imperial-gold, #f4c542)',
-          margin: 0,
-        }}>
-          {displayAverage} ({currentCount} {currentCount === 1 ? 'voto' : 'votos'})
-        </p>
-      )} */}
 
       <div
         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}

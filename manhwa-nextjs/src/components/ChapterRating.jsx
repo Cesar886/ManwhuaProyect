@@ -21,8 +21,6 @@ export default function ChapterRating({ slug, chapterNum, onRated, lang = 'es' }
   const [visitorId, setVisitorId] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // El timer anti-bot arranca cuando visitorId está disponible (no al montar)
-  const mountTimeRef = useRef(null);
   const isMountedRef = useRef(true);
   const fpInitRef = useRef(false);
   const apiCheckedRef = useRef(false);
@@ -66,13 +64,6 @@ export default function ChapterRating({ slug, chapterNum, onRated, lang = 'es' }
     initFingerprintOnDemand();
   }, [initFingerprintOnDemand]);
 
-  // Registrar cuándo el usuario puede empezar a votar (para anti-bot)
-  useEffect(() => {
-    if (visitorId && mountTimeRef.current === null) {
-      mountTimeRef.current = Date.now();
-    }
-  }, [visitorId]);
-
   // Resetear estado al cambiar de capítulo para permitir votar en cada uno independientemente
   useEffect(() => {
     if (typeof window === 'undefined' || !slug || !chapterNum) return;
@@ -85,7 +76,6 @@ export default function ChapterRating({ slug, chapterNum, onRated, lang = 'es' }
     setAvgRating(0);
     setRatingCount(0);
     setErrorMsg(null);
-    mountTimeRef.current = visitorId ? Date.now() : null;
 
     // Verificar localStorage para este capítulo específico
     const stored = localStorage.getItem(getStorageKey(slug, chapterNum));
@@ -158,9 +148,6 @@ export default function ChapterRating({ slug, chapterNum, onRated, lang = 'es' }
         body: JSON.stringify({
           rating: value,
           visitorId,
-          timestamp: mountTimeRef.current != null
-            ? new Date(mountTimeRef.current).toISOString()
-            : undefined,
         }),
       });
 

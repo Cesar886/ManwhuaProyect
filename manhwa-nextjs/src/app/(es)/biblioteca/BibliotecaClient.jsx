@@ -216,7 +216,7 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
         const initialMap = new Map(initialSeries.map(s => [s.slug, s]));
 
         return spacesData.map(s => {
-            const hasAnyCover = s.coverUrlWeb || s.cover_url_web || s.coverUrl || s.cover_url || s.cover;
+            const hasAnyCover = s.coverUrlWeb || s.cover_url_web || s.coverUrl || s.cover_url || s.cover || s.coverUrlTmo || s.cover_url_tmo || s.coverUrlOni || s.cover_url_oni;
             if (hasAnyCover) return s;
             // Si spacesData no trae cover para esta serie, rescatar de initialSeries
             const init = initialMap.get(s.slug);
@@ -228,6 +228,10 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
                 cover_url:   s.cover_url   || init.cover_url,
                 coverUrlWeb: s.coverUrlWeb || init.coverUrlWeb,
                 cover_url_web: s.cover_url_web || init.cover_url_web,
+                coverUrlTmo: s.coverUrlTmo || init.coverUrlTmo,
+                cover_url_tmo: s.cover_url_tmo || init.cover_url_tmo,
+                coverUrlOni: s.coverUrlOni || init.coverUrlOni,
+                cover_url_oni: s.cover_url_oni || init.cover_url_oni,
             };
         });
     }, [spacesData, initialSeries]);
@@ -463,8 +467,8 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
                                                         {getSeriesTypeLabel(series)}
                                                     </span>
                                                     <ManhwaCover
-                                                        src={normalizeImageUrl(series.cover || series.coverUrl || series.cover_url || series.coverUrlWeb || series.cover_url_web) || ''}
-                                                        fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.cover || series.coverUrl || series.cover_url) || ''}
+                                                        src={normalizeImageUrl(series.coverUrl || series.cover_url || series.cover || series.coverUrlWeb || series.cover_url_web || series.coverUrlTmo || series.cover_url_tmo || series.coverUrlOni || series.cover_url_oni) || ''}
+                                                        fallbackSrc={normalizeImageUrl(series.coverUrlWeb || series.cover_url_web || series.coverUrlTmo || series.cover_url_tmo || series.coverUrlOni || series.cover_url_oni || series.cover || series.coverUrl || series.cover_url) || ''}
                                                         slug={series.slug}
                                                         alt={t.coverAlt.replace('{title}', series.title)}
                                                         className={classes.popularImg}

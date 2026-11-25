@@ -52,7 +52,7 @@ export const metadata = {
 }
 
 function getCover(s) {
-  return s?.cover || s?.coverUrl || s?.cover_url || s?.coverUrlWeb || s?.cover_url_web || ''
+  return s?.coverUrl || s?.cover_url || s?.cover || s?.coverUrlWeb || s?.cover_url_web || s?.coverUrlTmo || s?.cover_url_tmo || s?.coverUrlOni || s?.cover_url_oni || ''
 }
 
 function getChapters(s) {

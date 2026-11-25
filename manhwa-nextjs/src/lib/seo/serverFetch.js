@@ -1,6 +1,8 @@
 import { SERVER_API_BASE, SITE_URL } from '@/config'
 
-const API_KEY = process.env.INTERNAL_API_KEY || ''
+// En desarrollo algunas instalaciones solo exponen la clave con el prefijo
+// NEXT_PUBLIC_. Aceptar ambas evita que el SSR caiga en 401 al consultar la API.
+const API_KEY = process.env.INTERNAL_API_KEY || process.env.NEXT_PUBLIC_INTERNAL_API_KEY || ''
 const TIMEOUT_MS = 4500
 
 export async function fetchInternalJson(path, options = {}) {

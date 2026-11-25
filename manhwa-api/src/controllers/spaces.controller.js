@@ -228,7 +228,7 @@ const seriesToArray = async (seriesMap) => {
             // 2. Usar subconsulta lateral para géneros - evita GROUP BY costoso
             // 3. Un solo parámetro array en lugar de N parámetros
             const dbResult = await query(
-                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.title, s.original_title, s.status, s.content_type, s.is_adult, s.language, s.chapter_count,
+                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.cover_url_oni, s.title, s.original_title, s.status, s.content_type, s.is_adult, s.language, s.chapter_count,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
                         COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
@@ -263,12 +263,13 @@ const seriesToArray = async (seriesMap) => {
         seriesArray.push({
             slug: series.slug,
             title: dbData?.title || series.title,
-            cover: dbData?.cover_url || dbData?.cover_url_tmo || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
+            cover: dbData?.cover_url || dbData?.cover_url_web || dbData?.cover_url_tmo || dbData?.cover_url_oni || series.cover || (chapters.length > 0 && chapters[0].pages.length > 0
                 ? chapters[0].pages[0].url
                 : null),
-            coverUrl: dbData?.cover_url || dbData?.cover_url_tmo || series.cover,
+            coverUrl: dbData?.cover_url || dbData?.cover_url_web || dbData?.cover_url_tmo || dbData?.cover_url_oni || series.cover,
             coverUrlTmo: dbData?.cover_url_tmo || null,
             coverUrlWeb: dbData?.cover_url_web || null,
+            coverUrlOni: dbData?.cover_url_oni || null,
             status: dbData?.status || 'ongoing',
             contentType: dbData?.content_type || 'manhwa',
             isAdult: dbData?.is_adult || false,
@@ -317,6 +318,7 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
             coverUrl: dbData?.cover_url || dbData?.cover_url_tmo || series.cover,
             coverUrlTmo: dbData?.cover_url_tmo || null,
             coverUrlWeb: dbData?.cover_url_web || null,
+            coverUrlOni: dbData?.cover_url_oni || null,
             status: dbData?.status || 'ongoing',
             contentType: dbData?.content_type || 'manhwa',
             isAdult: dbData?.is_adult || false,
@@ -540,7 +542,7 @@ const getCacheNonBlocking = (allowStale = true) => {
 const getSeriesFromDatabase = async () => {
     try {
         const result = await query(`
-            SELECT s.id, s.slug, s.title, s.cover_url, s.status, s.chapter_count, s.updated_at
+            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status, s.chapter_count, s.updated_at
             FROM series s
             WHERE s.deleted_at IS NULL
             ORDER BY s.updated_at DESC
@@ -549,8 +551,8 @@ const getSeriesFromDatabase = async () => {
         const series = result.rows.map(row => ({
             slug: row.slug,
             title: row.title,
-            cover: row.cover_url,
-            coverUrl: row.cover_url,
+            cover: row.cover_url || row.cover_url_web || row.cover_url_tmo || row.cover_url_oni,
+            coverUrl: row.cover_url || row.cover_url_web || row.cover_url_tmo || row.cover_url_oni,
             status: row.status || 'ongoing',
             chapterCount: getChapterCount(row.slug),
             chapters: [],
@@ -635,7 +637,7 @@ const listManhwasFromDatabase = async (req, res, next) => {
 
         // PASO 4: Fallback a BD para metadata; el conteo sigue viniendo de Spaces.
         const result = await query(`
-            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.status, s.content_type, s.is_adult, s.language, s.chapter_count, s.updated_at
+            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.cover_url_oni, s.status, s.content_type, s.is_adult, s.language, s.chapter_count, s.updated_at
             FROM series s
             WHERE s.deleted_at IS NULL AND s.chapter_count > 0
             ORDER BY s.updated_at DESC
@@ -644,10 +646,11 @@ const listManhwasFromDatabase = async (req, res, next) => {
         const series = result.rows.map(row => ({
             slug: row.slug,
             title: row.title,
-            cover: row.cover_url || row.cover_url_tmo,
-            coverUrl: row.cover_url || row.cover_url_tmo,
+            cover: row.cover_url || row.cover_url_web || row.cover_url_tmo || row.cover_url_oni,
+            coverUrl: row.cover_url || row.cover_url_web || row.cover_url_tmo || row.cover_url_oni,
             coverUrlTmo: row.cover_url_tmo || null,
-            coverUrlWeb: row.cover_url_web || null,
+                    coverUrlWeb: row.cover_url_web || null,
+                    coverUrlOni: row.cover_url_oni || null,
             status: row.status || 'ongoing',
             contentType: row.content_type || 'manhwa',
             isAdult: row.is_adult || false,
