@@ -67,7 +67,15 @@ const getComment = async (req, res, next) => {
                     ) as poll_options
              FROM comments c
              JOIN users u ON c.user_id = u.id
-             LEFT JOIN series rs ON rs.id = c.recommended_series_id
+             LEFT JOIN LATERAL (
+                 SELECT s.id, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni
+                 FROM series s
+                 WHERE (c.recommended_series_id IS NOT NULL AND s.id = c.recommended_series_id)
+                    OR (c.recommended_series_title IS NOT NULL
+                        AND lower(trim(s.title)) = lower(trim(c.recommended_series_title)))
+                 ORDER BY CASE WHEN s.id = c.recommended_series_id THEN 0 ELSE 1 END
+                 LIMIT 1
+             ) rs ON true
              LEFT JOIN comment_polls cp ON cp.comment_id = c.id
              WHERE c.id = $1 AND c.status = 'visible'`,
             [id, req.user?.id || null]
@@ -184,7 +192,15 @@ const getCommentReplies = async (req, res, next) => {
                     EXISTS(SELECT 1 FROM comment_votes WHERE user_id = $3 AND comment_id = c.id AND vote_type = -1) as user_disliked
              FROM comments c
              JOIN users u ON c.user_id = u.id
-             LEFT JOIN series rs ON rs.id = c.recommended_series_id
+             LEFT JOIN LATERAL (
+                 SELECT s.id, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni
+                 FROM series s
+                 WHERE (c.recommended_series_id IS NOT NULL AND s.id = c.recommended_series_id)
+                    OR (c.recommended_series_title IS NOT NULL
+                        AND lower(trim(s.title)) = lower(trim(c.recommended_series_title)))
+                 ORDER BY CASE WHEN s.id = c.recommended_series_id THEN 0 ELSE 1 END
+                 LIMIT 1
+             ) rs ON true
              WHERE c.parent_id = $1 AND c.status = 'visible'
              ORDER BY c.created_at ASC
              LIMIT $2 OFFSET $4`,
@@ -203,8 +219,8 @@ const getCommentReplies = async (req, res, next) => {
                     likes: c.likes_count,
                     dislikes: c.dislikes_count,
                     isSpoiler: c.is_spoiler,
-                    recommendedSeries: c.recommended_series_id ? {
-                        id: c.recommended_series_id,
+                    recommendedSeries: (c.recommended_series_id || c.recommended_series_title) ? {
+                        id: c.recommended_series_id || null,
                         title: c.recommended_series_title,
                         slug: c.recommended_series_slug,
                         coverUrl: c.recommended_series_cover_url
@@ -621,7 +637,7 @@ const createComment = async (req, res, next) => {
                     recommendedSeries: comment.recommended_series_id ? {
                         id: comment.recommended_series_id,
                         title: comment.recommended_series_title,
-                        slug: comment.recommended_series_slug,
+                        slug: recommendation?.slug || null,
                         coverUrl: comment.recommended_series_cover_url
                     } : null,
                     poll: pollData,
@@ -648,10 +664,12 @@ const createComment = async (req, res, next) => {
                 userId: req.user.id,
                 targetType,
                 targetId,
+                parentId: comment.parent_id || parentId || null,
                 isSpoiler: !!comment.is_spoiler,
                 recommendedSeries: comment.recommended_series_id ? {
                     id: comment.recommended_series_id,
                     title: comment.recommended_series_title,
+                    slug: recommendation?.slug || null,
                     coverUrl: comment.recommended_series_cover_url
                 } : null,
                 createdAt: comment.created_at,
@@ -981,7 +999,15 @@ const getWallComments = async (req, res, next) => {
                     ) AS user_disliked
              FROM comments c
              JOIN users u ON u.id = c.user_id
-             LEFT JOIN series rs ON rs.id = c.recommended_series_id
+             LEFT JOIN LATERAL (
+                 SELECT s.id, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni
+                 FROM series s
+                 WHERE (c.recommended_series_id IS NOT NULL AND s.id = c.recommended_series_id)
+                    OR (c.recommended_series_title IS NOT NULL
+                        AND lower(trim(s.title)) = lower(trim(c.recommended_series_title)))
+                 ORDER BY CASE WHEN s.id = c.recommended_series_id THEN 0 ELSE 1 END
+                 LIMIT 1
+             ) rs ON true
              WHERE c.target_type = 'wall'
                AND c.target_id = $1
                AND c.parent_id IS NULL
@@ -1051,8 +1077,8 @@ const getWallComments = async (req, res, next) => {
                 isPinned: comment.is_pinned,
                 isSpoiler: comment.is_spoiler,
                 isEdited: comment.is_edited,
-                recommendedSeries: comment.recommended_series_id ? {
-                    id: comment.recommended_series_id,
+                recommendedSeries: (comment.recommended_series_id || comment.recommended_series_title) ? {
+                    id: comment.recommended_series_id || null,
                     title: comment.recommended_series_title,
                     slug: comment.recommended_series_slug,
                     coverUrl: comment.recommended_series_cover_url

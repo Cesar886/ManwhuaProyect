@@ -10,6 +10,7 @@ import UserBadges from './UserBadges'
 import styles from './VipComment.module.css'
 import { getLevelInfo, LEVEL_CONFIG } from '../utils/xpSystem'
 import { useSpaces } from '../hooks/useSpaces'
+import { normalizeImageUrl } from '../utils/imageUtils'
 
 const LEVEL_ICONS = { IconBook, IconSword, IconShield, IconCrown }
 
@@ -22,10 +23,35 @@ const getProfileUrl = (person, fallbackUsername) => {
   return profileUsername ? `/users/${encodeURIComponent(profileUsername)}` : null
 }
 
-const getRecommendedSeriesCover = (series) => (
-  series?.coverUrl || series?.cover_url || series?.cover || series?.image || series?.coverUrlWeb || series?.cover_url_web ||
-  series?.coverUrlTmo || series?.cover_url_tmo || series?.coverUrlOni || series?.cover_url_oni || null
-)
+const getRecommendedSeriesCovers = (series) => {
+  const covers = [
+    series?.coverUrl,
+    series?.cover_url,
+    series?.cover,
+    series?.image,
+    series?.coverUrlWeb,
+    series?.cover_url_web,
+    series?.coverUrlTmo,
+    series?.cover_url_tmo,
+    series?.coverUrlOni,
+    series?.cover_url_oni
+  ].filter((value) => {
+    if (!value) return false
+    const normalized = String(value).trim()
+    return normalized && !['undefined', 'null', 'false', '0'].includes(normalized)
+  })
+
+  return [...new Set(covers.map((cover) => String(cover).trim()))]
+}
+
+const getRecommendedSeriesCover = (series) => getRecommendedSeriesCovers(series)[0] || null
+
+const normalizeSeriesTitle = (title) => String(title || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^\p{L}\p{N}]+/gu, ' ')
+  .trim()
 
 const normalizeRecommendedSeries = (series) => {
   if (!series) return null
@@ -1603,7 +1629,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           author: buildOptimisticAuthor(created.author, user),
           createdAt: created.createdAt || new Date().toISOString(),
           isSpoiler: !!created.isSpoiler,
-          recommendedSeries: normalizeRecommendedSeries({ ...(box.recommendedSeries || {}), ...(created.recommendedSeries || {}) }),
+          recommendedSeries: normalizeRecommendedSeries({ ...(created.recommendedSeries || {}), ...(box.recommendedSeries || {}) }),
           likesCount: 0
         }
       }
@@ -2177,9 +2203,11 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
             const newC = {
               id: data.id,
               content: data.content,
+              parentId: data.parentId ?? data.parent_id ?? null,
               author: buildOptimisticAuthor(data.author, sseAuthorFallback),
               createdAt: data.createdAt,
               isSpoiler: !!data.isSpoiler,
+              recommendedSeries: normalizeRecommendedSeries(data.recommendedSeries),
               likesCount: 0
             }
 
@@ -2326,10 +2354,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       }
       es.addEventListener('comment.typing', onTyping)
       es.addEventListener('open', () => { /* connection opened */ })
-      es.addEventListener('error', (ev) => {
-        // Silenciar error SSE - es opcional para la funcionalidad principal
-        // console.warn('SSE connection error', ev)
-        try { es && es.close() } catch { /* noop */ }
+      es.addEventListener('error', () => {
+        // EventSource reconecta automáticamente; mantener el stream activo.
       })
       // remove listeners on cleanup handled below
     } catch {
@@ -2609,7 +2635,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           createdAt: created.createdAt || new Date().toISOString(),
           isSpoiler: !!created.isSpoiler,
           poll: created.poll || null,
-          recommendedSeries: normalizeRecommendedSeries({ ...(recommendedSeries || {}), ...(created.recommendedSeries || {}) }),
+          recommendedSeries: normalizeRecommendedSeries({ ...(created.recommendedSeries || {}), ...(recommendedSeries || {}) }),
           likesCount: 0
         }
 
@@ -2674,18 +2700,44 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
 
   const renderRecommendedSeries = (series) => {
     if (!series) return null
-    const catalogMatch = catalogSeries.find((item) => (
-      String(item?.id || '') === String(series?.id || '') ||
-      (series?.slug && item?.slug === series.slug)
-    ))
-    // El comentario puede traer coverUrl=null; el catálogo de Spaces contiene
-    // la portada real y debe tener prioridad al combinar ambos objetos.
-    const resolvedSeries = catalogMatch ? { ...series, ...catalogMatch } : series
-    const cover = getRecommendedSeriesCover(resolvedSeries)
-    if (!cover) return null
+    const catalog = Array.isArray(catalogSeries) ? catalogSeries : []
+    const catalogMatch = catalog.find((item) => {
+      const seriesId = series.id ?? series.seriesId ?? series.series_id
+      const itemId = item?.id ?? item?.seriesId ?? item?.series_id
+      const matchesId = seriesId != null && itemId != null && String(itemId) === String(seriesId)
+      const matchesSlug = series.slug && item?.slug &&
+        String(item.slug).trim().toLowerCase() === String(series.slug).trim().toLowerCase()
+      return matchesId || matchesSlug
+    })
+      || catalog.find((item) => {
+        const title = normalizeSeriesTitle(series.title)
+        return title && title === normalizeSeriesTitle(item?.title)
+      })
+    const slug = String(series.slug || catalogMatch?.slug || '').trim()
+    const coverUrls = [
+      ...getRecommendedSeriesCovers(catalogMatch),
+      ...getRecommendedSeriesCovers(series)
+    ].map((cover) => normalizeImageUrl(cover.startsWith('//') ? `https:${cover}` : cover))
+      .filter(Boolean)
+      .filter((cover, index, covers) => covers.indexOf(cover) === index)
+    if (!coverUrls.length || !slug) return null
+    const title = series.title || catalogMatch?.title || 'Manhwa recomendado'
+
     return (
-      <a href={resolvedSeries.slug ? `/manhwa/${resolvedSeries.slug}` : '#'} aria-label={`Abrir ${resolvedSeries.title || 'manhwa recomendado'}`} style={{ display: 'inline-block', marginTop: 12, color: 'inherit', textDecoration: 'none', lineHeight: 0 }}>
-        <img src={cover} alt={resolvedSeries.title || 'Manhwa recomendado'} style={{ width: 88, height: 124, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
+      <a href={`/manhwa/${slug}`} aria-label={`Abrir ${title}`} style={{ display: 'inline-block', marginTop: 12, color: 'inherit', textDecoration: 'none', lineHeight: 0 }}>
+        <img
+          src={coverUrls[0]}
+          alt={title}
+          onError={(event) => {
+            const failedIndex = Number(event.currentTarget.dataset.coverIndex || 0)
+            const nextIndex = failedIndex + 1
+            if (nextIndex < coverUrls.length) {
+              event.currentTarget.dataset.coverIndex = String(nextIndex)
+              event.currentTarget.src = coverUrls[nextIndex]
+            }
+          }}
+          style={{ width: 88, height: 124, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+        />
       </a>
     )
   }
