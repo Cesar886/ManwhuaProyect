@@ -21,9 +21,16 @@ const AI_READ_ENDPOINT = (() => {
 })();
 
 const getClientIp = (req) => {
-    // req.ip es procesado por Express según trust proxy (más seguro que leer el header crudo,
-    // que un cliente puede falsificar para eludir el fingerprint de cuota)
-    return req.ip || req.socket?.remoteAddress || null;
+    const socketIp = req.socket?.remoteAddress || null;
+    const isLocalProxy = socketIp === '127.0.0.1' || socketIp === '::1' || socketIp === '::ffff:127.0.0.1';
+    const cloudflareIp = String(req.get?.('CF-Connecting-IP') || '').trim();
+    // Apache es el único proxy local. Solo aceptar CF-Connecting-IP cuando la
+    // conexión inmediata proviene de Apache; nunca confiar en esa cabecera desde
+    // una conexión externa directa.
+    if (isLocalProxy && cloudflareIp && /^[0-9a-fA-F:.]+$/.test(cloudflareIp)) {
+        return cloudflareIp;
+    }
+    return socketIp || req.ip || null;
 };
 
 const normalizeDeviceId = (value) => {
@@ -34,10 +41,7 @@ const normalizeDeviceId = (value) => {
 
 const getGuestFingerprint = (req) => {
     const ip = getClientIp(req) || 'unknown-ip';
-    const userAgent = String(req.get('User-Agent') || 'unknown-ua').slice(0, 180);
-    const deviceId = normalizeDeviceId(req.headers['x-device-id']) || 'unknown-device';
-    const seed = `${ip}|${deviceId}|${userAgent}`;
-    return crypto.createHash('sha256').update(seed).digest('hex');
+    return crypto.createHash('sha256').update(ip).digest('hex');
 };
 
 // Debe coincidir con la detección temprana del servicio IA. Estas respuestas no

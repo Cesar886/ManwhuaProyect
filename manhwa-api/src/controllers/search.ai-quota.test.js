@@ -42,6 +42,20 @@ describe('aiRead daily tier quota', () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
+    test('guest fingerprint ignores device id and user agent', async () => {
+        query.mockResolvedValue({ rows: [{ count: 1 }] });
+        const first = request();
+        first.get = (name) => name === 'User-Agent' ? 'prueba-1' : undefined;
+        first.headers['x-device-id'] = 'device-1';
+        const second = request();
+        second.get = (name) => name === 'User-Agent' ? 'prueba-2' : undefined;
+        second.headers['x-device-id'] = 'device-2';
+        await aiRead(first, response());
+        await aiRead(second, response());
+        expect(query).toHaveBeenCalledTimes(2);
+        expect(query.mock.calls[0][1][0]).toBe(query.mock.calls[1][1][0]);
+    });
+
     test.each([
         ['guest', null, 5],
         ['user', { id: 10, role: 'user', isPremium: false }, 15],
