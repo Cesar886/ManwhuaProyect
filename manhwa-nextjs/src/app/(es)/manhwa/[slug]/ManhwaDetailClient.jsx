@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -23,7 +24,6 @@ import { useSeriesProgress } from '@/hooks/useSeriesProgress';
 import { useReadChapters } from '@/hooks/useReadChapters';
 import styles from './ManhwaDetail.module.css';
 import SeriesEditModalV2 from '@/components/SeriesEditModalV2';
-import Comentarios from '@/components/Comentarios';
 import { normalizeImageUrl } from '@/utils/imageUtils';
 import { setLastViewedSeries } from '@/utils/lastViewed';
 import { Pill, Container, Skeleton, Group, Stack, Box, Avatar, Text, Badge as MantineBadge } from '@mantine/core';
@@ -42,6 +42,12 @@ import { getTranslations } from '@/i18n/translations';
 import PushNotificationButton from '@/components/PushNotificationButton';
 
 const ADMIN_CHAPTERS_BATCH_SIZE = 40;
+
+// Esta pestaña no está abierta al entrar al detalle; carga comentarios y sus
+// dependencias solo cuando el usuario selecciona la pestaña.
+const Comentarios = dynamic(() => import('@/components/Comentarios'), {
+  loading: () => <div aria-live="polite">Cargando comentarios…</div>,
+});
 
 
 // Componente de Badge

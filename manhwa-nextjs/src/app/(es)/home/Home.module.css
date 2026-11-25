@@ -1460,7 +1460,7 @@
 .heroProgressBar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   padding: 0 2.75rem 1.25rem;
   position: relative;
   z-index: 3;
@@ -1469,45 +1469,53 @@
 
 .heroProgressSeg {
   flex: 1;
-  height: 3px;
+  min-width: 24px;
+  height: 44px;
   border-radius: 2px;
-  background: rgba(255,255,255,0.1);
+  background: transparent;
   border: none;
   padding: 0;
   cursor: pointer;
   transition: all 0.4s ease;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .heroProgressSeg:hover {
-  background: rgba(255,255,255,0.2);
-  height: 4px;
+  background: transparent;
+}
+
+.heroProgressSeg:focus-visible {
+  outline: 2px solid var(--imperial-cyan, #22D3EE);
+  outline-offset: 1px;
 }
 
 .heroProgressSeg::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--imperial-cyan, #22D3EE), rgba(var(--imperial-blue-rgb), 0.8));
-  transform: scaleX(0);
+  transform: translateY(-50%) scaleX(0);
   transform-origin: left;
   transition: transform 0.4s ease;
 }
 
 .heroProgressSegActive::after {
-  transform: scaleX(1);
+  transform: translateY(-50%) scaleX(1);
 }
 
 /* Animación de llenado del segmento activo — 8s de autoplay */
 @keyframes heroProgressFill {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
+  from { transform: translateY(-50%) scaleX(0); }
+  to   { transform: translateY(-50%) scaleX(1); }
 }
 
 .heroProgressSegCurrent::after {
-  transform: scaleX(1);
+  transform: translateY(-50%) scaleX(1);
   animation: heroProgressFill 8s linear both;
 }
 

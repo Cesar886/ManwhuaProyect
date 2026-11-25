@@ -171,10 +171,10 @@ const nextConfig: NextConfig = {
     ]
   },
   experimental: {
-    // Mantiene separados los chunks CSS por ruta para no servir estilos ajenos.
-    cssChunking: false,
-    // Inserta el CSS en el HTML para evitar solicitudes de estilos bloqueantes.
-    inlineCss: true,
+    // Permite combinar y dividir CSS por ruta; evita enviar reglas de otras rutas.
+    cssChunking: true,
+    // Mantiene las hojas externas para que el navegador pueda reutilizar su caché.
+    inlineCss: false,
     optimizePackageImports: [
       '@mantine/core',
       '@mantine/hooks',

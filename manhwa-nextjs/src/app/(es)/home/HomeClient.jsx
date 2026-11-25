@@ -1032,7 +1032,9 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const heroCover = heroSeries
     ? normalizeImageUrl(heroSeries.cover || heroSeries.coverUrl || heroSeries.cover_url || heroSeries.coverUrlWeb || heroSeries.cover_url_web) || ''
     : ''
-  const heroCoverImage = getOptimizedHeroImage(heroCover, 384)
+  // La portada se muestra a ~239 px en escritorio; 256 px cubre esa caja
+  // sin descargar la variante de 384 px en pantallas de densidad normal.
+  const heroCoverImage = getOptimizedHeroImage(heroCover, 256)
   const heroBackgroundCover = getOptimizedHeroImage(heroCover, 828)
 
   const pickAiCardCover = useCallback((items = [], seed = '') => {

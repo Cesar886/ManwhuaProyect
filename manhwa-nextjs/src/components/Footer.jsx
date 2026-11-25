@@ -131,6 +131,7 @@ function Footer({ lang: propLang }) {
                   alt="Logo Manhwa Imperial"
                   width={36}
                   height={36}
+                  quality={50}
                   className={classes.logoImg}
                 />
                 <span className={classes.logoName}>Manhwa Imperial</span>
