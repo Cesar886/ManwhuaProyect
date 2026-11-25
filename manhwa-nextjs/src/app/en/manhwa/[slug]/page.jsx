@@ -1,6 +1,5 @@
 import { fetchSeriesForSEO } from '@/lib/seo/fetchSeries'
 import { generateComicSeriesJsonLd, generateBreadcrumbJsonLd, generateFAQJsonLd, generateSpeakableArticleJsonLd } from '@/lib/seo/jsonld'
-import { generateSeriesKeywords } from '@/lib/seo/keywords'
 import { getImageAlt } from '@/lib/seo/constants'
 import ManhwaDetail from '../../../(es)/manhwa/[slug]/ManhwaDetailClient'
 import { notFound } from 'next/navigation'
@@ -44,7 +43,6 @@ export async function generateMetadata({ params }) {
   return {
     title: { absolute: metaTitle },
     description: description,
-    keywords: generateSeriesKeywords(series, 'en'),
     alternates: {
       canonical: `https://manhwaimperial.site/en/manhwa/${slug}`,
       languages: {

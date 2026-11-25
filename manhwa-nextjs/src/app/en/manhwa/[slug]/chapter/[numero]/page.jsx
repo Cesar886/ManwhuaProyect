@@ -1,6 +1,5 @@
 import { fetchSeriesForSEO, fetchChapterRatingForSEO } from '@/lib/seo/fetchSeries'
 import { generateChapterJsonLd, generateBreadcrumbJsonLd } from '@/lib/seo/jsonld'
-import { generateChapterKeywords } from '@/lib/seo/keywords'
 import { getImageAlt } from '@/lib/seo/constants'
 import ChapterReader from '../../../../../(es)/manhwa/[slug]/capitulo/[numero]/ChapterReaderClient'
 import { notFound } from 'next/navigation'
@@ -63,7 +62,6 @@ export async function generateMetadata({ params }) {
   return {
     title: { absolute: metaTitle },
     description: description,
-    keywords: generateChapterKeywords(series, numero, 'en'),
     alternates: {
       canonical: `https://manhwaimperial.site/en/manhwa/${slug}/chapter/${numero}`,
       languages: {

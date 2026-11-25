@@ -4,7 +4,6 @@ export const metadata = {
     title: 'Aviso Legal - Manhwa Imperial',
     description:
         'Aviso legal y descargo de responsabilidad de Manhwa Imperial. Naturaleza del servicio, derechos de autor y contacto legal.',
-    keywords: ['aviso legal manhwa', 'descargo de responsabilidad', 'manhwa imperial legal'],
     openGraph: {
         type: 'website',
         locale: 'es_ES',

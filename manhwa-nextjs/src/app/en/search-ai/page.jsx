@@ -10,14 +10,6 @@ const CANONICAL_ES = `${SITE_URL}/busqueda-ia`;
 export const metadata = {
     title: TITLE,
     description: DESCRIPTION,
-    keywords: [
-        'AI manhwa search',
-        'manhwa recommender',
-        'find manhwa by plot',
-        'similar manhwas',
-        'AI manhwa recommendations',
-        'manhwa search engine',
-    ],
     robots: { index: true, follow: true },
     alternates: {
         canonical: CANONICAL,

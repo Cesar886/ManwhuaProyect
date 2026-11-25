@@ -1,12 +1,9 @@
-import { PAGE_KEYWORDS } from '@/lib/seo/constants'
-
 /**
  * SEO Metadata para la página de Ranking de Racha
  */
 export const metadata = {
   title: 'Ranking de Racha - Top Lectores | Manhwa Imperial',
   description: 'Descubre quiénes son los lectores más constantes de Manhwa Imperial. Ranking de rachas de lectura actualizado en tiempo real.',
-  keywords: PAGE_KEYWORDS.populares,
   alternates: {
     canonical: '/ranking',
     languages: {
@@ -39,4 +36,3 @@ export const metadata = {
 export default function RankingLayout({ children }) {
   return children
 }
-

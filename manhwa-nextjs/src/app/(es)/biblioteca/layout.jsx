@@ -1,4 +1,4 @@
-import { PAGE_KEYWORDS, SEO_CONTENT } from '@/lib/seo/constants'
+import { SEO_CONTENT } from '@/lib/seo/constants'
 
 /**
  * SEO Metadata para la página de Biblioteca
@@ -12,7 +12,6 @@ import { PAGE_KEYWORDS, SEO_CONTENT } from '@/lib/seo/constants'
 export const metadata = {
   title: 'Biblioteca de Manhwas - Catálogo Completo en Español | Manhwa Imperial',
   description: SEO_CONTENT.biblioteca.introText,
-  keywords: PAGE_KEYWORDS.biblioteca,
   alternates: {
     canonical: '/biblioteca',
     languages: {

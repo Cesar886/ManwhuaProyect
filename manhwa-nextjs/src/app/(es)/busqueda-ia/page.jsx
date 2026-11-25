@@ -10,14 +10,6 @@ const CANONICAL_EN = `${SITE_URL}/en/search-ai`;
 export const metadata = {
     title: TITLE,
     description: DESCRIPTION,
-    keywords: [
-        'búsqueda IA manhwas',
-        'recomendador manhwas',
-        'IA manhwas',
-        'manhwas similares',
-        'encontrar manhwa por trama',
-        'recomendaciones manhwa español',
-    ],
     robots: { index: true, follow: true },
     alternates: {
         canonical: CANONICAL,

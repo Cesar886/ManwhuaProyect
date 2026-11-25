@@ -21,13 +21,6 @@ export async function generateMetadata({ params }) {
     return {
         title,
         description,
-        keywords: [
-            `manhwas ${humanQuery}`,
-            `recomendaciones ${humanQuery}`,
-            `similar a ${humanQuery}`,
-            'búsqueda IA manhwas',
-            'recomendador manhwas',
-        ],
         robots: { index: true, follow: true },
         alternates: {
             canonical,

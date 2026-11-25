@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   IconClock,
   IconTrendingUp,
@@ -16,7 +16,7 @@ import { normalizeImageUrl } from '@/utils/imageUtils';
 import { endpoint } from '@/config';
 import Header from '@/components/Header';
 import { getImageAlt, getAnchorText } from '@/lib/seo/constants';
-import { slugifyQuery, getSearchHistory } from '@/hooks/useIA';
+import { slugifyQuery, getSearchHistory } from '@/utils/iaSearchHistory';
 import { filterAvailableSeries, filterAvailableSeriesForLang, filterByLanguage, hasAvailableChapters } from '@/utils/adultContent';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecentProgress } from '@/api/progress';
@@ -69,6 +69,19 @@ function carouselFeedbackKey(query) {
   const normalized = String(query || '').trim().toLowerCase()
   if (!normalized) return ''
   return slugifyQuery(normalized)
+}
+
+function getOptimizedHeroImage(url, width) {
+  if (!url) return ''
+
+  try {
+    const imageUrl = new URL(url)
+    if (imageUrl.hostname !== 'oni.ntr-files.online') return url
+
+    return `/_next/image?url=${encodeURIComponent(url)}&w=${width}&q=55`
+  } catch {
+    return url
+  }
 }
 
 function updateCarouselFeedback(query, updater) {
@@ -291,6 +304,19 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const lang = propLang || detectedLang;
   
   const [series, setSeries] = useState(initialSeries)
+  const availableSeries = useMemo(() => filterAvailableSeries(series), [series])
+  const heroCandidateSeries = useMemo(
+    () => availableSeries.filter((item) => item?.slug && item?.title),
+    [availableSeries],
+  )
+  const surpriseCandidateSeries = useMemo(
+    () => availableSeries.filter((item) => item?.slug),
+    [availableSeries],
+  )
+  const dailySourceCandidates = useMemo(
+    () => heroCandidateSeries.slice().sort((a, b) => String(a.slug || '').localeCompare(String(b.slug || ''))),
+    [heroCandidateSeries],
+  )
   const [loading, setLoading] = useState(initialSeries.length === 0)
   const [error, setError] = useState(null)
   const [isFromCache, setIsFromCache] = useState(false)
@@ -318,7 +344,6 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const impressionIdByItemRef = useRef({})
 
   const getFeaturedSourceSeries = (seriesList = []) => {
-    const availableSeries = filterAvailableSeries(seriesList)
     return availableSeries.find((item) => item?.slug && item?.title) || seriesList.find((item) => item?.slug && item?.title) || null
   }
 
@@ -327,28 +352,22 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   }
 
   // Fallback behavioral: última serie que el usuario visitó (localStorage, anon o logueado)
-  const getLastViewedSourceSeries = (seriesList = []) => {
+  const getLastViewedSourceSeries = () => {
     const stored = getLastViewedSeries()
     if (!stored?.slug || !stored?.title) return null
     // Intentar resolver contra el catálogo disponible para obtener datos completos
-    const matched = filterAvailableSeries(seriesList)
-      .find((item) => item?.slug && String(item.slug) === String(stored.slug))
+    const matched = availableSeries.find((item) => item?.slug && String(item.slug) === String(stored.slug))
     if (matched) return matched
     // Si no está en el catálogo cargado, devolver un stub mínimo (slug + title)
     return { slug: stored.slug, title: stored.title, coverUrl: stored.cover || null }
   }
 
-  const getDailyRotatingSourceSeries = (seriesList = [], date = new Date()) => {
-    const availableSeries = filterAvailableSeries(seriesList)
-      .filter((item) => item?.slug && item?.title)
-      .slice()
-      .sort((a, b) => String(a.slug || '').localeCompare(String(b.slug || '')))
-
-    if (availableSeries.length === 0) return null
+  const getDailyRotatingSourceSeries = (date = new Date()) => {
+    if (dailySourceCandidates.length === 0) return null
 
     const dayKey = date.toISOString().slice(0, 10)
     const seed = dayKey.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return availableSeries[seed % availableSeries.length]
+    return dailySourceCandidates[seed % dailySourceCandidates.length]
   }
 
   // Solo carga client-side si el server no pudo proveer datos (fallback)
@@ -473,8 +492,8 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
     const loadSmartRecommendation = async () => {
       const historySourceSeries = user ? getHistorySourceSeries(recentReads) : null
-      const lastViewedSourceSeries = getLastViewedSourceSeries(series)
-      const dailySourceSeries = getDailyRotatingSourceSeries(series)
+      const lastViewedSourceSeries = getLastViewedSourceSeries()
+      const dailySourceSeries = getDailyRotatingSourceSeries()
       // Prioridad: progreso autenticado → última vista (localStorage) → rotativa diaria → featured
       const sourceSeries = historySourceSeries || lastViewedSourceSeries || dailySourceSeries || getFeaturedSourceSeries(series)
 
@@ -496,7 +515,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
         ? 'history'
         : (lastViewedSourceSeries && sourceSeries === lastViewedSourceSeries ? 'lastViewed' : 'daily')
       const aiQuery = sourceTitle ? (lang === 'en' ? `manhwas similar to ${sourceTitle}` : `manhwas similares a ${sourceTitle}`) : ''
-      const availableFallback = filterAvailableSeries(series)
+      const availableFallback = availableSeries
         .filter((item) => item?.slug && item.slug !== sourceSlug)
         .slice(0, 8)
 
@@ -548,7 +567,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                 : []
 
             const catalogBySlug = new Map(
-              filterAvailableSeries(series)
+              availableSeries
                 .filter((item) => item?.slug)
                 .map((item) => [String(item.slug), item])
             )
@@ -617,7 +636,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
     loadSmartRecommendation()
 
     return () => { cancelled = true }
-  }, [series, recentReads, recentLoading, user])
+  }, [availableSeries, recentReads, recentLoading, user])
 
   useEffect(() => {
     let cancelled = false
@@ -962,7 +981,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const heroTouchStartX = useRef(null)
 
   // Pool real de series (9) + 1 slide de Sorpréndeme al final
-  const realHeroPool = filterAvailableSeries(series).filter(s => s.slug && s.title).slice(0, 9)
+  const realHeroPool = heroCandidateSeries.slice(0, 9)
   const heroTotal = realHeroPool.length > 0 ? realHeroPool.length + 1 : 0
   const isSurpriseSlide = heroTotal > 0 && heroIndex === realHeroPool.length
 
@@ -994,11 +1013,11 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   }, [heroNext, heroPrev])
 
   const handleSurprise = useCallback(() => {
-    const pool = filterAvailableSeries(series).filter(s => s.slug)
+    const pool = surpriseCandidateSeries
     if (pool.length === 0) return
     const pick = pool[Math.floor(Math.random() * pool.length)]
     router.push(getLocalizedPath(`/manhwa/${pick.slug}`, lang))
-  }, [series, lang, router])
+  }, [availableSeries, lang, router])
 
   useEffect(() => {
     if (heroTotal < 2) return
@@ -1013,6 +1032,8 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   const heroCover = heroSeries
     ? normalizeImageUrl(heroSeries.cover || heroSeries.coverUrl || heroSeries.cover_url || heroSeries.coverUrlWeb || heroSeries.cover_url_web) || ''
     : ''
+  const heroCoverImage = getOptimizedHeroImage(heroCover, 384)
+  const heroBackgroundCover = getOptimizedHeroImage(heroCover, 828)
 
   const pickAiCardCover = useCallback((items = [], seed = '') => {
     const covers = (Array.isArray(items) ? items : [])
@@ -1103,7 +1124,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
             {/* Fondo dinámico — cambia con la serie activa */}
             {heroCover && !isSurpriseSlide && (
-              <div className={styles.heroBgLayers} style={{ '--hero-cover': `url(${heroCover})` }}>
+              <div className={styles.heroBgLayers} style={{ '--hero-cover': `url(${heroBackgroundCover})` }}>
                 <div className={styles.heroBgBlur} />
                 <div className={styles.heroBgGlow} />
                 <div className={styles.heroBgSpot} />
@@ -1158,7 +1179,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
                   {/* Portadas misterio apiladas */}
                   <div className={styles.surpriseFan} aria-hidden="true">
-                    {filterAvailableSeries(series).slice(1, 4).map((s, i) => {
+                    {availableSeries.slice(1, 4).map((s, i) => {
                       const c = normalizeImageUrl(s.cover || s.coverUrl || s.cover_url || s.coverUrlWeb || s.cover_url_web) || ''
                       return c ? (
                         <div key={s.slug} className={styles.surpriseFanCard} style={{ '--fi': i }}>
@@ -1213,8 +1234,8 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   </div>
 
                   <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroCoverWrap} tabIndex={-1}>
-                    <ManhwaCover src={heroSeries} fallbackSrc={[heroSeries.cover_url_web, heroSeries.cover_url_tmo, heroSeries.cover_url_oni, heroSeries.coverUrlWeb, heroSeries.coverUrlTmo, heroSeries.coverUrlOni].map(normalizeImageUrl).filter(Boolean)} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
-                    <div className={styles.heroCoverGlow} style={{ backgroundImage: `url(${heroCover})` }} />
+                    <ManhwaCover src={heroCoverImage || heroSeries} fallbackSrc={[heroSeries.cover_url_web, heroSeries.cover_url_tmo, heroSeries.cover_url_oni, heroSeries.coverUrlWeb, heroSeries.coverUrlTmo, heroSeries.coverUrlOni].map(normalizeImageUrl).filter(Boolean)} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
+                    <div className={styles.heroCoverGlow} style={{ backgroundImage: `url(${heroBackgroundCover})` }} />
                   </Link>
                 </>
               )}

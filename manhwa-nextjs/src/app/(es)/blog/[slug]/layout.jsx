@@ -15,7 +15,6 @@ export async function generateMetadata({ params }) {
   return {
     title: post.title,
     description: post.meta_description,
-    keywords: [post.target_keyword, ...post.secondary_keywords, ...post.tags],
     openGraph: {
       type: 'article',
       locale: 'es_ES',

@@ -1,4 +1,4 @@
-import { PAGE_KEYWORDS, META_TEMPLATES } from '@/lib/seo/constants'
+import { META_TEMPLATES } from '@/lib/seo/constants'
 
 /**
  * SEO Metadata para la página principal (Home)
@@ -13,7 +13,6 @@ import { PAGE_KEYWORDS, META_TEMPLATES } from '@/lib/seo/constants'
 export const metadata = {
   title: META_TEMPLATES.home.title,
   description: META_TEMPLATES.home.description,
-  keywords: PAGE_KEYWORDS.home,
   alternates: {
     canonical: '/',
     languages: {

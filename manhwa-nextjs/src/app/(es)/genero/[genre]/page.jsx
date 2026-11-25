@@ -64,7 +64,6 @@ export async function generateMetadata({ params }) {
   return {
     title: metaData.title,
     description: metaData.description,
-    keywords: metaData.keywords,
     alternates: {
       canonical: `https://manhwaimperial.site/genero/${genre}`,
       languages: {

@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/contexts/ToastContext'
 import { ImageOptimizationProvider } from '@/contexts/ImageOptimizationContext'
 import OfflineBanner from '@/components/OfflineBanner'
-import SearchModal from '@/components/SearchModal'
+import SearchModalLoader from '@/components/SearchModalLoader'
 import MobileKeyboardDismissal from '@/components/MobileKeyboardDismissal'
 
 // LoginModal carga lazy: GoogleOAuthProvider (y el script de Google ~90 KiB)
@@ -37,7 +37,7 @@ export function Providers({ children }) {
           {children}
           <AuthModals />
           <OfflineBanner />
-          <SearchModal />
+          <SearchModalLoader />
         </ImageOptimizationProvider>
       </ToastProvider>
     </AuthProvider>

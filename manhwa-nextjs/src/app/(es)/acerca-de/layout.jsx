@@ -4,14 +4,6 @@ export const metadata = {
     title: 'Acerca de Manhwa Imperial - Plataforma Legal de Manhwa en Español',
     description:
         'Conoce Manhwa Imperial: quiénes somos, nuestra misión, cómo operamos legalmente y nuestro compromiso con los creadores y la comunidad hispanohablante.',
-    keywords: [
-        'acerca de manhwa imperial',
-        'qué es manhwa imperial',
-        'plataforma legal manhwa',
-        'manhwa imperial misión',
-        'manhwa imperial equipo',
-        'leer manhwa legal español',
-    ],
     openGraph: {
         type: 'website',
         locale: 'es_ES',

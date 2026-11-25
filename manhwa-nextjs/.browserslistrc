@@ -1,7 +1,7 @@
 [production]
 chrome >= 93
 firefox >= 92
-safari >= 15
+safari >= 15.4
 edge >= 93
 not dead
 not op_mini all

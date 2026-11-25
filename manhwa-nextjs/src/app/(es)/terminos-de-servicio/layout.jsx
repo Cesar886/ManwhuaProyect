@@ -4,7 +4,6 @@ export const metadata = {
     title: 'Términos de Servicio - Manhwa Imperial',
     description:
         'Términos y condiciones de uso de Manhwa Imperial. Derechos, obligaciones y políticas legales de la plataforma.',
-    keywords: ['términos de servicio manhwa', 'condiciones de uso', 'políticas manhwa imperial'],
     openGraph: {
         type: 'website',
         locale: 'es_ES',

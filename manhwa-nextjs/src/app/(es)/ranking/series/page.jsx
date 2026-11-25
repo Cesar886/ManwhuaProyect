@@ -18,15 +18,6 @@ export const metadata = {
   title: 'Los Mejores Manhwas en Español 2025 | Manhwa Imperial',
   description:
     'Descubre los mejores manhwas en español ordenados por puntuación de lectores. Top manhwas de acción, romance, fantasía e isekai actualizados diariamente.',
-  keywords: [
-    'mejores manhwas',
-    'top manhwas en español',
-    'manhwas más populares',
-    'ranking manhwas',
-    'mejores manhwas de acción',
-    'mejores manhwas romance',
-    'mejores webtoons en español',
-  ],
   alternates: {
     canonical: `${SITE_URL}/ranking/series`,
     languages: {

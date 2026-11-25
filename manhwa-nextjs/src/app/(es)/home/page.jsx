@@ -30,6 +30,19 @@ function getFirstCover(series) {
   return null
 }
 
+function getHeroPreloadUrl(url) {
+  if (!url) return ''
+
+  try {
+    const imageUrl = new URL(url)
+    if (imageUrl.hostname !== 'oni.ntr-files.online') return url
+
+    return `/_next/image?url=${encodeURIComponent(url)}&w=828&q=55`
+  } catch {
+    return url
+  }
+}
+
 export default async function Home() {
   const initialSeries = filterAvailableSeriesForLang(await getInitialSeries(), 'es')
   const firstCover = getFirstCover(initialSeries)
@@ -38,7 +51,7 @@ export default async function Home() {
     <>
       {/* Preload del cover hero para mejorar LCP */}
       {firstCover && (
-        <link rel="preload" as="image" href={firstCover} fetchPriority="high" />
+        <link rel="preload" as="image" href={getHeroPreloadUrl(firstCover)} fetchPriority="high" />
       )}
       <script
         type="application/ld+json"

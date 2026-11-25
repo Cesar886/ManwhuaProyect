@@ -7,18 +7,6 @@ import { generateBreadcrumbJsonLd, generateWebPageJsonLd } from '@/lib/seo/jsonl
 export const metadata = {
   title: 'Manga en Español - Leer Online Gratis | Manhwa Imperial',
   description: 'Lee manga en español gratis. Explora nuestra colección completa de mangas japoneses traducidos al español, actualizados diariamente. ¡Miles de títulos disponibles!',
-  keywords: [
-    'manga en español',
-    'leer manga online',
-    'manga gratis',
-    'manga español',
-    'manga traducido',
-    'manga online gratis',
-    'mejores mangas',
-    'manga japonés español',
-    'leer manga gratis',
-    'catálogo manga',
-  ],
   alternates: {
     canonical: `${SITE_URL}/mangas`,
     languages: {

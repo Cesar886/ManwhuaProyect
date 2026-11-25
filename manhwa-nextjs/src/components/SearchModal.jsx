@@ -178,8 +178,8 @@ const STYLES = `
   }
 `;
 
-export default function SearchModal() {
-  const [open, setOpen] = useState(false);
+export default function SearchModal({ initialOpen = false }) {
+  const [open, setOpen] = useState(initialOpen);
   const [navigating, setNavigating] = useState(false);
   const chatRef = useRef(null);
   const router = useRouter();

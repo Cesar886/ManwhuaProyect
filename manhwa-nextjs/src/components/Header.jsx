@@ -75,28 +75,21 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   // Calcular altura del header y establecer variable CSS
   useEffect(() => {
     setMounted(true);
-
-    const updateHeaderHeight = () => {
-      if (headerRef.current) {
-        const height = headerRef.current.offsetHeight;
-        document.documentElement.style.setProperty('--header-height', `${height}px`);
-        document.documentElement.style.setProperty('--header-height-mobile', `${height}px`);
-      }
-    };
-
-    updateHeaderHeight();
-
     const headerElement = headerRef.current;
-    const resizeObserver = typeof ResizeObserver !== 'undefined' && headerElement
-      ? new ResizeObserver(updateHeaderHeight)
-      : null;
+    if (!headerElement || typeof ResizeObserver === 'undefined') return;
 
-    resizeObserver?.observe(headerElement);
-    window.addEventListener('resize', updateHeaderHeight);
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const borderBox = entry.borderBoxSize;
+      const height = borderBox?.[0]?.blockSize ?? borderBox?.blockSize ?? entry.contentRect.height;
+      document.documentElement.style.setProperty('--header-height', `${height}px`);
+      document.documentElement.style.setProperty('--header-height-mobile', `${height}px`);
+    });
+
+    resizeObserver.observe(headerElement);
 
     return () => {
       resizeObserver?.disconnect();
-      window.removeEventListener('resize', updateHeaderHeight);
     };
   }, []);
 
@@ -245,7 +238,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
             >
               <Group gap="sm" className={styles.logoGroup} style={{ minWidth: 0, flex: '0 1 auto' }}>
                 <Image
-                  src="/logo.png"
+                  src="/logo-96.webp"
                   alt={t.header.logoAlt}
                   width={40}
                   height={40}

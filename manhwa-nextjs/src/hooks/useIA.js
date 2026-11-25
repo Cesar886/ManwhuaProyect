@@ -3,6 +3,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { endpoint } from '@/config';
+import { slugifyQuery } from '@/utils/iaSearchHistory';
+
+export { getSearchHistory, slugifyQuery } from '@/utils/iaSearchHistory';
 
 const AI_API_URL = endpoint('search', 'ai/read');
 const AI_TRACK_URL = endpoint('search', 'ai/track');
@@ -354,20 +357,6 @@ function getPromptInjectionRisk(query) {
     return { level: 'none', score };
 }
 
-// Slugify compartido — se usa tanto para claves de caché como para URLs
-export function slugifyQuery(text) {
-    return text
-        .toLowerCase()
-        .trim()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-        .slice(0, 300);
-}
-
 function getCacheKey(query, config = buildCacheConfig()) {
     return `${config.cachePrefix}${slugifyQuery(query)}`;
 }
@@ -602,23 +591,6 @@ function saveToCache(query, data, config = buildCacheConfig()) {
             // sin storage disponible — ignorar
         }
     }
-}
-
-// Devuelve las últimas N búsquedas del historial de caché
-export function getSearchHistory(limit = 5, options = {}) {
-    const cacheConfig = buildCacheConfig(options.namespace, options.lang);
-    const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.min(50, limit)) : 5;
-    const index = getCacheIndex(cacheConfig);
-    return index
-        .slice()
-        .sort((a, b) => b.ts - a.ts)
-        .slice(0, safeLimit)
-        .map(entry => {
-            const slug = entry.key.replace(cacheConfig.cachePrefix, '');
-            const original = getOriginalQuery(slug, options);
-            return original ? { query: original, slug, ts: entry.ts } : null;
-        })
-        .filter(Boolean);
 }
 
 // Elimina una entrada del historial de búsquedas

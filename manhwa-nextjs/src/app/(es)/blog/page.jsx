@@ -8,13 +8,6 @@ export const metadata = {
   title: `Blog de Manhwa en Español — Guías y Recomendaciones | ${SITE_NAME}`,
   description:
     'Guías, comparativas y recomendaciones para leer manhwa en español. Descubre los mejores sitios, géneros y títulos del cómic coreano digital.',
-  keywords: [
-    'blog manhwa',
-    'guías manhwa español',
-    'recomendaciones manhwa',
-    'comparativa plataformas manhwa',
-    'cómic coreano español',
-  ],
   alternates: {
     canonical: `${SITE_URL}/blog`,
     languages: { es: `${SITE_URL}/blog`, 'x-default': `${SITE_URL}/blog` },

@@ -1,7 +1,6 @@
 export const metadata = {
   title: 'Crear Cuenta - Regístrate en Manhwa Imperial',
   description: 'Crea tu cuenta gratuita en Manhwa Imperial. Guarda tu progreso de lectura, crea colecciones y recibe notificaciones de nuevos capítulos.',
-  keywords: ['registro', 'crear cuenta', 'manhwa imperial', 'cuenta gratis'],
   alternates: {
     canonical: '/register',
   },

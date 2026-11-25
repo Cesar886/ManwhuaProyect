@@ -10,7 +10,6 @@ export const dynamic = 'force-dynamic'
 export const metadata = {
   title: META_TEMPLATES.biblioteca.title,
   description: META_TEMPLATES.biblioteca.description,
-  keywords: META_TEMPLATES.biblioteca.keywords,
   // SEO: canonical relativo para consistencia con el resto del sitio (metadataBase lo resuelve)
   alternates: {
     canonical: '/biblioteca',

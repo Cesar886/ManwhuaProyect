@@ -28,13 +28,6 @@ export async function generateMetadata({ searchParams }) {
     return {
         title,
         description,
-        keywords: [
-            'buscar manhwas',
-            'búsqueda manhwas',
-            'buscar webtoons',
-            'manhwas español',
-            q ? `manhwas ${q}` : '',
-        ].filter(Boolean),
         // Si hay query específica, dejar indexar para capturar long-tail; sin query, también indexable
         // pero sin contenido único — Google lo dejará de baja prioridad sin duplicarse gracias al canonical.
         robots: { index: true, follow: true },

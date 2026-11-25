@@ -1,9 +1,13 @@
 import type { NextConfig } from 'next'
+import path from 'node:path'
 
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Publica mapas de los bundles del navegador para facilitar el diagnóstico
+  // de errores de producción y las auditorías de Lighthouse.
+  productionBrowserSourceMaps: true,
   outputFileTracingRoot: __dirname,
   serverExternalPackages: ['web-push'],
   // Reducir logs innecesarios
@@ -28,6 +32,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'manhwaimperial.site',
+      },
+      {
+        protocol: 'https',
+        hostname: 'oni.ntr-files.online',
       },
       {
         protocol: 'http',
@@ -163,6 +171,10 @@ const nextConfig: NextConfig = {
     ]
   },
   experimental: {
+    // Mantiene separados los chunks CSS por ruta para no servir estilos ajenos.
+    cssChunking: false,
+    // Inserta el CSS en el HTML para evitar solicitudes de estilos bloqueantes.
+    inlineCss: true,
     optimizePackageImports: [
       '@mantine/core',
       '@mantine/hooks',
@@ -172,6 +184,19 @@ const nextConfig: NextConfig = {
       'recharts',
       'dayjs',
     ],
+  },
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      // Next añade polyfills de APIs ya disponibles en nuestros navegadores
+      // mínimos. Conservamos solo URL.canParse, aún ausente en Safari 15.4.
+      const nextPolyfills = require.resolve('next/dist/build/polyfills/polyfill-module')
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        [nextPolyfills]: path.resolve(__dirname, 'src/polyfills/modern-browser.js'),
+      }
+    }
+
+    return config
   },
 }
 

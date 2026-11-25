@@ -4,12 +4,6 @@ export const metadata = {
     title: 'Política de Privacidad - Manhwa Imperial',
     description:
         'Política de privacidad y protección de datos de Manhwa Imperial. Cómo recopilamos, usamos y protegemos su información.',
-    keywords: [
-        'política de privacidad manhwa',
-        'protección de datos',
-        'privacidad manhwa imperial',
-        'cookies manhwa',
-    ],
     openGraph: {
         type: 'website',
         locale: 'es_ES',

@@ -4,13 +4,6 @@ export const metadata = {
     title: 'Política DMCA - Manhwa Imperial',
     description:
         'Política de cumplimiento DMCA de Manhwa Imperial. Procedimiento de notificación y eliminación de contenido por derechos de autor.',
-    keywords: [
-        'DMCA manhwa',
-        'derechos de autor manhwa',
-        'takedown notice',
-        'copyright manhwa imperial',
-        'eliminación de contenido',
-    ],
     openGraph: {
         type: 'website',
         locale: 'es_ES',

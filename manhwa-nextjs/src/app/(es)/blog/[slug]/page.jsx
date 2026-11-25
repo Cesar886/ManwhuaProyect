@@ -17,7 +17,6 @@ export async function generateMetadata({ params }) {
   return {
     title: `${post.title} | ${SITE_NAME}`,
     description: post.meta_description,
-    keywords: [post.target_keyword, ...post.secondary_keywords, ...post.tags],
     alternates: {
       canonical: `${SITE_URL}/blog/${post.slug}`,
       languages: { es: `${SITE_URL}/blog/${post.slug}`, 'x-default': `${SITE_URL}/blog/${post.slug}` },
