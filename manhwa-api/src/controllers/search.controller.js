@@ -5,8 +5,12 @@
 const crypto = require('crypto');
 const { query } = require('../config/database');
 
-const GUEST_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.GUEST_DAILY_IA_LIMIT, 10) || 5);
-const USER_DAILY_IA_LIMIT = Math.max(1, parseInt(process.env.USER_DAILY_IA_LIMIT, 10) || 10);
+const envLimit = (name, fallback) => Math.max(1, parseInt(process.env[name], 10) || fallback);
+const IA_DAILY_LIMITS = Object.freeze({
+    guest: envLimit('IA_LIMIT_GUEST', 5),
+    user: envLimit('IA_LIMIT_USER', 15),
+    vip: envLimit('IA_LIMIT_VIP', 35),
+});
 const AI_FETCH_TIMEOUT_MS = Math.max(3000, parseInt(process.env.AI_FETCH_TIMEOUT_MS, 10) || 25000);
 const AI_UPSTREAM_HTML_REGEX = /<html[\s>]|<!doctype\s/i;
 const AI_UPSTREAM_MAINTENANCE_MESSAGE = 'El servicio IA devolvió una respuesta de mantenimiento o bloqueo de red. Intenta de nuevo en unos minutos.';
@@ -43,14 +47,16 @@ const buildQuotaState = (limit, quota) => ({
     blocked: !quota.allowed,
 });
 
-// Segundos hasta medianoche UTC (para Retry-After en 429)
-const secondsUntilMidnight = () => {
+const getResetAt = () => {
     const now = new Date();
-    const midnight = new Date(Date.UTC(
-        now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1
-    ));
-    return Math.max(1, Math.ceil((midnight - now) / 1000));
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(now).reduce((acc, part) => ({ ...acc, [part.type]: part.value }), {});
+    const tomorrow = new Date(`${parts.year}-${parts.month}-${String(Number(parts.day) + 1).padStart(2, '0')}T00:00:00-06:00`);
+    return tomorrow.toISOString();
 };
+
+const secondsUntilMidnight = () => Math.max(1, Math.ceil((new Date(getResetAt()) - Date.now()) / 1000));
 
 const attachQuotaPayload = (payload, { guestLimit = null, userLimit = null } = {}) => {
     const response = payload && typeof payload === 'object' ? { ...payload } : {};
@@ -66,70 +72,42 @@ const attachQuotaPayload = (payload, { guestLimit = null, userLimit = null } = {
     return response;
 };
 
-const reserveDailyAiQuota = async ({ limit, fingerprintHash, ip = null, deviceId = null, userAgent = null }) => {
-    const usageDate = new Date().toISOString().slice(0, 10);
+const reserveDailyAiQuota = async ({ limit, subjectKey }) => {
     const result = await query(
-        `WITH upsert AS (
-            INSERT INTO ai_guest_daily_usage (
-                usage_date,
-                fingerprint_hash,
-                ip_address,
-                device_id,
-                user_agent,
-                request_count
-            )
-            VALUES ($1, $2, $3::inet, $4, $5, 1)
-            ON CONFLICT (usage_date, fingerprint_hash) DO UPDATE
-            SET request_count = CASE
-                    WHEN ai_guest_daily_usage.request_count < $6 THEN ai_guest_daily_usage.request_count + 1
-                    ELSE ai_guest_daily_usage.request_count
-                END,
-                ip_address = COALESCE(EXCLUDED.ip_address, ai_guest_daily_usage.ip_address),
-                device_id = COALESCE(EXCLUDED.device_id, ai_guest_daily_usage.device_id),
-                user_agent = COALESCE(EXCLUDED.user_agent, ai_guest_daily_usage.user_agent),
-                updated_at = NOW()
-            WHERE ai_guest_daily_usage.request_count < $6
-            RETURNING request_count
-        )
-        SELECT request_count, true AS allowed
-        FROM upsert
-        UNION ALL
-        SELECT request_count, false AS allowed
-        FROM ai_guest_daily_usage
-        WHERE usage_date = $1 AND fingerprint_hash = $2
-          AND NOT EXISTS (SELECT 1 FROM upsert)
-        LIMIT 1`,
-        [usageDate, fingerprintHash, ip, deviceId, userAgent, limit]
+        `INSERT INTO ai_usage_daily (usage_date, subject_key, count)
+         VALUES ((NOW() AT TIME ZONE 'America/Mexico_City')::date, $1, 1)
+         ON CONFLICT (usage_date, subject_key) DO UPDATE
+         SET count = ai_usage_daily.count + 1
+         WHERE ai_usage_daily.count < $2
+         RETURNING count`,
+        [subjectKey, limit]
     );
 
     const row = result.rows[0];
     if (!row) {
         return {
             allowed: false,
-            used: 0,
+            used: limit,
             remaining: 0,
         };
     }
 
     const used = Number(row.request_count) || 0;
     return {
-        allowed: Boolean(row.allowed),
+        allowed: true,
         used,
         remaining: Math.max(0, limit - used),
     };
 };
 
 const reserveGuestDailyAiQuota = async (req) => reserveDailyAiQuota({
-    limit: GUEST_DAILY_IA_LIMIT,
-    fingerprintHash: getGuestFingerprint(req),
-    ip: getClientIp(req),
-    deviceId: normalizeDeviceId(req.headers['x-device-id']),
-    userAgent: String(req.get('User-Agent') || '').slice(0, 255) || null,
+    limit: IA_DAILY_LIMITS.guest,
+    subjectKey: `g:${getGuestFingerprint(req)}`,
 });
 
-const reserveUserDailyAiQuota = async (userId) => reserveDailyAiQuota({
-    limit: USER_DAILY_IA_LIMIT,
-    fingerprintHash: crypto.createHash('sha256').update(`user:${userId}`).digest('hex'),
+const reserveUserDailyAiQuota = async (userId, tier) => reserveDailyAiQuota({
+    limit: IA_DAILY_LIMITS[tier],
+    subjectKey: `u:${userId}`,
 });
 
 /**
@@ -716,11 +694,22 @@ const aiRead = async (req, res, next) => {
         }
 
         const isGuest = !req.user;
+        let tier = 'guest';
+        if (req.user) {
+            const userResult = await query(
+                'SELECT role, is_premium, premium_until FROM users WHERE id = $1 AND deleted_at IS NULL',
+                [req.user.id]
+            );
+            const dbUser = userResult.rows[0];
+            if (!dbUser) return res.status(401).json({ error: 'Usuario no encontrado' });
+            tier = dbUser.role === 'vip' || (dbUser.is_premium === true && (dbUser.premium_until == null || new Date(dbUser.premium_until) > new Date())) ? 'vip' : 'user';
+        }
+        const limit = IA_DAILY_LIMITS[tier];
 
         try {
             if (isGuest) {
                 const quota = await reserveGuestDailyAiQuota(req);
-                guestLimit = buildQuotaState(GUEST_DAILY_IA_LIMIT, quota);
+                guestLimit = buildQuotaState(limit, quota);
 
                 if (!quota.allowed) {
                     return res.status(429)
@@ -728,12 +717,12 @@ const aiRead = async (req, res, next) => {
                         .json(attachQuotaPayload({
                             success: false,
                             code: 'AI_GUEST_DAILY_LIMIT',
-                            message: `Has alcanzado el límite diario de ${GUEST_DAILY_IA_LIMIT} consultas IA. Regístrate para seguir usándola.`,
-                        }, { guestLimit }));
+                            error: `Llegaste al límite diario de ${limit} consultas IA.`, limit, used: quota.used, remaining: 0, tier, resetAt: getResetAt(),
+                        }));
                 }
             } else {
-                const quota = await reserveUserDailyAiQuota(req.user.id);
-                userLimit = buildQuotaState(USER_DAILY_IA_LIMIT, quota);
+                const quota = await reserveUserDailyAiQuota(req.user.id, tier);
+                userLimit = buildQuotaState(limit, quota);
 
                 if (!quota.allowed) {
                     return res.status(429)
@@ -741,14 +730,15 @@ const aiRead = async (req, res, next) => {
                         .json(attachQuotaPayload({
                             success: false,
                             code: 'AI_USER_DAILY_LIMIT',
-                            message: `Has alcanzado el límite diario de ${USER_DAILY_IA_LIMIT} consultas IA.`,
-                        }, { userLimit }));
+                            error: `Llegaste al límite diario de ${limit} consultas IA.`, limit, used: quota.used, remaining: 0, tier, resetAt: getResetAt(),
+                        }));
                 }
 
                 req._userAiQuota = userLimit;
             }
         } catch (quotaError) {
-            console.error('[aiRead] No se pudo verificar la cuota IA; permitiendo request:', quotaError);
+            console.error('[aiRead] No se pudo verificar la cuota IA:', quotaError);
+            return res.status(503).json({ error: 'No se pudo verificar tu cuota, intenta de nuevo en un momento.' });
         }
 
         const searchContext = req.headers['x-search-context'];
@@ -878,6 +868,9 @@ const aiRead = async (req, res, next) => {
                 }));
             }
 
+            res.set('X-IA-Limit', String(limit));
+            res.set('X-IA-Remaining', String((guestLimit || req._userAiQuota).remaining));
+            res.set('X-IA-Tier', tier);
             return res.status(200).json(payload);
         } finally {
             clearTimeout(timeoutId);
@@ -912,46 +905,31 @@ const aiRead = async (req, res, next) => {
 const getAiQuota = async (req, res) => {
     try {
         const isGuest = !req.user;
-        const usageDate = new Date().toISOString().slice(0, 10);
-        let fingerprintHash;
-        let dailyLimit;
-
-        if (isGuest) {
-            fingerprintHash = getGuestFingerprint(req);
-            dailyLimit = GUEST_DAILY_IA_LIMIT;
-        } else {
-            fingerprintHash = crypto.createHash('sha256').update(`user:${req.user.id}`).digest('hex');
-            dailyLimit = USER_DAILY_IA_LIMIT;
+        let tier = 'guest';
+        if (req.user) {
+            const userResult = await query('SELECT role, is_premium, premium_until FROM users WHERE id = $1 AND deleted_at IS NULL', [req.user.id]);
+            const user = userResult.rows[0];
+            tier = user?.role === 'vip' || (user?.is_premium === true && (user.premium_until == null || new Date(user.premium_until) > new Date())) ? 'vip' : 'user';
         }
+        const dailyLimit = IA_DAILY_LIMITS[tier];
+        const subjectKey = isGuest ? `g:${getGuestFingerprint(req)}` : `u:${req.user.id}`;
 
         const result = await query(
-            `SELECT request_count FROM ai_guest_daily_usage
-             WHERE usage_date = $1 AND fingerprint_hash = $2`,
-            [usageDate, fingerprintHash]
+            `SELECT count FROM ai_usage_daily WHERE usage_date = (NOW() AT TIME ZONE 'America/Mexico_City')::date AND subject_key = $1`,
+            [subjectKey]
         );
 
-        const used = Number(result.rows[0]?.request_count) || 0;
+        const used = Number(result.rows[0]?.count) || 0;
         const remaining = Math.max(0, dailyLimit - used);
         const blocked = remaining === 0;
         const quotaState = { limit: dailyLimit, used, remaining, blocked };
 
         if (isGuest) {
-            return res.json({ success: true, isGuest: true, guestLimit: quotaState });
+            return res.json({ success: true, isGuest: true, tier, guestLimit: quotaState });
         }
-        return res.json({ success: true, isGuest: false, userLimit: quotaState });
+        return res.json({ success: true, isGuest: false, tier, userLimit: quotaState });
     } catch {
-        // Fail-open: no bloquear al usuario por error de DB
-        const isGuest = !req.user;
-        if (isGuest) {
-            return res.json({
-                success: true, isGuest: true,
-                guestLimit: { limit: GUEST_DAILY_IA_LIMIT, used: 0, remaining: GUEST_DAILY_IA_LIMIT, blocked: false },
-            });
-        }
-        return res.json({
-            success: true, isGuest: false,
-            userLimit: { limit: USER_DAILY_IA_LIMIT, used: 0, remaining: USER_DAILY_IA_LIMIT, blocked: false },
-        });
+        return res.status(503).json({ error: 'No se pudo verificar tu cuota, intenta de nuevo en un momento.' });
     }
 };
 

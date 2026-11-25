@@ -33,6 +33,7 @@ const migrations = [
     '024_add_user_profile_appearance.sql',
     '025_expand_favorite_character_names.sql',
     '026_harden_wall_comments.sql',
+    '027_create_ai_usage_daily.sql',
 ];
 
 function loadMigrations() {
