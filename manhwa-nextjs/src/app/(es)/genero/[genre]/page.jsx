@@ -18,10 +18,6 @@ function normText(str) {
     .replace(/-/g, ' ').trim()
 }
 
-function getCover(s) {
-  return s?.cover_url || s?.cover_url_web || s?.cover_url_tmo || s?.cover_url_oni || s?.coverUrl || s?.coverUrlWeb || s?.coverUrlTmo || s?.coverUrlOni || s?.cover || ''
-}
-
 function getChapters(s) {
   return s?.chapterCount ?? s?.chaptersCount ?? s?.chapters_count ?? s?.totalChapters ?? 0
 }

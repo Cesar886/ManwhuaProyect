@@ -1,5 +1,6 @@
 import { SITE_URL, SITE_NAME } from '@/config'
 import { ORGANIZATION_DATA, META_TEMPLATES } from './constants'
+import { getCoverUrl } from '@/utils/imageUtils'
 
 /**
  * ============================================================================
@@ -202,7 +203,7 @@ export function generateComicSeriesJsonLd(series) {
   }
 
   // Imagen de portada
-  const coverSrc = series.coverUrl || series.cover
+  const coverSrc = getCoverUrl(series)
   if (coverSrc) {
     seriesNode.image = {
       '@type': 'ImageObject',
@@ -415,7 +416,7 @@ export function generateChapterJsonLd(series, chapterNum, pageCount = null, chap
   }
 
   // Portada oficial de la serie como ImageObject (Google prioriza ImageObject sobre strings)
-  const coverSrc = series.coverUrl || series.cover || series.cover_url || series.coverImage || null
+  const coverSrc = getCoverUrl({ ...series, image: series.coverImage }) || null
   if (coverSrc) {
     jsonLd.image = {
       '@type': 'ImageObject',
@@ -497,7 +498,7 @@ export function generateCollectionPageJsonLd(genre, manhwas = [], totalCount = 0
           '@type': 'ComicSeries',
           name: manhwa.title,
           url: `${SITE_URL}/manhwa/${manhwa.slug}`,
-          image: manhwa.coverUrl || manhwa.cover,
+          image: getCoverUrl(manhwa),
         },
       })),
     }
@@ -524,7 +525,7 @@ export function generateItemListJsonLd(title, items = [], listType = 'ranking') 
         '@type': 'ComicSeries',
         name: item.title,
         url: `${SITE_URL}/manhwa/${item.slug}`,
-        ...(item.coverUrl || item.cover ? { image: item.coverUrl || item.cover } : {}),
+        ...(getCoverUrl(item) ? { image: getCoverUrl(item) } : {}),
       },
     })),
   }

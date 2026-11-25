@@ -30,7 +30,7 @@ export async function generateMetadata({ params }) {
   }
 
   const title = series.title || slug.replace(/-/g, ' ')
-  const coverUrl = series.coverUrl || series.cover || null
+  const coverUrl = series.coverUrl || series.cover_url || series.cover || series.image || series.coverUrlWeb || series.cover_url_web || series.coverUrlTmo || series.cover_url_tmo || series.coverUrlOni || series.cover_url_oni || null
 
   // SEO-agent: priorizar meta_title/meta_description escritos por IMPERIAL-AGENT en BD.
   // Fallback a plantilla auto-generada si la BD no tiene valor.

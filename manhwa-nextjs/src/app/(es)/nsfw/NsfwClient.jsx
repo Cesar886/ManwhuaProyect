@@ -869,7 +869,7 @@ export default function NsfwClient({ initialSeries = [], lang = 'es' }) {
               </p>
             ) : (
               <div className={classes.gridReleases}>
-                {iaResultCards.map(({ key, item, itemSlug, primary, fallback }, index) => {
+                {iaResultCards.map(({ key, item, itemSlug, fallback }, index) => {
                   return (
                   <div key={key || `ia-${index}`} className={classes.releaseCard}>
                     {itemSlug ? (
@@ -947,7 +947,7 @@ export default function NsfwClient({ initialSeries = [], lang = 'es' }) {
         {catalogViewActive && !loading && paginatedSeriesCards.length > 0 && (
           <>
             <div ref={gridTopRef} className={classes.gridReleases}>
-              {paginatedSeriesCards.map(({ key, item, itemSlug, primary, fallback }, index) => {
+              {paginatedSeriesCards.map(({ key, item, itemSlug, fallback }, index) => {
                 return (
                 <div key={key || `grid-${index}`} className={classes.releaseCard}>
                   {itemSlug ? (

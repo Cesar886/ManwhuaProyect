@@ -20,7 +20,6 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/api/client';
 import { useLang } from '@/hooks/useLang';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
-import { normalizeImageUrl } from '@/utils/imageUtils';
 import ManhwaCover from '@/components/ManhwaCover';
 import { filterByLanguage } from '@/utils/adultContent';
 import styles from './buscar.module.css';
@@ -43,9 +42,6 @@ const formatViews = (views) => {
   if (safe >= 1000) return `${(safe / 1000).toFixed(1)}K`;
   return String(safe);
 };
-
-const getCoverUrl = (item) =>
-  normalizeImageUrl(item?.cover_url || item?.cover_url_web || item?.cover_url_tmo || item?.cover_url_oni || item?.coverUrl || item?.coverUrlWeb || item?.coverUrlTmo || item?.coverUrlOni || item?.cover || '/placeholder-manhwa.jpg');
 
 export default function BuscarClient() {
   const router = useRouter();

@@ -147,7 +147,6 @@ export default async function RankingSeriesPage() {
               {series.map((s, i) => {
                 const score = getScore(s)
                 const chapters = getChapters(s)
-                const cover = getCover(s)
                 const status = getStatusLabel(s.status)
                 const rank = i + 1
 

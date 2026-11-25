@@ -1392,8 +1392,6 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   const title = item.series?.title || item.title || slug
                   const chapter = item.chapter?.number || item.chapterNum || item.chapter_num || item.latestChapter || item.lastChapter || ''
                   const progress = Math.min(100, Math.max(0, Number(item.progress) || 0))
-                  const cover = item.series?.coverUrl || item.series?.cover_url || item.series?.cover || item.coverUrl || item.cover_url || item.cover || ''
-
                   return (
                     <Link
                       href={slug ? getLocalizedPath(`/manhwa/${slug}`, lang) : '#'}
