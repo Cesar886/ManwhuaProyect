@@ -33,6 +33,15 @@ describe('aiRead daily tier quota', () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
+    test('does not consume quota for greetings', async () => {
+        const res = response();
+        await aiRead({ ...request(), body: { messages: [{ role: 'user', content: 'hola' }] } }, res);
+        expect(res.statusCode).toBe(200);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ source: 'greeting', quotaSkipped: true }));
+        expect(query).not.toHaveBeenCalled();
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
     test.each([
         ['guest', null, 5],
         ['user', { id: 10, role: 'user', isPremium: false }, 15],

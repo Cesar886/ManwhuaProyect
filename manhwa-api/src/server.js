@@ -47,8 +47,9 @@ const trackRoutes = require('./routes/track.routes');
 
 
 const app = express();
-// Permitir confianza solo en el primer proxy (más seguro)
-app.set('trust proxy', 1);
+// Apache es el único salto local y no reescribe X-Forwarded-For. No confiar en
+// cabeceras del cliente/Cloudflare para que req.ip no pueda cambiar el contador.
+app.set('trust proxy', false);
 
 // Lista de clientes SSE conectados (comentarios)
 app.locals.sseClients = []

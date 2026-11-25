@@ -40,6 +40,10 @@ const getGuestFingerprint = (req) => {
     return crypto.createHash('sha256').update(seed).digest('hex');
 };
 
+// Debe coincidir con la detección temprana del servicio IA. Estas respuestas no
+// llaman al modelo ni a búsqueda vectorial y, por tanto, no consumen cuota.
+const isNonBillableGreeting = (message) => /^(hola+|hey+|buenas?|buenos\s+dias|buenas\s+tardes|buenas\s+noches|oye+|porfa|porfavor|por\s+favor|bro|amigo|mano|wey|compa|recomendacion|recomendame|recomiendame|dame|dime|necesito|quiero|busco|puedes|podrias|seria|gracias|los|las|unos|unas|del|al|hi+|hello+|yo+|sup|howdy|good\s+(morning|afternoon|evening|night)|please|pls|plz|dude|mate|thanks|thank\s+you|ty|thx|recommendation|recommend\s+me|give\s+me|tell\s+me|can\s+you|could\s+you|would\s+you|i\s+(want|need|am\s+looking))\b/i.test(String(message || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim());
+
 const buildQuotaState = (limit, quota) => ({
     limit,
     used: quota.used,
@@ -691,6 +695,15 @@ const aiRead = async (req, res, next) => {
                 message: 'messages es requerido y debe ser un arreglo no vacío',
                 code: 'INVALID_IA_REQUEST'
             });
+        }
+
+        if (isNonBillableGreeting(messages[messages.length - 1]?.content)) {
+            const rawLang = req.headers['x-lang'] || req.body?.lang;
+            const lang = String(rawLang || '').toLowerCase() === 'en' ? 'en' : 'es';
+            const greeting = lang === 'en'
+                ? "Hi! I'm the Manhwa Imperial search assistant."
+                : '¡Hola! Soy el asistente de búsqueda de Manhwa Imperial.';
+            return res.status(200).json({ success: true, explanation: greeting, series: [], source: 'greeting', lang, quotaSkipped: true });
         }
 
         const isGuest = !req.user;
