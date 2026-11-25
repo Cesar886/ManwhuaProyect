@@ -230,9 +230,9 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
         className={styles.header}
       >
         {/* Main Header Section (2 niveles) */}
-        <Container size="lg" py="xs">
+        <Container size="lg" py="xs" className={styles.headerContainer}>
           {/* Nivel superior: Logo a la izquierda, Notificaciones / Tema / Usuario a la derecha */}
-          <Group justify="space-between" align="center" wrap="nowrap" maw={800} mx="auto" w="100%">
+          <Group justify="space-between" align="center" wrap="nowrap" maw="100%" mx="auto" w="100%">
             {/* Logo */}
             <UnstyledButton
               component={Link}

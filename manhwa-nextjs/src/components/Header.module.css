@@ -153,6 +153,16 @@
   width: 100%;
 }
 
+/* Alinea el header con el ancho de lectura del contenido en escritorio. */
+@media (min-width: 769px) {
+  .headerContainer {
+    width: calc(100% - 32px) !important;
+    max-width: 992px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
 .mainSection {
   display: flex;
   align-items: center;
@@ -287,6 +297,24 @@
   border: none;
   color: var(--imperial-cyan);
   box-shadow: none;
+}
+
+/* En escritorio las pestañas deben quedar centradas en el header. El buscador
+   ocupa una posición independiente para no desplazar visualmente la navegación. */
+@media (min-width: 769px) {
+  .bottomNavRow {
+    justify-content: center;
+  }
+
+  .bottomNavRow .tabsList {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .bottomNavRow .searchToggleBtn {
+    position: absolute;
+    right: 0;
+  }
 }
 
 .headerSearchForm {
