@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   IconChevronDown,
   IconHome,
@@ -234,9 +235,8 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
           <Group justify="space-between" align="center" wrap="nowrap" maw={800} mx="auto" w="100%">
             {/* Logo */}
             <UnstyledButton
-              onClick={() => {
-                try { router.push(getLocalizedPath('/home', lang)); } catch { void 0; }
-              }}
+              component={Link}
+              href={getLocalizedPath('/home', lang)}
               className={styles.logoGroup}
               style={{ minWidth: 0, flex: '0 1 auto' }}
               aria-label={t.header.goToHome}
@@ -437,13 +437,12 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
                 const isActive = activeTab === tab.value;
                 return (
                   <UnstyledButton
+                    component={Link}
+                    href={tab.path}
                     key={tab.value}
                     className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
                     data-active={isActive ? 'true' : 'false'}
                     aria-label={tab.label}
-                    onClick={() => {
-                      router.push(tab.path);
-                    }}
                   >
                     <Group gap={6} style={{ alignItems: 'center' }}>
                       <Icon size={18} stroke={1.8} />

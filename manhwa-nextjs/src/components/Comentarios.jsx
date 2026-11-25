@@ -1295,7 +1295,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         const comments = res.data.comments || []
         const deduped = dedupeComments(comments)
         const normalized = deduped.map(normalizeApiComment)
-        setDetailComments(maybeSortComments(normalized))
+        setDetailComments(isWall ? sortWallComments(normalized) : maybeSortComments(normalized))
         // cargar respuestas si existen
         setTimeout(() => { loadRepliesForComments(normalized) }, 60)
         // Si el usuario está logueado, intentar obtener sus reacciones para esta request
@@ -1325,7 +1325,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       } else if (Array.isArray(res)) {
         const deduped = dedupeComments(res)
         const normalized = deduped.map(normalizeApiComment)
-        setDetailComments(maybeSortComments(normalized))
+        setDetailComments(isWall ? sortWallComments(normalized) : maybeSortComments(normalized))
         setTimeout(() => { loadRepliesForComments(normalized) }, 60)
         try { loadPollVotes(normalized) } catch { /* noop */ }
         setDetailCommentsPagination(null)
@@ -2154,25 +2154,35 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 const isNearTop = (() => {
                   try {
                     if (c && typeof c.scrollTop === 'number') {
+                      if (isWall) return (c.scrollHeight - c.clientHeight - c.scrollTop) <= 120
                       return c.scrollTop <= 120
                     }
+                    if (isWall) return (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 120)
                     return (window.scrollY || window.pageYOffset || 0) <= 120
                   } catch { return true }
                 })()
 
                 const next = isWall ? sortWallComments(dedupeComments([...now, normalized])) : maybeSortComments(dedupeComments([normalized, ...now]))
-                // if user is not near top, show floating "Nuevo comentario" button instead of forcing scroll
-                if (!isNearTop) {
+                const incomingAuthorId = normalized.author?.id ?? normalized.author?._id ?? normalized.author?.userId
+                const isOwnComment = Boolean(currentUserId && incomingAuthorId && String(currentUserId) === String(incomingAuthorId))
+                // Solo auto-bajar si es nuestro mensaje o ya estamos cerca del final.
+                if (!isNearTop && !isOwnComment) {
                   latestIncomingCommentRef.current = String(normalized.id)
                   try { setShowNewCommentBtn(true) } catch { /* noop */ }
                 } else {
-                  // if user is at top, ensure the new comment is visible immediately
+                  // Desplazar después de pintar el nuevo mensaje cuando corresponde.
                   try { setShowNewCommentBtn(false) } catch { /* noop */ }
-                  // optional: scroll container to top to reveal new comment
-                  try {
-                    if (c && typeof c.scrollTop === 'number') c.scrollTop = 0
-                    else window.scrollTo({ top: 0, behavior: 'smooth' })
-                  } catch { /* noop */ }
+                  if (isWall) {
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                      try {
+                        if (c && typeof c.scrollTop === 'number') {
+                          c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
+                        } else {
+                          window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })
+                        }
+                      } catch { /* noop */ }
+                    }))
+                  }
                 }
                 return next
               })
@@ -2516,7 +2526,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
           try { setRepliesVisible(prev => ({ ...prev, [payload.parentId]: true })) } catch { /* noop */ }
         } else {
           // Prepend the newly created top-level comment and avoid re-sorting immediately
-          setDetailComments(prev => dedupeComments([newComment, ...(prev || [])]))
+          setDetailComments(prev => isWall ? sortWallComments(dedupeComments([...(prev || []), newComment])) : dedupeComments([newComment, ...(prev || [])]))
           try { processedCommentIdsRef.current.add(String(newComment.id)) } catch { /* noop */ }
         }
       }
@@ -2561,7 +2571,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
       width: '100%',
       minWidth: 0,
       boxSizing: 'border-box',
-      paddingBottom: isWall ? wallComposerHeight + 24 : undefined
+      paddingBottom: isWall ? wallComposerHeight : undefined
     }}>
 
       {/* Header con Contador Refinado */}
@@ -2718,6 +2728,11 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
               variant="unstyled"
               value={commentText}
               ref={commentInputRef}
+              onKeyDown={(e) => {
+                if (!isWall || e.key !== 'Enter' || e.shiftKey) return
+                e.preventDefault()
+                if (canSubmit && !commentSubmitting) handleSubmitComment()
+              }}
               onChange={(e) => {
                 setCommentText(e.currentTarget.value);
                 checkForMentionToken(e.currentTarget.value, 'main');
@@ -3295,7 +3310,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
               // Filtrar y ordenar comentarios según el filtro seleccionado
               let filteredComments = isWall ? sortWallComments(detailComments) : [...detailComments]
 
-              if (commentFilter === 'newest') {
+              if (commentFilter === 'newest' && !isWall) {
                 // Más nuevos primero (orden descendente por fecha)
                 filteredComments.sort((a, b) => {
                   const dateA = new Date(a.createdAt || 0).getTime()
@@ -4005,7 +4020,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
 
       {/* Botón flotante de nuevo comentario */}
       {showNewCommentBtn && (
-        <div style={{ position: 'fixed', right: 18, bottom: 22, zIndex: 9999 }}>
+        <div style={{ position: 'fixed', left: '50%', bottom: 22, transform: 'translateX(-50%)', zIndex: 9999 }}>
           <Button
             radius="xl"
             onClick={() => {
@@ -4013,8 +4028,8 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                 setShowNewCommentBtn(false)
                 const c = commentsContainerRef.current
                 if (c && typeof c.scrollTop === 'number') {
-                  // scroll to top where new comments are prepended
-                  c.scrollTo({ top: 0, behavior: 'smooth' })
+                  // Ir al final, donde están los mensajes más nuevos
+                  c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
                   // if we have a node for the incoming comment, ensure it's visible
                   const id = latestIncomingCommentRef.current
                   try {
@@ -4022,13 +4037,13 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
                     if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   } catch { /* noop */ }
                 } else {
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })
                 }
               } catch { /* noop */ }
             }}
             styles={{ root: { background: 'linear-gradient(135deg, rgb(var(--accent-cyan)) 0%, rgba(var(--accent-cyan), 0.9) 100%)', color: '#fff', boxShadow: '0 8px 24px rgba(6,182,212,0.12)' } }}
           >
-            ↓ Nuevo comentario
+            ↓ Nuevos mensajes
           </Button>
         </div>
       )}
