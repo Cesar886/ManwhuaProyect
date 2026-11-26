@@ -195,8 +195,6 @@ export default function MangasClient({ initialSeries = [], lang = 'es' }) {
         const initialMap = new Map(initialSeries.map(s => [s.slug, s]));
 
         return mangaOnly.map(s => {
-            const hasAnyCover = s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni || s.coverUrl || s.coverUrlWeb || s.coverUrlTmo || s.coverUrlOni || s.cover;
-            if (hasAnyCover) return s;
             const init = initialMap.get(s.slug);
             if (!init) return s;
             return {

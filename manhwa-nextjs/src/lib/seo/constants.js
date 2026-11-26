@@ -249,7 +249,7 @@ export const getSEOContent = (lang = 'es') => {
 export const SEO_CONTENT = {
   home: {
     h1: 'Leer Manhwa en Español Online Gratis',
-    introText: `En ${SITE_NAME} puedes leer manhwa en español gratis con más de 2000 títulos actualizados diariamente. Lo que nos hace únicos: nuestro Buscador con Inteligencia Artificial. No necesitas saber el título exacto — describe lo que quieres leer ("un manhwa de romance con protagonista fría" o "acción con sistema de niveles") y la IA encuentra exactamente lo que buscas entre todos nuestros cómics coreanos. La forma más inteligente de descubrir tu próximo manhwa favorito.`,
+    introText: `En ${SITE_NAME} puedes leer manhwa en español gratis con titulos actualizados diariamente. Lo que nos hace únicos: nuestro Buscador con Inteligencia Artificial. No necesitas saber el título exacto — describe lo que quieres leer ("un manhwa de romance con protagonista fría" o "acción con sistema de niveles") y la IA encuentra exactamente lo que buscas entre todos nuestros cómics coreanos. La forma más inteligente de descubrir tu próximo manhwa favorito.`,
     whatIsManhwa: {
       title: '¿Qué es un Manhwa?',
       text: 'Un manhwa es un cómic o novela gráfica originaria de Corea del Sur. A diferencia del manga japonés, los manhwas se leen de izquierda a derecha y suelen publicarse a todo color. En Manhwa Imperial encontrarás los mejores manhwas traducidos al español, incluyendo géneros como romance, acción, fantasía, drama y más. Nuestra biblioteca de manhwas se actualiza constantemente con nuevos títulos y capítulos.',

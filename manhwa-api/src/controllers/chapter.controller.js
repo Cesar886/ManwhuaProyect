@@ -19,7 +19,8 @@ const getChapter = async (req, res, next) => {
         // Obtener capítulo con info de serie
         const result = await query(
             `SELECT c.*, s.id as series_id, s.title as series_title, s.slug as series_slug,
-                    s.cover_url as series_cover
+                    s.cover_url as series_cover, s.cover_url_web as series_cover_web,
+                    s.cover_url_tmo as series_cover_tmo, s.cover_url_oni as series_cover_oni
              FROM chapters c
              JOIN series s ON c.series_id = s.id
              WHERE s.slug = $1 AND c.slug = $2 AND c.is_published = true AND s.deleted_at IS NULL`,
@@ -115,7 +116,14 @@ const getChapter = async (req, res, next) => {
                     id: chapter.series_id,
                     title: chapter.series_title,
                     slug: chapter.series_slug,
-                    coverUrl: chapter.series_cover
+                    cover_url: chapter.series_cover,
+                    cover_url_web: chapter.series_cover_web,
+                    cover_url_tmo: chapter.series_cover_tmo,
+                    cover_url_oni: chapter.series_cover_oni,
+                    coverUrl: chapter.series_cover || chapter.series_cover_web || chapter.series_cover_tmo || chapter.series_cover_oni,
+                    coverUrlWeb: chapter.series_cover_web,
+                    coverUrlTmo: chapter.series_cover_tmo,
+                    coverUrlOni: chapter.series_cover_oni,
                 },
                 navigation: {
                     prev: navigation.prev_chapter,

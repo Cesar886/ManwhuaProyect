@@ -51,6 +51,44 @@ const app = express();
 // cabeceras del cliente/Cloudflare para que req.ip no pueda cambiar el contador.
 app.set('trust proxy', false);
 
+// Normalize cover fields in every API response so clients receive all available
+// snake_case and camelCase variants, with the documented source priority.
+const normalizeCoverResponse = (value) => {
+    if (Array.isArray(value)) return value.map(normalizeCoverResponse);
+    if (!value || typeof value !== 'object') return value;
+
+    const normalized = Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [key, normalizeCoverResponse(item)])
+    );
+    const hasCoverFields = [
+        'cover_url', 'cover_url_web', 'cover_url_tmo', 'cover_url_oni',
+        'coverUrl', 'coverUrlWeb', 'coverUrlTmo', 'coverUrlOni', 'cover',
+    ].some((key) => Object.prototype.hasOwnProperty.call(normalized, key));
+    if (!hasCoverFields) return normalized;
+
+    const cover_url = normalized.cover_url ?? normalized.coverUrl ?? null;
+    const cover_url_web = normalized.cover_url_web ?? normalized.coverUrlWeb ?? null;
+    const cover_url_tmo = normalized.cover_url_tmo ?? normalized.coverUrlTmo ?? null;
+    const cover_url_oni = normalized.cover_url_oni ?? normalized.coverUrlOni ?? null;
+    const effectiveCover = cover_url || cover_url_web || cover_url_tmo || cover_url_oni || normalized.cover || null;
+
+    return {
+        ...normalized,
+        cover_url, cover_url_web, cover_url_tmo, cover_url_oni,
+        cover: effectiveCover,
+        coverUrl: effectiveCover,
+        coverUrlWeb: cover_url_web,
+        coverUrlTmo: cover_url_tmo,
+        coverUrlOni: cover_url_oni,
+    };
+};
+
+app.use((req, res, next) => {
+    const json = res.json.bind(res);
+    res.json = (body) => json(normalizeCoverResponse(body));
+    next();
+});
+
 // Lista de clientes SSE conectados (comentarios)
 app.locals.sseClients = []
 

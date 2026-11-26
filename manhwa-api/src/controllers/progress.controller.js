@@ -313,7 +313,7 @@ const getRecentProgressForUser = async (userId, limit) => {
     const result = await query(
             `SELECT sub.* FROM (
                 SELECT DISTINCT ON (rh.series_id)
-                    s.id as series_id, s.slug, s.title, s.cover_url,
+                    s.id as series_id, s.slug, s.title, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni,
                     c.id as chapter_id, c.number as chapter_num, c.title as chapter_title,
                     rh.scroll_position, rh.progress_percentage, rh.is_completed, rh.read_at
                 FROM reading_history rh
@@ -333,7 +333,14 @@ const getRecentProgressForUser = async (userId, limit) => {
             id: r.series_id,
             slug: r.slug,
             title: r.title,
-            coverUrl: r.cover_url
+            cover_url: r.cover_url,
+            cover_url_web: r.cover_url_web,
+            cover_url_tmo: r.cover_url_tmo,
+            cover_url_oni: r.cover_url_oni,
+            coverUrl: r.cover_url || r.cover_url_web || r.cover_url_tmo || r.cover_url_oni,
+            coverUrlWeb: r.cover_url_web,
+            coverUrlTmo: r.cover_url_tmo,
+            coverUrlOni: r.cover_url_oni,
         },
         chapter: {
             id: r.chapter_id,

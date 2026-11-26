@@ -56,6 +56,20 @@ body {
   display: none;
 }
 
+@media (pointer: fine) {
+  .desktop-drag-scroll-active {
+    cursor: grabbing !important;
+    user-select: none !important;
+    scroll-behavior: auto !important;
+    scroll-snap-type: none !important;
+  }
+
+  .desktop-drag-scroll-active * {
+    cursor: grabbing !important;
+    user-select: none !important;
+  }
+}
+
 /* Scrollbar styles are defined in imperial-variables.css */
 
 /* ============================================================================

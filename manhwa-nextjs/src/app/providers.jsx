@@ -7,6 +7,7 @@ import { ImageOptimizationProvider } from '@/contexts/ImageOptimizationContext'
 import OfflineBanner from '@/components/OfflineBanner'
 import SearchModalLoader from '@/components/SearchModalLoader'
 import MobileKeyboardDismissal from '@/components/MobileKeyboardDismissal'
+import DesktopHorizontalScroll from '@/components/DesktopHorizontalScroll'
 
 // LoginModal carga lazy: GoogleOAuthProvider (y el script de Google ~90 KiB)
 // solo se descarga cuando el usuario abre el modal de login
@@ -34,6 +35,7 @@ export function Providers({ children }) {
       <ToastProvider>
         <ImageOptimizationProvider>
           <MobileKeyboardDismissal />
+          <DesktopHorizontalScroll />
           {children}
           <AuthModals />
           <OfflineBanner />

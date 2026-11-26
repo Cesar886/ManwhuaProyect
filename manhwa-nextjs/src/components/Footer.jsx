@@ -142,11 +142,6 @@ function Footer({ lang: propLang }) {
               {/* Stats rápidas */}
               <div className={classes.stats}>
                 <div className={classes.stat}>
-                  <span className={classes.statNum}>500+</span>
-                  <span className={classes.statLabel}>Manhwas</span>
-                </div>
-                <div className={classes.statDivider} aria-hidden="true" />
-                <div className={classes.stat}>
                   <span className={classes.statNum}>{t.statFree}</span>
                   <span className={classes.statLabel}>{t.statAlways}</span>
                 </div>

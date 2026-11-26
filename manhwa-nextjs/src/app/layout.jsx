@@ -115,6 +115,7 @@ export default function RootLayout({ children }) {
     >
       <head suppressHydrationWarning>
         <meta id="meta-theme-color" name="theme-color" content="#0F0F14" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         {/* Aplicar el tema antes del primer render para evitar destellos. */}
         <ColorSchemeScript defaultColorScheme="auto" />

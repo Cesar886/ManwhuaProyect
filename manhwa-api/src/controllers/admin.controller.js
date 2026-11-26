@@ -39,7 +39,7 @@ const getDashboard = async (req, res, next) => {
         
         // Series más vistas hoy
         const topSeriesTodayResult = await query(`
-            SELECT id, title, slug, cover_url, daily_views
+            SELECT id, title, slug, cover_url, cover_url_web, cover_url_tmo, cover_url_oni, daily_views
             FROM series
             WHERE deleted_at IS NULL
             ORDER BY daily_views DESC
@@ -86,7 +86,14 @@ const getDashboard = async (req, res, next) => {
                     id: s.id,
                     title: s.title,
                     slug: s.slug,
-                    coverUrl: s.cover_url,
+                    cover_url: s.cover_url,
+                    cover_url_web: s.cover_url_web,
+                    cover_url_tmo: s.cover_url_tmo,
+                    cover_url_oni: s.cover_url_oni,
+                    coverUrl: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni,
+                    coverUrlWeb: s.cover_url_web,
+                    coverUrlTmo: s.cover_url_tmo,
+                    coverUrlOni: s.cover_url_oni,
                     views: s.daily_views
                 })),
                 recentActivity: recentActivityResult.rows.map(a => ({

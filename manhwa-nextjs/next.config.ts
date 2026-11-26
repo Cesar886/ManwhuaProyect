@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
     pagesBufferLength: 2,
   },
   images: {
+    // Footer uses a smaller quality for the compact site logo.
+    qualities: [50, 75],
     remotePatterns: [
       {
         protocol: 'https',

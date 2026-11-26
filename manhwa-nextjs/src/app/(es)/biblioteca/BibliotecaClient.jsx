@@ -216,8 +216,6 @@ export default function BibliotecaClient({ initialSeries = [], lang = 'es' }) {
         const initialMap = new Map(initialSeries.map(s => [s.slug, s]));
 
         return spacesData.map(s => {
-            const hasAnyCover = s.coverUrlWeb || s.cover_url_web || s.coverUrl || s.cover_url || s.cover || s.coverUrlTmo || s.cover_url_tmo || s.coverUrlOni || s.cover_url_oni;
-            if (hasAnyCover) return s;
             // Si spacesData no trae cover para esta serie, rescatar de initialSeries
             const init = initialMap.get(s.slug);
             if (!init) return s;

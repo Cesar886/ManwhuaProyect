@@ -38,16 +38,16 @@ export function getSeriesCovers(series) {
   if (!item) return []
 
   const candidates = [
-    item.coverUrl,
     item.cover_url,
+    item.cover_url_web,
+    item.cover_url_tmo,
+    item.cover_url_oni,
+    item.coverUrl,
+    item.coverUrlWeb,
+    item.coverUrlTmo,
+    item.coverUrlOni,
     item.cover,
     item.image,
-    item.coverUrlWeb,
-    item.cover_url_web,
-    item.coverUrlTmo,
-    item.cover_url_tmo,
-    item.coverUrlOni,
-    item.cover_url_oni,
   ]
 
   return [...new Set(candidates.filter((value) => {

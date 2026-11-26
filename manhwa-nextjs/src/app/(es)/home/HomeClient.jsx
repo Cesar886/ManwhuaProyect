@@ -395,8 +395,6 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
           // Preservar covers de initialSeries si el fetch no los trae
           const initMap = new Map(initialSeries.map(s => [s.slug, s]))
           const merged = data.map(s => {
-            const hasAnyCover = s.coverUrlWeb || s.cover_url_web || s.coverUrl || s.cover_url || s.cover
-            if (hasAnyCover) return s
             const init = initMap.get(s.slug)
             if (!init) return s
             return {
@@ -1030,11 +1028,10 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
 
   const heroSeries = isSurpriseSlide ? null : (realHeroPool[heroIndex] || null)
   const heroCover = heroSeries
-    ? normalizeImageUrl(heroSeries.cover || heroSeries.coverUrl || heroSeries.cover_url || heroSeries.coverUrlWeb || heroSeries.cover_url_web) || ''
+    ? normalizeImageUrl(heroSeries.cover_url || heroSeries.cover_url_web || heroSeries.cover_url_tmo || heroSeries.cover_url_oni || heroSeries.coverUrl || heroSeries.coverUrlWeb || heroSeries.coverUrlTmo || heroSeries.coverUrlOni || heroSeries.cover) || ''
     : ''
   // La portada se muestra a ~239 px en escritorio; 256 px cubre esa caja
   // sin descargar la variante de 384 px en pantallas de densidad normal.
-  const heroCoverImage = getOptimizedHeroImage(heroCover, 256)
   const heroBackgroundCover = getOptimizedHeroImage(heroCover, 828)
 
   const pickAiCardCover = useCallback((items = [], seed = '') => {
@@ -1236,7 +1233,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   </div>
 
                   <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroCoverWrap} tabIndex={-1}>
-                    <ManhwaCover src={heroCoverImage || heroSeries} fallbackSrc={[heroSeries.cover_url_web, heroSeries.cover_url_tmo, heroSeries.cover_url_oni, heroSeries.coverUrlWeb, heroSeries.coverUrlTmo, heroSeries.coverUrlOni].map(normalizeImageUrl).filter(Boolean)} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
+                    <ManhwaCover src={heroSeries} fallbackSrc={[heroSeries.cover_url_web, heroSeries.cover_url_tmo, heroSeries.cover_url_oni, heroSeries.coverUrlWeb, heroSeries.coverUrlTmo, heroSeries.coverUrlOni].map(normalizeImageUrl).filter(Boolean)} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
                     <div className={styles.heroCoverGlow} style={{ backgroundImage: `url(${heroBackgroundCover})` }} />
                   </Link>
                 </>

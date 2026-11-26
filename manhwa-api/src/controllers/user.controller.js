@@ -897,7 +897,7 @@ const getUserBookmarks = async (req, res, next) => {
         const userId = userResult.rows[0].id;
         const result = await query(
             `SELECT b.id AS bookmark_id, b.created_at,
-                    s.id AS series_id, s.title, s.slug, s.cover_url, s.status,
+                    s.id AS series_id, s.title, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status,
                     s.chapter_count, s.rating_average, s.content_type
              FROM bookmarks b
              JOIN series s ON b.series_id = s.id
@@ -921,7 +921,14 @@ const getUserBookmarks = async (req, res, next) => {
                         id: bookmark.series_id,
                         title: bookmark.title,
                         slug: bookmark.slug,
-                        coverUrl: bookmark.cover_url,
+                        cover_url: bookmark.cover_url,
+                        cover_url_web: bookmark.cover_url_web,
+                        cover_url_tmo: bookmark.cover_url_tmo,
+                        cover_url_oni: bookmark.cover_url_oni,
+                        coverUrl: bookmark.cover_url || bookmark.cover_url_web || bookmark.cover_url_tmo || bookmark.cover_url_oni,
+                        coverUrlWeb: bookmark.cover_url_web,
+                        coverUrlTmo: bookmark.cover_url_tmo,
+                        coverUrlOni: bookmark.cover_url_oni,
                         status: bookmark.status,
                         chapterCount: bookmark.chapter_count,
                         rating: Number(bookmark.rating_average) || 0,
@@ -1000,7 +1007,8 @@ const getReadingHistory = async (req, res, next) => {
 
         const result = await query(
             `SELECT rh.*, 
-                    s.title as series_title, s.slug as series_slug, s.cover_url,
+                    s.title as series_title, s.slug as series_slug,
+                    s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni,
                     c.number as chapter_number, c.title as chapter_title
              FROM reading_history rh
              JOIN series s ON rh.series_id = s.id
@@ -1027,7 +1035,14 @@ const getReadingHistory = async (req, res, next) => {
                         id: h.series_id,
                         title: h.series_title,
                         slug: h.series_slug,
-                        coverUrl: h.cover_url
+                        cover_url: h.cover_url,
+                        cover_url_web: h.cover_url_web,
+                        cover_url_tmo: h.cover_url_tmo,
+                        cover_url_oni: h.cover_url_oni,
+                        coverUrl: h.cover_url || h.cover_url_web || h.cover_url_tmo || h.cover_url_oni,
+                        coverUrlWeb: h.cover_url_web,
+                        coverUrlTmo: h.cover_url_tmo,
+                        coverUrlOni: h.cover_url_oni
                     },
                     chapter: {
                         id: h.chapter_id,
@@ -1063,7 +1078,7 @@ const getBookmarks = async (req, res, next) => {
 
         const result = await query(
             `SELECT b.*, 
-                    s.id, s.title, s.slug, s.cover_url, s.status, s.chapter_count,
+                    s.id, s.title, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status, s.chapter_count,
                     s.rating_average, s.content_type,
                     c.number as last_read_number, c.title as last_read_title
              FROM bookmarks b
@@ -1090,7 +1105,14 @@ const getBookmarks = async (req, res, next) => {
                         id: b.id,
                         title: b.title,
                         slug: b.slug,
-                        coverUrl: b.cover_url,
+                        cover_url: b.cover_url,
+                        cover_url_web: b.cover_url_web,
+                        cover_url_tmo: b.cover_url_tmo,
+                        cover_url_oni: b.cover_url_oni,
+                        coverUrl: b.cover_url || b.cover_url_web || b.cover_url_tmo || b.cover_url_oni,
+                        coverUrlWeb: b.cover_url_web,
+                        coverUrlTmo: b.cover_url_tmo,
+                        coverUrlOni: b.cover_url_oni,
                         status: b.status,
                         chapterCount: b.chapter_count,
                         rating: parseFloat(b.rating_average),

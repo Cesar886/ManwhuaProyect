@@ -18,13 +18,20 @@ export const dynamic = 'force-dynamic'
 // ============================================================================
 
 async function getInitialSeries() {
-  const result = await fetchInternalJson('/spaces/manhwas', { revalidate: 300, requireNonEmpty: true })
-  return extractSeries(result)
+  try {
+    const result = await fetchInternalJson('/spaces/manhwas', { revalidate: 300, requireNonEmpty: true })
+    return extractSeries(result)
+  } catch (error) {
+    // Keep the page usable when the API is temporarily unavailable. HomeClient
+    // retries the same request in the browser once the page has rendered.
+    console.error('[home] No se pudieron cargar las series iniciales:', error)
+    return []
+  }
 }
 
 function getFirstCover(series) {
   for (const s of series) {
-    const url = s?.coverUrl || s?.cover_url || s?.cover || s?.image || s?.coverUrlWeb || s?.cover_url_web || s?.coverUrlTmo || s?.cover_url_tmo || s?.coverUrlOni || s?.cover_url_oni
+    const url = s?.cover_url || s?.cover_url_web || s?.cover_url_tmo || s?.cover_url_oni || s?.coverUrl || s?.coverUrlWeb || s?.coverUrlTmo || s?.coverUrlOni || s?.cover || s?.image
     if (url && s?.slug) return url
   }
   return null
