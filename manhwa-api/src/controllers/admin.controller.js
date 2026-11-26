@@ -799,7 +799,7 @@ const recalculateStats = async (req, res, next) => {
             await client.query(`
                 UPDATE series s SET
                     chapter_count = (SELECT COUNT(*) FROM chapters WHERE series_id = s.id AND is_published = true),
-                    bookmark_count = (SELECT COUNT(*) FROM bookmarks WHERE series_id = s.id),
+                    bookmark_count = (SELECT COUNT(*) FROM bookmarks WHERE series_id = s.id AND is_favorite = true),
                     likes_count = (SELECT COUNT(*) FROM series_likes WHERE series_id = s.id),
                     comment_count = (SELECT COUNT(*) FROM comments WHERE target_type = 'series' AND target_id = s.id AND status = 'visible'),
                     rating_count = (

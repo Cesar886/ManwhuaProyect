@@ -754,7 +754,7 @@ export default function UserProfile() {
 
     let active = true;
     setBookmarksLoading(true);
-    api.get('users', `${encodeURIComponent(user.username)}/bookmarks?page=1&limit=50`)
+    api.get('users', `${encodeURIComponent(user.username)}/bookmarks?page=1&limit=50&listing=1`, { cache: false })
       .then(response => {
         if (active) setUserBookmarks(response?.data?.bookmarks || []);
       })
@@ -1564,6 +1564,10 @@ export default function UserProfile() {
             </button>
           ))}
         </Box>
+        <Group mb="md" gap="md">
+          <Link href={`/u/${encodeURIComponent(user.username)}/colecciones`}>Colecciones públicas</Link>
+          {(isOwner || userBookmarks.length > 0) && <Link href={`/u/${encodeURIComponent(user.username)}/favoritos`}>Ver favoritos</Link>}
+        </Group>
 
         {/* CONTINUAR LEYENDO */}
         <Paper p={isMobile ? 'md' : 'xl'} radius={20} mb={16} data-tone={profileTone} className={`${styles.infoCard} ${isDark ? styles.darkMode : styles.lightMode}`} style={{ position: 'relative', overflow: 'hidden', display: profileTab === 'continue' ? 'block' : 'none', ...profileAppearanceVars }}>

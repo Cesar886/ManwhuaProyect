@@ -1,86 +1,37 @@
-/**
- * Rutas de Colecciones
- */
-
 const express = require('express');
-const router = express.Router();
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const { validate } = require('../middleware/validate');
-const collectionController = require('../controllers/collection.controller');
 const { authenticate, optionalAuth } = require('../middleware/auth');
-const { requirePermission } = require('../middleware/authorize');
-const { requireApiKeyOrAuth } = require('../middleware/apiKey');
-const { paginationValidation, idParam } = require('../middleware/validators');
+const collections = require('../controllers/sharedCollection.controller');
 
-// Validaciones
-const createCollectionValidation = [
-    body('name')
-        .trim()
-        .isLength({ min: 1, max: 200 })
-        .withMessage('Nombre debe tener entre 1 y 200 caracteres'),
-    body('description')
-        .optional()
-        .trim()
-        .isLength({ max: 2000 }),
-    body('isPublic')
-        .optional()
-        .isBoolean(),
-    body('category')
-        .optional()
-        .trim()
-        .isLength({ max: 100 }),
-    body('tags')
-        .optional()
-        .isArray()
-];
+const router = express.Router();
+const id = [param('publicId').matches(/^[A-Za-z0-9]{8}$/)];
+const page = [query('page').optional().isInt({ min: 1 })];
+const visibility = body('visibility').optional().isIn(['private', 'unlisted', 'public']);
 
-const updateCollectionValidation = [
-    body('name')
-        .optional()
-        .trim()
-        .isLength({ min: 1, max: 200 }),
-    body('description')
-        .optional()
-        .trim()
-        .isLength({ max: 2000 }),
-    body('isPublic')
-        .optional()
-        .isBoolean()
-];
+router.use(collections.noStore);
+router.get('/', optionalAuth, validate(page), collections.list);
+router.get('/indexable', validate(page), collections.indexable);
+router.get('/mine', authenticate, validate([query('seriesId').optional().isUUID()]), collections.mine);
+router.get('/:publicId', optionalAuth, validate(id), collections.get);
+router.get('/:publicId/manhwas', optionalAuth, validate([...id, ...page]), collections.items);
+router.get('/:publicId/comments', optionalAuth, validate([...id, ...page]), collections.comments);
 
-const slugParam = [
-    param('slug')
-        .trim()
-        .notEmpty()
-];
-
-// Rutas públicas (protegidas con API key)
-router.get('/', requireApiKeyOrAuth, validate(paginationValidation), collectionController.listCollections);
-router.get('/popular', requireApiKeyOrAuth, validate(paginationValidation), collectionController.getPopularCollections);
-router.get('/:slug', requireApiKeyOrAuth, optionalAuth, validate(slugParam), collectionController.getCollection);
-router.get('/:slug/manhwas', requireApiKeyOrAuth, validate([...slugParam, ...paginationValidation]), collectionController.getCollectionManhwas);
-router.get('/:slug/comments', requireApiKeyOrAuth, optionalAuth, validate([...slugParam, ...paginationValidation]), collectionController.getCollectionComments);
-
-// Rutas protegidas
 router.use(authenticate);
-
-// CRUD
-router.post('/', validate(createCollectionValidation), collectionController.createCollection);
-router.put('/:slug', validate([...slugParam, ...updateCollectionValidation]), collectionController.updateCollection);
-router.delete('/:slug', validate(slugParam), collectionController.deleteCollection);
-
-// Gestión de manhwas en colección
-router.post('/:slug/manhwas', validate(slugParam), collectionController.addManhwaToCollection);
-router.delete('/:slug/manhwas/:seriesId', validate([...slugParam, ...idParam('seriesId')]), collectionController.removeManhwaFromCollection);
-router.put('/:slug/manhwas/reorder', validate(slugParam), collectionController.reorderManhwas);
-
-// Interacciones
-router.post('/:slug/follow', validate(slugParam), collectionController.followCollection);
-router.delete('/:slug/follow', validate(slugParam), collectionController.unfollowCollection);
-router.post('/:slug/like', validate(slugParam), collectionController.likeCollection);
-router.delete('/:slug/like', validate(slugParam), collectionController.unlikeCollection);
-
-// Moderación
-router.post('/:slug/verify', requirePermission('collections:verify'), validate(slugParam), collectionController.verifyCollection);
+router.post('/', validate([body('name').isString().trim().isLength({ min: 1, max: 200 }),
+    body('description').optional().isString().isLength({ max: 2000 }),
+    body('coverUrl').optional({ nullable: true }).isURL()]), collections.create);
+router.put('/:publicId', validate([...id, body('name').optional().isString().trim().isLength({ min: 1, max: 200 }),
+    body('description').optional().isString().isLength({ max: 2000 }),
+    body('coverUrl').optional({ nullable: true }).isString(), visibility]), collections.update);
+router.delete('/:publicId', validate(id), collections.remove);
+router.post('/:publicId/manhwas', validate([...id, body('seriesId').isUUID()]), collections.addItem);
+router.delete('/:publicId/manhwas/:seriesId', validate([...id, param('seriesId').isUUID()]), collections.removeItem);
+router.put('/:publicId/manhwas/reorder', validate([...id, body('seriesIds').isArray(), body('seriesIds.*').isUUID()]), collections.reorder);
+router.post('/:publicId/like', validate(id), collections.like(true));
+router.delete('/:publicId/like', validate(id), collections.like(false));
+router.post('/:publicId/follow', validate(id), collections.follow(true));
+router.delete('/:publicId/follow', validate(id), collections.follow(false));
+router.post('/:publicId/copy', validate(id), collections.copy);
 
 module.exports = router;

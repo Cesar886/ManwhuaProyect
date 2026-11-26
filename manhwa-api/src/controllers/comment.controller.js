@@ -7,6 +7,16 @@ const { hasPermission } = require('../config/roles');
 const { getUserBadgeStats } = require('./progress.controller');
 const { normalizeWallComment, validateWallComment, WALL_TARGET_ID } = require('../utils/commentValidation');
 
+const canViewCollectionTarget = async (collectionId, viewerId) => {
+    const result = await query(
+        `SELECT 1 FROM collections c JOIN users u ON u.id=c.creator_id
+         WHERE c.id=$1 AND c.deleted_at IS NULL AND u.deleted_at IS NULL AND u.status='active'
+         AND (c.visibility <> 'private' OR c.creator_id=$2)`,
+        [collectionId, viewerId || null]
+    );
+    return result.rowCount > 0;
+};
+
 /**
  * Construye el objeto author con badge stats para respuestas.
  * Nunca lanza — devuelve stats en 0 si falla.
@@ -89,6 +99,10 @@ const getComment = async (req, res, next) => {
         }
         
         const comment = result.rows[0];
+        if (comment.target_type === 'collection' && !(await canViewCollectionTarget(comment.target_id, req.user?.id))) {
+            res.set('Cache-Control', 'private, no-store');
+            return res.status(404).json({ success: false, message: 'Comentario no encontrado' });
+        }
         
         // ✅ Procesar encuesta si existe (datos ya cargados en una query)
         let poll = null;
@@ -172,7 +186,7 @@ const getCommentReplies = async (req, res, next) => {
         
         // Verificar comentario existe
         const commentResult = await query(
-            'SELECT id, replies_count FROM comments WHERE id = $1 AND status = \'visible\'',
+            'SELECT id, replies_count, target_type, target_id FROM comments WHERE id = $1 AND status = \'visible\'',
             [id]
         );
         
@@ -181,6 +195,11 @@ const getCommentReplies = async (req, res, next) => {
                 success: false,
                 message: 'Comentario no encontrado'
             });
+        }
+        if (commentResult.rows[0].target_type === 'collection' &&
+            !(await canViewCollectionTarget(commentResult.rows[0].target_id, req.user?.id))) {
+            res.set('Cache-Control', 'private, no-store');
+            return res.status(404).json({ success: false, message: 'Comentario no encontrado' });
         }
         
         const total = commentResult.rows[0].replies_count;
@@ -378,12 +397,11 @@ const createComment = async (req, res, next) => {
         }
         
         if (targetType !== 'wall') {
-            const targetResult = await query(
-                `SELECT id FROM ${targetTable} WHERE id = $1`,
-                [targetId]
-            );
+            const targetExists = targetType === 'collection'
+                ? await canViewCollectionTarget(targetId, req.user.id)
+                : (await query(`SELECT id FROM ${targetTable} WHERE id = $1`, [targetId])).rowCount > 0;
 
-            if (targetResult.rows.length === 0) {
+            if (!targetExists) {
                 return res.status(404).json({
                     success: false,
                     message: 'Target no encontrado'
@@ -569,8 +587,8 @@ const createComment = async (req, res, next) => {
         // Registrar actividad
         await query(
             `INSERT INTO activities (user_id, action, target_type, target_id, metadata, is_public)
-             VALUES ($1, 'comment', $2, $3, $4, true)`,
-            [req.user.id, targetType, targetId, JSON.stringify({ commentId: comment.id })]
+             VALUES ($1, 'comment', $2, $3, $4, $5)`,
+            [req.user.id, targetType, targetId, JSON.stringify({ commentId: comment.id }), targetType !== 'collection']
         );
 
         // Intentar enviar webhook si está configurado

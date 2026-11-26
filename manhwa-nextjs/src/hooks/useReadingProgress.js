@@ -43,6 +43,20 @@ export function useReadingProgress(slug, chapterNum, totalPages = 0) {
     [slug, chapterNum]
   );
 
+  // Registrar el capítulo abierto incluso si el lector aún no hizo scroll.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !slug || chapterNum === null || chapterNum === undefined) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      localStorage.setItem(storageKey, JSON.stringify({
+        position: saved?.position || 0,
+        progress: saved?.progress || 0,
+        totalPages: saved?.totalPages || totalPages,
+        timestamp: Date.now(),
+      }));
+    } catch { /* localStorage puede estar deshabilitado. */ }
+  }, [slug, chapterNum, storageKey, totalPages]);
+
   // Inicializar deviceId
   useEffect(() => {
     if (typeof window !== 'undefined' && !deviceIdRef.current) {

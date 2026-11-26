@@ -36,6 +36,9 @@ const migrations = [
     '027_create_ai_usage_daily.sql',
     '028_add_manhwa_recommendations_to_comments.sql',
     '029_add_recommended_series_slug.sql',
+    '030_add_bookmark_favorite_flag.sql',
+    '031_create_collections.sql',
+    '032_shareable_collections.sql',
 ];
 
 function loadMigrations() {

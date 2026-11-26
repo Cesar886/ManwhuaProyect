@@ -588,7 +588,7 @@
   background: var(--nav-bg) !important;
   backdrop-filter: blur(24px) !important;
   border: 1.5px solid rgba(6, 182, 212, 0.2) !important;
-  border-radius: 16px !important;
+  border-radius: 14px !important;
   padding: 0 !important;
   overflow: hidden !important;
   box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5),
@@ -626,8 +626,9 @@
 
 /* Menu Items - Premium */
 .menuItem {
-  padding: 0.85rem 1.2rem !important;
-  margin: 0.25rem 0.5rem !important;
+  min-height: 52px;
+  padding: 0.7rem 1rem !important;
+  margin: 0.2rem 0.5rem !important;
   border-radius: 10px !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   font-weight: 500 !important;
@@ -635,9 +636,13 @@
   position: relative;
 }
 
+/* Mantine coloca el icono en una sección propia; dejamos aire antes del texto. */
+.menuItem :global(.mantine-Menu-itemSection) {
+  margin-inline-end: 0.7rem !important;
+}
+
 .menuItem:hover {
   background: var(--subtle-bg) !important;
-  transform: translateX(4px);
 }
 
 .menuItemVip {
@@ -662,10 +667,11 @@
 
 .menuItemIcon {
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 .menuItem:hover .menuItemIcon {
-  transform: scale(1.1) rotate(5deg);
+  transform: scale(1.04);
 }
 
 /* Action Icons */

@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const { query } = require('../config/database');
 const { mapSeriesCoverFields } = require('../utils/seriesCover');
+const slugify = require('slugify');
 
 const envLimit = (name, fallback) => Math.max(1, parseInt(process.env[name], 10) || fallback);
 const IA_DAILY_LIMITS = Object.freeze({
@@ -163,11 +164,11 @@ const search = async (req, res, next) => {
 
         // Buscar colecciones
         const collectionsResult = await query(
-            `SELECT c.id, c.name, c.slug, c.cover_url, c.manhwas_count, c.followers_count,
+            `SELECT c.id, c.public_id, c.name, c.cover_url, c.manhwas_count, c.followers_count,
                     u.username as creator_username
              FROM collections c
              JOIN users u ON c.creator_id = u.id
-             WHERE c.deleted_at IS NULL AND c.is_public = true
+             WHERE c.deleted_at IS NULL AND c.visibility = 'public' AND u.deleted_at IS NULL AND u.status = 'active'
                    AND (c.name ILIKE $1 OR c.description ILIKE $1)
              ORDER BY c.followers_count DESC
              LIMIT $2`,
@@ -197,8 +198,9 @@ const search = async (req, res, next) => {
                     })),
                     collections: collectionsResult.rows.map(c => ({
                         id: c.id,
+                        publicId: c.public_id,
                         name: c.name,
-                        slug: c.slug,
+                        slug: slugify(c.name, { lower: true, strict: true }) || 'coleccion',
                         coverUrl: c.cover_url,
                         manhwasCount: c.manhwas_count,
                         followersCount: c.followers_count,
@@ -362,7 +364,7 @@ const searchUsers = async (req, res, next) => {
         
         const result = await query(
             `SELECT id, username, display_name, avatar_url, bio, is_premium,
-                    followers_count, collections_count
+                    followers_count, (SELECT COUNT(*) FROM collections c WHERE c.creator_id=users.id AND c.visibility='public' AND c.deleted_at IS NULL) AS collections_count
              FROM users
              WHERE deleted_at IS NULL AND status = 'active'
                    AND (username ILIKE $1 OR display_name ILIKE $1)
@@ -433,7 +435,7 @@ const searchCollections = async (req, res, next) => {
             `SELECT c.*, u.username as creator_username, u.avatar_url as creator_avatar
              FROM collections c
              JOIN users u ON c.creator_id = u.id
-             WHERE c.deleted_at IS NULL AND c.is_public = true
+             WHERE c.deleted_at IS NULL AND c.visibility = 'public' AND u.deleted_at IS NULL AND u.status = 'active'
                    AND (c.name ILIKE $1 OR c.description ILIKE $1)
              ORDER BY c.followers_count DESC
              LIMIT $2 OFFSET $3`,
@@ -441,8 +443,8 @@ const searchCollections = async (req, res, next) => {
         );
         
         const countResult = await query(
-            `SELECT COUNT(*) FROM collections c
-             WHERE c.deleted_at IS NULL AND c.is_public = true
+            `SELECT COUNT(*) FROM collections c JOIN users u ON u.id=c.creator_id
+             WHERE c.deleted_at IS NULL AND c.visibility = 'public' AND u.deleted_at IS NULL AND u.status = 'active'
                    AND (c.name ILIKE $1 OR c.description ILIKE $1)`,
             [searchTerm]
         );
@@ -455,8 +457,9 @@ const searchCollections = async (req, res, next) => {
                 query: q,
                 collections: result.rows.map(c => ({
                     id: c.id,
+                    publicId: c.public_id,
                     name: c.name,
-                    slug: c.slug,
+                    slug: slugify(c.name, { lower: true, strict: true }) || 'coleccion',
                     description: c.description,
                     coverUrl: c.cover_url,
                     manhwasCount: c.manhwas_count,

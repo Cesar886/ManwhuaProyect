@@ -138,7 +138,9 @@ const getProfile = async (req, res, next) => {
                     u.banner_position_x, u.banner_position_y,
                     u.bio, u.location, u.website, u.social_links, u.role, u.is_premium,
                     u.level, u.experience, u.followers_count, u.following_count,
-                    u.collections_count, u.theme_primary_color, u.theme_accent_color,
+                    CASE WHEN u.id = $2 THEN u.collections_count ELSE
+                        (SELECT COUNT(*) FROM collections c WHERE c.creator_id=u.id AND c.visibility='public' AND c.deleted_at IS NULL)
+                    END AS collections_count, u.theme_primary_color, u.theme_accent_color,
                     u.show_active_reader, u.profile_background, u.profile_texture, u.profile_text_color, u.created_at,
                     COALESCE((
                         SELECT json_agg(
@@ -174,11 +176,12 @@ const getProfile = async (req, res, next) => {
         // Obtener estadísticas adicionales
         const statsResult = await query(
             `SELECT 
-                (SELECT COUNT(*) FROM bookmarks WHERE user_id = $1) as bookmarks,
+                (SELECT COUNT(*) FROM bookmarks WHERE user_id = $1 AND is_favorite = true AND
+                    ($2 = $1 OR EXISTS(SELECT 1 FROM collections c WHERE c.creator_id=$1 AND c.type='favorites' AND c.visibility='public'))) as bookmarks,
                 (SELECT COUNT(*) FROM ratings WHERE user_id = $1) as ratings,
                 (SELECT COUNT(*) FROM comments WHERE user_id = $1 AND status = 'visible') as comments
             `,
-            [user.id]
+            [user.id, req.user?.id || null]
         );
 
         const stats = statsResult.rows[0];
@@ -810,7 +813,7 @@ const getUserCollections = async (req, res, next) => {
         const offset = (page - 1) * limit;
 
         const userResult = await query(
-            'SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL',
+            "SELECT id FROM users WHERE username = $1 AND deleted_at IS NULL AND status = 'active'",
             [username.toLowerCase()]
         );
 
@@ -832,14 +835,14 @@ const getUserCollections = async (req, res, next) => {
                            ORDER BY ci.order_index LIMIT 4) s
                     ) as preview_series
              FROM collections c
-             WHERE c.creator_id = $1 AND c.deleted_at IS NULL AND c.is_public = true
+             WHERE c.creator_id = $1 AND c.deleted_at IS NULL AND c.visibility = 'public'
              ORDER BY c.created_at DESC
              LIMIT $2 OFFSET $3`,
             [userId, limit, offset]
         );
 
         const countResult = await query(
-            'SELECT COUNT(*) FROM collections WHERE creator_id = $1 AND deleted_at IS NULL AND is_public = true',
+            "SELECT COUNT(*) FROM collections WHERE creator_id = $1 AND deleted_at IS NULL AND visibility = 'public'",
             [userId]
         );
 
@@ -850,8 +853,9 @@ const getUserCollections = async (req, res, next) => {
             data: {
                 collections: result.rows.map(c => ({
                     id: c.id,
+                    publicId: c.public_id,
                     name: c.name,
-                    slug: c.slug,
+                    slug: require('slugify')(c.name, { lower: true, strict: true }) || 'coleccion',
                     description: c.description,
                     coverUrl: c.cover_url,
                     manhwasCount: c.manhwas_count,
@@ -895,19 +899,30 @@ const getUserBookmarks = async (req, res, next) => {
         }
 
         const userId = userResult.rows[0].id;
+        const favorites = await query(
+            "SELECT visibility, public_id, name FROM collections WHERE creator_id = $1 AND type = 'favorites' AND deleted_at IS NULL",
+            [userId]
+        );
+        const visibility = favorites.rows[0]?.visibility || 'private';
+        const isOwner = req.user?.id === userId;
+        if (!isOwner && (visibility === 'private' || (req.query.listing === '1' && visibility !== 'public'))) {
+            res.set('Cache-Control', 'private, no-store');
+            return res.status(404).json({ success: false, message: 'Favoritos no encontrados' });
+        }
+        res.set('Cache-Control', 'private, no-store');
         const result = await query(
             `SELECT b.id AS bookmark_id, b.created_at,
                     s.id AS series_id, s.title, s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status,
                     s.chapter_count, s.rating_average, s.content_type
              FROM bookmarks b
              JOIN series s ON b.series_id = s.id
-             WHERE b.user_id = $1 AND s.deleted_at IS NULL
+             WHERE b.user_id = $1 AND b.is_favorite = true AND s.deleted_at IS NULL
              ORDER BY b.updated_at DESC
              LIMIT $2 OFFSET $3`,
             [userId, limit, offset]
         );
         const countResult = await query(
-            'SELECT COUNT(*) FROM bookmarks b JOIN series s ON b.series_id = s.id WHERE b.user_id = $1 AND s.deleted_at IS NULL',
+            'SELECT COUNT(*) FROM bookmarks b JOIN series s ON b.series_id = s.id WHERE b.user_id = $1 AND b.is_favorite = true AND s.deleted_at IS NULL',
             [userId]
         );
         const total = parseInt(countResult.rows[0].count, 10);
@@ -915,6 +930,9 @@ const getUserBookmarks = async (req, res, next) => {
         res.json({
             success: true,
             data: {
+                visibility,
+                publicId: favorites.rows[0]?.public_id || null,
+                name: favorites.rows[0]?.name || 'Favoritos',
                 bookmarks: result.rows.map((bookmark) => ({
                     id: bookmark.bookmark_id,
                     series: {
@@ -1084,14 +1102,14 @@ const getBookmarks = async (req, res, next) => {
              FROM bookmarks b
              JOIN series s ON b.series_id = s.id
              LEFT JOIN chapters c ON b.last_read_chapter_id = c.id
-             WHERE b.user_id = $1 AND s.deleted_at IS NULL
+             WHERE b.user_id = $1 AND b.is_favorite = true AND s.deleted_at IS NULL
              ORDER BY b.updated_at DESC
              LIMIT $2 OFFSET $3`,
             [req.user.id, limit, offset]
         );
 
         const countResult = await query(
-            'SELECT COUNT(*) FROM bookmarks b JOIN series s ON b.series_id = s.id WHERE b.user_id = $1 AND s.deleted_at IS NULL',
+            'SELECT COUNT(*) FROM bookmarks b JOIN series s ON b.series_id = s.id WHERE b.user_id = $1 AND b.is_favorite = true AND s.deleted_at IS NULL',
             [req.user.id]
         );
 

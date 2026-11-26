@@ -44,10 +44,10 @@ export function useSeriesProgress(seriesId, slug, user) {
   // Cache key seguro
   const cacheKey = useMemo(
     () => {
-      if (!seriesId || typeof seriesId !== 'string') return null;
-      return `progress_v2_${seriesId}`;
+      if (!seriesId || typeof seriesId !== 'string' || !user?.id) return null;
+      return `progress_v2_${user.id}_${seriesId}`;
     },
-    [seriesId]
+    [seriesId, user?.id]
   );
 
   /**
@@ -98,11 +98,54 @@ export function useSeriesProgress(seriesId, slug, user) {
    */
   const getLastReadChapter = useCallback((bookmark) => {
     if (!bookmark) return null;
-    return bookmark.lastReadChapter ||
-           bookmark.last_read_chapter ||
-           bookmark.lastChapter ||
-           null;
+    const lastRead = bookmark.lastReadChapter ||
+      bookmark.last_read_chapter ||
+      bookmark.lastChapter;
+    const chapter = lastRead && typeof lastRead === 'object'
+      ? lastRead.number
+      : lastRead;
+    return chapter !== null && chapter !== undefined &&
+      Number.isFinite(Number(chapter)) && Number(chapter) >= 0
+      ? chapter
+      : null;
   }, []);
+
+  // El lector también guarda el avance de visitantes sin sesión en este navegador.
+  const getLocalProgress = useCallback(() => {
+    if (typeof window === 'undefined' || !slug) return null;
+
+    try {
+      const prefix = `reading_progress_${slug}_`;
+      let latest = null;
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith(prefix)) continue;
+
+        const chapter = key.slice(prefix.length);
+        if (!Number.isFinite(Number(chapter)) || Number(chapter) < 0) continue;
+
+        try {
+          const saved = JSON.parse(localStorage.getItem(key));
+          if (!saved || !(Number(saved.timestamp) > 0)) continue;
+
+          const timestamp = Number(saved.timestamp) || 0;
+          if (!latest || timestamp > latest.timestamp) {
+            latest = {
+              chapter,
+              progress: Math.min(100, Math.max(0, Number(saved.progress) || 0)),
+              timestamp,
+            };
+          }
+        } catch { /* Ignorar entradas dañadas y seguir con los demás capítulos. */ }
+      }
+
+      return latest;
+    } catch (error) {
+      logger.warn('Failed to load local reading progress', error);
+      return null;
+    }
+  }, [slug]);
 
   /**
    * Obtener datos de progreso con retry
@@ -125,10 +168,20 @@ export function useSeriesProgress(seriesId, slug, user) {
    */
   const fetchProgressData = useCallback(async (skipCache = false) => {
     // Validación de entrada
-    if (!user || !seriesId || !slug) {
+    if (!seriesId || !slug) {
       if (mountedRef.current) {
         setState(prev => ({ ...prev, loading: false }));
       }
+      return;
+    }
+
+    if (!user) {
+      setState({
+        loading: false,
+        bookmarkData: null,
+        readingProgress: getLocalProgress(),
+        error: null,
+      });
       return;
     }
 
@@ -191,7 +244,7 @@ export function useSeriesProgress(seriesId, slug, user) {
           setState({
             loading: false,
             bookmarkData: null,
-            readingProgress: null,
+            readingProgress: getLocalProgress(),
             error: null,
           });
         }
@@ -204,7 +257,7 @@ export function useSeriesProgress(seriesId, slug, user) {
       let progressData = null;
 
       // Obtener progreso si existe último capítulo
-      if (lastChapter && slug) {
+      if (lastChapter !== null && slug) {
         try {
           const progress = await fetchProgressWithRetry(slug, lastChapter);
 
@@ -216,6 +269,8 @@ export function useSeriesProgress(seriesId, slug, user) {
               totalPages: progress.totalPages || 0,
               lastRead: progress.syncedAt || progress.updatedAt || null,
             };
+          } else {
+            progressData = { chapter: lastChapter, progress: 0 };
           }
         } catch (error) {
           logger.warn('Failed to fetch progress, using fallback', error);
@@ -228,6 +283,8 @@ export function useSeriesProgress(seriesId, slug, user) {
           }
         }
       }
+
+      progressData ||= getLocalProgress();
 
       if (!mountedRef.current) return;
 
@@ -254,12 +311,12 @@ export function useSeriesProgress(seriesId, slug, user) {
         setState({
           loading: false,
           bookmarkData: null,
-          readingProgress: null,
+          readingProgress: getLocalProgress(),
           error: error.message || 'Error al cargar progreso',
         });
       }
     }
-  }, [user, seriesId, slug, loadFromCache, saveToCache, getLastReadChapter, fetchProgressWithRetry]);
+  }, [user, seriesId, slug, loadFromCache, saveToCache, getLastReadChapter, getLocalProgress, fetchProgressWithRetry]);
 
   // Montar/desmontar
   useEffect(() => {
@@ -294,9 +351,9 @@ export function useSeriesProgress(seriesId, slug, user) {
 
     return {
       hasProgress,
-      lastReadChapter: state.readingProgress?.chapter || null,
+      lastReadChapter: state.readingProgress?.chapter ?? null,
       progressPercent,
-      isInLibrary: state.bookmarkData?.inLibrary || false,
+      isInLibrary: state.bookmarkData?.isBookmarked || false,
       isFavorite: state.bookmarkData?.isFavorite || false,
       readingStatus: state.bookmarkData?.status || null,
       notificationsEnabled: state.bookmarkData?.notifyNewChapter || false,
@@ -311,4 +368,3 @@ export function useSeriesProgress(seriesId, slug, user) {
 }
 
 export default useSeriesProgress;
-

@@ -308,23 +308,30 @@
   position: relative;
   z-index: 2;
   width: 220px;
-  height: 330px;
-  /* 220 * 1.5 = 330 (aspect ratio 2:3) */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.9rem;
   flex-shrink: 0;
   animation: floatUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.coverMedia {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
 }
 
 @media (max-width: 992px) {
   .coverContainer {
     width: 175px;
-    height: 262px;
   }
 }
 
 @media (max-width: 600px) {
   .coverContainer {
     width: 120px;
-    height: 180px;
+    gap: 0;
   }
 }
 
@@ -498,6 +505,39 @@
   flex-direction: column;
   gap: var(--spacing-xs);
   min-width: 0;
+}
+
+.heroDetailsRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  width: 100%;
+}
+
+.heroDetailsRow .heroAuthor {
+  min-width: 0;
+  margin: 0;
+}
+
+.heroDetailsRow .desktopSecondaryActions {
+  margin-left: auto;
+}
+
+@media (max-width: 1100px) and (min-width: 769px) {
+  .heroDetailsRow .desktopIconAction span {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .heroDetailsRow {
+    display: contents;
+  }
+
+  .heroDetailsRow .desktopSecondaryActions {
+    display: none;
+  }
 }
 
 @keyframes fadeIn {
@@ -794,6 +834,442 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+}
+
+.desktopReadActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.2rem 0;
+}
+
+.desktopSecondaryActions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.desktopIconAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-base), background var(--transition-base),
+    border-color var(--transition-base);
+}
+
+.desktopIconAction:hover {
+  color: var(--imperial-primary);
+  background: var(--subtle-bg-hover);
+}
+
+.desktopIconActionActive,
+.desktopIconActionActive:hover {
+  color: var(--imperial-primary);
+  background: var(--imperial-primary-alpha);
+}
+
+.desktopIconAction:focus-visible,
+.desktopReadLink:focus-visible {
+  outline: 2px solid var(--imperial-accent);
+  outline-offset: 3px;
+}
+
+.desktopReadLink {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  gap: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--imperial-primary-alpha);
+  color: var(--imperial-primary);
+  font-weight: 700;
+  font-size: 0.84rem;
+  text-align: center;
+  text-decoration: none;
+  transition: background var(--transition-base);
+}
+
+.desktopReadLink:hover {
+  color: var(--imperial-primary);
+  background: var(--subtle-bg-hover);
+}
+
+.desktopReadLink::after {
+  display: none;
+}
+
+.desktopReadBadge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--subtle-bg);
+  font-size: 0.7rem;
+}
+
+@media (max-width: 1100px) and (min-width: 769px) {
+  .desktopReadLink {
+    gap: 0.35rem;
+    padding-inline: 0.45rem;
+    font-size: 0.76rem;
+  }
+
+  .desktopReadLink svg {
+    display: none;
+  }
+}
+
+.saveNotice {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  z-index: 10010;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-color);
+  transform: translateX(-50%);
+}
+
+.saveNotice button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--imperial-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.saveNotice button:hover {
+  text-decoration: underline;
+}
+
+.saveNotice[data-kind='error'] {
+  border-color: rgba(var(--imperial-ruby-rgb), 0.35);
+  color: var(--imperial-ruby);
+}
+
+.saveDrawerContent {
+  width: min(100%, 480px);
+  margin: 0 auto 1rem;
+  border: 0;
+  border-radius: 20px;
+  background: var(--card-bg-solid);
+  color: var(--text-color);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.saveDrawerBody {
+  background: var(--card-bg-solid);
+}
+
+.saveDrawerLayout {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.saveDrawerHandle {
+  width: 38px;
+  height: 4px;
+  margin: 0.65rem auto 1.1rem;
+  border-radius: 999px;
+  background: var(--border-medium);
+}
+
+.saveDrawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.saveDrawerTitle {
+  margin: 0;
+  color: var(--text-color);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.saveDrawerClose {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.saveDrawerClose:hover {
+  color: var(--text-color);
+  background: var(--subtle-bg-hover);
+}
+
+.saveDrawerSectionLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 1.35rem 0 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.saveDrawerCount {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.saveDrawerViewLink {
+  margin-left: auto;
+  color: var(--imperial-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: opacity var(--transition-base);
+}
+
+.saveDrawerViewLink:hover {
+  opacity: 0.72;
+}
+
+.saveDrawerViewLink:focus-visible {
+  outline: 2px solid var(--imperial-primary);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.saveCollectionRow {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 52px;
+  padding: 0.7rem 0.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.saveCollectionRow:hover,
+.saveNewCollection:hover {
+  background: var(--subtle-bg-hover);
+}
+
+.saveCollectionRow:focus-within,
+.saveNewCollection:focus-visible,
+.saveDrawerClose:focus-visible,
+.saveDrawerFooter button:focus-visible {
+  outline: 2px solid var(--imperial-primary);
+  outline-offset: 2px;
+}
+
+.saveCollectionRow input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.saveCollectionIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  height: 24px;
+  color: var(--text-secondary);
+}
+
+.saveFavoriteRow .saveCollectionIcon {
+  color: var(--imperial-ruby);
+}
+
+.saveCollectionText {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.saveCollectionText strong {
+  color: var(--text-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.saveCollectionCheck {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-medium);
+  border-radius: 50%;
+  color: #fff;
+}
+
+.saveCollectionRow[data-selected='true'] .saveCollectionCheck {
+  border-color: var(--imperial-primary);
+  background: var(--imperial-primary);
+}
+
+.saveDrawerMessage,
+.saveDrawerEmpty {
+  margin: 0;
+  padding: 0.75rem 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.saveDrawerError {
+  margin: 0.8rem 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(var(--imperial-ruby-rgb), 0.3);
+  border-radius: 8px;
+  background: rgba(var(--imperial-ruby-rgb), 0.08);
+  color: var(--imperial-ruby);
+  font-size: 0.8rem;
+}
+
+.saveNewCollection {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.65rem 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--imperial-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.saveCreateForm {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.saveCreateForm input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-color);
+  font: inherit;
+}
+
+.saveCreateForm button {
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--imperial-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.saveCreateForm .saveCreateCancel {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  padding: 0;
+  border: 1px solid var(--border-medium);
+  background: var(--subtle-bg);
+  color: var(--text-secondary);
+}
+
+.saveDrawerFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.1rem;
+}
+
+.saveDrawerFooter button {
+  min-width: 88px;
+  min-height: 38px;
+  padding: 0.5rem 1.1rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--imperial-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.saveDrawerFooter button:hover {
+  filter: brightness(1.12);
+}
+
+@media (max-width: 600px) {
+  .saveDrawerContent {
+    margin-bottom: 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .saveDrawerLayout {
+    padding: 0 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 768px) {
+  .saveNotice {
+    bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 768px) {
+  .desktopReadActions {
+    display: none;
+  }
+
+  .coverContainer .desktopReadLink {
+    display: none;
+  }
 }
 
 
@@ -1918,9 +2394,9 @@
   }
 
   .mobileAction.active {
-    color: var(--imperial-ruby);
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(239, 68, 68, 0.25);
+    color: var(--imperial-primary);
+    background: var(--imperial-primary-alpha);
+    border-color: var(--imperial-primary-alpha-strong);
   }
 
   .mobileReadLink {

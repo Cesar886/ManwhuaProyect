@@ -182,6 +182,7 @@ CREATE TABLE public.bookmarks (
     last_read_chapter_id bigint,
     status character varying(30) DEFAULT 'reading'::character varying,
     progress numeric DEFAULT 0,
+    is_favorite boolean DEFAULT true NOT NULL,
     notify_new_chapters boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL

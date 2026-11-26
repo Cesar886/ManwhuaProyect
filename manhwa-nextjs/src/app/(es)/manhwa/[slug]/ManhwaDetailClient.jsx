@@ -7,10 +7,10 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   IconArrowLeft, IconBook, IconClock, IconEye, IconChevronRight,
-  IconCalendar, IconUser, IconTag, IconStar, IconEdit, IconHeart,
+  IconCalendar, IconUser, IconTag, IconStar, IconEdit, IconBookmark, IconBookmarkFilled,
   IconShare, IconBrandTwitter, IconBrandFacebook, IconMessageCircle,
   IconFilter, IconSearch, IconCheck, IconX, IconAlertTriangle,
-  IconSparkles, IconPlayerPlay, IconRefresh,
+  IconSparkles, IconRefresh,
   IconFlame, IconAlertCircle, IconCopy, IconExternalLink,
   IconSettings, IconChartBar, IconInfoCircle
 } from '@tabler/icons-react';
@@ -40,6 +40,7 @@ import AnonymousAvatar from '@/components/AnonymousAvatar';
 import { SEO_CONTENT, getImageAlt, getAnchorText } from '@/lib/seo/constants';
 import { getTranslations } from '@/i18n/translations';
 import PushNotificationButton from '@/components/PushNotificationButton';
+import SaveToCollectionDrawer from './SaveToCollectionDrawer';
 
 const ADMIN_CHAPTERS_BATCH_SIZE = 40;
 
@@ -363,6 +364,10 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
   // Estados de UI
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isSaveDrawerOpen, setIsSaveDrawerOpen] = useState(false);
+  const [saveNotice, setSaveNotice] = useState(null);
+  const [savingFavorite, setSavingFavorite] = useState(false);
+  const favoriteActionRef = React.useRef(false);
   const [isListModalOpen, setIsListModalOpen] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [activeTab, setActiveTab] = useState('chapters'); // 'info' | 'chapters' | 'comments'
@@ -373,6 +378,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
     isInLibrary: isInLibraryFromHook,
     isFavorite: isFavoriteFromHook,
     readingStatus: readingStatusFromHook,
+    loading: progressLoading,
     hasProgress,
     lastReadChapter,
     progressPercent,
@@ -410,6 +416,12 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
     setIsFavorite(isFavoriteFromHook);
     setReadingStatus(readingStatusFromHook);
   }, [isInLibraryFromHook, isFavoriteFromHook, readingStatusFromHook, bookmarkData]);
+
+  useEffect(() => {
+    if (!saveNotice) return undefined;
+    const timer = setTimeout(() => setSaveNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [saveNotice]);
 
   // Estado local para manejar actualizaciones de portada en tiempo real
   const [localCoverUrl, setLocalCoverUrl] = useState(null);
@@ -678,21 +690,42 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
   }, [effectiveSeries?.title, series?.title, showAdultBadge, lang]);
 
   // Handlers
-  const handleToggleFavorite = async () => {
+  const setFavorite = async (nextValue) => {
+    if (favoriteActionRef.current) return;
     if (!user) { openLogin(); return; }
+    favoriteActionRef.current = true;
+    setSavingFavorite(true);
     try {
       if (!isInLibrary) {
-        await addBookmark(series.id, { isFavorite: true, status: 'reading' });
+        await addBookmark(series.id);
         setIsInLibrary(true);
-        setIsFavorite(true);
-        setReadingStatus('reading');
       } else {
-        await updateBookmark(series.id, { isFavorite: !isFavorite });
-        setIsFavorite(!isFavorite);
+        await updateBookmark(series.id, { isFavorite: nextValue });
       }
+      setIsFavorite(nextValue);
       await refreshProgress();
     } catch (err) {
-      console.error('Error toggling favorite:', err);
+      console.error('Error updating favorite:', err);
+      throw err;
+    } finally {
+      favoriteActionRef.current = false;
+      setSavingFavorite(false);
+    }
+  };
+
+  const handleSaveClick = async () => {
+    if (!user) { openLogin(); return; }
+    if (isFavorite) {
+      setSaveNotice(null);
+      setIsSaveDrawerOpen(true);
+      return;
+    }
+    if (favoriteActionRef.current) return;
+    try {
+      await setFavorite(true);
+      setSaveNotice({ kind: 'success' });
+    } catch (err) {
+      setSaveNotice({ kind: 'error', message: err.message });
     }
   };
 
@@ -978,23 +1011,41 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
           {/* Área: cover */}
           <div className={styles.coverContainer}>
-            <ManhwaCover
-              src={normalizedPrimaryCover}
-              fallbackSrc={normalizedFallbackCover}
-              slug={series?.slug}
-              alt={getImageAlt.cover(series.title)}
-              className={styles.coverImage}
-            />
-            {/* +18 Badge overlay — esquina superior derecha de la portada */}
-            {showAdultBadge && (
+            <div className={styles.coverMedia}>
+              <ManhwaCover
+                src={normalizedPrimaryCover}
+                fallbackSrc={normalizedFallbackCover}
+                slug={series?.slug}
+                alt={getImageAlt.cover(series.title)}
+                className={styles.coverImage}
+              />
+              {/* +18 Badge overlay — esquina superior derecha de la portada */}
+              {showAdultBadge && (
+                <Link
+                  href={nsfwIaHref}
+                  className={styles.hotBadge}
+                  title={t.exploreAdultAi}
+                  aria-label={t.exploreAdultAiAria}
+                >
+                  <IconFlame size={13} stroke={2.5} />
+                  +18
+                </Link>
+              )}
+            </div>
+            {series?.chapters?.length > 0 && (
               <Link
-                href={nsfwIaHref}
-                className={styles.hotBadge}
-                title={t.exploreAdultAi}
-                aria-label={t.exploreAdultAiAria}
+                href={`${basePath}/${slug}/${chapterSegment}/${lastReadChapter ??
+                  continueReadingChapter?.number ??
+                  series.chapters[0]?.number ??
+                  1
+                  }`}
+                className={styles.desktopReadLink}
+                style={hasProgress && progressPercent > 0
+                  ? { '--read-progress': `${progressPercent}%` }
+                  : undefined
+                }
               >
-                <IconFlame size={13} stroke={2.5} />
-                +18
+                <span>{hasProgress && lastReadChapter !== null ? t.continueCh : t.startReading}</span>
               </Link>
             )}
           </div>
@@ -1013,6 +1064,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
               </div>
             )}
 
+            <div className={styles.heroDetailsRow}>
             {/* Año de lanzamiento + vistas en una sola fila */}
             {(effectiveSeries?.releaseYear || series?.releaseYear || effectiveSeries?.views || series?.views || effectiveSeries?.isAdult || series?.isAdult) && (
               <div className={styles.heroMeta}>
@@ -1075,6 +1127,34 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
                 </Link>
               </div>
             )}
+
+            {series?.chapters?.length > 0 && (
+              <div className={styles.desktopSecondaryActions}>
+                <button
+                  type="button"
+                  onClick={handleSaveClick}
+                  disabled={savingFavorite || progressLoading}
+                  className={`${styles.desktopIconAction} ${isFavorite ? styles.desktopIconActionActive : ''}`}
+                  title={isFavorite ? 'Organizar guardado' : 'Guardar en Favoritos'}
+                  aria-label={isFavorite ? 'Organizar guardado' : 'Guardar en Favoritos'}
+                  aria-pressed={isFavorite}
+                >
+                  {isFavorite ? <IconBookmarkFilled size={19} /> : <IconBookmark size={19} />}
+                  <span>{isFavorite ? (lang === 'en' ? 'Saved' : 'Guardado') : (lang === 'en' ? 'Save' : 'Guardar')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsShareModalOpen(true)}
+                  className={styles.desktopIconAction}
+                  title="Compartir"
+                  aria-label="Compartir"
+                >
+                  <IconShare size={19} />
+                  <span>{lang === 'en' ? 'Share' : 'Compartir'}</span>
+                </button>
+              </div>
+            )}
+            </div>
 
             {(() => {
               const rawTitles = effectiveSeries?.alternativeTitles ?? series?.alternativeTitles;
@@ -1859,11 +1939,15 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
         <div className={styles.mobileReadBar}>
           <div className={styles.mobileActions}>
             <button
-              onClick={handleToggleFavorite}
+              type="button"
+              onClick={handleSaveClick}
+              disabled={savingFavorite || progressLoading}
               className={`${styles.mobileAction} ${isFavorite ? styles.active : ''}`}
-              title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              title={isFavorite ? 'Organizar guardado' : 'Guardar en Favoritos'}
+              aria-label={isFavorite ? 'Organizar guardado' : 'Guardar en Favoritos'}
+              aria-pressed={isFavorite}
             >
-              <IconHeart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
+              {isFavorite ? <IconBookmarkFilled size={20} /> : <IconBookmark size={20} />}
             </button>
             <button
               onClick={() => setIsShareModalOpen(true)}
@@ -1874,29 +1958,39 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
             </button>
           </div>
           <Link
-            href={`${basePath}/${slug}/${chapterSegment}/${lastReadChapter ||
-              continueReadingChapter?.number ||
-              series.chapters[0]?.number ||
+            href={`${basePath}/${slug}/${chapterSegment}/${lastReadChapter ??
+              continueReadingChapter?.number ??
+              series.chapters[0]?.number ??
               1
               }`}
             className={styles.mobileReadLink}
-            style={user && hasProgress && progressPercent > 0
+            style={hasProgress && progressPercent > 0
               ? { '--read-progress': `${progressPercent}%` }
               : undefined
             }
           >
-            <IconPlayerPlay size={18} fill="currentColor" />
             <span className={styles.mobileReadLinkText}>
-              {user && hasProgress && lastReadChapter
-                ? t.continueCh.replace('{n}', lastReadChapter)
+              {hasProgress && lastReadChapter !== null
+                ? t.continueCh
                 : t.startReading}
             </span>
-            {user && hasProgress && progressPercent > 0 && (
-              <span className={styles.mobileReadBadge}>
-                {Math.round(progressPercent)}%
-              </span>
-            )}
           </Link>
+        </div>
+      )}
+
+      {saveNotice && (
+        <div className={styles.saveNotice} data-kind={saveNotice.kind} role="status">
+          {saveNotice.kind === 'success' ? (
+            <>
+              <span>{lang === 'en' ? '❤️ Saved to Favorites' : '❤️ Guardado en Favoritos'}</span>
+              <span aria-hidden="true">·</span>
+              <button type="button" onClick={() => { setSaveNotice(null); setIsSaveDrawerOpen(true); }}>
+                {lang === 'en' ? 'Add to collection' : 'Añadir a colección'}
+              </button>
+            </>
+          ) : (
+            <span>{saveNotice.message || (lang === 'en' ? 'Could not save this title.' : 'No se pudo guardar esta obra.')}</span>
+          )}
         </div>
       )}
 
@@ -1937,6 +2031,15 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
         series={series}
         slug={slug}
         basePath={basePath}
+      />
+
+      <SaveToCollectionDrawer
+        opened={isSaveDrawerOpen}
+        onClose={() => setIsSaveDrawerOpen(false)}
+        seriesId={series.id}
+        isFavorite={isFavorite}
+        onSetFavorite={setFavorite}
+        lang={lang}
       />
 
       <AddToListModal

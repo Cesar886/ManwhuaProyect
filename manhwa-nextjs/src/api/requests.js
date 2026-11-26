@@ -115,6 +115,27 @@ export const updateReadingProgress = (seriesId, data) => api.put('bookmarks', `$
 
 export const toggleBookmarkNotifications = (seriesId, data) => api.put('bookmarks', `${seriesId}/notifications`, data)
 
+// Colecciones personales
+export const getMyCollections = (seriesId) =>
+  api.get('collections', `mine${buildQuery({ seriesId })}`, { cache: false })
+export const createCollection = (data) => api.post('collections', '', data)
+export const updateCollection = (publicId, data) => api.put('collections', publicId, data)
+export const deleteCollection = (publicId) => api.del('collections', publicId)
+export const getCollection = (publicId) => api.get('collections', publicId, { cache: false })
+export const listCollections = (page = 1) => api.get('collections', buildQuery({ page }), { cache: false })
+export const getUserCollections = (username, page = 1) => api.get('users', `${encodeURIComponent(username)}/collections${buildQuery({ page })}`, { cache: false })
+export const getUserFavorites = (username, page = 1) => api.get('users', `${encodeURIComponent(username)}/bookmarks${buildQuery({ page })}`, { cache: false })
+export const addSeriesToCollection = (publicId, seriesId) =>
+  api.post('collections', `${publicId}/manhwas`, { seriesId })
+export const removeSeriesFromCollection = (publicId, seriesId) =>
+  api.del('collections', `${publicId}/manhwas/${encodeURIComponent(seriesId)}`)
+export const getCollectionManhwas = (publicId, page = 1) =>
+  api.get('collections', `${publicId}/manhwas${buildQuery({ page, limit: 20 })}`, { cache: false })
+export const reorderCollection = (publicId, seriesIds) => api.put('collections', `${publicId}/manhwas/reorder`, { seriesIds })
+export const likeCollection = (publicId) => api.post('collections', `${publicId}/like`)
+export const unlikeCollection = (publicId) => api.del('collections', `${publicId}/like`)
+export const copyCollection = (publicId) => api.post('collections', `${publicId}/copy`)
+
 // Ratings API
 export const rateSeries = (seriesId, rating) => api.post('series', `${seriesId}/rate`, { rating })
 
@@ -181,6 +202,11 @@ const requestsApi = {
   checkBookmark,
   updateReadingProgress,
   toggleBookmarkNotifications,
+  getMyCollections,
+  createCollection,
+  addSeriesToCollection,
+  removeSeriesFromCollection,
+  getCollectionManhwas,
   // Ratings
   rateSeries,
   getUserRating,

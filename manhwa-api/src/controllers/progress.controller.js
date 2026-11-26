@@ -101,8 +101,8 @@ const saveProgress = async (req, res, next) => {
 
         // Actualizar bookmark (UPSERT)
         await query(
-            `INSERT INTO bookmarks (user_id, series_id, last_read_chapter_id, last_read_page, last_read_at)
-             VALUES ($1, $2, $3, $4, NOW())
+            `INSERT INTO bookmarks (user_id, series_id, last_read_chapter_id, last_read_page, last_read_at, is_favorite)
+             VALUES ($1, $2, $3, $4, NOW(), false)
              ON CONFLICT (user_id, series_id)
              DO UPDATE SET
                 last_read_chapter_id = $3,

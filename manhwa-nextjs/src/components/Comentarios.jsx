@@ -1468,7 +1468,7 @@ export default function Comentarios({ detailRequest, openLogin, user, maxReplyDe
         res = await api.get('chapters', target.seriesSlug + '/' + target.chapterSlug + '/comments?' + query)
       } else if (target.targetType === 'collection') {
         if (!target.slug) throw new Error('No se pudo identificar la colección')
-        res = await api.get('collections', target.slug + '/comments?' + query)
+        res = await api.get('collections', (target.publicId || target.slug) + '/comments?' + query)
       } else if (target.targetType === 'wall') {
         res = await api.get('wall', 'comments?' + query)
       } else {

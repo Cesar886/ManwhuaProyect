@@ -6,6 +6,49 @@ const { query, transaction } = require('../config/database');
 const slugify = require('slugify');
 const { hasPermission } = require('../config/roles');
 
+/** Colecciones del usuario autenticado, incluidas las privadas. */
+const getMyCollections = async (req, res, next) => {
+    try {
+        const seriesId = req.query.seriesId || null;
+        const result = await query(
+            `SELECT c.id, c.name, c.slug, c.description, c.cover_url, c.is_public,
+                    c.created_at,
+                    (SELECT COUNT(*) FROM collection_items ci WHERE ci.collection_id = c.id) AS manhwas_count,
+                    EXISTS(SELECT 1 FROM collection_items ci
+                           WHERE ci.collection_id = c.id AND ci.series_id = $2) AS contains_series,
+                    (SELECT json_agg(json_build_object('id', s.id, 'title', s.title, 'coverUrl', s.cover_url))
+                     FROM (SELECT s.id, s.title, s.cover_url FROM collection_items ci
+                           JOIN series s ON s.id = ci.series_id
+                           WHERE ci.collection_id = c.id AND s.deleted_at IS NULL
+                           ORDER BY ci.order_index LIMIT 4) s) AS preview_series
+             FROM collections c
+             WHERE c.creator_id = $1 AND c.deleted_at IS NULL
+             ORDER BY c.created_at DESC`,
+            [req.user.id, seriesId]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                collections: result.rows.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    slug: c.slug,
+                    description: c.description,
+                    coverUrl: c.cover_url,
+                    isPublic: c.is_public,
+                    manhwasCount: c.manhwas_count,
+                    containsSeries: c.contains_series,
+                    previewSeries: c.preview_series || [],
+                    createdAt: c.created_at
+                }))
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 /**
  * Listar colecciones
  * GET /api/collections
@@ -252,6 +295,10 @@ const getCollectionManhwas = async (req, res, next) => {
         }
         
         const collection = collectionResult.rows[0];
+
+        if (!collection.is_public && (!req.user || req.user.id !== collection.creator_id)) {
+            return res.status(403).json({ success: false, message: 'Esta colección es privada' });
+        }
         
         const result = await query(
             `SELECT s.id, s.title, s.slug, s.cover_url, s.status, s.rating_average,
@@ -387,8 +434,8 @@ const createCollection = async (req, res, next) => {
         // Generar slug único
         let slug = slugify(name, { lower: true, strict: true });
         const existingSlug = await query(
-            'SELECT id FROM collections WHERE slug = $1 AND creator_id = $2',
-            [slug, req.user.id]
+            'SELECT id FROM collections WHERE slug = $1',
+            [slug]
         );
         
         if (existingSlug.rows.length > 0) {
@@ -537,7 +584,7 @@ const addManhwaToCollection = async (req, res, next) => {
         const { seriesId, note } = req.body;
         
         const collectionResult = await query(
-            'SELECT id, creator_id, manhwas_count FROM collections WHERE slug = $1 AND deleted_at IS NULL',
+            'SELECT id, creator_id FROM collections WHERE slug = $1 AND deleted_at IS NULL',
             [slug]
         );
         
@@ -573,9 +620,14 @@ const addManhwaToCollection = async (req, res, next) => {
         // Agregar a la colección
         await query(
             `INSERT INTO collection_items (collection_id, series_id, order_index, added_by, note)
-             VALUES ($1, $2, $3, $4, $5)
+             VALUES ($1, $2, (SELECT COALESCE(MAX(order_index) + 1, 0) FROM collection_items WHERE collection_id = $1), $3, $4)
              ON CONFLICT (collection_id, series_id) DO NOTHING`,
-            [collection.id, seriesId, collection.manhwas_count, req.user.id, note]
+            [collection.id, seriesId, req.user.id, note]
+        );
+
+        await query(
+            'UPDATE collections SET manhwas_count = (SELECT COUNT(*) FROM collection_items WHERE collection_id = $1) WHERE id = $1',
+            [collection.id]
         );
         
         res.json({
@@ -619,6 +671,11 @@ const removeManhwaFromCollection = async (req, res, next) => {
         await query(
             'DELETE FROM collection_items WHERE collection_id = $1 AND series_id = $2',
             [collection.id, seriesId]
+        );
+
+        await query(
+            'UPDATE collections SET manhwas_count = (SELECT COUNT(*) FROM collection_items WHERE collection_id = $1) WHERE id = $1',
+            [collection.id]
         );
         
         res.json({
@@ -841,6 +898,7 @@ const verifyCollection = async (req, res, next) => {
 };
 
 module.exports = {
+    getMyCollections,
     listCollections,
     getPopularCollections,
     getCollection,

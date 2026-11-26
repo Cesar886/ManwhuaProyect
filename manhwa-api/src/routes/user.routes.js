@@ -111,7 +111,7 @@ router.get('/:username/collections', validate([...usernameParam, ...paginationVa
 router.get('/:username/activity', validate([...usernameParam, ...paginationValidation]), userController.getUserActivity);
 router.get('/:username/ratings', validate([...usernameParam, ...paginationValidation]), userController.getUserRatings);
 router.get('/:username/comments', validate([...usernameParam, ...paginationValidation]), userController.getUserComments);
-router.get('/:username/bookmarks', validate([...usernameParam, ...paginationValidation]), userController.getUserBookmarks);
+router.get('/:username/bookmarks', optionalAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserBookmarks);
 router.get('/:username/progress', validate(usernameParam), progressController.getPublicRecentProgress);
 router.get('/:username/achievements', validate(usernameParam), achievementController.getPublicUserAchievements);
 router.get('/:username/followers', optionalAuth, validate([...usernameParam, ...paginationValidation]), userController.getUserFollowers);

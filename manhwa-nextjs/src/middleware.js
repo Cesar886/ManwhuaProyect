@@ -11,6 +11,11 @@ const ES_PATHS = ['/home', '/manhwa', '/populares', '/biblioteca', '/mangas']
 const EN_PATHS = ['/en/home', '/en/manhwa', '/en/popular', '/en/library', '/en/manga']
 
 const LANG_COOKIE = 'preferred_lang'
+const internalApiBase = () => {
+  const rawBase = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL_LOCAL || 'http://127.0.0.1:3000'
+  const base = rawBase.replace(/(?:localhost|127\.0\.0\.1):5173\b/, '127.0.0.1:3000').replace(/\/$/, '')
+  return base.endsWith('/api') ? base : `${base}/api`
+}
 
 // Segmentos ES que tienen página EN equivalente (para redirect por cookie)
 // IMPORTANTE: solo incluir segmentos donde la ruta /en/<en-segment> existe
@@ -69,13 +74,57 @@ function getEsEquivalent(pathname) {
   return `/${esSegment}${rest}`
 }
 
-export function middleware(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl
   const { headers } = request
   const userAgent = headers.get('user-agent') || ''
   const token = request.cookies.get('token')?.value
 
   const forward = () => NextResponse.next()
+
+  if (pathname === '/mis-colecciones/__favorites__' || pathname === '/en/my-collections/__favorites__') {
+    const en = pathname.startsWith('/en/')
+    let username = null
+    if (token) {
+      try {
+        const response = await fetch(`${internalApiBase()}/auth/me`, {
+          headers: { cookie: headers.get('cookie') || '' }, cache: 'no-store',
+        })
+        if (response.ok) username = (await response.json())?.data?.user?.username
+      } catch { /* Send the visitor to their private collections panel. */ }
+    }
+    const url = request.nextUrl.clone()
+    url.pathname = username
+      ? `${en ? '/en' : ''}/u/${encodeURIComponent(username)}/${en ? 'favorites' : 'favoritos'}`
+      : en ? '/en/my-collections' : '/mis-colecciones'
+    const response = NextResponse.redirect(url, 307)
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
+  }
+
+  // Server-side 301 for a public collection whose decorative slug changed.
+  const collectionMatch = /^\/(en\/collection|coleccion)\/([A-Za-z0-9]{8})-[^/]+$/.exec(pathname)
+  if (collectionMatch) {
+    try {
+      const response = await fetch(`${internalApiBase()}/collections/${collectionMatch[2]}`, { cache: 'no-store' })
+      if (response.ok) {
+        const c = (await response.json())?.data?.collection
+        if (c?.visibility === 'public') {
+          const en = collectionMatch[1].startsWith('en/')
+          const target = c.type === 'favorites'
+            ? `${en ? '/en' : ''}/u/${encodeURIComponent(c.creator.username)}/${en ? 'favorites' : 'favoritos'}`
+            : `${en ? '/en/collection' : '/coleccion'}/${c.publicId}-${c.slug}`
+          if (pathname !== target) {
+            const url = request.nextUrl.clone()
+            url.pathname = target
+            const redirect = NextResponse.redirect(url, 301)
+            redirect.headers.set('Cache-Control', 'no-store')
+            return redirect
+          }
+        }
+      }
+    } catch { /* The page handles API errors and access checks. */ }
+  }
 
   // 1. Protección de rutas privadas
   const isProtected = PROTECTED_ROUTES.some(

@@ -2,6 +2,7 @@ import { SITE_URL } from '@/config'
 import { fetchAllSeriesForSitemap } from '@/lib/seo/fetchSeries'
 import { getAllPosts } from '@/lib/blog/posts'
 import { buildUrlset, urlEntry, urlEntryWithAlternates, xmlResponse, xmlServiceUnavailable } from '@/lib/seo/xml'
+import { collectionApi } from '@/lib/collections/server'
 import {
   filterAvailableSeries,
   getSeriesLanguages,
@@ -30,7 +31,6 @@ const BILINGUAL_STATIC_PAGES = [
 
 // Páginas solo en ES (sin equivalente EN en el repo actual)
 const ES_ONLY_PAGES = [
-  { path: '/colecciones',         priority: '0.7', freq: 'weekly' },
   { path: '/ranking/series',      priority: '0.8', freq: 'daily'  },
   { path: '/buscar',              priority: '0.5', freq: 'weekly' },
   { path: '/blog',                priority: '0.6', freq: 'weekly' },
@@ -125,6 +125,25 @@ export async function GET() {
         `${SITE_URL}/en/manhwa/${s.slug}`, lastmod, 'daily', '0.9', alt,
       ))
     }
+  }
+
+  // Colecciones con al menos MIN_INDEXABLE_COLLECTION_TITLES títulos visibles.
+  for (let page = 1; ; page++) {
+    const data = await collectionApi(`collections/indexable?page=${page}`)
+    if (!data) return xmlServiceUnavailable('Collection sitemap data temporarily unavailable')
+    for (const c of data.collections) {
+      const esPath = c.type === 'favorites'
+        ? `/u/${encodeURIComponent(c.username)}/favoritos`
+        : `/coleccion/${c.publicId}-${c.slug}`
+      const enPath = c.type === 'favorites'
+        ? `/en/u/${encodeURIComponent(c.username)}/favorites`
+        : `/en/collection/${c.publicId}-${c.slug}`
+      const alt = bilingualAlternates(esPath, enPath)
+      const lastmod = new Date(c.updatedAt).toISOString()
+      urls.push(urlEntryWithAlternates(`${SITE_URL}${esPath}`, lastmod, 'weekly', '0.5', alt))
+      urls.push(urlEntryWithAlternates(`${SITE_URL}${enPath}`, lastmod, 'weekly', '0.5', alt))
+    }
+    if (!data.hasMore) break
   }
 
   return xmlResponse(buildUrlset(urls, { withXhtml: true }))

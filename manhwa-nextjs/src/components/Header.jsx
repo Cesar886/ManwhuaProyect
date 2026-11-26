@@ -13,6 +13,7 @@ import {
   IconSun,
   IconLogout,
   IconUser,
+  IconFolders,
   IconFlame,
   IconSearch,
   IconCrown,
@@ -67,9 +68,10 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   // Items del menú del usuario (dinámicos según idioma)
   const USER_MENU_ITEMS = useMemo(() => [
     { icon: IconUser, label: t.common.profile, color: 'blue', action: 'perfil' },
+    { icon: IconFolders, label: lang === 'en' ? 'Collections' : 'Colecciones', color: 'cyan', action: 'colecciones' },
     { icon: IconCrown, label: 'VIP', color: 'yellow', action: 'vip' },
     { icon: IconLogout, label: t.common.logout, color: 'red', action: 'cerrar_sesion' },
-  ], [t]);
+  ], [t, lang]);
 
   // Calcular altura del header y establecer variable CSS
   useEffect(() => {
@@ -211,6 +213,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   // Stable handler for user menu actions
   const handleUserAction = useMemo(() => ({
     perfil: () => router.push(getLocalizedPath(lang === 'en' ? '/profile' : '/perfil', lang)),
+    colecciones: () => router.push(getLocalizedPath('/mis-colecciones', lang)),
     vip: () => router.push(getLocalizedPath('/vip', lang)),
     cerrar_sesion: async () => {
       try { await doLogout(); } catch (e) { console.warn('Logout failed', e); }

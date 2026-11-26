@@ -14,9 +14,11 @@ import { getTranslations } from '../i18n/translations';
 import classes from './Footer.module.css';
 import InstallPrompt from './InstallPrompt';
 
+const facebookUrl = 'https://www.facebook.com/share/1DeCq4G8B4/';
+
 const socialLinks = [
   { icon: IconBrandTwitter, label: 'Twitter', href: 'https://x.com/manhwaimperial' },
-  { icon: IconBrandFacebook, label: 'Facebook', href: 'https://www.facebook.com/share/1FSVkkyvwc/' },
+  { icon: IconBrandFacebook, label: 'Facebook', href: facebookUrl },
 ];
 
 // Columna colapsable para mobile
@@ -89,7 +91,7 @@ function Footer({ lang: propLang }) {
         title: t.colCommunity,
         links: [
           { label: 'X/ Twitter', link: 'https://x.com/manhwaimperial' },
-          { label: 'Facebook', link: 'https://www.facebook.com/share/1FSVkkyvwc/' },
+          { label: 'Facebook', link: facebookUrl },
         ],
       },
       {

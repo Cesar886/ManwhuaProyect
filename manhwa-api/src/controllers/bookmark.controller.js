@@ -16,7 +16,7 @@ const getBookmarks = async (req, res, next) => {
         const offset = (page - 1) * limit;
         const { status, sort = 'updated_at', order = 'desc' } = req.query;
         
-        let whereClause = 'WHERE b.user_id = $1 AND s.deleted_at IS NULL';
+        let whereClause = 'WHERE b.user_id = $1 AND b.is_favorite = true AND s.deleted_at IS NULL';
         const params = [req.user.id];
         let paramCount = 1;
         
@@ -128,7 +128,8 @@ const addBookmark = async (req, res, next) => {
         await query(
             `INSERT INTO bookmarks (user_id, series_id)
              VALUES ($1, $2)
-             ON CONFLICT (user_id, series_id) DO NOTHING`,
+             ON CONFLICT (user_id, series_id)
+             DO UPDATE SET is_favorite = true, updated_at = NOW()`,
             [req.user.id, seriesId]
         );
         
@@ -157,7 +158,7 @@ const removeBookmark = async (req, res, next) => {
         const { seriesId } = req.params;
         
         const result = await query(
-            'DELETE FROM bookmarks WHERE user_id = $1 AND series_id = $2 RETURNING series_id',
+            'UPDATE bookmarks SET is_favorite = false, updated_at = NOW() WHERE user_id = $1 AND series_id = $2 AND is_favorite = true RETURNING series_id',
             [req.user.id, seriesId]
         );
         
@@ -184,15 +185,16 @@ const removeBookmark = async (req, res, next) => {
 const updateBookmark = async (req, res, next) => {
     try {
         const { seriesId } = req.params;
-        const { isCompleted, notifyNewChapter } = req.body;
+        const { status, notifyNewChapter, isFavorite } = req.body;
         
         await query(
             `UPDATE bookmarks 
-             SET is_completed = COALESCE($1, is_completed),
-                 notify_new_chapter = COALESCE($2, notify_new_chapter),
+             SET status = COALESCE($1, status),
+                 notify_new_chapters = COALESCE($2, notify_new_chapters),
+                 is_favorite = COALESCE($3, is_favorite),
                  updated_at = NOW()
-             WHERE user_id = $3 AND series_id = $4`,
-            [isCompleted, notifyNewChapter, req.user.id, seriesId]
+             WHERE user_id = $4 AND series_id = $5`,
+            [status, notifyNewChapter, isFavorite, req.user.id, seriesId]
         );
         
         res.json({
@@ -233,6 +235,7 @@ const checkBookmark = async (req, res, next) => {
             success: true,
             data: {
                 isBookmarked: true,
+                isFavorite: bookmark.is_favorite,
                 lastReadChapter: bookmark.last_read_chapter_id ? {
                     id: bookmark.last_read_chapter_id,
                     number: parseFloat(bookmark.last_read_number),

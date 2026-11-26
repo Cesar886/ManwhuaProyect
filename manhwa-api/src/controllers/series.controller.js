@@ -249,7 +249,7 @@ const getSeriesDetail = async (req, res, next) => {
                          WHERE sg.series_id = s.id),
                         '[]'
                     ) as genres,
-                    EXISTS(SELECT 1 FROM bookmarks WHERE user_id = $2 AND series_id = s.id) as is_bookmarked,
+                    EXISTS(SELECT 1 FROM bookmarks WHERE user_id = $2 AND series_id = s.id AND is_favorite = true) as is_bookmarked,
                     EXISTS(SELECT 1 FROM series_likes WHERE user_id = $2 AND series_id = s.id) as is_liked,
                     (SELECT score FROM ratings WHERE user_id = $2 AND series_id = s.id) as user_rating
              FROM series s
@@ -1157,7 +1157,8 @@ const bookmarkSeries = async (req, res, next) => {
         await query(
             `INSERT INTO bookmarks (user_id, series_id)
              VALUES ($1, $2)
-             ON CONFLICT (user_id, series_id) DO NOTHING`,
+             ON CONFLICT (user_id, series_id)
+             DO UPDATE SET is_favorite = true, updated_at = NOW()`,
             [req.user.id, seriesId]
         );
 
@@ -1191,7 +1192,7 @@ const unbookmarkSeries = async (req, res, next) => {
         }
 
         await query(
-            'DELETE FROM bookmarks WHERE user_id = $1 AND series_id = $2',
+            'UPDATE bookmarks SET is_favorite = false, updated_at = NOW() WHERE user_id = $1 AND series_id = $2',
             [req.user.id, seriesResult.rows[0].id]
         );
 
