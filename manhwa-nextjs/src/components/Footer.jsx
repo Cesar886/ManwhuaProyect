@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  IconBrandInstagram,
   IconBrandTwitter,
   IconChevronDown,
   IconBrandFacebook,
@@ -17,8 +16,7 @@ import InstallPrompt from './InstallPrompt';
 
 const socialLinks = [
   { icon: IconBrandTwitter, label: 'Twitter', href: 'https://x.com/manhwaimperial' },
-  { icon: IconBrandFacebook, label: 'Facebook', href: 'https://www.facebook.com/share/1DeCq4G8B4/' },
-  { icon: IconBrandInstagram, label: 'Instagram', href: 'https://instagram.com/manhwaimperial' },
+  { icon: IconBrandFacebook, label: 'Facebook', href: 'https://www.facebook.com/share/1FSVkkyvwc/' },
 ];
 
 // Columna colapsable para mobile
@@ -91,8 +89,7 @@ function Footer({ lang: propLang }) {
         title: t.colCommunity,
         links: [
           { label: 'X/ Twitter', link: 'https://x.com/manhwaimperial' },
-          { label: 'Instagram', link: 'https://instagram.com/manhwaimperial' },
-          { label: 'Facebook', link: 'https://www.facebook.com/share/1DeCq4G8B4/' },
+          { label: 'Facebook', link: 'https://www.facebook.com/share/1FSVkkyvwc/' },
         ],
       },
       {

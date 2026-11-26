@@ -8,6 +8,7 @@ const { body } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const authController = require('../controllers/auth.controller');
 const { authenticate, optionalAuth } = require('../middleware/auth');
+const { validateDisplayName } = require('../utils/usernameValidator');
 
 // Validaciones
 const registerValidation = [
@@ -31,6 +32,11 @@ const registerValidation = [
         .trim()
         .isLength({ max: 100 })
         .withMessage('El nombre no puede exceder 100 caracteres')
+        .custom(value => {
+            const result = validateDisplayName(value);
+            if (!result.valid) throw new Error(result.errors[0]);
+            return true;
+        })
 ];
 
 const loginValidation = [

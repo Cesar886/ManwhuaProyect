@@ -651,6 +651,7 @@ export default function UserProfile() {
           created_at: source.joinedAt || source.created_at,
         } : {
           ...source,
+          display_name: source.displayName ?? source.display_name,
           banner_position_x: source.bannerPositionX ?? source.banner_position_x ?? 50,
           banner_position_y: source.bannerPositionY ?? source.banner_position_y ?? 50,
         };

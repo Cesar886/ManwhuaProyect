@@ -2647,7 +2647,42 @@
 }
 
 .heroBanner .heroSynopsis {
-  color: rgba(255, 255, 255, 0.82);
+  color: #fff;
+}
+
+:global([data-theme="light"]) .heroBanner .heroSynopsis,
+:global([data-mantine-color-scheme="light"]) .heroBanner .heroSynopsis {
+  color: #fff;
+}
+
+.heroBanner .heroGenres {
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.heroBanner .heroGenreTag {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .heroBanner .heroSynopsis {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .heroBanner .heroContent {
+    width: min(100%, 1600px);
+  }
+
+  .heroBanner .heroInfo {
+    padding-left: clamp(30px, 5vw, 100px);
+  }
 }
 
 .heroBanner .heroBtn {

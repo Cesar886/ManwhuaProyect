@@ -15,6 +15,7 @@ const { requireApiKeyOrAuth } = require('../middleware/apiKey');
 const { paginationValidation } = require('../middleware/validators');
 const { normalizeSocialLinks } = require('../utils/socialLinks');
 const { validateFavoriteCharacters } = require('../utils/favoriteCharacters');
+const { validateDisplayName } = require('../utils/usernameValidator');
 
 // Validaciones
 const updateProfileValidation = [
@@ -24,7 +25,12 @@ const updateProfileValidation = [
         .notEmpty()
         .withMessage('El nombre no puede estar vacío')
         .isLength({ max: 100 })
-        .withMessage('El nombre no puede exceder 100 caracteres'),
+        .withMessage('El nombre no puede exceder 100 caracteres')
+        .custom(value => {
+            const result = validateDisplayName(value);
+            if (!result.valid) throw new Error(result.errors[0]);
+            return true;
+        }),
     body('bio')
         .optional()
         .trim()

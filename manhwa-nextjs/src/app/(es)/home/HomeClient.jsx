@@ -1270,7 +1270,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     {heroSynopsis && <p className={styles.heroSynopsis}>{heroSynopsis}</p>}
                     {Array.isArray(heroSeries.genres) && heroSeries.genres.length > 0 && (
                       <div className={styles.heroGenres}>
-                        {heroSeries.genres.slice(0, 4).map((g) => {
+                          {heroSeries.genres.slice(0, 3).map((g) => {
                           const label = g?.name || g
                           return label ? <span key={label} className={styles.heroGenreTag}>{label}</span> : null
                         })}
@@ -1284,9 +1284,9 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                         <span className={styles.heroChapterSuffix}> {t.home.chaptersShort}</span>
                       </p>
                     )}
-                    {(heroSeries.sourceName || heroSeries.scan || heroSeries.source || heroSeries.genres?.[0]?.name || heroSeries.genres?.[0]) && (
+                    {(heroSeries.sourceName || heroSeries.scan || heroSeries.source) && (
                       <span className={styles.heroSourcePill}>
-                        {heroSeries.sourceName || heroSeries.scan || heroSeries.source || heroSeries.genres?.[0]?.name || heroSeries.genres?.[0]}
+                        {heroSeries.sourceName || heroSeries.scan || heroSeries.source}
                       </span>
                     )}
                     <div className={styles.heroActions}>

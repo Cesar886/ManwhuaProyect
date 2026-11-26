@@ -89,7 +89,7 @@ const listSeries = async (req, res, next) => {
 
         // Query principal
         const result = await query(
-            `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis,
+            `SELECT s.id, s.title, s.original_title, s.slug, s.alternative_titles, s.synopsis, s.description,
                 s.content_type, s.status, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.release_year, s.country, s.original_language,
                 s.author_id, s.view_count, s.monthly_views, s.weekly_views, s.daily_views,
                 s.bookmark_count, s.likes_count, s.rating_average, s.rating_count,
@@ -144,6 +144,7 @@ const listSeries = async (req, res, next) => {
                     id: s.id,
                     title: s.title,
                     synopsis: s.synopsis,
+                    description: s.description,
                     originalTitle: s.original_title,
                     alternativeTitles: s.alternative_titles,
                     slug: s.slug,

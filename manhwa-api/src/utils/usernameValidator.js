@@ -29,17 +29,19 @@ const normalizeUsername = (username) => {
         .replace(/(.)\1{2,}/g, '$1$1');
 };
 
+const reservedByNormalizedName = new Map(
+    ALL_RESERVED.map(word => [normalizeUsername(word), word])
+);
+
 /**
  * Verificar si coincide con un nombre reservado
  */
 const containsForbiddenWord = (username) => {
     const normalized = normalizeUsername(username);
-    
-    for (const word of ALL_RESERVED) {
-        // Comparar el nombre normalizado completo para evitar falsos positivos
-        if (normalized === normalizeUsername(word)) {
-            return { forbidden: true, word, reason: 'reserved' };
-        }
+    const word = reservedByNormalizedName.get(normalized);
+
+    if (word) {
+        return { forbidden: true, word, reason: 'reserved' };
     }
     
     return { forbidden: false };
@@ -167,6 +169,32 @@ const validateUsername = (username) => {
 };
 
 /**
+ * El nombre visible permite espacios y caracteres Unicode, pero no debe
+ * suplantar nombres reservados ni usar los patrones rechazados en el registro.
+ */
+const validateDisplayName = (displayName) => {
+    if (typeof displayName !== 'string' || !displayName.trim()) {
+        return { valid: false, errors: ['El nombre no puede estar vacío'] };
+    }
+
+    const original = displayName.trim();
+    const comparable = original.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+    const words = comparable.match(/[\p{L}\p{N}@$]+/gu) || [];
+    const errors = [];
+
+    if (original.length > 100) {
+        errors.push('El nombre no puede exceder 100 caracteres');
+    }
+    if (containsForbiddenWord(comparable).forbidden
+        || words.some(word => containsForbiddenWord(word).forbidden)
+        || hasSuspiciousPattern(comparable).suspicious) {
+        errors.push('Este nombre para mostrar no está permitido');
+    }
+
+    return { valid: errors.length === 0, errors, original };
+};
+
+/**
  * Verificar disponibilidad en DB
  */
 const isUsernameAvailable = async (username, query, excludeUserId = null) => {
@@ -202,5 +230,6 @@ module.exports = {
     containsForbiddenWord,
     hasSuspiciousPattern,
     validateUsername,
+    validateDisplayName,
     isUsernameAvailable
 };

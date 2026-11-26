@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { query, transaction } = require('../config/database');
-const { validateUsername } = require('../utils/usernameValidator');
+const { validateUsername, validateDisplayName } = require('../utils/usernameValidator');
 const { generateTokens, verifyRefreshToken } = require('../middleware/auth');
 const { getRolePermissions } = require('../config/roles');
 
@@ -700,10 +700,10 @@ const googleAuth = async (req, res, next) => {
             let baseUsername = (name || email.split('@')[0])
                 .toLowerCase()
                 .replace(/[^a-z0-9_]/g, '')
-                .substring(0, 20);
+                .substring(0, 15);
 
-            if (baseUsername.length < 3) {
-                baseUsername = 'user' + Date.now().toString(36);
+            if (!validateUsername(baseUsername).valid) {
+                baseUsername = `lector${crypto.randomBytes(4).toString('hex')}`;
             }
 
             let username = baseUsername;
@@ -716,9 +716,11 @@ const googleAuth = async (req, res, next) => {
                     [username]
                 );
                 if (existingUsername.rows.length === 0) break;
-                username = `${baseUsername}${suffix}`;
+                username = `${baseUsername.slice(0, 15 - String(suffix).length)}${suffix}`;
                 suffix++;
             }
+
+            const safeDisplayName = validateDisplayName(name).valid ? name.trim() : username;
 
             // Insertar nuevo usuario (sin password, con OAuth)
             const insertResult = await query(
@@ -727,7 +729,7 @@ const googleAuth = async (req, res, next) => {
                     oauth_provider, oauth_id, email_verified_at, status
                 ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), 'active')
                 RETURNING id, username, email, display_name, avatar_url, role, status, is_premium, email_verified_at`,
-                [username, email.toLowerCase(), name || username, picture, 'google', googleId]
+                [username, email.toLowerCase(), safeDisplayName, picture, 'google', googleId]
             );
 
             user = insertResult.rows[0];
