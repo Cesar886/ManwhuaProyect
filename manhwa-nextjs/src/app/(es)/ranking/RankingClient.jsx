@@ -5,288 +5,198 @@ import Link from 'next/link';
 import { normalizeImageUrl } from '@/utils/imageUtils';
 import Header from '@/components/Header';
 import {
-    IconFlame, IconTrophy, IconCrown, IconMedal, IconStar,
-    IconBolt, IconUsers, IconChartBar
+    IconArrowUpRight, IconBolt, IconChevronRight, IconCrown,
+    IconFlame, IconMedal, IconTrophy, IconUsers,
 } from '@tabler/icons-react';
-import classes from './Ranking.module.css';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
+import classes from './Ranking.module.css';
 
 const LEVEL_COLORS = {
-    gray:   '#94a3b8',
-    cyan:   '#22d3ee',
-    violet: '#a78bfa',
-    yellow: '#fbbf24',
+    gray: '#64748b',
+    cyan: '#0891b2',
+    violet: '#8b5cf6',
+    yellow: '#b7791f',
 };
 
-const LEVEL_BG = {
-    gray:   'rgba(148,163,184,0.12)',
-    cyan:   'rgba(34,211,238,0.12)',
-    violet: 'rgba(167,139,250,0.12)',
-    yellow: 'rgba(251,191,36,0.12)',
-};
+const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Crect width='72' height='72' fill='%23272b3b'/%3E%3Ccircle cx='36' cy='28' r='14' fill='%238c91a7'/%3E%3Cellipse cx='36' cy='68' rx='22' ry='16' fill='%238c91a7'/%3E%3C/svg%3E";
 
-const RANK_COLORS = {
-    1: { border: 'rgba(251,191,36,0.5)', glow: 'rgba(251,191,36,0.2)', text: '#fbbf24' },
-    2: { border: 'rgba(148,163,184,0.45)', glow: 'rgba(148,163,184,0.12)', text: '#cbd5e1' },
-    3: { border: 'rgba(205,127,50,0.45)', glow: 'rgba(205,127,50,0.12)', text: '#cd7f32' },
-};
+function Avatar({ src, alt, size }) {
+    const [error, setError] = useState(false);
+    const url = (!error && normalizeImageUrl(src)) || DEFAULT_AVATAR;
 
-const DEFAULT_AVATAR = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Crect width='72' height='72' fill='%231e293b'/%3E%3Ccircle cx='36' cy='28' r='14' fill='%2364748b'/%3E%3Cellipse cx='36' cy='68' rx='22' ry='16' fill='%2364748b'/%3E%3C/svg%3E`
-
-function Avatar({ src, alt, size = 72 }) {
-    const [err, setErr] = useState(false);
-    const url = (!err && normalizeImageUrl(src)) || DEFAULT_AVATAR;
     return (
         <img
             src={url}
             alt={alt}
             width={size}
             height={size}
-            style={{ width: size, height: size, objectFit: 'cover', display: 'block' }}
-            onError={() => setErr(true)}
+            className={classes.avatarImage}
+            onError={() => setError(true)}
         />
     );
 }
 
-function XpBar({ experience, levelColor }) {
-    const BREAKPOINTS = [0, 101, 5001, 15001];
-    const MAXES       = [100, 4999, 9999, null];
-    const levelIdx    = BREAKPOINTS.findLastIndex(b => experience >= b);
-    const base        = BREAKPOINTS[levelIdx] ?? 0;
-    const max         = MAXES[levelIdx];
-    const pct         = max ? Math.min(100, ((experience - base) / (max - base)) * 100) : 100;
-    const color       = LEVEL_COLORS[levelColor] || '#94a3b8';
+function XpBar({ experience = 0, levelColor }) {
+    const breakpoints = [0, 101, 5001, 15001];
+    const maxes = [100, 5000, 15000, null];
+    const levelIndex = Math.max(0, breakpoints.findLastIndex(point => experience >= point));
+    const base = breakpoints[levelIndex];
+    const max = maxes[levelIndex];
+    const progress = max ? Math.max(0, Math.min(100, ((experience - base) / (max - base)) * 100)) : 100;
+
     return (
-        <div className={classes.xpBarWrap}>
-            <div className={classes.xpBar} style={{ width: `${pct}%`, background: color }} />
+        <div className={classes.xpTrack} aria-label={Math.round(progress) + '% de progreso al siguiente nivel'}>
+            <span className={classes.xpProgress} style={{ width: progress + '%', backgroundColor: LEVEL_COLORS[levelColor] || LEVEL_COLORS.gray }} />
         </div>
     );
 }
 
-// ─── Podium card (top 3) ────────────────────────────────────────────────────
 function PodiumCard({ user, rank, lang, mode }) {
-    const rc = RANK_COLORS[rank] || RANK_COLORS[3];
-    const levelColor = LEVEL_COLORS[user.levelColor] || '#94a3b8';
-    const avatarSize = rank === 1 ? 88 : 72;
-    const icon = rank === 1
-        ? <IconCrown size={24} />
-        : <IconMedal size={20} />;
+    const name = user.displayName || user.username;
+    const isStreak = mode === 'streak';
+    const value = isStreak ? (user.streak || 0) : (user.experience || 0);
 
     return (
         <Link
-            href={getLocalizedPath(`/perfil/${user.username}`, lang)}
-            className={`${classes.podiumCard} ${classes[`place${rank}`]}`}
-            style={{ '--rank-border': rc.border, '--rank-glow': rc.glow, '--rank-text': rc.text }}
+            href={getLocalizedPath('/users/' + user.username, lang)}
+            className={classes.podiumCard + ' ' + classes['place' + rank]}
+            aria-label={'Puesto ' + rank + ': ' + name + ', ' + value.toLocaleString('es-MX') + (isStreak ? (value === 1 ? ' día de racha' : ' días de racha') : ' puntos de experiencia')}
         >
-            {/* Rank badge */}
-            <div className={classes.rankBadge} style={{ color: rc.text }}>
-                {icon}
-                <span className={classes.rankNum}>#{rank}</span>
+            <div className={classes.cardTopline}>
+                <span className={classes.placement}>{'#' + String(rank).padStart(2, '0')}</span>
+                {rank === 1 ? <IconCrown size={21} stroke={1.8} /> : <IconMedal size={21} stroke={1.8} />}
             </div>
 
-            {/* Avatar */}
-            <div className={classes.avatarRing} style={{ borderColor: rc.border, boxShadow: `0 0 20px ${rc.glow}` }}>
-                <Avatar src={user.avatarUrl} alt={user.displayName || user.username} size={avatarSize} />
+            <div className={classes.podiumAvatar}>
+                <Avatar src={user.avatarUrl} alt="" size={rank === 1 ? 84 : 76} />
             </div>
 
-            {/* Name */}
-            <span className={classes.pName}>{user.displayName || user.username}</span>
+            <div className={classes.podiumIdentity}>
+                <span className={classes.podiumName} title={name}>{name}</span>
+                <span className={classes.levelLabel}>{user.levelName || 'Nivel ' + (user.level || 0)}</span>
+            </div>
 
-            {/* Level badge */}
-            <span
-                className={classes.levelBadge}
-                style={{ color: levelColor, background: LEVEL_BG[user.levelColor] || LEVEL_BG.gray }}
-            >
-                {user.levelName || `Nvl. ${user.level}`}
-            </span>
-
-            {/* Primary stat */}
-            {mode === 'streak' ? (
-                <div className={classes.statPill} style={{ borderColor: 'rgba(255,69,0,0.25)', background: 'rgba(255,69,0,0.1)' }}>
-                    <IconFlame size={15} style={{ color: '#ff6b35' }} className={classes.flameAnim} />
-                    <span className={classes.statBig}>{user.streak}</span>
-                    <span className={classes.statUnit}>días</span>
-                </div>
-            ) : (
-                <div className={classes.statPill} style={{ borderColor: `${levelColor}40`, background: LEVEL_BG[user.levelColor] || LEVEL_BG.gray }}>
-                    <IconBolt size={15} style={{ color: levelColor }} />
-                    <span className={classes.statBig}>{user.experience?.toLocaleString()}</span>
-                    <span className={classes.statUnit}>XP</span>
-                </div>
-            )}
-
-            {/* XP bar (only in xp mode) */}
-            {mode === 'xp' && <XpBar experience={user.experience} levelColor={user.levelColor} />}
+            <div className={classes.podiumMetric}>
+                {isStreak ? <IconFlame size={19} stroke={1.8} /> : <IconBolt size={19} stroke={1.8} />}
+                <strong>{value.toLocaleString('es-MX')}</strong>
+                <span>{isStreak ? (value === 1 ? 'día de racha' : 'días de racha') : 'XP'}</span>
+            </div>
+            {!isStreak && <XpBar experience={value} levelColor={user.levelColor} />}
+            <span className={classes.cardLink}>Ver perfil <IconArrowUpRight size={14} /></span>
         </Link>
     );
 }
 
-// ─── Row card (rank 4+) ─────────────────────────────────────────────────────
 function UserRow({ user, rank, lang, mode }) {
-    const levelColor = LEVEL_COLORS[user.levelColor] || '#94a3b8';
+    const name = user.displayName || user.username;
+    const isStreak = mode === 'streak';
+    const value = isStreak ? (user.streak || 0) : (user.experience || 0);
 
     return (
-        <Link href={getLocalizedPath(`/perfil/${user.username}`, lang)} className={classes.row}>
-            <span className={classes.rowRank}>
-                {rank <= 9 ? `0${rank}` : rank}
+        <Link href={getLocalizedPath('/users/' + user.username, lang)} className={classes.row}>
+            <span className={classes.rowRank}>{String(rank).padStart(2, '0')}</span>
+            <span className={classes.rowAvatar}><Avatar src={user.avatarUrl} alt="" size={46} /></span>
+            <span className={classes.rowIdentity}>
+                <strong className={classes.rowName}>{name}</strong>
+                <span className={classes.rowLevel}>{user.levelName || 'Nivel ' + (user.level || 0)}</span>
             </span>
-
-            <div className={classes.rowAvatar}>
-                <Avatar src={user.avatarUrl} alt={user.displayName || user.username} size={44} />
-            </div>
-
-            <div className={classes.rowInfo}>
-                <span className={classes.rowName}>{user.displayName || user.username}</span>
-                <div className={classes.rowMeta}>
-                    <span style={{ color: levelColor }}>{user.levelName || `Nvl. ${user.level}`}</span>
-                    <span className={classes.rowDot}>·</span>
-                    <span>{user.experience?.toLocaleString() || 0} XP</span>
-                </div>
-                {mode === 'xp' && <XpBar experience={user.experience} levelColor={user.levelColor} />}
-            </div>
-
-            {mode === 'streak' ? (
-                <div className={classes.rowStat}>
-                    <IconFlame size={14} className={classes.flameAnim} style={{ color: '#ff6b35' }} />
-                    <span className={classes.rowStatNum}>{user.streak}</span>
-                </div>
-            ) : (
-                <div className={classes.rowStat} style={{ borderColor: `${levelColor}35`, background: LEVEL_BG[user.levelColor] || LEVEL_BG.gray }}>
-                    <IconBolt size={14} style={{ color: levelColor }} />
-                    <span className={classes.rowStatNum} style={{ color: levelColor }}>
-                        {(user.experience / 1000).toFixed(1)}k
-                    </span>
-                </div>
-            )}
+            <span className={classes.rowXp}>{(user.experience || 0).toLocaleString('es-MX')} XP</span>
+            <span className={classes.rowMetric}>
+                {isStreak ? <IconFlame size={17} /> : <IconBolt size={17} />}
+                <strong>{value.toLocaleString('es-MX')}</strong>
+                <small>{isStreak ? (value === 1 ? 'día' : 'días') : 'XP'}</small>
+            </span>
+            <IconChevronRight className={classes.rowArrow} size={18} />
         </Link>
     );
 }
 
-// ─── Principal ──────────────────────────────────────────────────────────────
 export default function RankingClient({ topStreak = [], topXp = [], lang = 'es' }) {
     const [mode, setMode] = useState('streak');
-
-    const users   = mode === 'streak' ? topStreak : topXp;
-    const podium  = users.slice(0, 3);
-    const rest    = users.slice(3);
-
-    // Visual order: [2nd, 1st, 3rd]
-    const podiumOrdered = podium.length === 3
-        ? [podium[1], podium[0], podium[2]]
-        : podium;
-
-    const heroStat1 = mode === 'streak'
-        ? { num: topStreak[0]?.streak ?? '—', label: 'Racha más alta' }
-        : { num: (topXp[0]?.experience / 1000)?.toFixed(0) + 'k' ?? '—', label: 'XP más alto' };
+    const users = mode === 'streak' ? topStreak : topXp;
+    const podium = users.slice(0, 3);
+    const rest = users.slice(3);
+    const leader = users[0];
+    const isStreak = mode === 'streak';
+    const leaderValue = leader ? (isStreak ? leader.streak || 0 : leader.experience || 0) : null;
 
     return (
         <div className={classes.page}>
-            <div className={classes.container}>
-                <Header title="Ranking" lang={lang} />
-
-                {/* ── Hero ── */}
-                <div className={classes.hero}>
-                    <div className={classes.heroGlow} />
-                    <div className={classes.heroIconWrap}>
-                        <IconTrophy size={40} className={classes.heroIcon} />
-                    </div>
-                    <h1 className={classes.heroTitle}>Tabla de Honor</h1>
-                    <p className={classes.heroSub}>
-                        Los lectores más dedicados de la plataforma. ¡Lee cada día para escalar posiciones!
-                    </p>
-                    <div className={classes.heroStats}>
-                        <div className={classes.heroStat}>
-                            <IconUsers size={16} className={classes.heroStatIcon} />
-                            <span className={classes.heroStatNum}>{users.length}</span>
-                            <span className={classes.heroStatLabel}>Lectores</span>
+            <Header title="Ranking" lang={lang} />
+            <main className={classes.container}>
+                <section className={classes.hero} aria-labelledby="ranking-title">
+                    <div className={classes.heroCopy}>
+                        <span className={classes.eyebrow}><IconTrophy size={15} /> Comunidad Manhwa Imperial</span>
+                        <h1 id="ranking-title">Los lectores que <em>marcan el ritmo.</em></h1>
+                        <p>Descubre a quienes más leen y suman experiencia. Cada día es una oportunidad para subir en la clasificación.</p>
+                        <div className={classes.heroMeta}>
+                            <span><IconUsers size={16} /> {users.length} {users.length === 1 ? 'lector destacado' : 'lectores destacados'}</span>
+                            <span className={classes.metaDivider} />
+                            <span>Clasificación de la comunidad</span>
                         </div>
-                        <div className={classes.heroStatDivider} />
-                        <div className={classes.heroStat}>
-                            {mode === 'streak'
-                                ? <IconFlame size={16} className={classes.heroStatIcon} style={{ color: '#ff6b35' }} />
-                                : <IconBolt size={16} className={classes.heroStatIcon} style={{ color: '#fbbf24' }} />
-                            }
-                            <span className={classes.heroStatNum}>{heroStat1.num}</span>
-                            <span className={classes.heroStatLabel}>{heroStat1.label}</span>
+                    </div>
+                    <div className={classes.heroFeature} aria-label="Mejor resultado actual">
+                        <div className={classes.featureIcon}>{isStreak ? <IconFlame size={30} /> : <IconBolt size={30} />}</div>
+                        <span className={classes.featureLabel}>{isStreak ? 'Racha más alta' : 'Experiencia más alta'}</span>
+                        <strong className={classes.featureValue}>{leaderValue === null ? '—' : leaderValue.toLocaleString('es-MX')}</strong>
+                        <span className={classes.featureUnit}>{isStreak ? (leaderValue === 1 ? 'día consecutivo' : 'días consecutivos') : 'puntos de experiencia'}</span>
+                        <span className={classes.featureLeader}>{leader ? 'Líder: ' + (leader.displayName || leader.username) : 'Aún no hay líderes'}</span>
+                    </div>
+                </section>
+
+                <section className={classes.rankingSection} aria-labelledby="classification-title">
+                    <div className={classes.sectionHeader}>
+                        <div>
+                            <span className={classes.sectionKicker}>TABLA DE HONOR</span>
+                            <h2 id="classification-title">Clasificación de lectores</h2>
+                            <p>Explora los puestos por constancia o experiencia acumulada.</p>
                         </div>
-                        {mode === 'streak' && topStreak[0] && (
-                            <>
-                                <div className={classes.heroStatDivider} />
-                                <div className={classes.heroStat}>
-                                    <IconStar size={16} className={classes.heroStatIcon} style={{ color: '#a78bfa' }} />
-                                    <span className={classes.heroStatNum}>{topStreak[0]?.levelName}</span>
-                                    <span className={classes.heroStatLabel}>Rango líder</span>
-                                </div>
-                            </>
-                        )}
+                        <div className={classes.tabs} role="group" aria-label="Tipo de clasificación">
+                            <button type="button" className={classes.tab + ' ' + (isStreak ? classes.tabActive : '')} aria-pressed={isStreak} onClick={() => setMode('streak')}>
+                                <IconFlame size={18} /> Racha diaria
+                            </button>
+                            <button type="button" className={classes.tab + ' ' + (!isStreak ? classes.tabActive : '')} aria-pressed={!isStreak} onClick={() => setMode('xp')}>
+                                <IconBolt size={18} /> Experiencia
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                {/* ── Tabs ── */}
-                <div className={classes.tabs}>
-                    <button
-                        className={`${classes.tab} ${mode === 'streak' ? classes.tabActive : ''}`}
-                        onClick={() => setMode('streak')}
-                    >
-                        <IconFlame size={16} />
-                        Racha diaria
-                    </button>
-                    <button
-                        className={`${classes.tab} ${mode === 'xp' ? classes.tabActive : ''}`}
-                        onClick={() => setMode('xp')}
-                    >
-                        <IconBolt size={16} />
-                        Experiencia
-                    </button>
-                </div>
-
-                {/* ── Empty ── */}
-                {users.length === 0 && (
-                    <div className={classes.empty}>
-                        <IconFlame size={56} className={classes.emptyFlame} />
-                        <h2 className={classes.emptyTitle}>Sin datos aún</h2>
-                        <p className={classes.emptyText}>
-                            {mode === 'streak'
-                                ? 'Aún no hay lectores con rachas activas. ¡Sé el primero en leer hoy!'
-                                : 'Sin datos de experiencia todavía.'}
-                        </p>
-                    </div>
-                )}
-
-                {/* ── Podium ── */}
-                {podium.length > 0 && (
-                    <section className={classes.podiumSection}>
-                        <div className={classes.podiumStage}>
-                            {podiumOrdered.map((user) => {
-                                const rank = users.indexOf(user) + 1;
-                                return (
-                                    <div key={user.id} className={`${classes.podiumSlot} ${classes[`slot${rank}`]}`}>
-                                        <PodiumCard user={user} rank={rank} lang={lang} mode={mode} />
-                                        <div className={`${classes.podiumBase} ${classes[`base${rank}`]}`}>
-                                            <span className={classes.podiumBaseNum}>{rank}</span>
-                                        </div>
+                    {users.length === 0 ? (
+                        <div className={classes.empty}>
+                            <span className={classes.emptyIcon}>{isStreak ? <IconFlame size={30} /> : <IconBolt size={30} />}</span>
+                            <h3>Aún no hay lectores en esta clasificación</h3>
+                            <p>{isStreak ? 'Lee hoy y comienza tu racha para aparecer aquí.' : 'Sigue leyendo para acumular experiencia y entrar al ranking.'}</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className={classes.podiumStage} aria-label="Primeros puestos">
+                                {podium.map((user, index) => (
+                                    <div key={user.id || user.username} className={classes.podiumSlot + ' ' + classes['slot' + (index + 1)]}>
+                                        <PodiumCard user={user} rank={index + 1} lang={lang} mode={mode} />
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-                )}
+                                ))}
+                            </div>
 
-                {/* ── List ── */}
-                {rest.length > 0 && (
-                    <section className={classes.listSection}>
-                        <div className={classes.listHeader}>
-                            <IconChartBar size={16} className={classes.listIcon} />
-                            <span>Clasificación completa</span>
-                        </div>
-                        <div className={classes.list}>
-                            {rest.map((user, i) => (
-                                <UserRow key={user.id} user={user} rank={i + 4} lang={lang} mode={mode} />
-                            ))}
-                        </div>
-                    </section>
-                )}
-            </div>
+                            {rest.length > 0 && (
+                                <div className={classes.listSection}>
+                                    <div className={classes.listTitle}>
+                                        <h3>Más lectores destacados</h3>
+                                        <span>{'Puestos 04—' + String(users.length).padStart(2, '0')}</span>
+                                    </div>
+                                    <div className={classes.listHead} aria-hidden="true">
+                                        <span>Puesto</span><span /><span>Lector</span><span>Experiencia</span><span>{isStreak ? 'Racha' : 'Total'}</span><span />
+                                    </div>
+                                    <div className={classes.list}>
+                                        {rest.map((user, index) => (
+                                            <UserRow key={user.id || user.username} user={user} rank={index + 4} lang={lang} mode={mode} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </section>
+            </main>
         </div>
     );
 }

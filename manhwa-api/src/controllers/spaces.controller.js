@@ -228,7 +228,7 @@ const seriesToArray = async (seriesMap) => {
             // 2. Usar subconsulta lateral para géneros - evita GROUP BY costoso
             // 3. Un solo parámetro array en lugar de N parámetros
             const dbResult = await query(
-                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.cover_url_oni, s.title, s.original_title, s.status, s.content_type, s.is_adult, s.language, s.chapter_count,
+                `SELECT s.slug, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.cover_url_oni, s.title, s.original_title, s.synopsis, s.description, s.meta_description, s.status, s.content_type, s.is_adult, s.language, s.chapter_count,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,
                         COALESCE(g_agg.genres, ARRAY[]::text[]) as genres
@@ -263,6 +263,9 @@ const seriesToArray = async (seriesMap) => {
         seriesArray.push({
             slug: series.slug,
             title: dbData?.title || series.title,
+            synopsis: dbData?.synopsis || null,
+            description: dbData?.description || null,
+            metaDescription: dbData?.meta_description || null,
             cover_url: dbData?.cover_url || null,
             cover_url_web: dbData?.cover_url_web || null,
             cover_url_tmo: dbData?.cover_url_tmo || null,
@@ -316,6 +319,9 @@ const seriesToArrayWithDb = async (seriesMap, dbSeriesMap) => {
         seriesArray.push({
             slug: series.slug,
             title: dbData?.title || series.title,
+            synopsis: dbData?.synopsis || null,
+            description: dbData?.description || null,
+            metaDescription: dbData?.meta_description || null,
             cover_url: dbData?.cover_url || null,
             cover_url_web: dbData?.cover_url_web || null,
             cover_url_tmo: dbData?.cover_url_tmo || null,
@@ -550,7 +556,7 @@ const getCacheNonBlocking = (allowStale = true) => {
 const getSeriesFromDatabase = async () => {
     try {
         const result = await query(`
-            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status, s.chapter_count, s.updated_at
+            SELECT s.id, s.slug, s.title, s.synopsis, s.description, s.meta_description, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.status, s.chapter_count, s.updated_at
             FROM series s
             WHERE s.deleted_at IS NULL
             ORDER BY s.updated_at DESC
@@ -559,6 +565,9 @@ const getSeriesFromDatabase = async () => {
         const series = result.rows.map(row => ({
             slug: row.slug,
             title: row.title,
+            synopsis: row.synopsis || null,
+            description: row.description || null,
+            metaDescription: row.meta_description || null,
             cover_url: row.cover_url || null,
             cover_url_web: row.cover_url_web || null,
             cover_url_tmo: row.cover_url_tmo || null,
@@ -625,9 +634,9 @@ const listManhwasFromDatabase = async (req, res, next) => {
         // PASO 3: Esperar la precarga durante un tiempo limitado antes del fallback de BD.
         // La BD responde rápido y tiene todos los datos esenciales; Spaces enriquece en background.
         if (preloadState.inProgress && preloadState.promise) {
-            const preloadWait = isDev && preloadSpacesInDevelopment
-                ? CACHE_CONFIG.developmentPreloadWait
-                : CACHE_CONFIG.apiPreloadWait;
+            // Never hold REST requests for the full development preload window;
+            // the database fallback below can serve the catalog immediately.
+            const preloadWait = CACHE_CONFIG.apiPreloadWait;
             const timeout = new Promise(resolve => setTimeout(() => resolve(null), preloadWait));
             const result = await Promise.race([preloadState.promise, timeout]);
 
@@ -652,7 +661,7 @@ const listManhwasFromDatabase = async (req, res, next) => {
 
         // PASO 4: Fallback a BD para metadata; el conteo sigue viniendo de Spaces.
         const result = await query(`
-            SELECT s.id, s.slug, s.title, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.cover_url_oni, s.status, s.content_type, s.is_adult, s.language, s.chapter_count, s.updated_at
+            SELECT s.id, s.slug, s.title, s.synopsis, s.description, s.meta_description, s.cover_url, s.cover_url_tmo, s.cover_url_web, s.cover_url_oni, s.status, s.content_type, s.is_adult, s.language, s.chapter_count, s.updated_at
             FROM series s
             WHERE s.deleted_at IS NULL AND s.chapter_count > 0
             ORDER BY s.updated_at DESC
@@ -661,6 +670,9 @@ const listManhwasFromDatabase = async (req, res, next) => {
         const series = result.rows.map(row => ({
             slug: row.slug,
             title: row.title,
+            synopsis: row.synopsis || null,
+            description: row.description || null,
+            metaDescription: row.meta_description || null,
             cover_url: row.cover_url || null,
             cover_url_web: row.cover_url_web || null,
             cover_url_tmo: row.cover_url_tmo || null,
@@ -1561,7 +1573,7 @@ const preloadCache = async () => {
             // Ejecutar listado de Spaces y consulta BD en PARALELO
             // La BD no depende de Spaces, así ahorramos tiempo
             const dbQueryPromise = query(
-                `SELECT s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.title, s.original_title, s.status,
+                `SELECT s.slug, s.cover_url, s.cover_url_web, s.cover_url_tmo, s.cover_url_oni, s.title, s.original_title, s.synopsis, s.description, s.meta_description, s.status,
                         s.content_type, s.is_adult, s.language, s.chapter_count,
                         s.view_count, s.rating_average, s.created_at, s.updated_at,
                         a.name as author_name,

@@ -380,7 +380,7 @@ const normalizeApiComment = (c) => {
 
 const COMMENT_TARGET_TYPES = new Set(['series', 'chapter', 'collection', 'request', 'wall'])
 
-// series.type describe el formato de la obra (manhwa, manga, etc.), no el
+// series.type describe el formato de la obra (manhwa, etc.), no el
 // tipo de destino aceptado por /api/comments.
 const resolveCommentTarget = (detailRequest) => {
   if (!detailRequest || typeof detailRequest !== 'object') return null

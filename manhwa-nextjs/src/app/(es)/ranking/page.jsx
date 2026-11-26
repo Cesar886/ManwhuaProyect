@@ -42,7 +42,7 @@ export default async function RankingPage() {
     ])
 
     const breadcrumbJsonLd = generateBreadcrumbJsonLd([
-        { name: 'Inicio', url: '/home' },
+        { name: 'Inicio', url: '/' },
         { name: 'Ranking', url: '/ranking' },
     ])
 

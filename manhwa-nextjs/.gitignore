@@ -8,6 +8,7 @@
 
 # Next.js
 /.next/
+/.next-cover-final/
 /out/
 
 # Production

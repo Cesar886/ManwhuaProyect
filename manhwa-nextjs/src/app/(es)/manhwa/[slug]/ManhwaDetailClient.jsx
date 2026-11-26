@@ -63,7 +63,6 @@ const Badge = ({ type, children, icon: Icon }) => {
     adult: styles.badgeAdult,
     manhwa: styles.badgeManhwa,
     manhua: styles.badgeManhua,
-    manga: styles.badgeManga,
   };
 
   return (
@@ -537,16 +536,16 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
     const unique = new Set();
     const candidates = [
-      series?.coverUrl,
       series?.cover_url,
+      series?.cover_url_web,
+      series?.cover_url_tmo,
+      series?.cover_url_oni,
+      series?.coverUrl,
+      series?.coverUrlWeb,
+      series?.coverUrlTmo,
+      series?.coverUrlOni,
       series?.cover,
       series?.image,
-      series?.coverUrlWeb,
-      series?.cover_url_web,
-      series?.coverUrlTmo,
-      series?.cover_url_tmo,
-      series?.coverUrlOni,
-      series?.cover_url_oni,
       localCoverUrl,
     ]
       .map(sanitizeCover)

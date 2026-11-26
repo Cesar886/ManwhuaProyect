@@ -56,6 +56,7 @@ app.set('trust proxy', false);
 const normalizeCoverResponse = (value) => {
     if (Array.isArray(value)) return value.map(normalizeCoverResponse);
     if (!value || typeof value !== 'object') return value;
+    if (value instanceof Date) return value;
 
     const normalized = Object.fromEntries(
         Object.entries(value).map(([key, item]) => [key, normalizeCoverResponse(item)])
@@ -70,7 +71,7 @@ const normalizeCoverResponse = (value) => {
     const cover_url_web = normalized.cover_url_web ?? normalized.coverUrlWeb ?? null;
     const cover_url_tmo = normalized.cover_url_tmo ?? normalized.coverUrlTmo ?? null;
     const cover_url_oni = normalized.cover_url_oni ?? normalized.coverUrlOni ?? null;
-    const effectiveCover = cover_url || cover_url_web || cover_url_tmo || cover_url_oni || normalized.cover || null;
+    const effectiveCover = cover_url || cover_url_web || cover_url_tmo || cover_url_oni || normalized.cover || normalized.coverUrl || null;
 
     return {
         ...normalized,

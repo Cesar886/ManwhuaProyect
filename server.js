@@ -379,7 +379,7 @@ const TRIGGER_ROOTS_BY_LANG = {
         'mejor', 'top', 'sugier', 'dime', 'cual', 'quiero', 'necesit', 'lista',
         'leer', 'busco', 'algun', 'enseñ', 'gust', 'encant', 'tipo', 'vibr', 'estilo',
         // 2. TÉRMINOS DEL MEDIO
-        'manhwa', 'webtoon', 'manga', 'manhua', 'comic', 'histori',
+        'manhwa', 'webtoon', '', 'manhua', 'comic', 'histori',
         'shonen', 'shounen', 'seinen', 'shoujo', 'josei', 'genero',
         // 3. GÉNEROS
         'accion', 'aventur', 'comedi', 'fantasi', 'romanc', 'terror', 'misteri',
@@ -412,7 +412,7 @@ const TRIGGER_ROOTS_BY_LANG = {
         'best', 'top', 'suggest', 'tell me', 'which', 'want', 'need', 'list',
         'read', 'looking', 'any', 'show', 'love', 'enjoy', 'kind of', 'vibe', 'style', 'find',
         // Medium
-        'manhwa', 'webtoon', 'manga', 'manhua', 'comic', 'story',
+        'manhwa', 'webtoon', '', 'manhua', 'comic', 'story',
         'shonen', 'shounen', 'seinen', 'shoujo', 'josei', 'genre',
         // Genres
         'action', 'adventur', 'comed', 'fantas', 'romanc', 'horror', 'myster',
@@ -1220,7 +1220,7 @@ const QUERY_STOP_WORDS = new Set([
     'similar', 'similars', 'like', 'the', 'and', 'for', 'with', 'about',
     'recommend', 'recommendation', 'recommendations', 'where', 'can', 'read',
     'find', 'please', 'something', 'anything', 'good', 'best', 'new',
-    'manhwa', 'manhwas', 'manga', 'mangas', 'manhua', 'manhuas', 'webtoon', 'webtoons',
+    'manhwa', 'manhwas', '', 's', 'manhua', 'manhuas', 'webtoon', 'webtoons',
     // ES
     'parecido', 'parecidos', 'parecida', 'parecidas', 'como', 'similar',
     'similares', 'recomienda', 'recomiendame', 'recomiendame', 'recomendacion',
@@ -2042,7 +2042,7 @@ const STOPWORDS_ES = new Set([
     'mas', 'muy', 'mucho', 'poco', 'tan', 'tanto', 'todo', 'toda', 'todos', 'todas',
     'este', 'esta', 'esto', 'estos', 'estas', 'ese', 'esa', 'eso', 'esos', 'esas',
     'no', 'ya', 'tambien', 'solo', 'aun', 'asi', 'aqui', 'ahi', 'alli',
-    'manhwa', 'manhwas', 'manga', 'mangas', 'comic', 'comics', 'webtoon', 'webtoons',
+    'manhwa', 'manhwas', '', 's', 'comic', 'comics', 'webtoon', 'webtoons',
     'similares', 'similar', 'parecido', 'parecidos', 'tipo', 'estilo',
     'buscar', 'busca', 'quiero', 'dame', 'recomienda', 'recomendaciones',
     'mejor', 'mejores', 'top', 'buenos', 'bueno', 'buenas'
@@ -2057,7 +2057,7 @@ const STOPWORDS_EN = new Set([
     'this', 'that', 'these', 'those', 'there', 'here', 'where', 'when',
     'i', 'me', 'my', 'you', 'your', 'he', 'she', 'it', 'its', 'we', 'our', 'they', 'them', 'their',
     'not', 'no', 'yes', 'also', 'too', 'only', 'just', 'very', 'really',
-    'manhwa', 'manhwas', 'manga', 'mangas', 'comic', 'comics', 'webtoon', 'webtoons',
+    'manhwa', 'manhwas', '', 's', 'comic', 'comics', 'webtoon', 'webtoons',
     'similar', 'like', 'similar-to', 'kind', 'style', 'type',
     'search', 'find', 'want', 'need', 'give', 'show', 'tell', 'recommend', 'recommendation', 'recommendations',
     'best', 'good', 'great', 'top', 'new', 'latest'

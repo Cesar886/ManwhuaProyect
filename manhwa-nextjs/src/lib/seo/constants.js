@@ -256,7 +256,6 @@ export const SEO_CONTENT = {
     },
     sections: {
       latest: 'Últimos Manhwas Actualizados',
-      popular: 'Manhwas Populares en Español',
       genres: 'Explora Manhwas por Género',
       collection: 'Colección de Manhwas',
     },

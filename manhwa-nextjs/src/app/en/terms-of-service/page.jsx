@@ -30,7 +30,7 @@ export default function EnTermsPage() {
                 <h2 className={styles.sectionTitle}>Use of Service</h2>
               </div>
               <p className={styles.sectionText}>
-                Manhwa Imperial provides a platform for reading manhwa, webtoons, and manga. Users must:
+                Manhwa Imperial provides a platform for reading manhwa, webtoons, and. Users must:
               </p>
               <ul className={styles.sectionList}>
                 <li>Be at least 13 years old to use this service</li>

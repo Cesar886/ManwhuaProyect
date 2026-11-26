@@ -64,7 +64,7 @@ async function fetchTopResults(query, lang) {
             .slice(0, MAX_COVERS)
             .map((s) => ({
                 title: typeof s.title === 'string' ? s.title : '',
-                cover: s.coverUrl || s.cover_url || s.cover || s.image || s.coverUrlWeb || s.cover_url_web || s.coverUrlTmo || s.cover_url_tmo || s.coverUrlOni || s.cover_url_oni || null,
+                cover: s.cover_url || s.cover_url_web || s.cover_url_tmo || s.cover_url_oni || s.coverUrl || s.coverUrlWeb || s.coverUrlTmo || s.coverUrlOni || s.cover || s.image || null,
             }))
             .filter((s) => s.cover);
     } catch {

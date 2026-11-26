@@ -29,7 +29,7 @@ export default function EnLegalNoticePage() {
                 <h2 className={styles.sectionTitle}>Purpose</h2>
               </div>
               <p className={styles.sectionText}>
-                Manhwa Imperial is a platform for reading manhwa, webtoons, and manga. We operate as a
+                Manhwa Imperial is a platform for reading manhwa, webtoons, and. We operate as a
                 content aggregation service, organizing and indexing publicly available content.
               </p>
             </section>

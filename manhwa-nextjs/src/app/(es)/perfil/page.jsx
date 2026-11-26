@@ -82,6 +82,12 @@ import { PROFILE_BACKGROUNDS, PROFILE_TEXTURES, getProfilePreset, getReadableTex
 const MAX_DISPLAY_NAME_LENGTH = 10;
 const MAX_FAVORITE_CHARACTER_LENGTH = 25;
 const DEFAULT_FAVORITE_CHARACTER_COLOR = '#F9A8D4';
+const formatProfileDate = (value, options) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('es-MX', { ...options, timeZone: 'UTC' }).format(date);
+};
 const FAVORITE_CHARACTER_PALETTE = [
   '#F9A8D4',
   '#FBCFE8',
@@ -1209,9 +1215,7 @@ export default function UserProfile() {
     user.favoriteCharacters || user.favorite_characters,
   );
 
-  const joinedDateLabel = userJoinDate
-    ? new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(userJoinDate))
-    : '';
+  const joinedDateLabel = formatProfileDate(userJoinDate, { month: 'long', year: 'numeric' });
 
   const updateOwnFollowingCount = ({ isFollowing }) => {
     if (!isOwner) return;
@@ -1685,9 +1689,6 @@ export default function UserProfile() {
                       <IconStarFilled size={24} style={{ opacity: 0.4 }} />
                     </ThemeIcon>
                     <Text c="dimmed" size="sm">No hay calificaciones para mostrar</Text>
-                    <Button component={Link} href="/mangas" variant="light" color="violet" size="xs" radius="xl">
-                      Explorar Manhwas
-                    </Button>
                   </Stack>
                 </Center>
               ) : (
@@ -1733,7 +1734,7 @@ export default function UserProfile() {
                             )}
                           </Stack>
                           <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                            {new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(rating.createdAt))}
+                            {formatProfileDate(rating.createdAt, { day: 'numeric', month: 'short' })}
                           </Text>
                         </Group>
                       </Paper>
@@ -1769,9 +1770,6 @@ export default function UserProfile() {
                       <IconMessage size={24} style={{ opacity: 0.4 }} />
                     </ThemeIcon>
                     <Text c="dimmed" size="sm">No hay comentarios para mostrar</Text>
-                    <Button component={Link} href="/mangas" variant="light" color="cyan" size="xs" radius="xl">
-                      Explorar Manhwas
-                    </Button>
                   </Stack>
                 </Center>
               ) : (
@@ -1803,7 +1801,7 @@ export default function UserProfile() {
                               </Stack>
                             </Group>
                             <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                              {new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(comment.createdAt))}
+                              {formatProfileDate(comment.createdAt, { day: 'numeric', month: 'short' })}
                             </Text>
                           </Group>
                           <Box component="div" style={{ fontSize: 'var(--mantine-font-size-sm)', lineHeight: 'var(--mantine-line-height-sm)', opacity: 0.85, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>

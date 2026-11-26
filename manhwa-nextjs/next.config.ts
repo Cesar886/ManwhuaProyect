@@ -5,6 +5,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production'
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  distDir: process.env.NEXT_BUILD_DIST_DIR || '.next',
   // Publica mapas de los bundles del navegador para facilitar el diagnóstico
   // de errores de producción y las auditorías de Lighthouse.
   productionBrowserSourceMaps: true,

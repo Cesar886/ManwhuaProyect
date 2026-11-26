@@ -73,6 +73,7 @@ function carouselFeedbackKey(query) {
 
 function getOptimizedHeroImage(url, width) {
   if (!url) return ''
+  if (process.env.NODE_ENV === 'development') return url
 
   try {
     const imageUrl = new URL(url)
@@ -82,6 +83,31 @@ function getOptimizedHeroImage(url, width) {
   } catch {
     return url
   }
+}
+
+function getSeriesSynopsis(series, lang = 'es') {
+  if (!series) return ''
+
+  const language = lang === 'en' ? 'en' : 'es'
+  const candidates = [
+    series[`synopsis_${language}`], series[`synopsis${language.toUpperCase()}`], series[`synopsis${language[0].toUpperCase()}${language.slice(1)}`],
+    series[`description_${language}`], series[`description${language.toUpperCase()}`], series[`description${language[0].toUpperCase()}${language.slice(1)}`],
+    series.synopsis, series.sinopsis, series.description, series.descripcion,
+    series.shortSynopsis, series.short_synopsis, series.shortDescription, series.short_description,
+    series.metaDescription, series.meta_description, series.summary, series.overview,
+  ]
+
+  for (const candidate of candidates) {
+    const value = typeof candidate === 'string'
+      ? candidate
+      : candidate && typeof candidate === 'object'
+        ? candidate[language] || candidate.es || candidate.en || ''
+        : ''
+    const text = String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+    if (text) return text.slice(0, 420)
+  }
+
+  return ''
 }
 
 function updateCarouselFeedback(query, updater) {
@@ -1027,8 +1053,12 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
   }, [heroTotal])
 
   const heroSeries = isSurpriseSlide ? null : (realHeroPool[heroIndex] || null)
+  const heroSynopsis = getSeriesSynopsis(heroSeries, lang)
+  const inferredOniCover = heroSeries?.slug
+    ? `https://oni.ntr-files.online/public/archivos/mangas/${encodeURIComponent(heroSeries.slug)}/cover.jpg`
+    : ''
   const heroCover = heroSeries
-    ? normalizeImageUrl(heroSeries.cover_url || heroSeries.cover_url_web || heroSeries.cover_url_tmo || heroSeries.cover_url_oni || heroSeries.coverUrl || heroSeries.coverUrlWeb || heroSeries.coverUrlTmo || heroSeries.coverUrlOni || heroSeries.cover) || ''
+    ? normalizeImageUrl(heroSeries.cover_url || heroSeries.cover_url_web || heroSeries.cover_url_tmo || heroSeries.cover_url_oni || heroSeries.coverUrl || heroSeries.coverUrlWeb || heroSeries.coverUrlTmo || heroSeries.coverUrlOni || heroSeries.cover || inferredOniCover) || ''
     : ''
   // La portada se muestra a ~239 px en escritorio; 256 px cubre esa caja
   // sin descargar la variante de 384 px en pantallas de densidad normal.
@@ -1205,6 +1235,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                       </span>
                     </div>
                     <h2 className={styles.heroTitle}>{heroSeries.title}</h2>
+                    {heroSynopsis && <p className={styles.heroSynopsis}>{heroSynopsis}</p>}
                     {Array.isArray(heroSeries.genres) && heroSeries.genres.length > 0 && (
                       <div className={styles.heroGenres}>
                         {heroSeries.genres.slice(0, 4).map((g) => {
@@ -1216,15 +1247,23 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                     {(heroSeries.chapterCount || 0) > 0 && (
                       <p className={styles.heroMeta}>
                         <span className={styles.heroMetaDot} />
-                        {heroSeries.chapterCount} {t.home.chaptersShort}
+                        <span className={styles.heroChapterLabel}>Capítulo:</span>
+                        <span>{heroSeries.chapterCount}</span>
+                        <span className={styles.heroChapterSuffix}> {t.home.chaptersShort}</span>
                       </p>
+                    )}
+                    {(heroSeries.sourceName || heroSeries.scan || heroSeries.source || heroSeries.genres?.[0]?.name || heroSeries.genres?.[0]) && (
+                      <span className={styles.heroSourcePill}>
+                        {heroSeries.sourceName || heroSeries.scan || heroSeries.source || heroSeries.genres?.[0]?.name || heroSeries.genres?.[0]}
+                      </span>
                     )}
                     <div className={styles.heroActions}>
                       <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroBtn}>
                         <svg width="14" height="14" viewBox="0 0 10 10" fill="currentColor">
                           <polygon points="0,0 10,5 0,10" />
                         </svg>
-                        Leer ahora
+                        <span className={styles.heroButtonMobileLabel}>Leer ahora</span>
+                        <span className={styles.heroButtonDesktopLabel}>Leer capítulo →</span>
                       </Link>
                       <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroBtnSecondary}>
                         + Detalles
@@ -1233,7 +1272,7 @@ export default function HomeClient({ initialSeries = [], lang: propLang }) {
                   </div>
 
                   <Link href={getLocalizedPath(`/manhwa/${heroSeries.slug}`, lang)} className={styles.heroCoverWrap} tabIndex={-1}>
-                    <ManhwaCover src={heroSeries} fallbackSrc={[heroSeries.cover_url_web, heroSeries.cover_url_tmo, heroSeries.cover_url_oni, heroSeries.coverUrlWeb, heroSeries.coverUrlTmo, heroSeries.coverUrlOni].map(normalizeImageUrl).filter(Boolean)} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 190px" />
+                    <ManhwaCover src={heroSeries} fallbackSrc={[heroSeries.cover_url_web, heroSeries.cover_url_tmo, heroSeries.cover_url_oni, heroSeries.coverUrlWeb, heroSeries.coverUrlTmo, heroSeries.coverUrlOni, inferredOniCover].map(normalizeImageUrl).filter(Boolean)} slug={heroSeries.slug} alt={getImageAlt.cover(heroSeries.title, lang)} className={styles.heroCoverImg} priority sizes="(max-width: 640px) 130px, (max-width: 1024px) 160px, 270px" />
                     <div className={styles.heroCoverGlow} style={{ backgroundImage: `url(${heroBackgroundCover})` }} />
                   </Link>
                 </>

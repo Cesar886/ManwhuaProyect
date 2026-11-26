@@ -49,11 +49,16 @@ export default function ManhwaCover({ src, alt, className, fallbackSrc, slug, se
         return [...coverSources.slice(1), ...fallbackKey.split('\u0000').map(clean).filter(Boolean)];
     }, [fallbackKey, coverSources]);
     const cached    = slug ? (coverRegistry.get(slug) || '') : '';
+    // Algunos registros legacy no tienen ninguna URL en las cuatro columnas.
+    // Prueba la ruta pública de ONI por slug antes de caer al placeholder.
+    const inferredOni = slug
+        ? `https://oni.ntr-files.online/public/archivos/mangas/${encodeURIComponent(slug)}/cover.jpg`
+        : '';
 
     // Lista de fuentes a intentar en orden, sin duplicados
     const sources = useMemo(() => {
         const seen = new Set();
-        return [primary, ...secondary, cached].filter(u => {
+        return [primary, ...secondary, cached, inferredOni].filter(u => {
             if (!u || seen.has(u)) return false;
             seen.add(u);
             return true;

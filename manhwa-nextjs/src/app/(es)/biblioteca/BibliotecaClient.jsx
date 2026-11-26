@@ -137,7 +137,6 @@ const getSeriesTypeLabel = (series) => {
         if (!rawType || typeof rawType !== 'string') return 'Manhwa';
 
         const normalized = rawType.trim().toLowerCase();
-        if (normalized.includes('manga')) return 'Manga';
         if (normalized.includes('manhua')) return 'Manhua';
         if (normalized.includes('webtoon')) return 'Webtoon';
         if (normalized.includes('comic')) return 'Comic';

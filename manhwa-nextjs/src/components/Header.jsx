@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   IconChevronDown,
   IconHome,
-  IconBook,
+  IconTrophy,
   IconBooks,
   IconTrendingUp,
   IconMoon,
@@ -60,8 +60,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
     { label: t.common.home, icon: IconHome, value: 'home', path: getLocalizedPath('/home', lang) },
     { label: t.common.library, icon: IconBooks, value: 'library', path: getLocalizedPath(lang === 'en' ? '/library' : '/biblioteca', lang) },
     { label: t.common.wall, icon: IconMessages, value: 'wall', path: getLocalizedPath('/muro', lang) },
-    { label: 'Manga', icon: IconBook, value: 'manga', path: getLocalizedPath(lang === 'en' ? '/manga' : '/mangas', lang) },
-    // { label: 'Ranking', icon: IconBook, value: 'ranking', path: getLocalizedPath(lang === 'en' ? '/ranking' : '/ranking', lang) },
+    { label: 'Ranking', icon: IconTrophy, value: 'ranking', path: getLocalizedPath(lang === 'en' ? '/ranking' : '/ranking', lang) },
     // { label: t.common.profile, icon: IconUser, value: 'profile', path: getLocalizedPath('/perfil', lang) },
   ], [lang, t]);
 
@@ -109,6 +108,7 @@ function Header({ colorScheme, toggleColorScheme, lang: propLang }) {
   // El detalle de una obra y sus capítulos forman parte del flujo de la
   // biblioteca, aunque no tengan literalmente `/biblioteca` en la URL.
   const derivedActiveTab = (hasSegment('biblioteca') || hasSegment('library') || hasSegment('manhwa')) ? 'library'
+    : hasSegment('ranking') ? 'ranking'
     : (hasSegment('mangas') || hasSegment('manga')) ? 'manga'
       : (hasSegment('muro') || hasSegment('wall')) ? 'wall'
       : (hasSegment('perfil') || hasSegment('profile')) ? 'profile'

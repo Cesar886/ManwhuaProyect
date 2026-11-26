@@ -17,7 +17,7 @@ const CONCEPT_KEY_SET = new Set(CONCEPT_KEYS);
 const REWRITE_STOP_WORDS = new Set([
     'similar', 'similars', 'like', 'the', 'and', 'for', 'with', 'about',
     'recommend', 'find', 'read', 'please', 'something', 'anything',
-    'manhwa', 'manhwas', 'manga', 'mangas', 'manhua', 'manhuas', 'webtoon', 'webtoons',
+    'manhwa', 'manhwas', 'manhua', 'manhuas', 'webtoon', 'webtoons',
     'parecido', 'parecidos', 'parecida', 'parecidas', 'como', 'similares',
     'recomienda', 'recomiendame', 'recomendacion', 'recomendaciones',
     'algo', 'algun', 'alguna', 'sobre', 'que', 'para', 'con', 'a', 'de', 'en', 'por', 'los', 'las',

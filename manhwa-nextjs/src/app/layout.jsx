@@ -216,7 +216,7 @@ export default function RootLayout({ children }) {
               "itemListElement": [{
                 "@type": "ListItem",
                 "position": 1,
-                "name": "Manhwa, Manga & Webtoons",
+                "name": "Manhwa & Webtoons",
                 "item": "https://manhwaimperial.site"
               }]
             })
