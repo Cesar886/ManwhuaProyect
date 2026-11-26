@@ -2600,10 +2600,10 @@
 
 /* La imagen que cargó en la portada ocupa también todo el fondo del banner. */
 .heroBanner .heroBgBlur {
-  inset: -12%;
-  filter: blur(20px) brightness(0.9) saturate(1.25);
+  inset: 0;
+  filter: blur(3px) brightness(1) saturate(1.25);
   opacity: 1;
-  transform: scale(1.03);
+  transform: none;
   animation: none;
 }
 
@@ -2632,11 +2632,18 @@
 }
 
 .heroBanner .heroTitle,
+.heroBanner .heroTag,
 .heroBanner .heroMeta,
 .heroBanner .heroSynopsis,
 .heroBanner .heroGenreTag,
 .heroBanner .heroSourcePill {
   color: #fff;
+}
+
+/* El título heredaba un degradado con relleno transparente. */
+.heroBanner .heroTitle {
+  background: none;
+  -webkit-text-fill-color: #fff;
 }
 
 .heroBanner .heroSynopsis {
@@ -2645,14 +2652,14 @@
 
 .heroBanner .heroBtn {
   background: linear-gradient(135deg, #f8c35d 0%, #e6a32d 100%) !important;
-  color: #17120a !important;
+  color: #fff !important;
   border-radius: 999px;
   box-shadow: 0 8px 24px rgba(226, 157, 37, 0.25);
 }
 
 .heroBanner .heroBtn:hover {
   background: linear-gradient(135deg, #ffd477 0%, #efb13c 100%) !important;
-  color: #17120a !important;
+  color: #fff !important;
   box-shadow: 0 10px 30px rgba(226, 157, 37, 0.35);
 }
 
