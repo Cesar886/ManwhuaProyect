@@ -643,7 +643,7 @@ export default function ManhwaDetail({ initialSeries, basePath = '/manhwa', lang
 
     const hasAdultGenre = (badgeSeries?.genres || []).some((genre) => {
       const genreName = (typeof genre === 'string' ? genre : genre?.name || '')?.toLowerCase();
-      return genreName.includes('adult') || genreName.includes('hentai') || genreName.includes('ecchi') || genreName.includes('smut');
+      return genreName.includes('adult') || genreName.includes('hentai') || genreName.includes('smut');
     });
 
     return hasAdultFlag || hasAdultGenre;

@@ -19,7 +19,7 @@ export const isAdultSeries = (series) => {
 
   const genres = Array.isArray(series.genres) ? series.genres : [];
   const ADULT_GENRES = [
-    'adult', 'hentai', 'ecchi', 'smut', 'mature',
+    'adult', 'hentai', 'smut', 'mature',
     'ntr', 'milf', 'mujer mayor', 'madrastra',
     'madre e hija', 'amigos con derechos', 'relacion secreta',
   ];
