@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Modal } from '@mantine/core';
-import { IconArrowUpRight, IconFolder, IconHeartFilled, IconLock, IconPencil, IconPlus, IconWorld } from '@tabler/icons-react';
-import Header from '@/components/Header';
+import { IconArrowUpRight, IconBook2, IconFolder, IconHeartFilled, IconLink, IconLock, IconPencil, IconPlus, IconWorld } from '@tabler/icons-react';
 import ManhwaCover from '@/components/ManhwaCover';
+import CollectionEditor from '@/components/collections/CollectionEditor';
+import { CollectionPageFrame, CollectionHero, CollectionSecondaryAction, CollectionSectionHeading } from '@/components/collections/CollectionPageChrome';
 import { useAuth } from '@/contexts/AuthContext';
-import { createCollection, getMyCollections, updateCollection, deleteCollection } from '@/api/requests';
+import { createCollection, getMyCollections } from '@/api/requests';
 import { getCoverUrl } from '@/utils/imageUtils';
 import { getLocalizedPath } from '@/utils/i18nRoutes';
 import styles from './MyCollections.module.css';
@@ -23,14 +23,7 @@ export default function MyCollectionsClient({ lang = 'es' }) {
   const [coverUrl, setCoverUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editCoverUrl, setEditCoverUrl] = useState('');
-  const [editVisibility, setEditVisibility] = useState('private');
-  const [editError, setEditError] = useState('');
-  const [savingEdit, setSavingEdit] = useState(false);
   const en = lang === 'en';
-  const displayCollections = collections;
 
   const loadCollections = useCallback(async () => {
     setLoading(true);
@@ -69,54 +62,21 @@ export default function MyCollectionsClient({ lang = 'es' }) {
     }
   };
 
-  const openEditor = (collection) => {
-    setEditing(collection);
-    setEditName(collection.name);
-    setEditDescription(collection.description || '');
-    setEditCoverUrl(collection.coverUrl || '');
-    setEditVisibility(collection.visibility);
-    setEditError('');
-  };
-
-  const handleEdit = async (event) => {
-    event.preventDefault();
-    if (!editing || !editName.trim() || savingEdit) return;
-    setSavingEdit(true);
-    setEditError('');
-    try {
-      await updateCollection(editing.publicId, {
-        name: editName.trim(),
-        description: editDescription.trim(),
-        coverUrl: editCoverUrl.trim(),
-        visibility: editVisibility,
-      });
-      setEditing(null);
-      await loadCollections();
-    } catch (err) {
-      setEditError(err.message || (en ? 'Could not save changes.' : 'No se pudieron guardar los cambios.'));
-    } finally {
-      setSavingEdit(false);
-    }
-  };
-
   return (
-    <main className={styles.page}>
-      <Header lang={lang} />
-      <div className={styles.container}>
-        <div className={styles.heading}>
-          <div>
-            <Link className={styles.backLink} href={getLocalizedPath('/home', lang)}>
-              {en ? 'Home' : 'Inicio'}
-            </Link>
-            <h1>{en ? 'My collections' : 'Mis colecciones'}</h1>
-            <p>{en ? 'Keep the stories you love together in your own lists.' : 'Organiza tus obras favoritas en listas propias.'}</p>
-          </div>
-          {user && (
-            <button className={styles.primaryButton} type="button" onClick={() => setShowForm((value) => !value)}>
-              <IconPlus size={18} /> {en ? 'New collection' : 'Nueva colección'}
+    <CollectionPageFrame lang={lang}>
+        <CollectionHero
+          eyebrow={en ? 'Your personal library' : 'Tu biblioteca personal'}
+          title={en ? 'My collections' : 'Mis colecciones'}
+          description={en ? 'Keep the stories you love together. Make a list for yourself or share it with other readers.' : 'Reúne las historias que te gustan. Crea listas para ti o compártelas con otros lectores.'}
+          actions={user && <>
+            <CollectionSecondaryAction href={getLocalizedPath('/colecciones', lang)}>
+              {en ? 'Explore community' : 'Explorar comunidad'}
+            </CollectionSecondaryAction>
+            <button className={styles.primaryButton} type="button" onClick={() => setShowForm((value) => !value)} aria-expanded={showForm}>
+              <IconPlus size={18} stroke={1.8} /> {en ? 'New collection' : 'Nueva colección'}
             </button>
-          )}
-        </div>
+          </>}
+        />
 
         {authLoading ? (
           <p className={styles.message}>{en ? 'Loading account…' : 'Cargando cuenta…'}</p>
@@ -145,39 +105,55 @@ export default function MyCollectionsClient({ lang = 'es' }) {
             )}
 
             {error && <div className={styles.error} role="alert">{error}</div>}
-            {loading ? <p className={styles.message}>{en ? 'Loading collections…' : 'Cargando colecciones…'}</p> : (
+            {!loading && <CollectionSectionHeading
+              index={en ? 'Your shelves' : 'Tus estantes'}
+              title={en ? 'Your library' : 'Tu biblioteca'}
+              count={`${collections.length} ${en ? (collections.length === 1 ? 'collection' : 'collections') : (collections.length === 1 ? 'colección' : 'colecciones')}`}
+            />}
+            {loading ? <p className={styles.message}>{en ? 'Loading collections…' : 'Cargando colecciones…'}</p> : collections.length === 0 ? (
+              <div className={styles.empty}>
+                <IconFolder size={36} stroke={1.3} />
+                <h2>{en ? 'Your library starts here.' : 'Tu biblioteca empieza aquí.'}</h2>
+                <p>{en ? 'Create your first collection and gather the stories you want to keep close.' : 'Crea tu primera colección y reúne las historias que quieras conservar.'}</p>
+                <button className={styles.primaryButton} type="button" onClick={() => setShowForm(true)}><IconPlus size={17} />{en ? 'New collection' : 'Nueva colección'}</button>
+              </div>
+            ) : (
               <div className={styles.grid}>
-                {displayCollections.map((collection) => {
+                {collections.map((collection) => {
                   const isDefault = collection.type === 'favorites';
                   const preview = collection.previewSeries?.[0];
                   const image = collection.coverUrl || getCoverUrl(preview);
                   return (
                     <article className={`${styles.card} ${isDefault ? styles.favoriteCard : ''}`} key={collection.id}>
                       <Link className={styles.cardButton} href={`${getLocalizedPath('/mis-colecciones', lang)}/${collection.publicId}`}>
-                        <span className={styles.cardBanner}>
+                        <span className={`${styles.cardBanner} ${image ? styles.hasImage : ''}`}>
                           {image ? <ManhwaCover src={image} fallbackSrc={getCoverUrl(preview)} alt={en ? `${collection.name} cover` : `Portada de ${collection.name}`} className={styles.bannerImage} /> : null}
                           <span className={styles.bannerShade} />
                           <span className={styles.bannerIcon}>{isDefault ? <IconHeartFilled size={24} /> : <IconFolder size={24} />}</span>
                           <span className={styles.bannerLabel}>{isDefault ? (en ? 'YOUR FAVORITES' : 'TUS FAVORITOS') : (en ? 'YOUR COLLECTION' : 'TU COLECCIÓN')}</span>
+                          <span className={styles.bannerCount}><strong>{collection.manhwasCount ?? 0}</strong><small>{en ? 'titles' : 'obras'}</small></span>
                         </span>
                         <span className={styles.cardContent}>
                           <span className={styles.cardTitleRow}><strong>{collection.name}</strong><IconArrowUpRight size={18} /></span>
                           <span className={styles.cardDescription}>{collection.description || (en ? 'A space for your favorite stories.' : 'Un espacio para tus historias favoritas.')}</span>
                           <span className={styles.meta}>
-                            {isDefault ? <IconHeartFilled size={14} /> : collection.visibility === 'public' ? <IconWorld size={14} /> : <IconLock size={14} />}
+                            {collection.visibility === 'public' ? <IconWorld size={15} /> : collection.visibility === 'unlisted' ? <IconLink size={15} /> : <IconLock size={15} />}
                             {collection.visibility === 'public' ? (en ? 'Public' : 'Pública') : collection.visibility === 'unlisted' ? (en ? 'Unlisted' : 'No listada') : (en ? 'Private' : 'Privada')}
-                            <span className={styles.metaDot}>·</span> {collection.manhwasCount ?? '—'} {en ? 'titles' : 'obras'}
+                            <span className={styles.metaDot}>·</span><IconBook2 size={15} /> {collection.manhwasCount ?? '—'} {en ? 'titles' : 'obras'}
                           </span>
                         </span>
                       </Link>
-                      <button className={styles.editButton} type="button" onClick={() => openEditor(collection)} aria-label={en ? `Edit ${collection.name}` : `Editar ${collection.name}`}>
-                        <IconPencil size={16} /> {en ? 'Edit' : 'Editar'}
-                      </button>
-                      <Link className={styles.editButton} href={isDefault
-                        ? getLocalizedPath(`/u/${user.username}/favoritos`, lang)
-                        : getLocalizedPath(`/coleccion/${collection.publicId}-${collection.slug}`, lang)}>
-                        {en ? 'Open share link' : 'Abrir enlace para compartir'}
-                      </Link>
+                      <div className={styles.cardActions}>
+                        <button className={styles.editButton} type="button" onClick={() => setEditing(collection)} aria-label={en ? `Edit ${collection.name}` : `Editar ${collection.name}`}>
+                          <IconPencil size={16} stroke={1.8} /> {en ? 'Edit' : 'Editar'}
+                        </button>
+                        <Link className={styles.shareLink} href={isDefault
+                          ? getLocalizedPath(`/u/${user.username}/favoritos`, lang)
+                          : getLocalizedPath(`/coleccion/${collection.publicId}-${collection.slug}`, lang)}>
+                          {collection.visibility === 'private' ? (en ? 'View page' : 'Ver página') : (en ? 'Open link' : 'Abrir enlace')}
+                          <IconArrowUpRight size={16} stroke={1.8} />
+                        </Link>
+                      </div>
                     </article>
                   );
                 })}
@@ -185,48 +161,7 @@ export default function MyCollectionsClient({ lang = 'es' }) {
             )}
           </>
         )}
-      </div>
-
-      <Modal
-        opened={Boolean(editing)}
-        onClose={() => { if (!savingEdit) setEditing(null); }}
-        title={en ? 'Edit collection' : 'Editar colección'}
-        centered
-        size="lg"
-        overlayProps={{ backgroundOpacity: 0.7, blur: 6 }}
-        classNames={{ content: styles.editModal, header: styles.editModalHeader, body: styles.editModalBody }}
-      >
-        <form className={styles.editForm} onSubmit={handleEdit}>
-          <label htmlFor="edit-collection-name">{en ? 'Name' : 'Nombre'}</label>
-          <input id="edit-collection-name" value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={200} required />
-          <label htmlFor="edit-collection-description">{en ? 'Description' : 'Descripción'}</label>
-          <textarea id="edit-collection-description" value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={2000} rows={3} />
-          <label htmlFor="edit-collection-cover">{en ? 'Cover image URL' : 'URL de la imagen de portada'}</label>
-          <input id="edit-collection-cover" type="url" value={editCoverUrl} onChange={(event) => setEditCoverUrl(event.target.value)} placeholder="https://..." />
-          {(editCoverUrl || editing?.previewSeries?.[0]) && (
-            <div className={styles.editPreview}>
-              <ManhwaCover src={editCoverUrl || getCoverUrl(editing?.previewSeries?.[0])} fallbackSrc={getCoverUrl(editing?.previewSeries?.[0])} alt={en ? 'Collection cover preview' : 'Vista previa de la portada'} />
-            </div>
-          )}
-          <span className={styles.fieldHint}>{en ? 'Leave empty to use the cover of a story in this collection.' : 'Déjalo vacío para usar la portada de una obra de esta colección.'}</span>
-          <label htmlFor="edit-collection-visibility">{en ? 'Visibility' : 'Visibilidad'}</label>
-          <select id="edit-collection-visibility" value={editVisibility} onChange={(event) => setEditVisibility(event.target.value)}>
-            <option value="private">{en ? 'Private' : 'Privada'}</option>
-            <option value="unlisted">{en ? 'Unlisted (link only)' : 'No listada (solo enlace)'}</option>
-            <option value="public">{en ? 'Public' : 'Pública'}</option>
-          </select>
-          {editError && <p className={styles.error} role="alert">{editError}</p>}
-          <div className={styles.editActions}>
-            {editing?.type !== 'favorites' && <button className={styles.cancelButton} type="button" disabled={savingEdit} onClick={async () => {
-              if (!window.confirm(en ? 'Delete this collection?' : '¿Eliminar esta colección?')) return;
-              try { await deleteCollection(editing.publicId); setEditing(null); await loadCollections(); }
-              catch (err) { setEditError(err.message); }
-            }}>{en ? 'Delete' : 'Eliminar'}</button>}
-            <button className={styles.cancelButton} type="button" onClick={() => setEditing(null)} disabled={savingEdit}>{en ? 'Cancel' : 'Cancelar'}</button>
-            <button className={styles.primaryButton} type="submit" disabled={savingEdit}>{savingEdit ? (en ? 'Saving…' : 'Guardando…') : (en ? 'Save changes' : 'Guardar cambios')}</button>
-          </div>
-        </form>
-      </Modal>
-    </main>
+      {editing && <CollectionEditor key={editing.publicId} collection={editing} lang={lang} onClose={() => setEditing(null)} onSaved={loadCollections} onDeleted={loadCollections} />}
+    </CollectionPageFrame>
   );
 }

@@ -1,5 +1,3 @@
-const VERSION = '2026-11-21-2';
-const STATIC_CACHE = `mi-static-${VERSION}`;
 const HTML_CACHE = 'mi-pages-v2';
 const API_CACHE = 'mi-public-api-v1';
 const OFFLINE_URL = '/offline';
@@ -26,7 +24,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const cacheNames = await caches.keys();
     const obsolete = cacheNames.filter((name) => name.startsWith('mi-')
-      && ![STATIC_CACHE, HTML_CACHE, API_CACHE].includes(name));
+      && ![HTML_CACHE, API_CACHE].includes(name));
     for (const legacy of ['manhwa-images-v5', 'mi-images-v1', 'mi-pages-v1']) {
       if (cacheNames.includes(legacy) && !obsolete.includes(legacy)) obsolete.push(legacy);
     }
@@ -49,10 +47,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.protocol !== 'https:' && url.origin !== self.location.origin) return;
 
-  if (url.origin === self.location.origin && url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE));
-    return;
-  }
+  // Next hashes production assets and sends its own cache headers. Intercepting
+  // these requests can keep a development chunk after HMR replaces it, leaving
+  // the browser with an RSC reference to a missing Webpack module.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/_next/static/')) return;
 
   if (request.mode === 'navigate' && request.headers.get('accept')?.includes('text/html')) {
     if (url.origin !== self.location.origin || isPrivatePath(url.pathname)) return;
@@ -123,18 +121,6 @@ function safeLocalPath(value) {
   } catch {
     return '/home';
   }
-}
-
-async function cacheFirst(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  if (cached) return cached;
-
-  const response = await fetch(request);
-  if (response.status === 200 && response.type !== 'opaque') {
-    await cache.put(request, response.clone());
-  }
-  return response;
 }
 
 async function networkFirstPage(event, request) {

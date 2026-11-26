@@ -30,9 +30,10 @@ const clean = (value) => {
  * @param {string}  slug        - Slug del manhwa (activa el cover registry)
  * @param {string}  alt         - Texto alternativo SEO
  * @param {string}  className   - Clases CSS
+ * @param {React.ReactNode} fallbackContent - Contenido opcional cuando no hay portada disponible
  * @param {boolean} priority    - LCP priority
  */
-export default function ManhwaCover({ src, alt, className, fallbackSrc, slug, series, priority = false }) {
+export default function ManhwaCover({ src, alt, className, fallbackSrc, fallbackContent, slug, series, priority = false }) {
     const coverInput = series || (src && typeof src === 'object' && !Array.isArray(src)) ? (series || src) : null;
     const coverInputKey = coverInput ? getCoverUrls(coverInput).join('\u0000') : '';
     const fallbackValues = Array.isArray(fallbackSrc) ? fallbackSrc : [fallbackSrc];
@@ -94,7 +95,7 @@ export default function ManhwaCover({ src, alt, className, fallbackSrc, slug, se
                 }}
                 role="img"
                 aria-label={seoAlt}
-            />
+            >{fallbackContent}</div>
         );
     }
 

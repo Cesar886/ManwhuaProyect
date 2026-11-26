@@ -81,8 +81,12 @@ export async function middleware(request) {
   const token = request.cookies.get('token')?.value
 
   const forward = () => NextResponse.next()
+  const hiddenCollection = () => new NextResponse('Colección no encontrada', {
+    status: 404,
+    headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' },
+  })
 
-  if (pathname === '/mis-colecciones/__favorites__' || pathname === '/en/my-collections/__favorites__') {
+  if (/^\/(?:en\/my-collections|mis-colecciones)\/(?:__favorites__|favorites)$/.test(pathname)) {
     const en = pathname.startsWith('/en/')
     let username = null
     if (token) {
@@ -102,11 +106,29 @@ export async function middleware(request) {
     return response
   }
 
+  const manageMatch = /^\/(?:en\/my-collections|mis-colecciones)\/([^/]+)$/.exec(pathname)
+  if (manageMatch) {
+    if (!token) return hiddenCollection()
+    try {
+      const response = await fetch(`${internalApiBase()}/collections/mine`, {
+        headers: { cookie: headers.get('cookie') || '' }, cache: 'no-store',
+      })
+      if (response.status === 401 || response.status === 403) return hiddenCollection()
+      if (response.ok) {
+        const mine = (await response.json())?.data?.collections || []
+        if (!mine.some(c => c.publicId === manageMatch[1] || c.legacySlug === manageMatch[1])) return hiddenCollection()
+      }
+    } catch { /* The page handles API errors. */ }
+  }
+
   // Server-side 301 for a public collection whose decorative slug changed.
   const collectionMatch = /^\/(en\/collection|coleccion)\/([A-Za-z0-9]{8})-[^/]+$/.exec(pathname)
   if (collectionMatch) {
     try {
-      const response = await fetch(`${internalApiBase()}/collections/${collectionMatch[2]}`, { cache: 'no-store' })
+      const response = await fetch(`${internalApiBase()}/collections/${collectionMatch[2]}`, {
+        headers: { cookie: headers.get('cookie') || '' }, cache: 'no-store',
+      })
+      if (response.status === 404) return hiddenCollection()
       if (response.ok) {
         const c = (await response.json())?.data?.collection
         if (c?.visibility === 'public') {
@@ -124,6 +146,16 @@ export async function middleware(request) {
         }
       }
     } catch { /* The page handles API errors and access checks. */ }
+  }
+
+  const favoritesMatch = /^\/(?:en\/)?u\/([^/]+)\/(?:favoritos|favorites)$/.exec(pathname)
+  if (favoritesMatch) {
+    try {
+      const response = await fetch(`${internalApiBase()}/users/${encodeURIComponent(favoritesMatch[1])}/bookmarks?limit=1`, {
+        headers: { cookie: headers.get('cookie') || '' }, cache: 'no-store',
+      })
+      if (response.status === 404) return hiddenCollection()
+    } catch { /* The page handles API errors. */ }
   }
 
   // 1. Protección de rutas privadas
