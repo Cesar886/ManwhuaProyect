@@ -202,7 +202,18 @@
 }
 
 @media (max-width: 680px) {
-  .grid { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+  .artwork { height: clamp(135px, 37vw, 180px); border-radius: 12px; }
+  .artworkIndex { top: .65rem; left: .7rem; font-size: .65rem; }
+  .openIcon { top: .55rem; right: .55rem; width: 27px; height: 27px; }
+  .openIcon svg { width: 14px; height: 14px; }
+  .coverBack, .coverFront { border-width: 3px; border-radius: 5px; }
+  .cardBody { padding: .65rem .1rem .1rem; }
+  .creator { font-size: .68rem; }
+  .cardBody h3 { margin: .3rem 0 .5rem; font-size: 1.1rem; }
+  .cardMeta { gap: .25rem .6rem; font-size: .66rem; }
+  .cardMeta span { gap: .2rem; }
+  .cardMeta svg { width: 12px; height: 12px; }
   .empty { grid-template-columns: 1fr; text-align: center; }
   .emptyArt { margin: 1.2rem auto 0; transform: scale(.78); height: 190px; }
   .emptyCopy { padding: 0 1.4rem 2rem; margin: 0 auto; }

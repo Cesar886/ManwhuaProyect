@@ -110,8 +110,16 @@
 }
 
 @media (max-width: 680px) {
-  .shell { padding: calc(var(--header-height, 80px) + 1.25rem) 1.25rem 4rem; }
-  .sectionHeading { padding-top: 1.8rem; }
+  .shell { padding: calc(var(--header-height, 80px) + .5rem) 1rem 3rem; }
+  .hero { padding-bottom: 1.25rem; }
+  .hero h1 { margin: .5rem 0 .6rem; font-size: clamp(2rem, 8vw, 2.6rem); }
+  .hero p { font-size: .9rem; line-height: 1.45; }
+  .actions { margin-top: .85rem; }
+  .secondaryAction { min-height: 38px; padding: .45rem .85rem; font-size: .8rem; }
+  .secondaryAction svg { width: 15px; height: 15px; }
+  .sectionHeading { gap: .5rem; padding: 1.25rem 0 1rem; }
+  .sectionHeading h2 { margin-top: .35rem; font-size: clamp(1.4rem, 5vw, 1.75rem); }
+  .count { padding: .4rem .65rem; font-size: .7rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

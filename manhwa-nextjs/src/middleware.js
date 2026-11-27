@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { SITE_URL } from './config'
 
 const PROTECTED_ROUTES = ['/pedidos']
 const BOT_PATTERNS = /googlebot|bingbot|yandex|duckduckbot|slurp|baiduspider/i
@@ -92,7 +93,7 @@ export async function middleware(request) {
     if (token) {
       try {
         const response = await fetch(`${internalApiBase()}/auth/me`, {
-          headers: { cookie: headers.get('cookie') || '' }, cache: 'no-store',
+          headers: { cookie: headers.get('cookie') || '', origin: SITE_URL }, cache: 'no-store',
         })
         if (response.ok) username = (await response.json())?.data?.user?.username
       } catch { /* Send the visitor to their private collections panel. */ }
@@ -111,7 +112,7 @@ export async function middleware(request) {
     if (!token) return hiddenCollection()
     try {
       const response = await fetch(`${internalApiBase()}/collections/mine`, {
-        headers: { cookie: headers.get('cookie') || '' }, cache: 'no-store',
+        headers: { cookie: headers.get('cookie') || '', origin: SITE_URL }, cache: 'no-store',
       })
       if (response.status === 401 || response.status === 403) return hiddenCollection()
       if (response.ok) {
@@ -126,7 +127,7 @@ export async function middleware(request) {
   if (collectionMatch) {
     try {
       const response = await fetch(`${internalApiBase()}/collections/${collectionMatch[2]}`, {
-        headers: { cookie: headers.get('cookie') || '' }, cache: 'no-store',
+        headers: { cookie: headers.get('cookie') || '', origin: SITE_URL }, cache: 'no-store',
       })
       if (response.status === 404) return hiddenCollection()
       if (response.ok) {
@@ -152,7 +153,7 @@ export async function middleware(request) {
   if (favoritesMatch) {
     try {
       const response = await fetch(`${internalApiBase()}/users/${encodeURIComponent(favoritesMatch[1])}/bookmarks?limit=1`, {
-        headers: { cookie: headers.get('cookie') || '' }, cache: 'no-store',
+        headers: { cookie: headers.get('cookie') || '', origin: SITE_URL }, cache: 'no-store',
       })
       if (response.status === 404) return hiddenCollection()
     } catch { /* The page handles API errors. */ }
